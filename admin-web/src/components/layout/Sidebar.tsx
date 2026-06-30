@@ -1,76 +1,61 @@
 import {
   LayoutDashboard,
   Users,
-  Briefcase,
+  UserRound,
   ClipboardList,
-  BarChart3,
-  Settings,
+  Bell,
   LogOut,
 } from "lucide-react";
 
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 
 const menus = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
-    path: "/dashboard",
+    path: "/customer/dashboard",
   },
   {
     icon: Users,
     label: "Workers",
-    path: "/workers",
-  },
-  {
-    icon: Briefcase,
-    label: "Employers",
-    path: "/employers",
+    path: "/customer/workers",
   },
   {
     icon: ClipboardList,
     label: "Bookings",
-    path: "/bookings",
+    path: "/customer/bookings",
   },
   {
-    icon: BarChart3,
-    label: "Reports",
-    path: "/reports",
-  },
-  {
-    icon: Settings,
-    label: "Settings",
-    path: "/settings",
+    icon: Bell,
+    label: "Notifications",
+    path: "/customer/notifications",
   },
 ];
 
-export default function Sidebar() {
+export default function CustomerSidebar() {
   const navigate = useNavigate();
 
   async function handleLogout() {
     await logout();
-    navigate("/");
+    navigate("/customer/login");
   }
 
   return (
     <aside className="w-72 min-h-screen bg-blue-700 text-white flex flex-col">
 
       {/* Logo */}
-
       <div className="p-8 border-b border-blue-600">
-
         <h1 className="text-3xl font-bold">
           LivelihoodGo
         </h1>
 
         <p className="text-sm text-blue-200 mt-1">
-          Admin Panel
+          Customer Panel
         </p>
-
       </div>
 
       {/* Menu */}
-
       <nav className="flex-1 mt-6">
 
         {menus.map((menu) => {
@@ -82,7 +67,6 @@ export default function Sidebar() {
               to={menu.path}
               className={({ isActive }) =>
                 `flex items-center gap-4 px-8 py-4 transition
-
                 ${
                   isActive
                     ? "bg-white text-blue-700 font-semibold"
@@ -91,29 +75,31 @@ export default function Sidebar() {
               }
             >
               <Icon size={20} />
-
               <span>{menu.label}</span>
-
             </NavLink>
           );
         })}
 
+        {/* PROFILE */}
+        <Link
+          to="/customer/profile"
+          className="flex items-center gap-4 px-8 py-4 hover:bg-blue-800 transition"
+        >
+          <UserRound size={20} />
+          Profile
+        </Link>
+
       </nav>
 
       {/* Footer */}
-
       <div className="border-t border-blue-600 p-6">
-
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 w-full hover:text-red-200 transition"
         >
           <LogOut size={20} />
-
           Logout
-
         </button>
-
       </div>
 
     </aside>

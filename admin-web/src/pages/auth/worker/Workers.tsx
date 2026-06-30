@@ -1,93 +1,170 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+
+import AdminLayout from "../../../layouts/AdminLayout";
+
 import {
   getWorkers,
   approveWorker,
   rejectWorker,
 } from "../../../services/workerService";
-import { Link } from "react-router-dom";
 
 export default function Workers() {
   const [workers, setWorkers] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("All");
 
   useEffect(() => {
     loadWorkers();
-  }, []);
+  }, [status]);
 
   async function loadWorkers() {
-    const data = await getWorkers();
+    const data = await getWorkers(status);
     setWorkers(data);
   }
 
   async function handleApprove(id: string) {
+    if (!window.confirm("Approve this worker?")) return;
+
     await approveWorker(id);
     loadWorkers();
   }
 
   async function handleReject(id: string) {
+    if (!window.confirm("Reject this worker?")) return;
+
     await rejectWorker(id);
     loadWorkers();
   }
 
+  const filteredWorkers = useMemo(() => {
+    return workers.filter((worker) =>
+      worker.full_name?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [workers, search]);
+
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Workers</h1>
+    <AdminLayout>
 
-        <input
-          placeholder="Search worker..."
-          className="border rounded-lg px-4 py-2 w-80"
-        />
-      </div>
+      <div className="p-8">
 
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="p-4 text-left">Name</th>
-              <th className="p-4 text-left">Email</th>
-              <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Action</th>
-            </tr>
-          </thead>
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-8">
 
-          <tbody>
-            {workers.map((worker) => (
-              <tr key={worker.id} className="border-b">
-                <td className="p-4">{worker.full_name}</td>
+          <h1 className="text-3xl font-bold">
+            Workers Management
+          </h1>
 
-                <td className="p-4">{worker.email}</td>
+          <div className="flex gap-4">
 
-                <td className="p-4">{worker.status}</td>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search worker..."
+              className="border rounded-lg px-4 py-2 w-72"
+            />
 
-                <td className="p-4">
-                  <div className="flex gap-2">
-                    <Link
-                      to={`/workers/${worker.id}`}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      View
-                    </Link>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="border rounded-lg px-4 py-2"
+            >
+              <option>All</option>
+              <option>Pending</option>
+              <option>Approved</option>
+              <option>Rejected</option>
+            </select>
 
-                    <button
-                      onClick={() => handleApprove(worker.id)}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      Approve
-                    </button>
+          </div>
 
-                    <button
-                      onClick={() => handleReject(worker.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </td>
+        </div>
+
+        {/* TABLE */}
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+
+          <table className="w-full">
+
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-4 text-left">Name</th>
+                <th className="p-4 text-left">Email</th>
+                <th className="p-4 text-left">Status</th>
+                <th className="p-4 text-left">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+
+              {filteredWorkers.length > 0 ? (
+                filteredWorkers.map((worker) => (
+                  <tr key={worker.id} className="border-b">
+
+                    <td className="p-4">{worker.full_name}</td>
+                    <td className="p-4">{worker.email}</td>
+
+                    <td className="p-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          worker.status === "Approved"
+                            ? "bg-green-100 text-green-700"
+                            : worker.status === "Rejected"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {worker.status}
+                      </span>
+                    </td>
+
+                    <td className="p-4">
+                      <div className="flex gap-2">
+
+                        <Link
+                          to={`/workers/${worker.id}`}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                        >
+                          View
+                        </Link>
+
+                        {worker.status === "Pending" && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(worker.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+                            >
+                              Approve
+                            </button>
+
+                            <button
+                              onClick={() => handleReject(worker.id)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                      </div>
+                    </td>
+
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center py-10">
+                    No workers found.
+                  </td>
+                </tr>
+              )}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
       </div>
-    </div>
+
+    </AdminLayout>
   );
 }

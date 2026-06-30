@@ -13,8 +13,11 @@ export async function login(email: string, password: string) {
 }
 
 export async function registerUser(
-  fullName: string,
+  firstName: string,
+  middleName: string,
+  lastName: string,
   email: string,
+  phone: string,
   password: string,
   role: string
 ) {
@@ -24,16 +27,25 @@ export async function registerUser(
   });
 
   if (error) {
-    return { data: null, error };
+    return {
+      data: null,
+      error,
+    };
   }
 
   if (data.user) {
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: data.user.id,
-      full_name: fullName,
-      email: email,
-      role: role,
-    });
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({
+        id: data.user.id,
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        email,
+        phone,
+        role,
+        status: role === "customer" ? "Approved" : "Pending",
+      });
 
     if (profileError) {
       return {
@@ -54,7 +66,25 @@ export async function logout() {
 }
 
 export async function getCurrentUser() {
-  const { data } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  return data.user;
+  return {
+    user,
+    error,
+  };
+}
+
+export async function getCurrentSession() {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
+  return {
+    session,
+    error,
+  };
 }

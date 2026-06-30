@@ -7,7 +7,7 @@ export async function getDashboardStats() {
     .select("*", { count: "exact", head: true })
     .eq("role", "worker");
 
-  // Total Customers
+  // Total Customers (UPDATED)
   const customers = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true })

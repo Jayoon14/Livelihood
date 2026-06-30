@@ -1,14 +1,84 @@
 import { useState } from "react";
-import { User, Mail, Phone, Lock, Eye, EyeOff } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { registerUser } from "../../../services/authService";
 
 export default function CustomerRegister() {
+  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
+
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  async function handleRegister() {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !phone ||
+      !password ||
+      !confirmPassword
+    ) {
+      alert("Please complete all required fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await registerUser(
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phone,
+      password,
+      "customer"
+    );
+
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert("Registration successful!");
+
+    navigate("/");
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
 
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-8">
+      <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-8">
 
         {/* Logo */}
 
@@ -28,21 +98,77 @@ export default function CustomerRegister() {
 
         </div>
 
-        {/* Full Name */}
+        {/* First Name */}
 
         <div className="mb-4">
 
           <label className="text-sm font-medium">
-            Full Name
+            First Name
           </label>
 
           <div className="flex items-center border rounded-lg px-3 mt-2">
 
-            <User className="w-5 h-5 text-gray-400"/>
+            <User className="w-5 h-5 text-gray-400" />
 
             <input
               type="text"
-              placeholder="Enter full name"
+              value={firstName}
+              onChange={(e) =>
+                setFirstName(e.target.value)
+              }
+              placeholder="Enter first name"
+              className="w-full p-3 outline-none"
+            />
+
+          </div>
+
+        </div>
+
+        {/* Middle Name */}
+
+        <div className="mb-4">
+
+          <label className="text-sm font-medium">
+            Middle Name (Optional)
+          </label>
+
+          <div className="flex items-center border rounded-lg px-3 mt-2">
+
+            <User className="w-5 h-5 text-gray-400" />
+
+            <input
+              type="text"
+              value={middleName}
+              onChange={(e) =>
+                setMiddleName(e.target.value)
+              }
+              placeholder="Enter middle name"
+              className="w-full p-3 outline-none"
+            />
+
+          </div>
+
+        </div>
+
+        {/* Last Name */}
+
+        <div className="mb-4">
+
+          <label className="text-sm font-medium">
+            Last Name
+          </label>
+
+          <div className="flex items-center border rounded-lg px-3 mt-2">
+
+            <User className="w-5 h-5 text-gray-400" />
+
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) =>
+                setLastName(e.target.value)
+              }
+              placeholder="Enter last name"
               className="w-full p-3 outline-none"
             />
 
@@ -60,10 +186,14 @@ export default function CustomerRegister() {
 
           <div className="flex items-center border rounded-lg px-3 mt-2">
 
-            <Mail className="w-5 h-5 text-gray-400"/>
+            <Mail className="w-5 h-5 text-gray-400" />
 
             <input
               type="email"
+              value={email}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
               placeholder="Enter email"
               className="w-full p-3 outline-none"
             />
@@ -71,8 +201,7 @@ export default function CustomerRegister() {
           </div>
 
         </div>
-
-        {/* Phone */}
+                {/* Phone */}
 
         <div className="mb-4">
 
@@ -82,10 +211,12 @@ export default function CustomerRegister() {
 
           <div className="flex items-center border rounded-lg px-3 mt-2">
 
-            <Phone className="w-5 h-5 text-gray-400"/>
+            <Phone className="w-5 h-5 text-gray-400" />
 
             <input
               type="text"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               placeholder="09XXXXXXXXX"
               className="w-full p-3 outline-none"
             />
@@ -104,10 +235,12 @@ export default function CustomerRegister() {
 
           <div className="flex items-center border rounded-lg px-3 mt-2">
 
-            <Lock className="w-5 h-5 text-gray-400"/>
+            <Lock className="w-5 h-5 text-gray-400" />
 
             <input
               type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               className="w-full p-3 outline-none"
             />
@@ -117,11 +250,35 @@ export default function CustomerRegister() {
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
-                <EyeOff className="w-5 h-5 text-gray-500"/>
+                <EyeOff className="w-5 h-5 text-gray-500" />
               ) : (
-                <Eye className="w-5 h-5 text-gray-500"/>
+                <Eye className="w-5 h-5 text-gray-500" />
               )}
             </button>
+
+          </div>
+
+        </div>
+
+        {/* Confirm Password */}
+
+        <div className="mb-6">
+
+          <label className="text-sm font-medium">
+            Confirm Password
+          </label>
+
+          <div className="flex items-center border rounded-lg px-3 mt-2">
+
+            <Lock className="w-5 h-5 text-gray-400" />
+
+            <input
+              type={showPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              className="w-full p-3 outline-none"
+            />
 
           </div>
 
@@ -130,9 +287,11 @@ export default function CustomerRegister() {
         {/* Register */}
 
         <button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition"
+          onClick={handleRegister}
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold transition"
         >
-          Register
+          {loading ? "Creating Account..." : "Register"}
         </button>
 
         <p className="text-center mt-6 text-sm">
