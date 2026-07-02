@@ -2,23 +2,28 @@ import { supabase } from "../lib/supabase";
 
 // ==================== WORKERS ====================
 
-export async function getWorkers(status = "All") {
+export async function getWorkers(search = "") {
   let query = supabase
     .from("profiles")
     .select("*")
     .eq("role", "worker")
+    .eq("status", "Approved")
     .order("created_at", { ascending: false });
 
-  if (status !== "All") {
-    query = query.eq("status", status);
+  if (search.trim() !== "") {
+    query = query.or(
+      `first_name.ilike.%${search}%,last_name.ilike.%${search}%`
+    );
   }
 
   const { data, error } = await query;
 
   if (error) throw error;
 
-  return data;
+  return data ?? [];
 }
+
+// ==================== SINGLE WORKER ====================
 
 export async function getWorker(id: string) {
   const { data, error } = await supabase
@@ -32,17 +37,21 @@ export async function getWorker(id: string) {
   return data;
 }
 
-// Alias (used in WorkerDetails)
+// Alias (used in some components)
 export async function getWorkerById(id: string) {
   return getWorker(id);
 }
 
+export async function getWorkerDetails(id: string) {
+  return getWorker(id);
+}
+
+// ==================== WORKER ACTIONS ====================
+
 export async function approveWorker(id: string) {
   const { error } = await supabase
     .from("profiles")
-    .update({
-      status: "Approved",
-    })
+    .update({ status: "Approved" })
     .eq("id", id);
 
   if (error) throw error;
@@ -51,9 +60,7 @@ export async function approveWorker(id: string) {
 export async function rejectWorker(id: string) {
   const { error } = await supabase
     .from("profiles")
-    .update({
-      status: "Rejected",
-    })
+    .update({ status: "Rejected" })
     .eq("id", id);
 
   if (error) throw error;
@@ -120,17 +127,6 @@ export async function getServices(profileId: string) {
     .from("services")
     .select("*")
     .eq("worker_id", profileId);
-
-  if (error) throw error;
-
-  return data;
-}
-export async function getWorkerDetails(id: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", id)
-    .single();
 
   if (error) throw error;
 

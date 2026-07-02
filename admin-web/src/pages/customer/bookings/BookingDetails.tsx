@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-
+import { useNavigate, useParams } from "react-router-dom";
+import CustomerLayout from "../../../layouts/CustomerLayout";
+import RatingStars from "../../../components/RatingStars";
+import { supabase } from "../../../lib/supabase";
 import {
-  getBooking,
-  updateBookingStatus,
-} from "../../../services/bookingService";
+  getBookingDetails,
+  cancelBooking,
+} from "../../../services/customerBookingService";
+import { submitReview } from "../../../services/reviewService";
 
 export default function BookingDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -18,191 +26,231 @@ export default function BookingDetails() {
   }, [id]);
 
   async function loadBooking() {
-    const data = await getBooking(id!);
+    setLoading(true);
+
+    const data = await getBookingDetails(id!);
+
     setBooking(data);
+    setLoading(false);
   }
 
-  async function handleStatus(status: string) {
-    await updateBookingStatus(id!, status);
-    loadBooking();
+  async function handleCancel() {
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this booking?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await cancelBooking(id!);
+
+      alert("Booking cancelled successfully.");
+
+      await loadBooking();
+    } catch (error) {
+      console.error(error);
+
+      alert("Unable to cancel booking.");
+    }
+  }
+
+  async function handleReview() {
+    if (rating === 0) {
+      alert("Please rate the worker.");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    try {
+      await submitReview(
+        booking.id,
+        booking.worker_id,
+        user.id,
+        rating,
+        review
+      );
+
+      alert("Thank you for your review.");
+
+      setRating(0);
+      setReview("");
+    } catch (error) {
+      console.error(error);
+      alert("Unable to submit review.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <CustomerLayout>
+        <div className="p-10 text-center">
+          Loading...
+        </div>
+      </CustomerLayout>
+    );
   }
 
   if (!booking) {
     return (
-      <div className="p-10">
-        Loading...
-      </div>
+      <CustomerLayout>
+        <div className="p-10 text-center">
+          Booking not found.
+        </div>
+      </CustomerLayout>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <CustomerLayout>
+      <div className="max-w-5xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-8">
+          Booking Details
+        </h1>
 
-      <h1 className="text-3xl font-bold">
-        Booking Details
-      </h1>
+        {/* Worker Information */}
+        <div className="bg-white rounded-2xl shadow p-6 mb-6">
+          <h2 className="text-xl font-bold mb-5">
+            Worker Information
+          </h2>
 
-      {/* CUSTOMER */}
+          <div className="grid md:grid-cols-2 gap-5">
+            <div>
+              <p className="text-gray-500">Worker</p>
+              <h3 className="font-semibold">
+                {booking.worker?.first_name}{" "}
+                {booking.worker?.last_name}
+              </h3>
+            </div>
 
-      <div className="bg-white rounded-xl shadow p-6">
-
-        <h2 className="text-xl font-bold mb-5">
-          Customer Information
-        </h2>
-
-        <div className="grid grid-cols-2 gap-5">
-
-          <div>
-            <strong>Name</strong>
-            <p>{booking.customer?.full_name}</p>
+            <div>
+              <p className="text-gray-500">Phone</p>
+              <h3 className="font-semibold">
+                {booking.worker?.phone || "-"}
+              </h3>
+            </div>
           </div>
-
-          <div>
-            <strong>Email</strong>
-            <p>{booking.customer?.email}</p>
-          </div>
-
         </div>
 
-      </div>
+        {/* Booking Information */}
+        <div className="bg-white rounded-2xl shadow p-6">
+          <h2 className="text-xl font-bold mb-5">
+            Booking Information
+          </h2>
 
-      {/* WORKER */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-gray-500">
+                Booking Date
+              </p>
+              <h3 className="font-semibold">
+                {booking.booking_date}
+              </h3>
+            </div>
 
-      <div className="bg-white rounded-xl shadow p-6">
+            <div>
+              <p className="text-gray-500">
+                Booking Time
+              </p>
+              <h3 className="font-semibold">
+                {booking.booking_time}
+              </h3>
+            </div>
 
-        <h2 className="text-xl font-bold mb-5">
-          Assigned Worker
-        </h2>
+            <div className="md:col-span-2">
+              <p className="text-gray-500">
+                Address
+              </p>
+              <h3 className="font-semibold">
+                {booking.address}
+              </h3>
+            </div>
 
-        <div className="grid grid-cols-2 gap-5">
+            <div className="md:col-span-2">
+              <p className="text-gray-500">
+                Notes
+              </p>
+              <div className="border rounded-xl p-4 mt-2">
+                {booking.notes || "No notes."}
+              </div>
+            </div>
 
-          <div>
-            <strong>Name</strong>
+            <div>
+              <p className="text-gray-500 mb-2">
+                Status
+              </p>
 
-            <p>
-              {booking.worker?.full_name || "No Worker Assigned"}
-            </p>
-
+              <span
+                className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                  booking.status === "Pending"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : booking.status === "Accepted"
+                    ? "bg-blue-100 text-blue-700"
+                    : booking.status === "Completed"
+                    ? "bg-green-100 text-green-700"
+                    : booking.status === "Cancelled"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {booking.status}
+              </span>
+            </div>
           </div>
 
-          <div>
-            <strong>Email</strong>
+          {/* ACTIONS */}
+          <div className="flex gap-4 mt-10">
+            <button
+              onClick={() => navigate(-1)}
+              className="border px-6 py-3 rounded-xl hover:bg-gray-100"
+            >
+              Back
+            </button>
 
-            <p>
-              {booking.worker?.email || "-"}
-            </p>
-
+            {booking.status === "Pending" && (
+              <button
+                onClick={handleCancel}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl"
+              >
+                Cancel Booking
+              </button>
+            )}
           </div>
 
+          {/* REVIEW SECTION */}
+          {booking.status === "Completed" && (
+            <div className="bg-white rounded-xl shadow p-6 mt-8">
+              <h2 className="text-2xl font-bold mb-5">
+                Rate this Worker
+              </h2>
+
+              <RatingStars
+                rating={rating}
+                setRating={setRating}
+              />
+
+              <textarea
+                rows={4}
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                placeholder="Write your experience..."
+                className="border rounded-lg w-full p-4 mt-5"
+              />
+
+              <button
+                onClick={handleReview}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl mt-5"
+              >
+                Submit Review
+              </button>
+            </div>
+          )}
         </div>
-
       </div>
-
-      {/* BOOKING */}
-
-      <div className="bg-white rounded-xl shadow p-6">
-
-        <h2 className="text-xl font-bold mb-5">
-          Booking Information
-        </h2>
-
-        <div className="grid grid-cols-2 gap-5">
-
-          <div>
-            <strong>Service</strong>
-            <p>{booking.service_name}</p>
-          </div>
-
-          <div>
-            <strong>Category</strong>
-            <p>{booking.category}</p>
-          </div>
-
-          <div>
-            <strong>Schedule</strong>
-            <p>{booking.schedule_date}</p>
-          </div>
-
-          <div>
-            <strong>Price</strong>
-            <p>₱{booking.price}</p>
-          </div>
-
-          <div className="col-span-2">
-            <strong>Address</strong>
-            <p>{booking.address}</p>
-          </div>
-
-          <div className="col-span-2">
-            <strong>Notes</strong>
-            <p>{booking.notes || "-"}</p>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* STATUS */}
-
-      <div className="bg-white rounded-xl shadow p-6">
-
-        <h2 className="text-xl font-bold mb-5">
-          Booking Status
-        </h2>
-
-        <span
-          className={`px-4 py-2 rounded-full text-white
-          ${
-            booking.status === "Pending"
-              ? "bg-yellow-500"
-              : booking.status === "Approved"
-              ? "bg-blue-600"
-              : booking.status === "Ongoing"
-              ? "bg-purple-600"
-              : booking.status === "Completed"
-              ? "bg-green-600"
-              : "bg-red-600"
-          }`}
-        >
-          {booking.status}
-        </span>
-
-      </div>
-
-      {/* ACTIONS */}
-
-      <div className="flex gap-3 flex-wrap">
-
-        <button
-          onClick={() => handleStatus("Approved")}
-          className="bg-blue-600 text-white px-5 py-3 rounded-lg"
-        >
-          Approve
-        </button>
-
-        <button
-          onClick={() => handleStatus("Ongoing")}
-          className="bg-purple-600 text-white px-5 py-3 rounded-lg"
-        >
-          Ongoing
-        </button>
-
-        <button
-          onClick={() => handleStatus("Completed")}
-          className="bg-green-600 text-white px-5 py-3 rounded-lg"
-        >
-          Complete
-        </button>
-
-        <button
-          onClick={() => handleStatus("Cancelled")}
-          className="bg-red-600 text-white px-5 py-3 rounded-lg"
-        >
-          Cancel
-        </button>
-
-      </div>
-
-    </div>
+    </CustomerLayout>
   );
 }

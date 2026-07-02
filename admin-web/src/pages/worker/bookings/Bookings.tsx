@@ -21,74 +21,39 @@ export default function Bookings() {
     if (!user) return;
 
     const data = await getWorkerBookings(user.id);
-
     setBookings(data);
   }
 
-  async function updateStatus(
-    id: number,
-    status: string
-  ) {
+  async function handleStatus(id: number, status: string) {
     await updateBookingStatus(id, status);
-
     loadBookings();
   }
 
   return (
     <WorkerLayout>
-
       <div className="p-8">
-
-        <h1 className="text-3xl font-bold mb-8">
+        <h1 className="text-3xl font-bold mb-6">
           My Bookings
         </h1>
 
-        <div className="bg-white rounded-2xl shadow overflow-hidden">
-
+        <div className="bg-white rounded-xl shadow overflow-hidden">
           <table className="w-full">
-
-            <thead className="bg-slate-100">
-
+            <thead className="bg-gray-100">
               <tr>
-
-                <th className="p-4 text-left">
-                  Customer
-                </th>
-
-                <th className="p-4 text-left">
-                  Date
-                </th>
-
-                <th className="p-4 text-left">
-                  Time
-                </th>
-
-                <th className="p-4 text-left">
-                  Status
-                </th>
-
-                <th className="p-4 text-left">
-                  Action
-                </th>
-
+                <th className="p-4 text-left">Customer</th>
+                <th className="p-4 text-left">Date</th>
+                <th className="p-4 text-left">Time</th>
+                <th className="p-4 text-left">Status</th>
+                <th className="p-4 text-left">Actions</th>
               </tr>
-
             </thead>
 
             <tbody>
-
               {bookings.map((booking) => (
-
-                <tr
-                  key={booking.id}
-                  className="border-t"
-                >
-
+                <tr key={booking.id} className="border-t">
                   <td className="p-4">
-
                     {booking.customer?.first_name}{" "}
                     {booking.customer?.last_name}
-
                   </td>
 
                   <td className="p-4">
@@ -104,13 +69,9 @@ export default function Bookings() {
                   </td>
 
                   <td className="p-4 flex gap-2">
-
                     <button
                       onClick={() =>
-                        updateStatus(
-                          booking.id,
-                          "Approved"
-                        )
+                        handleStatus(booking.id, "Approved")
                       }
                       className="bg-green-600 text-white px-3 py-2 rounded"
                     >
@@ -119,10 +80,7 @@ export default function Bookings() {
 
                     <button
                       onClick={() =>
-                        updateStatus(
-                          booking.id,
-                          "Cancelled"
-                        )
+                        handleStatus(booking.id, "Cancelled")
                       }
                       className="bg-red-600 text-white px-3 py-2 rounded"
                     >
@@ -131,30 +89,19 @@ export default function Bookings() {
 
                     <button
                       onClick={() =>
-                        updateStatus(
-                          booking.id,
-                          "Completed"
-                        )
+                        handleStatus(booking.id, "Completed")
                       }
                       className="bg-blue-600 text-white px-3 py-2 rounded"
                     >
                       Complete
                     </button>
-
                   </td>
-
                 </tr>
-
               ))}
-
             </tbody>
-
           </table>
-
         </div>
-
       </div>
-
     </WorkerLayout>
   );
 }

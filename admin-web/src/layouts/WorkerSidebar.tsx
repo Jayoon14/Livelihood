@@ -1,7 +1,7 @@
 import {
   LayoutDashboard,
-  Users,
-  CalendarDays,
+  CalendarCheck,
+  Star,
   User,
   LogOut,
 } from "lucide-react";
@@ -9,39 +9,41 @@ import {
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../services/authService";
 
-export default function CustomerSidebar() {
+export default function WorkerSidebar() {
   const navigate = useNavigate();
 
   async function handleLogout() {
     await logout();
-    navigate("/customer/login");
+    navigate("/worker/login");
   }
 
   const menus = [
     {
       name: "Dashboard",
       icon: LayoutDashboard,
-      path: "/customer/dashboard",
-    },
-    {
-      name: "Workers",
-      icon: Users,
-      path: "/customer/workers",
+      path: "/worker/dashboard",
     },
     {
       name: "Bookings",
-      icon: CalendarDays,
-      path: "/customer/bookings",
+      icon: CalendarCheck,
+      path: "/worker/bookings",
+    },
+    {
+      name: "Reviews",
+      icon: Star,
+      path: "/worker/reviews",
     },
     {
       name: "Profile",
       icon: User,
-      path: "/customer/profile",
+      path: "/worker/profile",
     },
   ];
 
   return (
     <aside className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
+
+      {/* Logo */}
 
       <div className="p-6 border-b border-blue-600">
 
@@ -50,10 +52,12 @@ export default function CustomerSidebar() {
         </h1>
 
         <p className="text-blue-200 text-sm">
-          Customer Portal
+          Worker Portal
         </p>
 
       </div>
+
+      {/* Menu */}
 
       <nav className="flex-1 p-4 space-y-2">
 
@@ -80,6 +84,8 @@ export default function CustomerSidebar() {
         })}
 
       </nav>
+
+      {/* Logout */}
 
       <div className="p-4">
 

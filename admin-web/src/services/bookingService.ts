@@ -8,17 +8,15 @@ export async function createBooking(
   address: string,
   notes: string
 ) {
-  const { error } = await supabase
-    .from("bookings")
-    .insert({
-      customer_id: customerId,
-      worker_id: workerId,
-      booking_date: bookingDate,
-      booking_time: bookingTime,
-      address,
-      notes,
-      status: "Pending",
-    });
+  const { error } = await supabase.from("bookings").insert({
+    customer_id: customerId,
+    worker_id: workerId,
+    booking_date: bookingDate,
+    booking_time: bookingTime,
+    address,
+    notes,
+    status: "Pending",
+  });
 
   if (error) throw error;
 }
@@ -41,7 +39,7 @@ export async function getBookings(status = "All") {
 
   if (error) throw error;
 
-  return data;
+  return data ?? [];
 }
 
 export async function getBooking(id: string) {
@@ -60,10 +58,7 @@ export async function getBooking(id: string) {
   return data;
 }
 
-export async function updateBookingStatus(
-  id: string,
-  status: string
-) {
+export async function updateBookingStatus(id: string, status: string) {
   const { error } = await supabase
     .from("bookings")
     .update({ status })
@@ -72,10 +67,7 @@ export async function updateBookingStatus(
   if (error) throw error;
 }
 
-export async function assignWorker(
-  bookingId: string,
-  workerId: string
-) {
+export async function assignWorker(bookingId: string, workerId: string) {
   const { error } = await supabase
     .from("bookings")
     .update({
@@ -85,4 +77,31 @@ export async function assignWorker(
     .eq("id", bookingId);
 
   if (error) throw error;
+}
+export async function getBookingById(id: number) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(`
+      *,
+      customer:profiles!customer_id(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone
+      ),
+      worker:profiles!worker_id(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+
+  return data;
 }

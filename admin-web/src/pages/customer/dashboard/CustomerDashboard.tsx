@@ -9,37 +9,19 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { getFeaturedWorkers } from "../../../services/customerDashboardService";
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
 
   const categories = [
-    {
-      name: "Carpenter",
-      icon: Hammer,
-    },
-    {
-      name: "Plumber",
-      icon: Wrench,
-    },
-    {
-      name: "Electrician",
-      icon: Zap,
-    },
-    {
-      name: "Painter",
-      icon: Paintbrush,
-    },
-    {
-      name: "Cleaner",
-      icon: Sparkles,
-    },
-    {
-      name: "Aircon",
-      icon: Fan,
-    },
+    { name: "Carpenter", icon: Hammer },
+    { name: "Plumber", icon: Wrench },
+    { name: "Electrician", icon: Zap },
+    { name: "Painter", icon: Paintbrush },
+    { name: "Cleaner", icon: Sparkles },
+    { name: "Aircon", icon: Fan },
   ];
 
   const [workers, setWorkers] = useState<any[]>([]);
@@ -56,7 +38,6 @@ export default function CustomerDashboard() {
   return (
     <CustomerLayout>
       {/* Welcome */}
-
       <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-8 text-white">
         <h1 className="text-3xl font-bold">
           Welcome Back 👋
@@ -65,10 +46,19 @@ export default function CustomerDashboard() {
         <p className="mt-2 text-blue-100">
           Find skilled workers near your area.
         </p>
+
+        {/* FIND WORKERS BUTTON */}
+        <div className="mt-6">
+          <Link
+            to="/customer/workers"
+            className="bg-white text-blue-600 font-semibold px-6 py-3 rounded-xl inline-block hover:bg-gray-100 transition"
+          >
+            Find Workers
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
-
       <div className="bg-white rounded-2xl shadow mt-8 p-5 flex items-center gap-4">
         <Search className="text-gray-400" />
 
@@ -80,7 +70,6 @@ export default function CustomerDashboard() {
       </div>
 
       {/* Categories */}
-
       <h2 className="text-2xl font-bold mt-10 mb-5">
         Categories
       </h2>
@@ -108,7 +97,6 @@ export default function CustomerDashboard() {
       </div>
 
       {/* Featured Workers */}
-
       <h2 className="text-2xl font-bold mt-12 mb-5">
         Featured Workers
       </h2>
@@ -134,7 +122,9 @@ export default function CustomerDashboard() {
             </div>
 
             <button
-              onClick={() => navigate(`/customer/workers/${worker.id}`)}
+              onClick={() =>
+                navigate(`/customer/workers/${worker.id}`)
+              }
               className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl"
             >
               View Profile
