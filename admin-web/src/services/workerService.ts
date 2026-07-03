@@ -7,7 +7,6 @@ export async function getWorkers(search = "") {
     .from("profiles")
     .select("*")
     .eq("role", "worker")
-    .eq("status", "Approved")
     .order("created_at", { ascending: false });
 
   if (search.trim() !== "") {
@@ -51,7 +50,9 @@ export async function getWorkerDetails(id: string) {
 export async function approveWorker(id: string) {
   const { error } = await supabase
     .from("profiles")
-    .update({ status: "Approved" })
+    .update({
+      status: "Approved",
+    })
     .eq("id", id);
 
   if (error) throw error;
@@ -60,7 +61,9 @@ export async function approveWorker(id: string) {
 export async function rejectWorker(id: string) {
   const { error } = await supabase
     .from("profiles")
-    .update({ status: "Rejected" })
+    .update({
+      status: "Rejected",
+    })
     .eq("id", id);
 
   if (error) throw error;

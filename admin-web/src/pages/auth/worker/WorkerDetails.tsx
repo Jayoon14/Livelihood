@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   getWorker,
@@ -14,6 +14,7 @@ import {
 
 export default function WorkerDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
 
@@ -66,11 +67,16 @@ export default function WorkerDetails() {
 
     if (!window.confirm("Approve this worker?")) return;
 
-    await approveWorker(worker.id);
+    try {
+      await approveWorker(worker.id);
 
-    alert("Worker Approved.");
+      alert("Worker Approved Successfully!");
 
-    loadWorker();
+      navigate("/workers");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to approve worker.");
+    }
   }
 
   async function handleReject() {
@@ -78,11 +84,16 @@ export default function WorkerDetails() {
 
     if (!window.confirm("Reject this worker?")) return;
 
-    await rejectWorker(worker.id);
+    try {
+      await rejectWorker(worker.id);
 
-    alert("Worker Rejected.");
+      alert("Worker Rejected.");
 
-    loadWorker();
+      navigate("/workers");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to reject worker.");
+    }
   }
 
   if (loading) {
@@ -257,6 +268,7 @@ export default function WorkerDetails() {
                 ) : (
                   <span className="text-gray-400">Not Uploaded</span>
                 )}
+
               </div>
             ))}
 
