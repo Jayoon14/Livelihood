@@ -1,45 +1,76 @@
 import { supabase } from "../lib/supabase";
 
-export async function getProfile(userId: string) {
+
+// =========================
+// GET PROFILE
+// =========================
+export async function getProfile(
+  id: string
+) {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", userId)
+    .eq("id", id)
     .single();
 
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
+
 
   return data;
 }
 
+// =========================
+// UPDATE PROFILE
+// =========================
 export async function updateProfile(
-  userId: string,
-  updates: {
-    first_name: string;
-    last_name: string;
-    phone: string;
-    address: string;
-  }
+  id: string,
+  updates: any
 ) {
   const { error } = await supabase
     .from("profiles")
     .update(updates)
-    .eq("id", userId);
+    .eq("id", id);
 
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
 }
 
-export async function uploadAvatar(userId: string, file: File) {
-  const fileExt = file.name.split(".").pop();
-  const fileName = `${userId}.${fileExt}`;
+// =========================
+// UPLOAD PROFILE PHOTO
+// =========================
+export async function uploadAvatar(
+  userId: string,
+  file: File
+) {
+  const fileExt = file.name
+    .split(".")
+    .pop();
 
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(fileName, file, {
-      upsert: true,
-    });
 
-  if (error) throw error;
+  const fileName =
+    `${userId}-${Date.now()}.${fileExt}`;
+
+
+  const { error: uploadError } =
+    await supabase.storage
+      .from("avatars")
+      .upload(
+        fileName,
+        file,
+        {
+          upsert: true,
+        }
+      );
+
+
+  if (uploadError) {
+    throw uploadError;
+  }
 
   const {
     data: { publicUrl },
@@ -47,14 +78,17 @@ export async function uploadAvatar(userId: string, file: File) {
     .from("avatars")
     .getPublicUrl(fileName);
 
-  const { error: updateError } = await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
       profile_image: publicUrl,
     })
     .eq("id", userId);
 
-  if (updateError) throw updateError;
+
+  if (error) {
+    throw error;
+  }
 
   return publicUrl;
 }

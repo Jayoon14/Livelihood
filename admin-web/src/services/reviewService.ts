@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 
+
 export async function submitReview(
   bookingId: number,
   workerId: string,
@@ -17,10 +18,14 @@ export async function submitReview(
       review,
     });
 
+
   if (error) {
     throw error;
   }
 }
+
+
+
 
 export async function getMyReviews(customerId: string) {
   const { data, error } = await supabase
@@ -30,21 +35,30 @@ export async function getMyReviews(customerId: string) {
       worker:profiles!worker_id(
         id,
         first_name,
+        middle_name,
         last_name,
-        phone
+        phone,
+        email
       )
     `)
     .eq("customer_id", customerId)
     .eq("status", "Completed")
-    .order("booking_date", { ascending: false });
+    .order("booking_date", {
+      ascending: false,
+    });
+
 
   if (error) {
     console.error(error);
     return [];
   }
 
+
   return data ?? [];
 }
+
+
+
 
 export async function getWorkerReviews(workerId: string) {
   const { data, error } = await supabase
@@ -53,19 +67,27 @@ export async function getWorkerReviews(workerId: string) {
       *,
       customer:profiles!customer_id(
         first_name,
+        middle_name,
         last_name
       )
     `)
     .eq("worker_id", workerId)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
+
 
   if (error) {
     console.error(error);
     return [];
   }
 
+
   return data ?? [];
 }
+
+
+
 
 export async function getAverageRating(workerId: string) {
   const { data, error } = await supabase
@@ -73,14 +95,48 @@ export async function getAverageRating(workerId: string) {
     .select("rating")
     .eq("worker_id", workerId);
 
+
   if (error || !data || data.length === 0) {
     return 0;
   }
 
-  const total = data.reduce((sum, item) => sum + item.rating, 0);
 
-  return Number((total / data.length).toFixed(1));
+  const total = data.reduce(
+    (sum, item) => sum + item.rating,
+    0
+  );
+
+
+  return Number(
+    (total / data.length).toFixed(1)
+  );
 }
 
-// ✅ Alias for backward compatibility
+
+
+
+export async function hasReviewed(
+  bookingId: number,
+  customerId: string
+) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("customer_id", customerId)
+    .maybeSingle();
+
+
+  if (error && error.code !== "PGRST116") {
+    throw error;
+  }
+
+
+  return !!data;
+}
+
+
+
+
+// Alias for backward compatibility
 export const getWorkerAverageRating = getAverageRating;

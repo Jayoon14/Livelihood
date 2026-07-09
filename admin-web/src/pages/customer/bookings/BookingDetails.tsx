@@ -1,13 +1,24 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import RatingStars from "../../../components/RatingStars";
+
 import { supabase } from "../../../lib/supabase";
+
 import {
   getBookingDetails,
   cancelBooking,
 } from "../../../services/customerBookingService";
-import { submitReview } from "../../../services/reviewService";
+
+import {
+  submitReview,
+  hasReviewed,
+} from "../../../services/reviewService";
 
 export default function BookingDetails() {
   const { id } = useParams();
@@ -18,6 +29,9 @@ export default function BookingDetails() {
 
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
+
+  const [alreadyReviewed, setAlreadyReviewed] =
+    useState(false);
 
   useEffect(() => {
     if (id) {
@@ -31,6 +45,20 @@ export default function BookingDetails() {
     const data = await getBookingDetails(id!);
 
     setBooking(data);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && data) {
+      const reviewed = await hasReviewed(
+        data.id,
+        user.id
+      );
+
+      setAlreadyReviewed(reviewed);
+    }
+
     setLoading(false);
   }
 
@@ -79,8 +107,10 @@ export default function BookingDetails() {
 
       setRating(0);
       setReview("");
+      setAlreadyReviewed(true);
     } catch (error) {
       console.error(error);
+
       alert("Unable to submit review.");
     }
   }
@@ -120,7 +150,10 @@ export default function BookingDetails() {
 
           <div className="grid md:grid-cols-2 gap-5">
             <div>
-              <p className="text-gray-500">Worker</p>
+              <p className="text-gray-500">
+                Worker
+              </p>
+
               <h3 className="font-semibold">
                 {booking.worker?.first_name}{" "}
                 {booking.worker?.last_name}
@@ -128,7 +161,10 @@ export default function BookingDetails() {
             </div>
 
             <div>
-              <p className="text-gray-500">Phone</p>
+              <p className="text-gray-500">
+                Phone
+              </p>
+
               <h3 className="font-semibold">
                 {booking.worker?.phone || "-"}
               </h3>
@@ -147,6 +183,7 @@ export default function BookingDetails() {
               <p className="text-gray-500">
                 Booking Date
               </p>
+
               <h3 className="font-semibold">
                 {booking.booking_date}
               </h3>
@@ -156,6 +193,7 @@ export default function BookingDetails() {
               <p className="text-gray-500">
                 Booking Time
               </p>
+
               <h3 className="font-semibold">
                 {booking.booking_time}
               </h3>
@@ -165,6 +203,7 @@ export default function BookingDetails() {
               <p className="text-gray-500">
                 Address
               </p>
+
               <h3 className="font-semibold">
                 {booking.address}
               </h3>
@@ -174,6 +213,7 @@ export default function BookingDetails() {
               <p className="text-gray-500">
                 Notes
               </p>
+
               <div className="border rounded-xl p-4 mt-2">
                 {booking.notes || "No notes."}
               </div>
@@ -188,13 +228,11 @@ export default function BookingDetails() {
                 className={`px-4 py-2 rounded-full text-sm font-semibold ${
                   booking.status === "Pending"
                     ? "bg-yellow-100 text-yellow-700"
-                    : booking.status === "Accepted"
+                    : booking.status === "Approved"
                     ? "bg-blue-100 text-blue-700"
                     : booking.status === "Completed"
                     ? "bg-green-100 text-green-700"
-                    : booking.status === "Cancelled"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-700"
+                    : "bg-red-100 text-red-700"
                 }`}
               >
                 {booking.status}
@@ -202,8 +240,8 @@ export default function BookingDetails() {
             </div>
           </div>
 
-          {/* ACTIONS */}
-          <div className="flex gap-4 mt-10">
+          {/* Actions */}
+          <div className="flex flex-wrap gap-4 mt-10">
             <button
               onClick={() => navigate(-1)}
               className="border px-6 py-3 rounded-xl hover:bg-gray-100"
@@ -219,34 +257,67 @@ export default function BookingDetails() {
                 Cancel Booking
               </button>
             )}
+
+            {booking.status === "Approved" && (
+              <Link
+                to={`/chat/${booking.id}`}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl"
+              >
+                Chat Worker
+              </Link>
+            )}
+
+            {booking.status === "Completed" && (
+              <button
+                onClick={() =>
+                  navigate(
+                    `/customer/payment/${booking.id}`
+                  )
+                }
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl"
+              >
+                Pay Now
+              </button>
+            )}
           </div>
 
-          {/* REVIEW SECTION */}
+          {/* Review Section */}
           {booking.status === "Completed" && (
             <div className="bg-white rounded-xl shadow p-6 mt-8">
               <h2 className="text-2xl font-bold mb-5">
                 Rate this Worker
               </h2>
 
-              <RatingStars
-                rating={rating}
-                setRating={setRating}
-              />
+              {alreadyReviewed ? (
+                <div className="bg-green-100 text-green-700 p-5 rounded-xl">
+                  ✅ You have already submitted a
+                  review for this booking.
+                </div>
+              ) : (
+                <>
+                  <RatingStars
+                    rating={rating}
+                    setRating={setRating}
+                  />
 
-              <textarea
-                rows={4}
-                value={review}
-                onChange={(e) => setReview(e.target.value)}
-                placeholder="Write your experience..."
-                className="border rounded-lg w-full p-4 mt-5"
-              />
+                  <textarea
+                    rows={4}
+                    value={review}
+                    onChange={(e) =>
+                      setReview(e.target.value)
+                    }
+                    placeholder="Write your experience..."
+                    className="border rounded-lg w-full p-4 mt-5"
+                  />
 
-              <button
-                onClick={handleReview}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl mt-5"
-              >
-                Submit Review
-              </button>
+                  <button
+                    onClick={handleReview}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl mt-5"
+                  >
+                    Submit Review
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

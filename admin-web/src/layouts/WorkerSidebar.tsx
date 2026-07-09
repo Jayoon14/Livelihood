@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   CalendarCheck,
+  CalendarDays,
   Star,
   User,
   LogOut,
@@ -9,13 +10,18 @@ import {
 import { NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../services/authService";
 
+
 export default function WorkerSidebar() {
+
   const navigate = useNavigate();
+
 
   async function handleLogout() {
     await logout();
     navigate("/worker/login");
   }
+
+
 
   const menus = [
     {
@@ -23,16 +29,25 @@ export default function WorkerSidebar() {
       icon: LayoutDashboard,
       path: "/worker/dashboard",
     },
+
     {
       name: "Bookings",
       icon: CalendarCheck,
       path: "/worker/bookings",
     },
+
+    {
+      name: "Schedule",
+      icon: CalendarDays,
+      path: "/worker/schedule",
+    },
+
     {
       name: "Reviews",
       icon: Star,
       path: "/worker/reviews",
     },
+
     {
       name: "Profile",
       icon: User,
@@ -40,10 +55,13 @@ export default function WorkerSidebar() {
     },
   ];
 
+
+
   return (
     <aside className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
 
-      {/* Logo */}
+
+      {/* LOGO */}
 
       <div className="p-6 border-b border-blue-600">
 
@@ -57,13 +75,17 @@ export default function WorkerSidebar() {
 
       </div>
 
-      {/* Menu */}
+
+
+
+      {/* MENU */}
 
       <nav className="flex-1 p-4 space-y-2">
 
         {menus.map((menu) => {
 
           const Icon = menu.icon;
+
 
           return (
             <NavLink
@@ -77,15 +99,22 @@ export default function WorkerSidebar() {
                 }`
               }
             >
+
               <Icon size={20} />
+
               {menu.name}
+
             </NavLink>
           );
+
         })}
 
       </nav>
 
-      {/* Logout */}
+
+
+
+      {/* LOGOUT */}
 
       <div className="p-4">
 
@@ -93,11 +122,15 @@ export default function WorkerSidebar() {
           onClick={handleLogout}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-red-600 transition"
         >
+
           <LogOut size={20} />
+
           Logout
+
         </button>
 
       </div>
+
 
     </aside>
   );
