@@ -51,6 +51,12 @@ const menus = [
   },
 
   {
+    icon: ClipboardList,
+    label: "Activity Logs",
+    path: "/activity-logs",
+  },
+
+  {
     icon: Settings,
     label: "Settings",
     path: "/settings",
@@ -74,7 +80,6 @@ export default function AdminSidebar() {
 
 
       {/* LOGO */}
-
       <div className="p-8 border-b border-slate-700">
 
         <h1 className="text-3xl font-bold">
@@ -90,7 +95,6 @@ export default function AdminSidebar() {
 
 
       {/* MENU */}
-
       <nav className="flex-1 mt-6">
 
         {menus.map((menu) => {
@@ -130,7 +134,6 @@ export default function AdminSidebar() {
 
 
       {/* LOGOUT */}
-
       <div className="border-t border-slate-700 p-6">
 
         <button

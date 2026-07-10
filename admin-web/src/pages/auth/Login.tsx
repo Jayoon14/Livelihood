@@ -20,7 +20,6 @@ export default function Login() {
 
     setLoading(true);
 
-    // Login
     const { error } = await login(email, password);
 
     if (error) {
@@ -29,10 +28,11 @@ export default function Login() {
       return;
     }
 
-    // Get logged user
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
 
     if (!user) {
       setLoading(false);
@@ -40,74 +40,103 @@ export default function Login() {
       return;
     }
 
-    // Load profile
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, status")
       .eq("id", user.id)
       .maybeSingle();
 
+
     setLoading(false);
 
-    // =====================================================
+
+
     // ADMIN
-    // No profile yet? Allow temporary admin access.
-    // =====================================================
     if (!profile) {
       navigate("/dashboard");
       return;
     }
 
-    // =====================================================
-    // ADMIN
-    // =====================================================
+
     if (profile.role === "admin") {
       navigate("/dashboard");
       return;
     }
 
-    // =====================================================
+
+
     // WORKER
-    // =====================================================
     if (profile.role === "worker") {
+
       if (profile.status !== "Approved") {
-        alert("Your account is waiting for admin approval.");
+
+        alert(
+          "Your account is waiting for admin approval."
+        );
+
         await logout();
+
         return;
       }
 
+
       navigate("/worker/dashboard");
+
       return;
     }
 
-    // =====================================================
+
+
     // CUSTOMER
-    // =====================================================
     if (profile.role === "customer") {
+
       navigate("/customer/dashboard");
+
       return;
     }
+
+
 
     alert("Unknown account role.");
+
     await logout();
   }
+
+
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
 
+
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
 
-        {/* Logo */}
+
+
+        {/* LOGO */}
 
         <div className="flex flex-col items-center mb-8">
 
-          <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+          <div className="
+            w-20 
+            h-20 
+            bg-blue-600 
+            rounded-full 
+            flex 
+            items-center 
+            justify-center 
+            text-white 
+            text-3xl 
+            font-bold
+          ">
             L
           </div>
+
 
           <h1 className="text-2xl font-bold mt-4">
             Livelihood Services Platform
           </h1>
+
 
           <p className="text-gray-500 text-sm">
             Your Local Skilled Worker Partner
@@ -115,11 +144,17 @@ export default function Login() {
 
         </div>
 
+
+
+
         <h2 className="text-xl font-semibold mb-6">
           Welcome Back
         </h2>
 
-        {/* Email */}
+
+
+
+        {/* EMAIL */}
 
         <div className="mb-4">
 
@@ -127,60 +162,103 @@ export default function Login() {
             Email Address
           </label>
 
-          <div className="mt-2 flex items-center border rounded-lg px-3">
+
+          <div className="
+            mt-2 
+            flex 
+            items-center 
+            border 
+            rounded-lg 
+            px-3
+          ">
+
 
             <User className="w-5 h-5 text-gray-400" />
+
 
             <input
               type="email"
               placeholder="Enter email"
               className="w-full p-3 outline-none"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
             />
+
 
           </div>
 
         </div>
 
-        {/* Password */}
+
+
+
+
+        {/* PASSWORD */}
 
         <div>
+
 
           <label className="text-sm font-medium">
             Password
           </label>
 
-          <div className="mt-2 flex items-center border rounded-lg px-3">
+
+          <div className="
+            mt-2 
+            flex 
+            items-center 
+            border 
+            rounded-lg 
+            px-3
+          ">
+
 
             <Lock className="w-5 h-5 text-gray-400" />
 
+
             <input
-              type={showPassword ? "text" : "password"}
+              type={
+                showPassword
+                  ? "text"
+                  : "password"
+              }
               placeholder="Enter password"
               className="w-full p-3 outline-none"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
             />
+
+
 
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() =>
+                setShowPassword(!showPassword)
+              }
             >
+
               {showPassword ? (
+
                 <EyeOff className="w-5 h-5 text-gray-500" />
+
               ) : (
+
                 <Eye className="w-5 h-5 text-gray-500" />
+
               )}
+
             </button>
-
           </div>
-
         </div>
 
-        {/* Remember */}
+        {/* REMEMBER + FORGOT PASSWORD */}
 
         <div className="flex justify-between mt-5 text-sm">
+
 
           <label className="flex items-center gap-2">
 
@@ -190,41 +268,64 @@ export default function Login() {
 
           </label>
 
-          <button
-            type="button"
-            className="text-blue-600 hover:underline"
+
+
+          <Link
+            to="/forgot-password"
+            className="
+              text-blue-600 
+              hover:underline
+            "
           >
             Forgot Password?
-          </button>
+          </Link>
+
 
         </div>
 
-        {/* Login */}
+        {/* LOGIN BUTTON */}
 
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="mt-6 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold transition"
+          className="
+            mt-6 
+            w-full 
+            bg-blue-600 
+            hover:bg-blue-700 
+            disabled:bg-gray-400 
+            text-white 
+            py-3 
+            rounded-lg 
+            font-semibold 
+            transition
+          "
         >
-          {loading ? "Logging in..." : "Login"}
+
+          {loading
+            ? "Logging in..."
+            : "Login"}
+
         </button>
 
-        {/* Register */}
+        {/* REGISTER */}
 
         <p className="text-center mt-6 text-sm">
-
           Don't have an account?
-
           <Link
             to="/register-choice"
-            className="ml-1 text-blue-600 font-semibold hover:underline"
+            className="
+              ml-1 
+              text-blue-600 
+              font-semibold 
+              hover:underline
+            "
           >
             Register
           </Link>
-
         </p>
-
       </div>
+
 
     </div>
   );

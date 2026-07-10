@@ -35,12 +35,7 @@ export async function getReportSummary() {
 // DASHBOARD STATS
 // =========================
 export async function getDashboardStats() {
-  const [
-    workers,
-    customers,
-    bookings,
-    reviews,
-  ] = await Promise.all([
+  const [workers, customers, bookings, reviews] = await Promise.all([
     supabase
       .from("profiles")
       .select("*", {
@@ -81,18 +76,41 @@ export async function getDashboardStats() {
 }
 
 // =========================
-// MONTHLY BOOKINGS
+// MONTHLY BOOKINGS (FOR CHART)
 // =========================
 export async function getMonthlyBookings() {
   const { data, error } = await supabase
     .from("bookings")
     .select("created_at");
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  return data ?? [];
+  const labels = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const counts = new Array(12).fill(0);
+
+  data?.forEach((booking) => {
+    const month = new Date(booking.created_at).getMonth();
+    counts[month]++;
+  });
+
+  return {
+    labels,
+    data: counts,
+  };
 }
 
 // =========================
@@ -103,9 +121,7 @@ export async function getBookingStatusSummary() {
     .from("bookings")
     .select("status");
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return data ?? [];
 }
@@ -124,9 +140,7 @@ export async function getTopWorkers() {
       )
     `);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return data ?? [];
 }
@@ -153,9 +167,46 @@ export async function getRecentBookings() {
     })
     .limit(10);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return data ?? [];
+}
+
+// =========================
+// MONTHLY REVENUE
+// =========================
+export async function getMonthlyRevenue() {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("amount, created_at")
+    .eq("payment_status", "Paid");
+
+  if (error) throw error;
+
+  const labels = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const revenue = new Array(12).fill(0);
+
+  data?.forEach((payment) => {
+    const month = new Date(payment.created_at).getMonth();
+    revenue[month] += Number(payment.amount);
+  });
+
+  return {
+    labels,
+    data: revenue,
+  };
 }

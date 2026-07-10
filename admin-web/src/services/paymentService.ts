@@ -82,3 +82,19 @@ export async function getWorkerTotalEarnings(workerId: string) {
 
   return total;
 }
+
+export async function getTotalRevenue() {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("amount")
+    .eq("payment_status", "Paid");
+
+  if (error) throw error;
+
+  return (
+    data?.reduce(
+      (sum, payment) => sum + Number(payment.amount),
+      0
+    ) ?? 0
+  );
+}

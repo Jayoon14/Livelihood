@@ -26,9 +26,15 @@ export async function registerUser(
     password,
   });
 
-  // Debug logs
-  console.log("SIGNUP:", data);
-  console.log("SESSION:", data.session);
+  // =========================
+  // DEBUG LOGS
+  // =========================
+  console.log("SIGNUP DATA:", data);
+  console.log("SIGNUP ERROR:", error);
+
+  const sessionResult = await supabase.auth.getSession();
+
+  console.log("SESSION:", sessionResult.data.session);
   console.log("USER:", data.user);
 
   if (error) {
@@ -37,13 +43,6 @@ export async function registerUser(
       error,
     };
   }
-
-  // Check current session after signup
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  console.log("CURRENT SESSION:", session);
 
   if (data.user) {
     const { error: profileError } = await supabase

@@ -63,6 +63,11 @@ import ProtectedRoute from "./ProtectedRoute";
 import Payment from "../pages/customer/payments/Payment";
 import Payments from "../pages/admin/payments/Payments";
 
+import ActivityLogs from "../pages/admin/activity/ActivityLogs";
+
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
+
 
 export default function AppRoutes() {
   return (
@@ -372,6 +377,24 @@ export default function AppRoutes() {
               <Payments />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/activity-logs"
+          element={
+            <ProtectedRoute>
+              <ActivityLogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+
+        <Route
+          path="/reset-password"
+          element={<ResetPassword />}
         />
 
       </Routes>
