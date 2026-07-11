@@ -1,5 +1,10 @@
 import { supabase } from "../lib/supabase";
 
+
+// =========================
+// GET ALL PROFILES (DEBUG)
+// =========================
+
 export async function getPendingWorkers() {
   const { data, error } = await supabase
     .from("profiles")
@@ -8,10 +13,18 @@ export async function getPendingWorkers() {
     .eq("status", "Pending")
     .order("created_at", { ascending: false });
 
+  console.log("Pending Workers:", data);
+  console.log("Supabase Error:", error);
+
   if (error) throw error;
 
-  return data;
+  return data ?? [];
 }
+
+
+// =========================
+// APPROVE WORKER
+// =========================
 
 export async function approveWorker(id: string) {
   const { error } = await supabase
@@ -21,8 +34,15 @@ export async function approveWorker(id: string) {
     })
     .eq("id", id);
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 }
+
+
+// =========================
+// REJECT WORKER
+// =========================
 
 export async function rejectWorker(id: string) {
   const { error } = await supabase
@@ -32,5 +52,7 @@ export async function rejectWorker(id: string) {
     })
     .eq("id", id);
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 }

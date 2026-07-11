@@ -1,56 +1,152 @@
+import { useRegisterStore } from "../../../store/registerStore";
+
+type UploadField =
+  | "validId"
+  | "resume"
+  | "tesdaCertificate"
+  | "barangayClearance"
+  | "policeClearance"
+  | "nbiClearance";
+
 export default function Documents() {
-
   return (
-
     <div>
-
-      <h2 className="text-2xl font-bold mb-8">
-
+      <h2 className="text-2xl font-bold mb-6">
         Upload Documents
-
       </h2>
 
-      <div className="grid grid-cols-2 gap-6">
+      <p className="text-gray-500 mb-8">
+        Please upload the required documents below.
+      </p>
 
-        <Upload label="Valid ID" />
+      <div className="grid md:grid-cols-2 gap-8">
+        <UploadCard
+          title="Valid ID"
+          field="validId"
+        />
 
-        <Upload label="Resume" />
+        <UploadCard
+          title="Resume"
+          field="resume"
+        />
 
-        <Upload label="TESDA Certificate" />
+        <UploadCard
+          title="TESDA Certificate"
+          field="tesdaCertificate"
+        />
 
-        <Upload label="Barangay Clearance" />
+        <UploadCard
+          title="Barangay Clearance"
+          field="barangayClearance"
+        />
 
-        <Upload label="Police Clearance" />
+        <UploadCard
+          title="Police Clearance"
+          field="policeClearance"
+        />
 
-        <Upload label="NBI Clearance" />
-
+        <UploadCard
+          title="NBI Clearance"
+          field="nbiClearance"
+        />
       </div>
-
     </div>
-
   );
-
 }
 
-function Upload({ label }: { label: string }) {
+type UploadCardProps = {
+  title: string;
+  field: UploadField;
+};
+
+function UploadCard({
+  title,
+  field,
+}: UploadCardProps) {
+
+  const {
+    data,
+    updateData,
+    errors,
+    clearError,
+  } = useRegisterStore();
+
+  const file = data[field];
+
+
+  function handleChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const selectedFile =
+      e.target.files?.[0] ?? null;
+
+    updateData({
+      [field]: selectedFile,
+    });
+
+    clearError(field);
+  }
+
+
+  function removeFile() {
+    updateData({
+      [field]: null,
+    });
+  }
+
 
   return (
+    <div className="border rounded-2xl p-6 shadow-sm bg-white">
 
-    <div>
-
-      <label className="block mb-2 font-medium">
-
-        {label}
-
-      </label>
+      <h3 className="font-semibold text-lg mb-4">
+        {title}
+      </h3>
 
       <input
         type="file"
-        className="w-full border rounded-lg p-3"
+        accept="image/*,.pdf"
+        onChange={handleChange}
+        className={`w-full border rounded-xl p-3 ${
+          errors[field]
+            ? "border-red-500"
+            : "border-gray-300"
+        }`}
       />
 
+      {errors[field] && (
+        <p className="text-red-500 text-sm mt-2">
+          {errors[field]}
+        </p>
+      )}
+
+      {file && (
+        <div className="mt-4">
+
+          {file.type.startsWith("image") && (
+            <img
+              src={URL.createObjectURL(file)}
+              alt={title}
+              className="rounded-xl h-40 w-full object-cover"
+            />
+          )}
+
+          {file.type === "application/pdf" && (
+            <div className="bg-gray-100 rounded-xl p-4">
+              📄 {file.name}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={removeFile}
+            className="text-red-600 mt-3 hover:underline"
+          >
+            Remove File
+          </button>
+
+        </div>
+      )}
+
     </div>
-
   );
-
 }

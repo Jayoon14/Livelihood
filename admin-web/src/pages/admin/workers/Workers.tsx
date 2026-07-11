@@ -1,118 +1,270 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
 import AdminLayout from "../../../layouts/AdminLayout";
 
 import {
-  getPendingWorkers,
-  approveWorker,
-  rejectWorker,
-} from "../../../services/workerApprovalService";
+  getWorkers,
+} from "../../../services/workerService";
+
 
 export default function Workers() {
+
   const [workers, setWorkers] = useState<any[]>([]);
 
+
+
   useEffect(() => {
+
+    console.log("Workers page loaded");
+
     loadWorkers();
+
   }, []);
 
+
+
+
   async function loadWorkers() {
-    const data = await getPendingWorkers();
-    setWorkers(data);
+
+    console.log("Loading workers...");
+
+
+    try {
+
+      const data = await getWorkers();
+
+
+      console.log("Returned data:", data);
+
+
+      setWorkers(data);
+
+
+    } catch (error) {
+
+      console.error("Failed to load workers:", error);
+
+    }
+
   }
 
-  async function approve(id: string) {
-    await approveWorker(id);
-    loadWorkers();
-  }
 
-  async function reject(id: string) {
-    await rejectWorker(id);
-    loadWorkers();
-  }
+
+
 
   return (
+
     <AdminLayout>
 
-      <h1 className="text-3xl font-bold mb-8">
-        Pending Worker Approvals
-      </h1>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="p-8">
 
-        <table className="w-full">
 
-          <thead className="bg-slate-100">
+        <h1 className="text-3xl font-bold mb-8">
+          Workers Management
+        </h1>
 
-            <tr>
 
-              <th className="p-4 text-left">
-                Name
-              </th>
 
-              <th className="p-4 text-left">
-                Email
-              </th>
+        <div className="bg-white rounded-xl shadow overflow-hidden">
 
-              <th className="p-4 text-left">
-                Status
-              </th>
 
-              <th className="p-4 text-left">
-                Action
-              </th>
+          <table className="w-full">
 
-            </tr>
 
-          </thead>
+            <thead className="bg-slate-100">
 
-          <tbody>
+              <tr>
 
-            {workers.map((worker) => (
+                <th className="p-4 text-left">
+                  Name
+                </th>
 
-              <tr
-                key={worker.id}
-                className="border-t"
-              >
 
-                <td className="p-4">
-                  {worker.full_name}
-                </td>
+                <th className="p-4 text-left">
+                  Email
+                </th>
 
-                <td className="p-4">
-                  {worker.email}
-                </td>
 
-                <td className="p-4">
-                  {worker.status}
-                </td>
+                <th className="p-4 text-left">
+                  Status
+                </th>
 
-                <td className="p-4 flex gap-2">
 
-                  <button
-                    onClick={() => approve(worker.id)}
-                    className="bg-green-600 text-white px-3 py-2 rounded"
-                  >
-                    Approve
-                  </button>
+                <th className="p-4 text-left">
+                  Action
+                </th>
 
-                  <button
-                    onClick={() => reject(worker.id)}
-                    className="bg-red-600 text-white px-3 py-2 rounded"
-                  >
-                    Reject
-                  </button>
-
-                </td>
 
               </tr>
 
-            ))}
+            </thead>
 
-          </tbody>
 
-        </table>
+
+
+            <tbody>
+
+
+              {workers.map((worker) => (
+
+
+                <tr
+                  key={worker.id}
+                  className="border-t"
+                >
+
+
+
+                  <td className="p-4">
+
+                    {worker.first_name}{" "}
+                    {worker.last_name}
+
+                  </td>
+
+
+
+
+                  <td className="p-4">
+
+                    {worker.email}
+
+                  </td>
+
+
+
+
+                  <td className="p-4">
+
+
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        worker.status === "Approved"
+                          ? "bg-green-100 text-green-700"
+                          : worker.status === "Rejected"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+
+                      {worker.status}
+
+                    </span>
+
+
+                  </td>
+
+
+
+
+
+                  <td className="p-4">
+
+
+                    <div className="flex gap-2">
+
+
+
+                      {worker.status === "Pending" && (
+
+                        <Link
+                          to={`/workers/${worker.id}`}
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"
+                        >
+
+                          Review
+
+                        </Link>
+
+                      )}
+
+
+
+
+                      {worker.status === "Approved" && (
+
+                        <Link
+                          to={`/workers/${worker.id}`}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                        >
+
+                          View
+
+                        </Link>
+
+                      )}
+
+
+
+
+                      {worker.status === "Rejected" && (
+
+                        <Link
+                          to={`/workers/${worker.id}`}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+                        >
+
+                          Details
+
+                        </Link>
+
+                      )}
+
+
+
+                    </div>
+
+
+                  </td>
+
+
+
+                </tr>
+
+
+              ))}
+
+
+
+
+
+              {workers.length === 0 && (
+
+
+                <tr>
+
+                  <td
+                    colSpan={4}
+                    className="p-6 text-center text-gray-500"
+                  >
+
+                    No workers found.
+
+                  </td>
+
+                </tr>
+
+
+              )}
+
+
+
+            </tbody>
+
+
+          </table>
+
+
+        </div>
+
 
       </div>
 
+
     </AdminLayout>
+
   );
+
 }

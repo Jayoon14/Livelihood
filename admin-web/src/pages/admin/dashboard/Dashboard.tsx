@@ -64,12 +64,14 @@ export default function Dashboard() {
 
         </div>
 
+
         {/* RECENT WORKERS */}
         <div className="mt-10 bg-white rounded-2xl shadow p-6">
 
           <h2 className="text-xl font-bold mb-5">
             Recent Worker Registrations
           </h2>
+
 
           <table className="w-full">
 
@@ -81,13 +83,24 @@ export default function Dashboard() {
               </tr>
             </thead>
 
+
             <tbody>
               {workers.length > 0 ? (
                 workers.map((worker) => (
                   <tr key={worker.id} className="border-b">
-                    <td className="p-3">{worker.full_name}</td>
-                    <td className="p-3">{worker.email}</td>
-                    <td className="p-3">{worker.status}</td>
+
+                    <td className="p-3">
+                      {worker.first_name} {worker.last_name}
+                    </td>
+
+                    <td className="p-3">
+                      {worker.email}
+                    </td>
+
+                    <td className="p-3">
+                      {worker.status}
+                    </td>
+
                   </tr>
                 ))
               ) : (
@@ -99,9 +112,12 @@ export default function Dashboard() {
               )}
             </tbody>
 
+
           </table>
 
         </div>
+
+
 
         {/* PENDING WORKERS */}
         <div className="mt-10 bg-white rounded-2xl shadow p-6">
@@ -109,6 +125,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-bold mb-5">
             Pending Worker Approvals
           </h2>
+
 
           <table className="w-full">
 
@@ -120,15 +137,24 @@ export default function Dashboard() {
               </tr>
             </thead>
 
+
             <tbody>
               {pendingWorkers.length > 0 ? (
                 pendingWorkers.map((worker) => (
                   <tr key={worker.id} className="border-b">
-                    <td className="p-3">{worker.full_name}</td>
-                    <td className="p-3">{worker.email}</td>
+
+                    <td className="p-3">
+                      {worker.first_name} {worker.last_name}
+                    </td>
+
+                    <td className="p-3">
+                      {worker.email}
+                    </td>
+
                     <td className="p-3 text-yellow-600 font-semibold">
                       {worker.status}
                     </td>
+
                   </tr>
                 ))
               ) : (
@@ -140,9 +166,11 @@ export default function Dashboard() {
               )}
             </tbody>
 
+
           </table>
 
         </div>
+
 
       </div>
     </AdminLayout>

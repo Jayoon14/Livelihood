@@ -25,7 +25,6 @@ import BookingHistory from "../pages/admin/bookings/BookingHistory";
 // ================= CUSTOMER =================
 import CustomerDashboard from "../pages/customer/dashboard/Dashboard";
 import CustomerWorkers from "../pages/customer/workers/Workers";
-import WorkerDetails from "../pages/customer/workers/WorkerDetails";
 import CustomerBookings from "../pages/customer/bookings/Bookings";
 import BookingDetails from "../pages/customer/bookings/BookingDetails";
 import BookWorker from "../pages/customer/bookings/BookWorker";
@@ -42,7 +41,8 @@ import WorkerSchedule from "../pages/worker/schedule/Schedule";
 
 
 // ================= ADMIN PAGES =================
-import Workers from "../pages/auth/worker/Workers";
+import Workers from "../pages/admin/workers/Workers";
+import WorkerDetails from "../pages/admin/workers/WorkerDetails";
 import Customers from "../pages/auth/customer/Customers";
 import CustomerDetails from "../pages/auth/customer/CustomerDetails";
 
@@ -58,6 +58,7 @@ import Settings from "../pages/settings/Settings";
 
 // ================= PROTECTED =================
 import ProtectedRoute from "./ProtectedRoute";
+
 
 // ================= PAYMENT =================
 import Payment from "../pages/customer/payments/Payment";
@@ -129,16 +130,6 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <CustomerWorkers />
-            </ProtectedRoute>
-          }
-        />
-
-
-        <Route
-          path="/customer/workers/:id"
-          element={
-            <ProtectedRoute>
-              <WorkerDetails />
             </ProtectedRoute>
           }
         />
@@ -361,6 +352,7 @@ export default function AppRoutes() {
           }
         />
 
+
         <Route
           path="/customer/payment/:id"
           element={
@@ -369,6 +361,7 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
 
         <Route
           path="/payments"
@@ -379,6 +372,7 @@ export default function AppRoutes() {
           }
         />
 
+
         <Route
           path="/activity-logs"
           element={
@@ -387,15 +381,19 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+
         <Route
           path="/forgot-password"
           element={<ForgotPassword />}
         />
 
+
         <Route
           path="/reset-password"
           element={<ResetPassword />}
         />
+
 
       </Routes>
 

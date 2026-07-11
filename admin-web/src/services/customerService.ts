@@ -15,7 +15,7 @@ export async function getCustomers(search = "") {
 
   if (error) throw error;
 
-  return data;
+  return data ?? [];
 }
 
 export async function getCustomer(id: string) {

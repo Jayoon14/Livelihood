@@ -1,65 +1,101 @@
-    import { useState } from "react";
+import { useRegisterStore } from "../../../store/registerStore";
 
 const skills = [
   "Electrician",
   "Plumber",
   "Carpenter",
-  "Welder",
   "Painter",
   "Mason",
+  "Welder",
   "Mechanic",
   "Driver",
-  "Tailoring",
-  "Computer Literate",
+  "Cook",
+  "Gardener",
+  "Tailor",
+  "Housekeeper",
+  "Aircon Technician",
+  "Computer Technician",
+  "Caregiver",
 ];
 
 export default function SkillsCertification() {
+  const {
+    data,
+    updateData,
+    errors,
+    clearError,
+  } = useRegisterStore();
 
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-
-  const toggleSkill = (skill: string) => {
-
-    if (selectedSkills.includes(skill)) {
-      setSelectedSkills(selectedSkills.filter((s) => s !== skill));
+  function toggleSkill(skill: string) {
+    if (data.skills.includes(skill)) {
+      updateData({
+        skills: data.skills.filter((item) => item !== skill),
+      });
     } else {
-      setSelectedSkills([...selectedSkills, skill]);
+      updateData({
+        skills: [...data.skills, skill],
+      });
     }
 
-  };
+    clearError("skills");
+  }
 
   return (
-
     <div>
-
-      <h2 className="text-2xl font-bold mb-8">
+      <h2 className="text-2xl font-bold mb-6">
         Skills & Certifications
       </h2>
 
-      <div className="grid grid-cols-2 gap-4">
+      <p className="text-gray-500 mb-6">
+        Select all skills that apply.
+      </p>
 
+      <div className="grid grid-cols-3 gap-4">
         {skills.map((skill) => (
-
-          <label
+          <button
             key={skill}
-            className="flex items-center gap-3 border rounded-lg p-4 cursor-pointer hover:bg-gray-50"
+            type="button"
+            onClick={() => toggleSkill(skill)}
+            className={`
+              rounded-xl
+              border
+              p-4
+              font-medium
+              transition
+              ${
+                data.skills.includes(skill)
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white border-gray-300 hover:bg-blue-50"
+              }
+            `}
           >
-
-            <input
-              type="checkbox"
-              checked={selectedSkills.includes(skill)}
-              onChange={() => toggleSkill(skill)}
-            />
-
             {skill}
-
-          </label>
-
+          </button>
         ))}
-
       </div>
 
+      {errors.skills && (
+        <p className="text-red-500 text-sm mt-4">
+          {errors.skills}
+        </p>
+      )}
+
+      <div className="mt-8">
+        <h3 className="font-semibold mb-3">
+          Selected Skills
+        </h3>
+
+        <div className="flex flex-wrap gap-3">
+          {data.skills.map((skill) => (
+            <div
+              key={skill}
+              className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
+            >
+              {skill}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-
   );
-
 }

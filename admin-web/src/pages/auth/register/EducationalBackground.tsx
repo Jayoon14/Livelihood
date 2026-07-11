@@ -1,156 +1,472 @@
-import { useState } from "react";
+import { useRegisterStore } from "../../../store/registerStore";
+
 
 export default function EducationalBackground() {
-  const [form, setForm] = useState({
-    highestEducation: "",
-    elementary: "",
-    secondary: "",
-    seniorHigh: "",
-    college: "",
-    course: "",
-    yearGraduated: "",
-    tesda: "",
-    prc: "",
-    trainings: "",
-  });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const {
+    data,
+    updateData,
+    errors,
+    clearError,
+  } = useRegisterStore();
+
+
 
   return (
+
     <div>
 
-      <h2 className="text-2xl font-bold mb-8">
+
+      <h2 className="
+        text-2xl
+        font-bold
+        mb-8
+      ">
         Educational Background
       </h2>
 
-      <div className="grid grid-cols-2 gap-6">
 
-        <Input
-          label="Highest Educational Attainment"
-          name="highestEducation"
-          value={form.highestEducation}
-          onChange={handleChange}
-        />
 
-        <Input
-          label="Elementary School"
-          name="elementary"
-          value={form.elementary}
-          onChange={handleChange}
-        />
+      <div className="
+        grid
+        grid-cols-1
+        md:grid-cols-2
+        gap-6
+      ">
 
-        <Input
-          label="Secondary School"
-          name="secondary"
-          value={form.secondary}
-          onChange={handleChange}
-        />
 
-        <Input
-          label="Senior High School"
-          name="seniorHigh"
-          value={form.seniorHigh}
-          onChange={handleChange}
-        />
 
-        <Input
-          label="College"
-          name="college"
-          value={form.college}
-          onChange={handleChange}
-        />
+        {/* Highest Educational Attainment */}
 
-        <Input
-          label="Course"
-          name="course"
-          value={form.course}
-          onChange={handleChange}
-        />
+        <div>
 
-        <Input
-          label="Year Graduated"
-          name="yearGraduated"
-          value={form.yearGraduated}
-          onChange={handleChange}
-        />
-
-        <Input
-          label="TESDA"
-          name="tesda"
-          value={form.tesda}
-          onChange={handleChange}
-        />
-
-        <Input
-          label="PRC License"
-          name="prc"
-          value={form.prc}
-          onChange={handleChange}
-        />
-
-        <div className="col-span-2">
-
-          <label className="block mb-2 font-medium">
-            Trainings / Seminars
+          <label className="
+            block
+            mb-2
+            font-medium
+          ">
+            Highest Educational Attainment
           </label>
 
-          <textarea
-            name="trainings"
-            value={form.trainings}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                trainings: e.target.value,
-              })
-            }
-            rows={5}
-            className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-600"
-          />
+
+          <select
+            value={data.highestEducation}
+
+            onChange={(e)=>{
+
+              updateData({
+                highestEducation:
+                  e.target.value,
+              });
+
+              clearError(
+                "highestEducation"
+              );
+
+            }}
+
+            className={`
+              w-full
+              border
+              rounded-xl
+              p-3
+              outline-none
+              focus:ring-2
+              focus:ring-blue-600
+
+              ${
+                errors.highestEducation
+                ? "border-red-500"
+                : "border-gray-300"
+              }
+            `}
+          >
+
+            <option value="">
+              Select Highest Attainment
+            </option>
+
+            <option value="Elementary">
+              Elementary
+            </option>
+
+            <option value="Junior High School">
+              Junior High School
+            </option>
+
+            <option value="Senior High School">
+              Senior High School
+            </option>
+
+            <option value="Vocational">
+              Vocational
+            </option>
+
+            <option value="College">
+              College
+            </option>
+
+            <option value="Master's Degree">
+              Master's Degree
+            </option>
+
+            <option value="Doctorate Degree">
+              Doctorate Degree
+            </option>
+
+
+          </select>
+
+
+          {errors.highestEducation && (
+
+            <p className="
+              text-red-500
+              text-sm
+              mt-1
+            ">
+              {errors.highestEducation}
+            </p>
+
+          )}
+
 
         </div>
 
+
+
+
+
+        <Input
+          label="Elementary School"
+          value={data.elementary}
+          onChange={(value)=>
+            updateData({
+              elementary:value
+            })
+          }
+        />
+
+
+
+
+
+        <Input
+          label="Secondary School"
+          value={data.secondary}
+
+          error={errors.secondary}
+
+          onChange={(value)=>{
+
+            updateData({
+              secondary:value
+            });
+
+            clearError(
+              "secondary"
+            );
+
+          }}
+        />
+
+
+
+
+
+        <Input
+          label="Senior High School"
+          value={data.seniorHigh}
+
+          error={errors.seniorHigh}
+
+          onChange={(value)=>{
+
+            updateData({
+              seniorHigh:value
+            });
+
+            clearError(
+              "seniorHigh"
+            );
+
+          }}
+        />
+
+
+
+
+
+
+        <Input
+          label="College / University"
+          value={data.college}
+
+          error={errors.college}
+
+          onChange={(value)=>{
+
+            updateData({
+              college:value
+            });
+
+            clearError(
+              "college"
+            );
+
+          }}
+        />
+
+
+
+
+
+
+
+        <Input
+          label="Course"
+          value={data.course}
+
+          error={errors.course}
+
+          onChange={(value)=>{
+
+            updateData({
+              course:value
+            });
+
+            clearError(
+              "course"
+            );
+
+          }}
+        />
+
+
+
+
+
+
+
+
+        <Input
+          label="Year Graduated"
+          type="number"
+          value={data.yearGraduated}
+
+          error={errors.yearGraduated}
+
+          onChange={(value)=>{
+
+            updateData({
+              yearGraduated:value
+            });
+
+            clearError(
+              "yearGraduated"
+            );
+
+          }}
+        />
+
+
+
+
+
+
+
+        <Input
+          label="TESDA Certificate (Optional)"
+          value={data.tesda}
+
+          onChange={(value)=>
+            updateData({
+              tesda:value
+            })
+          }
+        />
+
+
+
+
+
+
+        <Input
+          label="PRC License No. (Optional)"
+          value={data.prc}
+
+          onChange={(value)=>
+            updateData({
+              prc:value
+            })
+          }
+        />
+
+
+
+
+
+
+
+
+        <div className="
+          col-span-1
+          md:col-span-2
+        ">
+
+          <label className="
+            block
+            mb-2
+            font-medium
+          ">
+            Trainings / Seminars
+          </label>
+
+
+
+          <textarea
+
+            rows={5}
+
+            value={data.trainings}
+
+            onChange={(e)=>{
+
+              updateData({
+                trainings:
+                  e.target.value,
+              });
+
+            }}
+
+            className="
+              w-full
+              border
+              border-gray-300
+              rounded-xl
+              p-3
+              outline-none
+              focus:ring-2
+              focus:ring-blue-600
+              resize-none
+            "
+
+          />
+
+
+        </div>
+
+
+
       </div>
 
+
     </div>
+
   );
+
 }
 
+
+
+
+
 type InputProps = {
-  label: string;
-  name: string;
-  value: string;
-  onChange: (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => void;
+
+  label:string;
+
+  value:string;
+
+  onChange:(value:string)=>void;
+
+  type?:string;
+
+  error?:string;
+
 };
 
+
+
+
+
 function Input({
+
   label,
-  name,
+
   value,
+
   onChange,
-}: InputProps) {
+
+  type="text",
+
+  error,
+
+}:InputProps){
+
+
   return (
+
     <div>
 
-      <label className="block mb-2 font-medium">
+
+      <label className="
+        block
+        mb-2
+        font-medium
+      ">
         {label}
       </label>
 
+
+
       <input
-        name={name}
+
+        type={type}
+
         value={value}
-        onChange={onChange}
-        className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-600"
+
+        onChange={(e)=>
+          onChange(
+            e.target.value
+          )
+        }
+
+
+        className={`
+          w-full
+          border
+          rounded-xl
+          p-3
+          outline-none
+          focus:ring-2
+          focus:ring-blue-600
+
+          ${
+            error
+            ? "border-red-500"
+            : "border-gray-300"
+          }
+        `}
+
       />
 
+
+
+      {error && (
+
+        <p className="
+          text-red-500
+          text-sm
+          mt-1
+        ">
+          {error}
+        </p>
+
+      )}
+
+
     </div>
+
   );
+
 }

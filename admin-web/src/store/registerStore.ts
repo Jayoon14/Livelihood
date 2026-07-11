@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-interface RegisterData {
+export interface RegisterData {
   firstName: string;
   middleName: string;
   lastName: string;
@@ -40,6 +40,7 @@ interface RegisterData {
   startDate: string;
   endDate: string;
   description: string;
+  noWorkExperience: boolean;
 
   skills: string[];
 
@@ -56,72 +57,89 @@ interface RegisterStore {
   data: RegisterData;
 
   completedSteps: number[];
+  errors: Record<string, string>;
 
   nextStep: () => void;
   prevStep: () => void;
 
   completeStep: (step: number) => void;
 
-  updateData: (values: Partial<RegisterData>) => void;
+  updateData: (
+    values: Partial<RegisterData>
+  ) => void;
+
+  setErrors: (
+    errors: Record<string, string>
+  ) => void;
+
+  clearError: (
+    field: string
+  ) => void;
 
   reset: () => void;
 }
 
+const initialData: RegisterData = {
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  suffix: "",
+
+  birthDate: "",
+  gender: "",
+  civilStatus: "",
+  religion: "",
+
+  phone: "",
+  email: "",
+
+  password: "",
+  confirmPassword: "",
+
+  houseNo: "",
+  street: "",
+  barangay: "",
+  municipality: "",
+  province: "Laguna",
+
+  highestEducation: "",
+  elementary: "",
+  secondary: "",
+  seniorHigh: "",
+  college: "",
+  course: "",
+  yearGraduated: "",
+  tesda: "",
+  prc: "",
+  trainings: "",
+
+  company: "",
+  position: "",
+  employmentStatus: "",
+  startDate: "",
+  endDate: "",
+  description: "",
+
+  noWorkExperience: false,
+
+  skills: [],
+
+  validId: null,
+  resume: null,
+  tesdaCertificate: null,
+  barangayClearance: null,
+  policeClearance: null,
+  nbiClearance: null,
+};
+
 export const useRegisterStore = create<RegisterStore>((set) => ({
   step: 1,
 
-  data: {
-    firstName: "",
-    middleName: "",
-    lastName: "",
-    suffix: "",
-
-    birthDate: "",
-    gender: "",
-    civilStatus: "",
-    religion: "",
-
-    phone: "",
-    email: "",
-
-    password: "",
-    confirmPassword: "",
-
-    houseNo: "",
-    street: "",
-    barangay: "",
-    municipality: "",
-    province: "",
-
-    highestEducation: "",
-    elementary: "",
-    secondary: "",
-    seniorHigh: "",
-    college: "",
-    course: "",
-    yearGraduated: "",
-    tesda: "",
-    prc: "",
-    trainings: "",
-
-    company: "",
-    position: "",
-    employmentStatus: "",
-    startDate: "",
-    endDate: "",
-    description: "",
-
-    skills: [],
-
-    validId: null,
-    resume: null,
-    tesdaCertificate: null,
-    barangayClearance: null,
-    policeClearance: null,
-    nbiClearance: null,
-  },
+  data: initialData,
 
   completedSteps: [],
+
+  errors: {},
 
   nextStep: () =>
     set((state) => ({
@@ -148,59 +166,29 @@ export const useRegisterStore = create<RegisterStore>((set) => ({
       },
     })),
 
+  setErrors: (errors) =>
+    set(() => ({
+      errors,
+    })),
+
+  clearError: (field) =>
+    set((state) => {
+      const newErrors = {
+        ...state.errors,
+      };
+
+      delete newErrors[field];
+
+      return {
+        errors: newErrors,
+      };
+    }),
+
   reset: () =>
     set(() => ({
       step: 1,
       completedSteps: [],
-      data: {
-        firstName: "",
-        middleName: "",
-        lastName: "",
-        suffix: "",
-
-        birthDate: "",
-        gender: "",
-        civilStatus: "",
-        religion: "",
-
-        phone: "",
-        email: "",
-
-        password: "",
-        confirmPassword: "",
-
-        houseNo: "",
-        street: "",
-        barangay: "",
-        municipality: "",
-        province: "",
-
-        highestEducation: "",
-        elementary: "",
-        secondary: "",
-        seniorHigh: "",
-        college: "",
-        course: "",
-        yearGraduated: "",
-        tesda: "",
-        prc: "",
-        trainings: "",
-
-        company: "",
-        position: "",
-        employmentStatus: "",
-        startDate: "",
-        endDate: "",
-        description: "",
-
-        skills: [],
-
-        validId: null,
-        resume: null,
-        tesdaCertificate: null,
-        barangayClearance: null,
-        policeClearance: null,
-        nbiClearance: null,
-      },
+      errors: {},
+      data: initialData,
     })),
 }));

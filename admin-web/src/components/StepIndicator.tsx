@@ -1,119 +1,117 @@
+import {
+  User,
+  GraduationCap,
+  Briefcase,
+  Wrench,
+  FileText,
+  Check,
+} from "lucide-react";
+
 type Props = {
-
   currentStep: number;
-
+  completedSteps?: number[];
 };
 
 const steps = [
-
-  "Personal",
-
-  "Education",
-
-  "Work",
-
-  "Skills",
-
-  "Documents",
-
-  "Confirmation",
-
+  {
+    label: "Personal",
+    icon: User,
+  },
+  {
+    label: "Education",
+    icon: GraduationCap,
+  },
+  {
+    label: "Work",
+    icon: Briefcase,
+  },
+  {
+    label: "Skills",
+    icon: Wrench,
+  },
+  {
+    label: "Documents",
+    icon: FileText,
+  },
+  {
+    label: "Review",
+    icon: Check,
+  },
 ];
 
 export default function StepIndicator({
-
   currentStep,
-
+  completedSteps = [],
 }: Props) {
-
   return (
+    <div className="w-full mb-10">
+      <div className="flex justify-between items-center relative">
 
-    <div className="flex justify-between items-center">
+        {steps.map((step, index) => {
+          const stepNumber = index + 1;
 
-      {steps.map((step, index) => {
+          const completed =
+            completedSteps.includes(stepNumber);
 
-        const number = index + 1;
+          const current =
+            currentStep === stepNumber;
 
-        const active = currentStep >= number;
+          const Icon = step.icon;
 
-        return (
-
-          <div
-
-            key={step}
-
-            className="flex flex-col items-center flex-1 relative"
-
-          >
-
+          return (
             <div
-
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold
-
-              ${
-
-                active
-
-                  ? "bg-blue-600"
-
-                  : "bg-gray-300"
-
-              }`}
-
+              key={step.label}
+              className="flex-1 flex flex-col items-center relative z-10"
             >
+              {/* Line */}
+              {index !== steps.length - 1 && (
+                <div
+                  className={`absolute top-6 left-1/2 w-full h-1
+                  ${
+                    completed
+                      ? "bg-green-500"
+                      : "bg-gray-300"
+                  }`}
+                />
+              )}
 
-              {number}
-
-            </div>
-
-            <span
-
-              className={`mt-3 text-sm
-
-              ${
-
-                active
-
-                  ? "text-blue-600"
-
-                  : "text-gray-500"
-
-              }`}
-
-            >
-
-              {step}
-
-            </span>
-
-            {index !== 5 && (
-
+              {/* Circle */}
               <div
-
-                className={`absolute top-6 left-1/2 w-full h-1
+                className={`w-14 h-14 rounded-full flex items-center justify-center border-4 transition-all duration-300
 
                 ${
-
-                  currentStep > number
-
-                    ? "bg-blue-600"
-
-                    : "bg-gray-300"
-
+                  completed
+                    ? "bg-green-500 border-green-500 text-white"
+                    : current
+                    ? "bg-blue-600 border-blue-600 text-white shadow-lg scale-110"
+                    : "bg-white border-gray-300 text-gray-400"
                 }`}
+              >
+                {completed ? (
+                  <Check size={24} />
+                ) : (
+                  <Icon size={22} />
+                )}
+              </div>
 
-              />
+              {/* Label */}
+              <span
+                className={`mt-3 text-sm font-medium
 
-            )}
-
-          </div>
-
-        );
-
-      })}
-
+                ${
+                  completed
+                    ? "text-green-600"
+                    : current
+                    ? "text-blue-600"
+                    : "text-gray-500"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
-
   );
-
 }
