@@ -7,10 +7,18 @@ import {
   Settings,
   Wallet,
   LogOut,
+  History,
 } from "lucide-react";
 
-import { NavLink, useNavigate } from "react-router-dom";
-import { logout } from "../services/authService";
+import {
+  NavLink,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  logout,
+} from "../services/authService";
+
 
 
 const menus = [
@@ -51,7 +59,7 @@ const menus = [
   },
 
   {
-    icon: ClipboardList,
+    icon: History,
     label: "Activity Logs",
     path: "/activity-logs",
   },
@@ -64,38 +72,81 @@ const menus = [
 ];
 
 
+
 export default function AdminSidebar() {
 
   const navigate = useNavigate();
 
 
+
   async function handleLogout() {
+
     await logout();
+
     navigate("/");
+
   }
 
 
+
   return (
-    <aside className="w-72 min-h-screen bg-slate-900 text-white flex flex-col">
+
+    <aside
+      className="
+        w-72
+        min-h-screen
+        bg-slate-900
+        text-white
+        flex
+        flex-col
+      "
+    >
 
 
       {/* LOGO */}
-      <div className="p-8 border-b border-slate-700">
 
-        <h1 className="text-3xl font-bold">
+      <div
+        className="
+          p-8
+          border-b
+          border-slate-700
+        "
+      >
+
+        <h1
+          className="
+            text-3xl
+            font-bold
+          "
+        >
           LivelihoodGo
         </h1>
 
-        <p className="text-sm text-slate-300 mt-1">
+
+        <p
+          className="
+            text-sm
+            text-slate-300
+            mt-1
+          "
+        >
           Administrator Panel
         </p>
+
 
       </div>
 
 
 
+
       {/* MENU */}
-      <nav className="flex-1 mt-6">
+
+      <nav
+        className="
+          flex-1
+          mt-6
+        "
+      >
 
         {menus.map((menu) => {
 
@@ -107,20 +158,31 @@ export default function AdminSidebar() {
             <NavLink
               key={menu.label}
               to={menu.path}
+
               className={({ isActive }) =>
-                `flex items-center gap-4 px-8 py-4 transition ${
+                `
+                flex
+                items-center
+                gap-4
+                px-8
+                py-4
+                transition
+                ${
                   isActive
                     ? "bg-blue-600 text-white font-semibold"
                     : "hover:bg-slate-800"
-                }`
+                }
+                `
               }
             >
 
               <Icon size={20} />
 
+
               <span>
                 {menu.label}
               </span>
+
 
             </NavLink>
 
@@ -128,28 +190,50 @@ export default function AdminSidebar() {
 
         })}
 
+
       </nav>
 
 
 
 
+
       {/* LOGOUT */}
-      <div className="border-t border-slate-700 p-6">
+
+      <div
+        className="
+          border-t
+          border-slate-700
+          p-6
+        "
+      >
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full hover:text-red-400 transition"
+
+          className="
+            flex
+            items-center
+            gap-3
+            w-full
+            hover:text-red-400
+            transition
+          "
         >
 
           <LogOut size={20} />
 
           Logout
 
+
         </button>
+
 
       </div>
 
 
+
     </aside>
+
   );
+
 }

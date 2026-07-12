@@ -43,8 +43,9 @@ import WorkerSchedule from "../pages/worker/schedule/Schedule";
 // ================= ADMIN PAGES =================
 import Workers from "../pages/admin/workers/Workers";
 import WorkerDetails from "../pages/admin/workers/WorkerDetails";
-import Customers from "../pages/auth/customer/Customers";
-import CustomerDetails from "../pages/auth/customer/CustomerDetails";
+
+import Customers from "../pages/admin/customers/Customers";
+import CustomerDetails from "../pages/admin/customers/CustomerDetails";
 
 
 // ================= CHAT =================
@@ -68,6 +69,7 @@ import ActivityLogs from "../pages/admin/activity/ActivityLogs";
 
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+
 
 
 export default function AppRoutes() {

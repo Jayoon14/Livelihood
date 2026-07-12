@@ -143,6 +143,15 @@ if(!authData.user){
 const userId =
 authData.user.id;
 
+// =========================
+// UPLOAD PROFILE PICTURE
+// =========================
+
+const profilePicture = await uploadDocument(
+  data.profilePicture,
+  "profile-picture",
+  userId
+);
 
 
 
@@ -156,51 +165,37 @@ const {
 }
 =
 await supabase
-.from("profiles")
-.insert({
+  .from("profiles")
+  .insert({
+    id: userId,
 
- id:userId,
+    role: "worker",
 
- role:"worker",
+    email: data.email,
 
- email:data.email,
+    first_name: data.firstName,
+    middle_name: data.middleName,
+    last_name: data.lastName,
+    suffix: data.suffix,
 
+    birth_date: data.birthDate,
 
- first_name:data.firstName,
+    gender: data.gender,
+    civil_status: data.civilStatus,
+    religion: data.religion,
 
- middle_name:data.middleName,
+    phone: data.phone,
 
- last_name:data.lastName,
+    address: `${data.houseNo} ${data.street}`,
 
- suffix:data.suffix,
+    barangay: data.barangay,
+    municipality: data.municipality,
+    province: data.province,
 
+    status: "Pending",
 
- birth_date:data.birthDate,
-
- gender:data.gender,
-
- civil_status:data.civilStatus,
-
- religion:data.religion,
-
-
- phone:data.phone,
-
-
- address:
- `${data.houseNo} ${data.street}`,
-
- barangay:data.barangay,
-
- municipality:data.municipality,
-
- province:data.province,
-
-
- status:"Pending",
-
-});
-
+    profile_picture: profilePicture, 
+  });
 
 
 if(profileError){
@@ -281,51 +276,34 @@ if(educationError){
 // 4. SAVE WORK EXPERIENCE
 // =========================
 
+if (!data.noWorkExperience) {
 
-const {
- error:workError
-}
-=
-await supabase
-.from("work_experience")
-.insert({
+  const { error: workError } =
+    await supabase
+      .from("work_experience")
+      .insert({
 
- profile_id:userId,
+        profile_id: userId,
 
+        company: data.company,
 
- company:
- data.company,
+        position: data.position,
 
+        employment_status: data.employmentStatus,
 
- position:
- data.position,
+        start_date: data.startDate,
 
+        end_date: data.endDate,
 
- employment_status:
- data.employmentStatus,
+        description: data.description,
 
+      });
 
- start_date:
- data.startDate,
-
-
- end_date:
- data.endDate,
-
-
- description:
- data.description,
-
-});
-
-
-
-if(workError){
-
- throw workError;
+  if (workError) {
+    throw workError;
+  }
 
 }
-
 
 
 

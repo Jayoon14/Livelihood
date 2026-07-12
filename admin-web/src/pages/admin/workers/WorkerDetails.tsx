@@ -85,7 +85,9 @@ export default function WorkerDetails() {
   if (!worker) {
     return (
       <AdminLayout>
-        <div className="p-8">Loading...</div>
+        <div className="p-8">
+          Loading...
+        </div>
       </AdminLayout>
     );
   }
@@ -153,91 +155,184 @@ export default function WorkerDetails() {
     <AdminLayout>
       <div className="max-w-6xl mx-auto p-8">
 
-        <h1 className="text-3xl font-bold mb-8">
-          Worker Details
-        </h1>
+        {/* PROFILE HEADER */}
+
+        <div className="flex items-center gap-6 mb-10">
+
+          {worker.profile_picture ? (
+
+          <img
+            src={worker.profile_picture}
+            alt="Profile"
+            onError={() => console.log("Image failed to load")}
+            onLoad={() => console.log("Image loaded")}
+            className="w-24 h-24 rounded-full object-cover border"
+          />
+
+          ) : (
+
+          <div
+          className="
+          w-24 h-24
+          rounded-full
+          bg-blue-100
+          flex
+          items-center
+          justify-center
+          text-blue-700
+          text-4xl
+          font-bold
+          "
+          >
+          {worker.first_name?.charAt(0)}
+          </div>
+
+          )}
+
+          <div>
+
+            <h1 className="text-4xl font-bold">
+              {worker.first_name} {worker.middle_name} {worker.last_name}
+            </h1>
+
+            <p className="text-gray-500 mt-2">
+              {worker.email}
+            </p>
+
+            <span
+              className={`
+                inline-block mt-3
+                px-4 py-1
+                rounded-full
+                text-sm font-semibold
+                ${
+                  worker.status === "Pending"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : worker.status === "Approved"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }
+              `}
+            >
+              {worker.status}
+            </span>
+
+          </div>
+
+        </div>
 
         <div className="bg-white rounded-xl shadow p-8">
+          
+          {/* PERSONAL INFORMATION */}
 
-          <Section title="Personal Information">
+          <Section title="👤 Personal Information">
 
-            <Info title="First Name" value={worker.first_name} />
-            <Info title="Middle Name" value={worker.middle_name} />
-            <Info title="Last Name" value={worker.last_name} />
-            <Info title="Email" value={worker.email} />
-            <Info title="Phone" value={worker.phone} />
-            <Info title="Gender" value={worker.gender} />
-            <Info title="Civil Status" value={worker.civil_status} />
-            <Info title="Religion" value={worker.religion} />
-            <Info title="Barangay" value={worker.barangay} />
-            <Info title="Municipality" value={worker.municipality} />
-            <Info title="Province" value={worker.province} />
-            <Info title="Status" value={worker.status} />
+            <div className="grid grid-cols-2 gap-6">
+
+              <Info title="First Name" value={worker.first_name} />
+              <Info title="Middle Name" value={worker.middle_name} />
+              <Info title="Last Name" value={worker.last_name} />
+              <Info title="Birthday" value={worker.birth_date? new Date(worker.birth_date).toLocaleDateString("en-GB"): "-"}/>
+
+              <Info title="Email" value={worker.email} />
+              <Info title="Phone" value={worker.phone} />
+
+              <Info title="Gender" value={worker.gender} />
+              <Info title="Civil Status" value={worker.civil_status} />
+
+              <Info title="Religion" value={worker.religion} />
+              <Info title="Barangay" value={worker.barangay} />
+
+              <Info title="Municipality" value={worker.municipality} />
+              <Info title="Province" value={worker.province} />
+
+              <Info title="Status" value={worker.status} />
+
+            </div>
+
+          </Section>
+
+
+
+          {/* EDUCATIONAL BACKGROUND */}
+
+          <Section title="🎓 Educational Background">
+
+            <div className="grid grid-cols-2 gap-6">
+
+              <Info
+                title="Highest Attainment"
+                value={worker.education?.highest_attainment}
+              />
+
+              <Info
+                title="Elementary"
+                value={worker.education?.elementary}
+              />
+
+              <Info
+                title="Secondary"
+                value={worker.education?.secondary}
+              />
+
+              <Info
+                title="Senior High"
+                value={worker.education?.senior_high}
+              />
+
+              <Info
+                title="College"
+                value={worker.education?.college}
+              />
+
+              <Info
+                title="Course"
+                value={worker.education?.course}
+              />
+
+              <Info
+                title="Year Graduated"
+                value={worker.education?.year_graduated}
+              />
+
+              <Info
+                title="TESDA"
+                value={worker.education?.tesda}
+              />
+
+              <Info
+                title="PRC"
+                value={worker.education?.prc}
+              />
+
+              <Info
+                title="Trainings"
+                value={worker.education?.trainings}
+              />
+
+            </div>
 
           </Section>
 
-          <Section title="Educational Background">
 
-            <Info
-              title="Highest Attainment"
-              value={worker.education?.highest_attainment}
-            />
 
-            <Info
-              title="Elementary"
-              value={worker.education?.elementary}
-            />
+          {/* WORK EXPERIENCE */}
 
-            <Info
-              title="Secondary"
-              value={worker.education?.secondary}
-            />
-
-            <Info
-              title="Senior High"
-              value={worker.education?.senior_high}
-            />
-
-            <Info
-              title="College"
-              value={worker.education?.college}
-            />
-
-            <Info
-              title="Course"
-              value={worker.education?.course}
-            />
-
-            <Info
-              title="Year Graduated"
-              value={worker.education?.year_graduated}
-            />
-
-            <Info
-              title="TESDA"
-              value={worker.education?.tesda}
-            />
-
-            <Info
-              title="PRC"
-              value={worker.education?.prc}
-            />
-
-            <Info
-              title="Trainings"
-              value={worker.education?.trainings}
-            />
-
-          </Section>
-                    <Section title="Work Experience">
+          <Section title="💼 Work Experience">
 
             {worker.work?.length > 0 ? (
 
-              worker.work.map((job: any) => (
+              worker.work.map((job:any) => (
 
                 <div
                   key={job.id}
-                  className="border rounded-lg p-4 space-y-3"
+                  className="
+                    border
+                    rounded-lg
+                    p-4
+                    mb-4
+                    space-y-3
+                  "
                 >
 
                   <Info
@@ -276,28 +371,40 @@ export default function WorkerDetails() {
 
             ) : (
 
-              <p className="text-gray-500">
-                No work experience.
-              </p>
+             <div className="border rounded-xl p-5 bg-gray-50">
 
+                <h3 className="font-semibold text-lg">
+                  Work Experience
+                </h3>
+
+                <p className="text-gray-500 mt-2">
+                  Applicant declared that he/she has no previous work experience.
+                </p>
+
+              </div>
             )}
 
           </Section>
+          
+          {/* SKILLS */}
 
+          <Section title="🛠 Skills">
 
-
-
-          <Section title="Skills">
-
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
 
               {worker.skills?.length > 0 ? (
 
-                worker.skills.map((skill: any) => (
+                worker.skills.map((skill:any) => (
 
                   <span
                     key={skill.id}
-                    className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg"
+                    className="
+                      bg-blue-100
+                      text-blue-700
+                      px-4
+                      py-2
+                      rounded-full
+                    "
                   >
                     {skill.skill_name}
                   </span>
@@ -318,18 +425,25 @@ export default function WorkerDetails() {
 
 
 
+          {/* DOCUMENTS */}
 
-
-
-          <Section title="Documents">
+          <Section title="📄 Documents">
 
             {documentList.length > 0 ? (
 
-              documentList.map((doc, index) => (
+              documentList.map((doc,index) => (
 
                 <div
                   key={doc.title}
-                  className="flex items-center justify-between border rounded-lg p-4"
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                    border
+                    rounded-lg
+                    p-4
+                    mb-3
+                  "
                 >
 
                   <div>
@@ -377,11 +491,11 @@ export default function WorkerDetails() {
 
 
 
-
+          {/* APPROVE / REJECT */}
 
           {worker.status === "Pending" && (
 
-            <div className="flex justify-end gap-4 mt-8">
+            <div className="flex justify-end gap-4 mt-10">
 
               <button
                 onClick={handleReject}
@@ -423,7 +537,6 @@ export default function WorkerDetails() {
 
 
 
-
       {/* DOCUMENT VIEWER MODAL */}
 
       {preview && (
@@ -452,9 +565,6 @@ export default function WorkerDetails() {
               overflow-hidden
             "
           >
-
-
-            {/* HEADER */}
 
             <div
               className="
@@ -487,10 +597,6 @@ export default function WorkerDetails() {
 
 
 
-
-
-            {/* PREVIEW AREA */}
-
             <div
               className="
                 bg-gray-100
@@ -516,7 +622,7 @@ export default function WorkerDetails() {
                   style={{
                     transform:
                       `scale(${zoom}) rotate(${rotation}deg)`,
-                    transition: "0.3s",
+                    transition:"0.3s",
                   }}
                   className="
                     max-h-full
@@ -528,7 +634,8 @@ export default function WorkerDetails() {
               )}
 
             </div>
-                        {/* CONTROLS */}
+            
+            {/* DOCUMENT CONTROLS */}
 
             <div
               className="
@@ -558,7 +665,6 @@ export default function WorkerDetails() {
               </button>
 
 
-
               <button
                 onClick={nextDocument}
                 disabled={
@@ -575,7 +681,6 @@ export default function WorkerDetails() {
               >
                 Next →
               </button>
-
 
 
 
@@ -602,7 +707,6 @@ export default function WorkerDetails() {
                   </button>
 
 
-
                   <button
                     onClick={() =>
                       setZoom((prev) =>
@@ -620,8 +724,6 @@ export default function WorkerDetails() {
                   >
                     Zoom -
                   </button>
-
-
 
 
                   <button
@@ -647,9 +749,6 @@ export default function WorkerDetails() {
               )}
 
 
-
-
-
               <a
                 href={preview}
                 download
@@ -665,7 +764,6 @@ export default function WorkerDetails() {
                 Download
               </a>
 
-
             </div>
 
 
@@ -675,15 +773,9 @@ export default function WorkerDetails() {
 
       )}
 
-
     </AdminLayout>
-
   );
-
 }
-
-
-
 
 
 
@@ -692,36 +784,39 @@ export default function WorkerDetails() {
 function Section({
   title,
   children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+}: any) {
 
   return (
 
-    <div className="mb-8">
-
-
-      <h2
-        className="
-          text-xl
-          font-bold
-          mb-4
-        "
-      >
-        {title}
-      </h2>
-
-
+    <div
+      className="
+        bg-white
+        rounded-2xl
+        shadow-lg
+        border
+        border-slate-200
+        mb-8
+        overflow-hidden
+      "
+    >
 
       <div
         className="
-          grid
-          grid-cols-1
-          md:grid-cols-2
-          gap-4
+          bg-slate-50
+          px-6
+          py-4
+          border-b
         "
       >
+
+        <h2 className="text-xl font-bold">
+          {title}
+        </h2>
+
+      </div>
+
+
+      <div className="p-6">
 
         {children}
 
@@ -738,15 +833,12 @@ function Section({
 
 
 
-
-
-
 function Info({
   title,
   value,
 }: {
-  title: string;
-  value: any;
+  title:string;
+  value:any;
 }) {
 
   return (
@@ -772,7 +864,6 @@ function Info({
       >
         {value || "-"}
       </p>
-
 
     </div>
 

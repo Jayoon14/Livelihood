@@ -1,6 +1,9 @@
 import { create } from "zustand";
 
 export interface RegisterData {
+
+  profilePicture: File | null;
+
   firstName: string;
   middleName: string;
   lastName: string;
@@ -24,12 +27,21 @@ export interface RegisterData {
   province: string;
 
   highestEducation: string;
+  otherEducation: string;
+
   elementary: string;
   secondary: string;
   seniorHigh: string;
   college: string;
   course: string;
   yearGraduated: string;
+
+  juniorHighDiploma?: File | null;
+  seniorHighDiploma?: File | null;
+  collegeDiploma?: File | null;
+  mastersDiploma?: File | null;
+  doctorateDiploma?: File | null;
+
   tesda: string;
   prc: string;
   trainings: string;
@@ -40,6 +52,7 @@ export interface RegisterData {
   startDate: string;
   endDate: string;
   description: string;
+
   noWorkExperience: boolean;
 
   skills: string[];
@@ -50,51 +63,84 @@ export interface RegisterData {
   barangayClearance?: File | null;
   policeClearance?: File | null;
   nbiClearance?: File | null;
-}
 
+}
 interface RegisterStore {
+
   step: number;
+
   data: RegisterData;
 
   completedSteps: number[];
+
   errors: Record<string, string>;
 
+
+  editingFromReview: boolean;
+
+  setEditingFromReview: (
+    value: boolean
+  ) => void;
+
+
   nextStep: () => void;
+
   prevStep: () => void;
 
-  completeStep: (step: number) => void;
+  goToStep: (
+    step: number
+  ) => void;
+
+
+  completeStep: (
+    step: number
+  ) => void;
+
 
   updateData: (
     values: Partial<RegisterData>
   ) => void;
 
+
   setErrors: (
     errors: Record<string, string>
   ) => void;
+
 
   clearError: (
     field: string
   ) => void;
 
+
   reset: () => void;
+
 }
 
+
+
 const initialData: RegisterData = {
+
+  profilePicture: null,
+
   firstName: "",
   middleName: "",
   lastName: "",
   suffix: "",
+
 
   birthDate: "",
   gender: "",
   civilStatus: "",
   religion: "",
 
+
   phone: "",
   email: "",
 
+
   password: "",
   confirmPassword: "",
+
 
   houseNo: "",
   street: "",
@@ -102,16 +148,30 @@ const initialData: RegisterData = {
   municipality: "",
   province: "Laguna",
 
+
   highestEducation: "",
+  otherEducation: "",
+
+
   elementary: "",
   secondary: "",
   seniorHigh: "",
   college: "",
   course: "",
   yearGraduated: "",
+
+
+  juniorHighDiploma: null,
+  seniorHighDiploma: null,
+  collegeDiploma: null,
+  mastersDiploma: null,
+  doctorateDiploma: null,
+
+
   tesda: "",
   prc: "",
   trainings: "",
+
 
   company: "",
   position: "",
@@ -120,9 +180,12 @@ const initialData: RegisterData = {
   endDate: "",
   description: "",
 
+
   noWorkExperience: false,
 
+
   skills: [],
+
 
   validId: null,
   resume: null,
@@ -130,9 +193,10 @@ const initialData: RegisterData = {
   barangayClearance: null,
   policeClearance: null,
   nbiClearance: null,
-};
 
+};
 export const useRegisterStore = create<RegisterStore>((set) => ({
+
   step: 1,
 
   data: initialData,
@@ -141,24 +205,60 @@ export const useRegisterStore = create<RegisterStore>((set) => ({
 
   errors: {},
 
+
+  editingFromReview: false,
+
+
+  setEditingFromReview: (
+    value
+  ) =>
+    set({
+      editingFromReview: value,
+    }),
+
+
+
   nextStep: () =>
     set((state) => ({
       step: state.step + 1,
     })),
+
+
 
   prevStep: () =>
     set((state) => ({
       step: state.step - 1,
     })),
 
-  completeStep: (step) =>
+
+
+  goToStep: (
+    step
+  ) =>
+    set({
+      step,
+    }),
+
+
+
+  completeStep: (
+    step
+  ) =>
     set((state) => ({
-      completedSteps: state.completedSteps.includes(step)
-        ? state.completedSteps
-        : [...state.completedSteps, step],
+      completedSteps:
+        state.completedSteps.includes(step)
+          ? state.completedSteps
+          : [
+              ...state.completedSteps,
+              step,
+            ],
     })),
 
-  updateData: (values) =>
+
+
+  updateData: (
+    values
+  ) =>
     set((state) => ({
       data: {
         ...state.data,
@@ -166,29 +266,51 @@ export const useRegisterStore = create<RegisterStore>((set) => ({
       },
     })),
 
-  setErrors: (errors) =>
-    set(() => ({
-      errors,
-    })),
 
-  clearError: (field) =>
+
+  setErrors: (
+    errors
+  ) =>
+    set({
+      errors,
+    }),
+
+
+
+  clearError: (
+    field
+  ) =>
     set((state) => {
+
       const newErrors = {
         ...state.errors,
       };
 
+
       delete newErrors[field];
+
 
       return {
         errors: newErrors,
       };
+
     }),
 
+
+
   reset: () =>
-    set(() => ({
+    set({
+
       step: 1,
+
+      editingFromReview: false,
+
       completedSteps: [],
+
       errors: {},
+
       data: initialData,
-    })),
+
+    }),
+
 }));

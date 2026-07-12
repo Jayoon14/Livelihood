@@ -123,7 +123,7 @@ export default function WorkerDetails() {
           <div><strong>Email</strong><p>{worker.email}</p></div>
           <div><strong>Phone</strong><p>{worker.phone}</p></div>
 
-          <div><strong>Birth Date</strong><p>{worker.birth_date}</p></div>
+          <div><strong>Birth Date</strong><p>{worker.birth_date? new Date(worker.birth_date).toLocaleDateString("en-PH"): "-"}</p></div>
           <div><strong>Gender</strong><p>{worker.gender}</p></div>
 
           <div><strong>Civil Status</strong><p>{worker.civil_status}</p></div>
