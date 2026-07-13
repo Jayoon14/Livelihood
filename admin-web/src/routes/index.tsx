@@ -167,14 +167,14 @@ export default function AppRoutes() {
         />
 
 
-        <Route
-          path="/customer/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/customer/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
 
 
         <Route

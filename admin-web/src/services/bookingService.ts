@@ -5,6 +5,7 @@ import { createNotification } from "./notificationService";
 // =========================
 // CREATE BOOKING
 // =========================
+
 export async function createBooking(
   customerId: string,
   workerId: string,
@@ -45,9 +46,8 @@ export async function createBooking(
 // =========================
 // GET BOOKINGS
 // =========================
-export async function getBookings(
-  status = "All"
-) {
+
+export async function getBookings(status = "All") {
   let query = supabase
     .from("bookings")
     .select(`
@@ -73,7 +73,6 @@ export async function getBookings(
       ascending: false,
     });
 
-
   if (status !== "All") {
     query = query.eq(
       "status",
@@ -81,17 +80,14 @@ export async function getBookings(
     );
   }
 
-
   const {
     data,
     error,
   } = await query;
 
-
   if (error) {
     throw error;
   }
-
 
   return data ?? [];
 }
@@ -100,9 +96,8 @@ export async function getBookings(
 // =========================
 // GET SINGLE BOOKING
 // =========================
-export async function getBooking(
-  id: string
-) {
+
+export async function getBooking(id: string) {
   const {
     data,
     error,
@@ -130,11 +125,9 @@ export async function getBooking(
     .eq("id", id)
     .single();
 
-
   if (error) {
     throw error;
   }
-
 
   return data;
 }
@@ -143,6 +136,7 @@ export async function getBooking(
 // =========================
 // UPDATE BOOKING STATUS
 // =========================
+
 export async function updateBookingStatus(
   id: string,
   status:
@@ -158,11 +152,9 @@ export async function updateBookingStatus(
     })
     .eq("id", id);
 
-
   if (error) {
     throw error;
   }
-
 
   if (status === "Completed") {
     const booking = await getBookingById(
@@ -177,11 +169,10 @@ export async function updateBookingStatus(
     );
   }
 }
-
-
 // =========================
 // ASSIGN WORKER
 // =========================
+
 export async function assignWorker(
   bookingId: string,
   workerId: string
@@ -194,7 +185,6 @@ export async function assignWorker(
     })
     .eq("id", bookingId);
 
-
   if (error) {
     throw error;
   }
@@ -204,9 +194,8 @@ export async function assignWorker(
 // =========================
 // WORKER ACCEPT BOOKING
 // =========================
-export async function acceptBooking(
-  id: number
-) {
+
+export async function acceptBooking(id: number) {
   const { error } = await supabase
     .from("bookings")
     .update({
@@ -214,14 +203,11 @@ export async function acceptBooking(
     })
     .eq("id", id);
 
-
   if (error) {
     throw error;
   }
 
-
   const booking = await getBookingById(id);
-
 
   await createNotification(
     booking.customer_id,
@@ -235,9 +221,8 @@ export async function acceptBooking(
 // =========================
 // WORKER REJECT BOOKING
 // =========================
-export async function rejectBooking(
-  id: number
-) {
+
+export async function rejectBooking(id: number) {
   const { error } = await supabase
     .from("bookings")
     .update({
@@ -245,14 +230,11 @@ export async function rejectBooking(
     })
     .eq("id", id);
 
-
   if (error) {
     throw error;
   }
 
-
   const booking = await getBookingById(id);
-
 
   await createNotification(
     booking.customer_id,
@@ -266,9 +248,8 @@ export async function rejectBooking(
 // =========================
 // GET BOOKING BY ID
 // =========================
-export async function getBookingById(
-  id: number
-) {
+
+export async function getBookingById(id: number) {
   const {
     data,
     error,
@@ -296,19 +277,16 @@ export async function getBookingById(
     .eq("id", id)
     .single();
 
-
   if (error) {
     throw error;
   }
 
-
   return data;
 }
-
-
 // =========================
 // CHECK WORKER AVAILABILITY
 // =========================
+
 export async function isWorkerAvailable(
   workerId: string,
   bookingDate: string,
@@ -337,19 +315,13 @@ export async function isWorkerAvailable(
       "Cancelled"
     );
 
-
   if (bookingError) {
     throw bookingError;
   }
 
-
-  if (
-    booked &&
-    booked.length > 0
-  ) {
+  if (booked && booked.length > 0) {
     return false;
   }
-
 
   const {
     data: unavailable,
@@ -366,19 +338,108 @@ export async function isWorkerAvailable(
       bookingDate
     );
 
-
   if (unavailableError) {
     throw unavailableError;
   }
 
-
-  if (
-    unavailable &&
-    unavailable.length > 0
-  ) {
+  if (unavailable && unavailable.length > 0) {
     return false;
   }
 
-
   return true;
+}
+
+
+// ===========================
+// CUSTOMER BOOKINGS
+// ===========================
+
+export async function getCustomerBookings(
+  customerId: string
+) {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("bookings")
+    .select(`
+      *,
+      worker:profiles!bookings_worker_id_fkey(
+        id,
+        first_name,
+        middle_name,
+        last_name,
+        profile_image,
+        phone,
+        email
+      )
+    `)
+    .eq(
+      "customer_id",
+      customerId
+    )
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+
+// ===========================
+// CANCEL BOOKING
+// ===========================
+
+export async function cancelBooking(
+  id: number
+) {
+  const {
+    error,
+  } = await supabase
+    .from("bookings")
+    .update({
+      status: "Cancelled",
+    })
+    .eq(
+      "id",
+      id
+    );
+
+  if (error) {
+    throw error;
+  }
+}
+
+
+// ===========================
+// BOOKING TIMELINE
+// ===========================
+
+export function getBookingTimeline(
+  status: string
+) {
+  return [
+    {
+      title: "Booking Submitted",
+      done: true,
+    },
+    {
+      title: "Worker Approved",
+      done: status !== "Pending",
+    },
+    {
+      title: "Work In Progress",
+      done:
+        status === "Completed" ||
+        status === "Approved",
+    },
+    {
+      title: "Completed",
+      done: status === "Completed",
+    },
+  ];
 }

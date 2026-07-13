@@ -4,26 +4,39 @@ import CustomerSidebar from "../components/layout/CustomerSidebar";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 
+import { ProfileProvider } from "../context/ProfileContext";
+
+
 interface Props {
   children: ReactNode;
 }
 
+
 export default function CustomerLayout({
   children,
 }: Props) {
+
   return (
-    <div className="min-h-screen flex bg-slate-100">
-      <CustomerSidebar />
+    <ProfileProvider>
 
-      <div className="flex-1 flex flex-col">
-        <Navbar />
+      <div className="min-h-screen flex bg-slate-100">
 
-        <main className="flex-1 p-8 overflow-auto">
-          {children}
-        </main>
+        <CustomerSidebar />
 
-        <Footer />
+        <div className="flex-1 flex flex-col">
+
+          <Navbar />
+
+          <main className="flex-1 p-8 overflow-auto">
+            {children}
+          </main>
+
+          <Footer />
+
+        </div>
+
       </div>
-    </div>
+
+    </ProfileProvider>
   );
 }

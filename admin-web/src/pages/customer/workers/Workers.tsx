@@ -31,10 +31,10 @@ export default function Workers() {
     <CustomerLayout>
       <div className="p-8">
 
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div className="flex justify-between items-center mb-8">
 
           <h1 className="text-3xl font-bold">
-            Available Workers
+            Find Skilled Workers
           </h1>
 
           <input
@@ -42,7 +42,7 @@ export default function Workers() {
             placeholder="Search worker..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border rounded-xl px-4 py-3 w-full md:w-80"
+            className="border rounded-xl px-4 py-3 w-80"
           />
 
         </div>
@@ -50,7 +50,7 @@ export default function Workers() {
         {loading ? (
 
           <div className="text-center py-20">
-            Loading workers...
+            Loading...
           </div>
 
         ) : workers.length === 0 ? (
@@ -61,54 +61,61 @@ export default function Workers() {
 
         ) : (
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
 
             {workers.map((worker) => (
 
               <div
                 key={worker.id}
-                className="bg-white rounded-2xl shadow p-6"
+                className="bg-white rounded-2xl shadow overflow-hidden"
               >
 
                 <img
                   src={
                     worker.profile_image ||
-                    "https://placehold.co/150x150"
+                    "https://placehold.co/600x350?text=Worker"
                   }
-                  alt=""
-                  className="w-24 h-24 rounded-full mx-auto object-cover"
+                  className="h-52 w-full object-cover"
                 />
 
-                <h2 className="text-xl font-bold text-center mt-4">
+                <div className="p-6">
 
-                  {worker.first_name} {worker.last_name}
+                  <h2 className="text-xl font-bold">
+                    {worker.first_name} {worker.last_name}
+                  </h2>
 
-                </h2>
+                  <p className="text-blue-600 mt-1">
+                    {worker.category}
+                  </p>
 
-                <p className="text-center text-gray-500">
+                  <p className="text-gray-500 mt-2">
+                    {worker.service_name}
+                  </p>
 
-                  {worker.email}
+                  <p className="text-sm text-gray-400 mt-2">
+                    {worker.description}
+                  </p>
 
-                </p>
+                  <div className="flex justify-between items-center mt-5">
 
-                <p className="text-center mt-2">
+                    <span className="text-green-600 font-bold text-lg">
+                      ₱{worker.price}
+                    </span>
 
-                  Status:
+                    <span className="text-yellow-500">
+                      ⭐ 5.0
+                    </span>
 
-                  <span className="ml-2 text-green-600 font-semibold">
+                  </div>
 
-                    {worker.status}
+                  <Link
+                    to={`/customer/workers/${worker.id}`}
+                    className="block mt-6 text-center bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
+                  >
+                    View Profile
+                  </Link>
 
-                  </span>
-
-                </p>
-
-                <Link
-                  to={`/customer/workers/${worker.id}`}
-                  className="block mt-6 text-center bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
-                >
-                  View Details
-                </Link>
+                </div>
 
               </div>
 

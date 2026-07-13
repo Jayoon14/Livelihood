@@ -299,3 +299,94 @@ export async function getServices(
 
   return data ?? [];
 }
+// ====================
+// COMPLETE WORKER PROFILE
+// ====================
+
+export async function getCompleteWorkerProfile(
+  profileId: string
+) {
+  const [
+    profile,
+    education,
+    workExperience,
+    skills,
+    documents,
+    services,
+  ] = await Promise.all([
+    getWorker(profileId),
+    getEducation(profileId),
+    getWorkExperience(profileId),
+    getSkills(profileId),
+    getDocuments(profileId),
+    getServices(profileId),
+  ]);
+
+  return {
+    profile,
+    education,
+    workExperience,
+    skills,
+    documents,
+    services,
+  };
+}
+
+// ====================
+// WORKER REVIEWS
+// ====================
+
+export async function getWorkerReviews(
+  workerId: string
+) {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("worker_id", workerId)
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+// ====================
+// WORKER RATING
+// ====================
+
+export async function getWorkerRating(
+  workerId: string
+) {
+  const reviews =
+    await getWorkerReviews(workerId);
+
+  if (reviews.length === 0) {
+    return {
+      rating: 0,
+      total: 0,
+    };
+  }
+
+  const totalStars = reviews.reduce(
+    (sum, review: any) =>
+      sum + review.rating,
+    0
+  );
+
+  return {
+    rating: Number(
+      (
+        totalStars /
+        reviews.length
+      ).toFixed(1)
+    ),
+    total: reviews.length,
+  };
+}
