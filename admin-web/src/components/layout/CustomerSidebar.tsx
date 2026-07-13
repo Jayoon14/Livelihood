@@ -7,14 +7,14 @@ import {
 } from "lucide-react";
 
 import { NavLink, useNavigate } from "react-router-dom";
-import { logout } from "../services/authService";
+import { logout } from "../../services/authService";
 
 export default function CustomerSidebar() {
   const navigate = useNavigate();
 
   async function handleLogout() {
     await logout();
-    navigate("/customer/login");
+    navigate("/");
   }
 
   const menus = [
@@ -24,12 +24,12 @@ export default function CustomerSidebar() {
       path: "/customer/dashboard",
     },
     {
-      name: "Workers",
+      name: "Find Workers",
       icon: Users,
       path: "/customer/workers",
     },
     {
-      name: "Bookings",
+      name: "My Bookings",
       icon: CalendarDays,
       path: "/customer/bookings",
     },
@@ -41,24 +41,19 @@ export default function CustomerSidebar() {
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
-
-      <div className="p-6 border-b border-blue-600">
-
-        <h1 className="text-2xl font-bold">
+    <aside className="w-72 min-h-screen bg-blue-700 text-white flex flex-col shadow-xl">
+      <div className="p-8 border-b border-blue-600">
+        <h1 className="text-3xl font-bold">
           LivelihoodGo
         </h1>
 
-        <p className="text-blue-200 text-sm">
+        <p className="text-blue-200 mt-1">
           Customer Portal
         </p>
-
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
-
+      <nav className="flex-1 p-5 space-y-2">
         {menus.map((menu) => {
-
           const Icon = menu.icon;
 
           return (
@@ -66,33 +61,29 @@ export default function CustomerSidebar() {
               key={menu.name}
               to={menu.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+                `flex items-center gap-4 px-5 py-4 rounded-xl transition ${
                   isActive
-                    ? "bg-white text-blue-700 font-semibold"
+                    ? "bg-white text-blue-700 font-semibold shadow"
                     : "hover:bg-blue-600"
                 }`
               }
             >
-              <Icon size={20} />
-              {menu.name}
+              <Icon size={22} />
+              <span>{menu.name}</span>
             </NavLink>
           );
         })}
-
       </nav>
 
-      <div className="p-4">
-
+      <div className="p-5 border-t border-blue-600">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-red-600 transition"
+          className="flex items-center gap-4 w-full px-5 py-4 rounded-xl hover:bg-red-600 transition"
         >
-          <LogOut size={20} />
+          <LogOut size={22} />
           Logout
         </button>
-
       </div>
-
     </aside>
   );
 }

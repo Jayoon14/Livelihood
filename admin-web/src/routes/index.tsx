@@ -23,7 +23,7 @@ import BookingHistory from "../pages/admin/bookings/BookingHistory";
 
 
 // ================= CUSTOMER =================
-import CustomerDashboard from "../pages/customer/dashboard/Dashboard";
+import CustomerDashboard from "../pages/customer/dashboard/CustomerDashboard";
 import CustomerWorkers from "../pages/customer/workers/Workers";
 import CustomerBookings from "../pages/customer/bookings/Bookings";
 import BookingDetails from "../pages/customer/bookings/BookingDetails";

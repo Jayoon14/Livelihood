@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+
 import WorkerSidebar from "./WorkerSidebar";
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
 
 interface WorkerLayoutProps {
   children: ReactNode;
@@ -9,23 +12,19 @@ export default function WorkerLayout({
   children,
 }: WorkerLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 flex">
 
       <WorkerSidebar />
 
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col">
 
-        <header className="bg-white shadow px-8 py-5">
+        <Navbar />
 
-          <h2 className="text-2xl font-bold">
-            Worker Dashboard
-          </h2>
-
-        </header>
-
-        <main className="p-8">
+        <main className="flex-1 p-8 overflow-auto">
           {children}
         </main>
+
+        <Footer />
 
       </div>
 

@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import CustomerSidebar from "./CustomerSidebar";
+
+import CustomerSidebar from "../components/layout/CustomerSidebar";
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
 
 interface Props {
   children: ReactNode;
@@ -9,30 +12,18 @@ export default function CustomerLayout({
   children,
 }: Props) {
   return (
-    <div className="flex min-h-screen bg-slate-100">
-
+    <div className="min-h-screen flex bg-slate-100">
       <CustomerSidebar />
 
-      <div className="flex-1">
+      <div className="flex-1 flex flex-col">
+        <Navbar />
 
-        <header className="bg-white shadow px-8 py-5 flex justify-between items-center">
-
-          <h2 className="text-2xl font-bold">
-            Customer Dashboard
-          </h2>
-
-          <div className="font-semibold">
-            Welcome 👋
-          </div>
-
-        </header>
-
-        <main className="p-8">
+        <main className="flex-1 p-8 overflow-auto">
           {children}
         </main>
 
+        <Footer />
       </div>
-
     </div>
   );
 }
