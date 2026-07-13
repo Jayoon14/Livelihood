@@ -2,21 +2,10 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
-  User,
-  LogOut,
 } from "lucide-react";
-
-import { NavLink, useNavigate } from "react-router-dom";
-import { logout } from "../../services/authService";
+import { NavLink } from "react-router-dom";
 
 export default function CustomerSidebar() {
-  const navigate = useNavigate();
-
-  async function handleLogout() {
-    await logout();
-    navigate("/");
-  }
-
   const menus = [
     {
       name: "Dashboard",
@@ -32,11 +21,6 @@ export default function CustomerSidebar() {
       name: "My Bookings",
       icon: CalendarDays,
       path: "/customer/bookings",
-    },
-    {
-      name: "Profile",
-      icon: User,
-      path: "/customer/profile",
     },
   ];
 
@@ -74,16 +58,6 @@ export default function CustomerSidebar() {
           );
         })}
       </nav>
-
-      <div className="p-5 border-t border-blue-600">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-4 w-full px-5 py-4 rounded-xl hover:bg-red-600 transition"
-        >
-          <LogOut size={22} />
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }
