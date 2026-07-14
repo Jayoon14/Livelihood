@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { createNotification } from "./notificationService";
 
 
 // =====================
@@ -22,10 +23,20 @@ export async function submitReview(
       review,
     });
 
+
   if (error) {
     throw error;
   }
+
+
+  await createNotification(
+    workerId,
+    bookingId,
+    "New Review",
+    "A customer has submitted a review on your profile."
+  );
 }
+
 
 
 // =====================
@@ -39,6 +50,7 @@ export async function createReview(
   rating: number,
   review: string
 ) {
+
   const { data, error } = await supabase
     .from("reviews")
     .insert({
@@ -51,12 +63,23 @@ export async function createReview(
     .select()
     .single();
 
+
   if (error) {
     throw error;
   }
 
+
+  await createNotification(
+    workerId,
+    bookingId,
+    "New Review",
+    "A customer has submitted a review on your profile."
+  );
+
+
   return data;
 }
+
 
 
 // =====================
@@ -66,6 +89,7 @@ export async function createReview(
 export async function getMyReviews(
   customerId: string
 ) {
+
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -87,17 +111,23 @@ export async function getMyReviews(
       "status",
       "Completed"
     )
-    .order("booking_date", {
-      ascending: false,
-    });
+    .order(
+      "booking_date",
+      {
+        ascending: false,
+      }
+    );
+
 
   if (error) {
     console.error(error);
     return [];
   }
 
+
   return data ?? [];
 }
+
 
 
 // =====================
@@ -107,6 +137,7 @@ export async function getMyReviews(
 export async function getWorkerReviews(
   workerId: string
 ) {
+
   const { data, error } = await supabase
     .from("reviews")
     .select(`
@@ -122,25 +153,34 @@ export async function getWorkerReviews(
       "worker_id",
       workerId
     )
-    .order("created_at", {
-      ascending: false,
-    });
+    .order(
+      "created_at",
+      {
+        ascending:false,
+      }
+    );
+
 
   if (error) {
     console.error(error);
     return [];
   }
 
+
   return data ?? [];
 }
+
+
+
 // =====================
 // GET AVERAGE RATING
 // =====================
 
 export async function getAverageRating(
-  workerId: string
+  workerId:string
 ) {
-  const { data, error } = await supabase
+
+  const { data,error } = await supabase
     .from("reviews")
     .select("rating")
     .eq(
@@ -148,26 +188,29 @@ export async function getAverageRating(
       workerId
     );
 
-  if (error) {
+
+  if(error){
     console.error(error);
     return 0;
   }
 
-  if (!data || data.length === 0) {
+
+  if(!data || data.length === 0){
     return 0;
   }
 
+
   const total = data.reduce(
-    (sum, item) =>
-      sum + item.rating,
+    (sum,item)=>
+      sum + Number(item.rating),
     0
   );
+
 
   return Number(
     (total / data.length).toFixed(1)
   );
 }
-
 
 // =====================
 // GET WORKER AVERAGE RATING
@@ -180,6 +223,7 @@ export async function getWorkerAverageRating(
 }
 
 
+
 // =====================
 // CHECK IF REVIEWED
 // =====================
@@ -188,6 +232,7 @@ export async function hasReviewed(
   bookingId: number,
   customerId: string
 ) {
+
   const { data, error } = await supabase
     .from("reviews")
     .select("id")
@@ -201,9 +246,54 @@ export async function hasReviewed(
     )
     .maybeSingle();
 
-  if (error && error.code !== "PGRST116") {
+
+  if (
+    error &&
+    error.code !== "PGRST116"
+  ) {
     throw error;
   }
 
+
   return !!data;
+}
+
+
+
+// ===========================
+// CREATE REVIEW (OBJECT)
+// ===========================
+
+export async function createReviewData(
+  review: {
+    booking_id: number;
+    customer_id: string;
+    worker_id: string;
+    rating: number;
+    comment: string;
+  }
+) {
+
+  const { error } = await supabase
+    .from("reviews")
+    .insert({
+      booking_id: review.booking_id,
+      customer_id: review.customer_id,
+      worker_id: review.worker_id,
+      rating: review.rating,
+      review: review.comment,
+    });
+
+
+  if (error) {
+    throw error;
+  }
+
+
+  await createNotification(
+    review.worker_id,
+    review.booking_id,
+    "New Review",
+    "A customer has submitted a review on your profile."
+  );
 }

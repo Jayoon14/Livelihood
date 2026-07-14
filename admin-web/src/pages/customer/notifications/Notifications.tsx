@@ -11,6 +11,25 @@ export default function Notifications() {
 
   useEffect(() => {
     loadNotifications();
+
+    const channel = supabase
+      .channel("customer-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        () => {
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function loadNotifications() {
@@ -27,30 +46,30 @@ export default function Notifications() {
 
   async function handleRead(id: number) {
     await markNotificationAsRead(id);
-    loadNotifications();
+
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, is_read: true }
+          : item
+      )
+    );
   }
 
   return (
     <CustomerLayout>
-
       <div className="p-8">
-
         <h1 className="text-3xl font-bold mb-8">
           Notifications
         </h1>
 
         <div className="bg-white rounded-2xl shadow overflow-hidden">
-
           {notifications.length === 0 ? (
-
             <div className="p-10 text-center text-gray-500">
               No notifications.
             </div>
-
           ) : (
-
             notifications.map((item) => (
-
               <div
                 key={item.id}
                 className={`border-b p-5 ${
@@ -59,11 +78,8 @@ export default function Notifications() {
                     : "bg-blue-50 border-l-4 border-blue-600"
                 }`}
               >
-
                 <div className="flex justify-between items-start">
-
                   <div>
-
                     <h3 className="font-semibold text-lg">
                       {item.title}
                     </h3>
@@ -73,34 +89,26 @@ export default function Notifications() {
                     </p>
 
                     <p className="text-xs text-gray-400 mt-3">
-                      {new Date(item.created_at).toLocaleString()}
+                      {new Date(
+                        item.created_at
+                      ).toLocaleString()}
                     </p>
-
                   </div>
 
                   {!item.is_read && (
-
                     <button
                       onClick={() => handleRead(item.id)}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
                     >
                       Mark as Read
                     </button>
-
                   )}
-
                 </div>
-
               </div>
-
             ))
-
           )}
-
         </div>
-
       </div>
-
     </CustomerLayout>
   );
 }

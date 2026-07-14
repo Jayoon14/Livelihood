@@ -55,7 +55,7 @@ const menus = [
   {
     icon: BarChart3,
     label: "Reports",
-    path: "/reports",
+    path: "/admin/reports",
   },
 
   {

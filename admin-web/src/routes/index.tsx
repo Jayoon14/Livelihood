@@ -30,6 +30,7 @@ import BookingDetails from "../pages/customer/bookings/BookingDetails";
 import BookWorker from "../pages/customer/bookings/BookWorker";
 import Profile from "../pages/customer/profile/Profile";
 import Notifications from "../pages/customer/notifications/Notifications";
+import CustomerWorkerProfile from "../pages/customer/workers/WorkerProfile";
 
 
 // ================= WORKER =================
@@ -53,7 +54,7 @@ import ChatRoom from "../pages/chat/ChatRoom";
 
 
 // ================= OTHER =================
-import Reports from "../pages/reports/Reports";
+import Reports from "../pages/admin/reports/Reports";
 import Settings from "../pages/settings/Settings";
 
 
@@ -69,6 +70,9 @@ import ActivityLogs from "../pages/admin/activity/ActivityLogs";
 
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+import LeaveReview from "../pages/customer/reviews/LeaveReview";
+
+import ChatList from "../pages/chat/ChatList";
 
 
 
@@ -186,6 +190,31 @@ export default function AppRoutes() {
           }
         />
 
+        <Route
+        path="/customer/workers/:id"
+        element={
+          <ProtectedRoute>
+            <CustomerWorkerProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/review/:bookingId"
+        element={
+          <ProtectedRoute>
+            <LeaveReview />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <ChatList />
+          </ProtectedRoute>
+        }
+      />
 
 
         {/* ================= WORKER ================= */}
@@ -333,14 +362,13 @@ export default function AppRoutes() {
         {/* ================= REPORTS ================= */}
 
         <Route
-          path="/reports"
+          path="/admin/reports"
           element={
             <ProtectedRoute>
               <Reports />
             </ProtectedRoute>
           }
         />
-
 
 
         {/* ================= SETTINGS ================= */}

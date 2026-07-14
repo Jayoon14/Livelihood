@@ -1,10 +1,12 @@
 import { supabase } from "../lib/supabase";
-
+import { createNotification } from "./notificationService";
 
 /**
  * Get all bookings of logged in customer
  */
-export async function getCustomerBookings(customerId: string) {
+export async function getCustomerBookings(
+  customerId: string
+) {
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -19,24 +21,24 @@ export async function getCustomerBookings(customerId: string) {
       )
     `)
     .eq("customer_id", customerId)
-    .order("created_at", { ascending: false });
-
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (error) {
     throw error;
   }
 
-
   return data ?? [];
 }
-
-
 
 
 /**
  * Get single booking details
  */
-export async function getBookingDetails(id: string) {
+export async function getBookingDetails(
+  id: string
+) {
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -53,24 +55,21 @@ export async function getBookingDetails(id: string) {
     .eq("id", id)
     .single();
 
-
   if (error) {
     throw error;
   }
 
-
   return data;
 }
-
-
-
 
 
 /**
  * Cancel booking
  * Customer can only cancel Pending booking
  */
-export async function cancelBooking(id: string) {
+export async function cancelBooking(
+  id: string
+) {
   const { error } = await supabase
     .from("bookings")
     .update({
@@ -79,14 +78,10 @@ export async function cancelBooking(id: string) {
     .eq("id", id)
     .eq("status", "Pending");
 
-
   if (error) {
     throw error;
   }
 }
-
-
-
 
 
 /**
@@ -103,17 +98,12 @@ export async function getCustomerBookingCount(
     })
     .eq("customer_id", customerId);
 
-
   if (error) {
     throw error;
   }
 
-
   return count ?? 0;
 }
-
-
-
 
 
 /**
@@ -136,17 +126,12 @@ export async function getPendingBookings(
     .eq("customer_id", customerId)
     .eq("status", "Pending");
 
-
   if (error) {
     throw error;
   }
 
-
   return data ?? [];
 }
-
-
-
 
 
 /**
@@ -169,11 +154,58 @@ export async function getCompletedBookings(
     .eq("customer_id", customerId)
     .eq("status", "Completed");
 
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+
+// ===============================
+// CREATE BOOKING
+// ===============================
+
+export async function createBooking(data: {
+  customer_id: string;
+  worker_id: string;
+  service_id: string;
+  booking_date: string;
+  booking_time: string;
+  address: string;
+  notes: string;
+}) {
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .insert({
+      customer_id: data.customer_id,
+      worker_id: data.worker_id,
+      service_id: data.service_id,
+      booking_date: data.booking_date,
+      booking_time: data.booking_time,
+      address: data.address,
+      notes: data.notes,
+      status: "Pending",
+    })
+    .select()
+    .single();
 
   if (error) {
     throw error;
   }
 
 
-  return data ?? [];
+  // ===============================
+  // CREATE WORKER NOTIFICATION
+  // ===============================
+
+  await createNotification(
+    booking.worker_id,
+    booking.id,
+    "New Booking",
+    "You have received a new booking request."
+  );
+
+
+  return booking;
 }

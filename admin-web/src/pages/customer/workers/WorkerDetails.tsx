@@ -38,6 +38,11 @@ export default function WorkerDetails() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
 
+  // New Booking States
+  const [service, setService] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [estimatedPrice, setEstimatedPrice] = useState(0);
+
   const [reviews, setReviews] = useState<any[]>([]);
   const [averageRating, setAverageRating] = useState(0);
 
@@ -50,17 +55,24 @@ export default function WorkerDetails() {
   async function loadWorker() {
     try {
       const data = await getWorkerDetails(id!);
+
       setWorker(data);
+
+      // Default selected service
+      if (data.services?.length > 0) {
+        setService(data.services[0].service_name ?? "");
+        setEstimatedPrice(data.services[0].price ?? 0);
+      }
 
       const edu = await getEducation(id!);
       const work = await getWorkExperience(id!);
       const skill = await getSkills(id!);
-      const service = await getServices(id!);
+      const serviceList = await getServices(id!);
 
       setEducation(edu);
       setWorkExperience(work);
       setSkills(skill);
-      setServices(service);
+      setServices(serviceList);
 
       const workerReviews = await getWorkerReviews(id!);
       const average = await getWorkerAverageRating(id!);
@@ -73,7 +85,13 @@ export default function WorkerDetails() {
   }
 
   async function handleBooking() {
-    if (!bookingDate || !bookingTime || !address.trim()) {
+    if (
+      !bookingDate ||
+      !bookingTime ||
+      !address.trim() ||
+      !service ||
+      !contactNumber.trim()
+    ) {
       alert("Please complete all required fields.");
       return;
     }
@@ -99,6 +117,7 @@ export default function WorkerDetails() {
         return;
       }
 
+      // Existing booking function
       await createBooking(
         user.id,
         worker.id,
@@ -114,6 +133,12 @@ export default function WorkerDetails() {
       setBookingTime("");
       setAddress("");
       setNotes("");
+      setContactNumber("");
+
+      if (worker.services?.length > 0) {
+        setService(worker.services[0].service_name);
+        setEstimatedPrice(worker.services[0].price ?? 0);
+      }
     } catch (error) {
       console.error(error);
       alert("Failed to submit booking.");
@@ -154,44 +179,151 @@ export default function WorkerDetails() {
               </span>
             </p>
 
-            <div className="mt-5 space-y-3">
-              <input
-                type="date"
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                className="w-full border rounded-lg p-3"
-              />
+            {/* BOOKING FORM STARTS HERE */}
+            <div className="mt-5 space-y-4">
+                            {/* Service */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Service
+                </label>
 
-              <input
-                type="time"
-                value={bookingTime}
-                onChange={(e) => setBookingTime(e.target.value)}
-                className="w-full border rounded-lg p-3"
-              />
+                <select
+                  value={service}
+                  onChange={(e) => {
+                    const selected = e.target.value;
 
-              <input
-                placeholder="Service Address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full border rounded-lg p-3"
-              />
+                    setService(selected);
 
-              <textarea
-                placeholder="Additional Notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full border rounded-lg p-3"
-              />
+                    const selectedService =
+                      worker.services?.find(
+                        (item: any) =>
+                          item.service_name === selected
+                      );
 
+                    setEstimatedPrice(
+                      selectedService?.price ?? 0
+                    );
+                  }}
+                  className="w-full border rounded-lg p-3"
+                >
+                  {worker.services?.map((item: any) => (
+                    <option
+                      key={item.id}
+                      value={item.service_name}
+                    >
+                      {item.service_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Contact Number */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Contact Number
+                </label>
+
+                <input
+                  type="text"
+                  value={contactNumber}
+                  onChange={(e) =>
+                    setContactNumber(e.target.value)
+                  }
+                  placeholder="09XXXXXXXXX"
+                  className="w-full border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Preferred Date */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Preferred Date
+                </label>
+
+                <input
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) =>
+                    setBookingDate(e.target.value)
+                  }
+                  className="w-full border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Preferred Time */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Preferred Time
+                </label>
+
+                <input
+                  type="time"
+                  value={bookingTime}
+                  onChange={(e) =>
+                    setBookingTime(e.target.value)
+                  }
+                  className="w-full border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Service Address */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Service Address
+                </label>
+
+                <input
+                  value={address}
+                  onChange={(e) =>
+                    setAddress(e.target.value)
+                  }
+                  placeholder="Enter complete address"
+                  className="w-full border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Job Description */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Job Description
+                </label>
+
+                <textarea
+                  rows={5}
+                  value={notes}
+                  onChange={(e) =>
+                    setNotes(e.target.value)
+                  }
+                  placeholder="Describe the work..."
+                  className="w-full border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Estimated Price */}
+              <div>
+                <label className="font-semibold block mb-2">
+                  Estimated Price
+                </label>
+
+                <input
+                  readOnly
+                  value={`₱${estimatedPrice}`}
+                  className="w-full bg-gray-100 border rounded-lg p-3"
+                />
+              </div>
+
+              {/* Book Button */}
               <button
                 onClick={handleBooking}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 text-lg font-semibold"
               >
-                Confirm Booking
+                Book Worker
               </button>
             </div>
           </div>
         </div>
+
+        {/* REVIEWS SECTION */}
                 {/* REVIEWS SECTION */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
@@ -254,7 +386,6 @@ export default function WorkerDetails() {
           )}
         </div>
 
-
         {/* SERVICES */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
@@ -276,9 +407,7 @@ export default function WorkerDetails() {
                   {service.service_name}
                 </h3>
 
-                <p>
-                  {service.category}
-                </p>
+                <p>{service.category}</p>
 
                 <p className="text-gray-500 mt-2">
                   {service.description}
@@ -291,7 +420,8 @@ export default function WorkerDetails() {
             ))
           )}
         </div>
-                {/* SKILLS */}
+
+        {/* SKILLS */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
           <h2 className="text-2xl font-bold mb-4">
@@ -316,7 +446,6 @@ export default function WorkerDetails() {
           )}
         </div>
 
-
         {/* WORK EXPERIENCE */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
@@ -338,9 +467,7 @@ export default function WorkerDetails() {
                   {work.position}
                 </h3>
 
-                <p>
-                  {work.company_name}
-                </p>
+                <p>{work.company_name}</p>
 
                 <p className="text-gray-500">
                   {work.start_year} - {work.end_year}
@@ -349,7 +476,6 @@ export default function WorkerDetails() {
             ))
           )}
         </div>
-
 
         {/* EDUCATION */}
 
@@ -386,7 +512,6 @@ export default function WorkerDetails() {
             </p>
           )}
         </div>
-
       </div>
     </CustomerLayout>
   );

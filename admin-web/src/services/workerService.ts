@@ -390,3 +390,90 @@ export async function getWorkerRating(
     total: reviews.length,
   };
 }
+// =====================
+// FEATURED WORKERS
+// =====================
+
+export async function getFeaturedWorkers(limit = 6) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      services(
+        category,
+        service_name,
+        price
+      )
+    `)
+    .eq("role", "worker")
+    .eq("status", "Approved")
+    .limit(limit);
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+// =====================
+// GET CATEGORIES
+// =====================
+
+export async function getCategories() {
+  const { data, error } = await supabase
+    .from("services")
+    .select("category");
+
+  if (error) throw error;
+
+  const unique = [
+    ...new Set(
+      (data ?? [])
+        .map((x) => x.category)
+        .filter(Boolean)
+    ),
+  ];
+
+  return unique;
+}
+
+// =====================
+// SEARCH DASHBOARD
+// =====================
+
+export async function searchDashboard(keyword: string) {
+  let query = supabase
+    .from("profiles")
+    .select(`
+      *,
+      services(
+        category,
+        service_name,
+        price
+      )
+    `)
+    .eq("role", "worker")
+    .eq("status", "Approved");
+
+  if (keyword.trim()) {
+    query = query.or(
+      `first_name.ilike.%${keyword}%,
+       last_name.ilike.%${keyword}%,
+       email.ilike.%${keyword}%`
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+// =============================
+// CUSTOMER WORKER PROFILE
+// =============================
+
+export async function getCustomerWorkerProfile(workerId: string) {
+  const profile = await getCompleteWorkerProfile(workerId);
+
+  return profile;
+}
