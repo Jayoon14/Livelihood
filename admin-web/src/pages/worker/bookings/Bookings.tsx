@@ -6,11 +6,14 @@ import { supabase } from "../../../lib/supabase";
 
 import {
   getWorkerBookings,
-  updateBookingStatus,
+  acceptBooking,
+  rejectBooking,
+  completeBooking,
 } from "../../../services/workerBookingService";
 
 
 export default function Bookings() {
+
   const [bookings, setBookings] = useState<any[]>([]);
 
 
@@ -19,7 +22,9 @@ export default function Bookings() {
   }, []);
 
 
+
   async function loadBookings() {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -31,26 +36,81 @@ export default function Bookings() {
     const data = await getWorkerBookings(user.id);
 
     setBookings(data);
+
   }
 
 
 
-  async function handleStatus(
-    id: number,
-    status:
-      | "Pending"
-      | "Approved"
-      | "Completed"
-      | "Cancelled"
-  ) {
-    await updateBookingStatus(id, status);
+  async function handleApprove(id: number) {
 
-    loadBookings();
+    try {
+
+      await acceptBooking(id);
+
+      alert("Booking approved successfully.");
+
+      loadBookings();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Unable to approve booking.");
+
+    }
+
+  }
+
+
+
+
+  async function handleReject(id: number) {
+
+    try {
+
+      await rejectBooking(id);
+
+      alert("Booking rejected.");
+
+      loadBookings();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Unable to reject booking.");
+
+    }
+
+  }
+
+
+
+
+  async function handleComplete(id: number) {
+
+    try {
+
+      await completeBooking(id);
+
+      alert("Booking completed.");
+
+      loadBookings();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Unable to complete booking.");
+
+    }
+
   }
 
 
 
   return (
+
     <WorkerLayout>
 
       <div className="p-8">
@@ -60,11 +120,9 @@ export default function Bookings() {
         </h1>
 
 
-
         <div className="bg-white rounded-xl shadow overflow-hidden">
 
           <table className="w-full">
-
 
             <thead className="bg-gray-100">
 
@@ -95,7 +153,6 @@ export default function Bookings() {
             </thead>
 
 
-
             <tbody>
 
               {bookings.length > 0 ? (
@@ -124,6 +181,7 @@ export default function Bookings() {
 
 
                     <td className="p-4">
+
                       <span
                         className={`px-3 py-1 rounded-full text-sm text-white ${
                           booking.status === "Pending"
@@ -137,21 +195,17 @@ export default function Bookings() {
                       >
                         {booking.status}
                       </span>
-                    </td>
 
+                    </td>
 
 
                     <td className="p-4">
 
                       <div className="flex flex-wrap gap-2">
 
-
                         <button
                           onClick={() =>
-                            handleStatus(
-                              booking.id,
-                              "Approved"
-                            )
+                            handleApprove(booking.id)
                           }
                           className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded"
                         >
@@ -159,13 +213,9 @@ export default function Bookings() {
                         </button>
 
 
-
                         <button
                           onClick={() =>
-                            handleStatus(
-                              booking.id,
-                              "Cancelled"
-                            )
+                            handleReject(booking.id)
                           }
                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded"
                         >
@@ -173,19 +223,14 @@ export default function Bookings() {
                         </button>
 
 
-
                         <button
                           onClick={() =>
-                            handleStatus(
-                              booking.id,
-                              "Completed"
-                            )
+                            handleComplete(booking.id)
                           }
                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded"
                         >
                           Complete
                         </button>
-
 
 
                         {booking.status === "Approved" && (
@@ -199,11 +244,9 @@ export default function Bookings() {
 
                         )}
 
-
                       </div>
 
                     </td>
-
 
                   </tr>
 
@@ -226,7 +269,6 @@ export default function Bookings() {
 
             </tbody>
 
-
           </table>
 
         </div>
@@ -234,5 +276,7 @@ export default function Bookings() {
       </div>
 
     </WorkerLayout>
+
   );
+
 }

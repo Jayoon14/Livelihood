@@ -21,6 +21,10 @@ import {
   getWorkerAverageRating,
 } from "../../../services/reviewService";
 
+import {
+  getApprovedServices,
+} from "../../../services/serviceService";
+
 export default function CustomerWorkerProfile() {
   const { id } = useParams();
 
@@ -37,13 +41,15 @@ export default function CustomerWorkerProfile() {
   async function loadWorker() {
     if (!id) return;
 
-    const data =
-      await getCustomerWorkerProfile(id);
+    const data = await getCustomerWorkerProfile(id);
+
+    const services = await getApprovedServices(id);
+
+    data.services = services;
 
     setWorker(data);
 
-    const avg =
-      await getWorkerAverageRating(id);
+    const avg = await getWorkerAverageRating(id);
 
     setRating(avg);
   }
@@ -72,6 +78,7 @@ export default function CustomerWorkerProfile() {
               "https://placehold.co/250x250"
             }
             className="w-52 h-52 rounded-2xl object-cover"
+            alt="Worker"
           />
 
           <div className="flex-1">
@@ -137,28 +144,38 @@ export default function CustomerWorkerProfile() {
 
           <div className="grid md:grid-cols-2 gap-5">
 
-            {worker.services.map((service: any) => (
+            {worker.services.length === 0 ? (
 
-              <div
-                key={service.id}
-                className="border rounded-xl p-5"
-              >
+              <p className="text-gray-500">
+                No approved services yet.
+              </p>
 
-                <h3 className="font-bold text-xl">
-                  {service.service_name}
-                </h3>
+            ) : (
 
-                <p className="text-gray-500 mt-2">
-                  {service.category}
-                </p>
+              worker.services.map((service: any) => (
 
-                <p className="text-blue-700 font-bold mt-3">
-                  ₱{service.price}
-                </p>
+                <div
+                  key={service.id}
+                  className="border rounded-xl p-5"
+                >
 
-              </div>
+                  <h3 className="font-bold text-xl">
+                    {service.service_name}
+                  </h3>
 
-            ))}
+                  <p className="text-gray-500 mt-2">
+                    {service.category}
+                  </p>
+
+                  <p className="text-blue-700 font-bold mt-3">
+                    ₱{service.price}
+                  </p>
+
+                </div>
+
+              ))
+
+            )}
 
           </div>
 
@@ -173,7 +190,7 @@ export default function CustomerWorkerProfile() {
             Education
           </h2>
 
-          {worker.education && (
+          {worker.education ? (
 
             <div>
 
@@ -191,6 +208,12 @@ export default function CustomerWorkerProfile() {
 
             </div>
 
+          ) : (
+
+            <p className="text-gray-500">
+              No education information available.
+            </p>
+
           )}
 
         </div>
@@ -203,22 +226,32 @@ export default function CustomerWorkerProfile() {
             Work Experience
           </h2>
 
-          {worker.workExperience.map((job: any) => (
+          {worker.workExperience?.length ? (
 
-            <div
-              key={job.id}
-              className="mb-5"
-            >
+            worker.workExperience.map((job: any) => (
 
-              <h3 className="font-bold">
-                {job.company}
-              </h3>
+              <div
+                key={job.id}
+                className="mb-5"
+              >
 
-              <p>{job.position}</p>
+                <h3 className="font-bold">
+                  {job.company}
+                </h3>
 
-            </div>
+                <p>{job.position}</p>
 
-          ))}
+              </div>
+
+            ))
+
+          ) : (
+
+            <p className="text-gray-500">
+              No work experience available.
+            </p>
+
+          )}
 
         </div>
 
@@ -233,16 +266,26 @@ export default function CustomerWorkerProfile() {
 
           <div className="flex flex-wrap gap-3">
 
-            {worker.skills.map((skill: any) => (
+            {worker.skills?.length ? (
 
-              <span
-                key={skill.id}
-                className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
-              >
-                {skill.skill_name}
-              </span>
+              worker.skills.map((skill: any) => (
 
-            ))}
+                <span
+                  key={skill.id}
+                  className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
+                >
+                  {skill.skill_name}
+                </span>
+
+              ))
+
+            ) : (
+
+              <p className="text-gray-500">
+                No skills available.
+              </p>
+
+            )}
 
           </div>
 

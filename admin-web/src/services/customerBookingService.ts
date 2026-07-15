@@ -175,6 +175,13 @@ export async function createBooking(data: {
   address: string;
   notes: string;
 }) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  console.log("AUTH USER:", user?.id);
+  console.log("INSERT DATA:", data);
+
   const { data: booking, error } = await supabase
     .from("bookings")
     .insert({
@@ -190,14 +197,10 @@ export async function createBooking(data: {
     .select()
     .single();
 
-  if (error) {
-    throw error;
-  }
+  console.log("BOOKING:", booking);
+  console.log("ERROR:", error);
 
-
-  // ===============================
-  // CREATE WORKER NOTIFICATION
-  // ===============================
+  if (error) throw error;
 
   await createNotification(
     booking.worker_id,
@@ -205,7 +208,6 @@ export async function createBooking(data: {
     "New Booking",
     "You have received a new booking request."
   );
-
 
   return booking;
 }

@@ -6,15 +6,14 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 import {
   getBooking,
   cancelBooking,
-  getBookingTimeline,
 } from "../../../services/bookingService";
 
 import { supabase } from "../../../lib/supabase";
-
 import { hasReviewed } from "../../../services/reviewService";
 
 
 export default function BookingDetails() {
+
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -31,38 +30,47 @@ export default function BookingDetails() {
 
 
   async function loadBooking() {
+
     try {
+
       setLoading(true);
 
-      const data = await getBooking(
-        id!
-      );
+      const data = await getBooking(id!);
 
       setBooking(data);
+
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
+
       if (user) {
+
         const alreadyReviewed = await hasReviewed(
           Number(id),
           user.id
         );
 
         setReviewed(alreadyReviewed);
+
       }
 
     } catch (error) {
+
       console.error(error);
 
     } finally {
+
       setLoading(false);
+
     }
+
   }
 
 
   async function handleCancel() {
+
     const confirmed = window.confirm(
       "Cancel this booking?"
     );
@@ -71,49 +79,60 @@ export default function BookingDetails() {
 
 
     try {
-      await cancelBooking(
-        Number(id)
-      );
 
-      alert(
-        "Booking cancelled."
-      );
+      await cancelBooking(Number(id));
+
+      alert("Booking cancelled.");
 
       loadBooking();
 
     } catch (error) {
+
       console.error(error);
 
-      alert(
-        "Unable to cancel booking."
-      );
+      alert("Unable to cancel booking.");
+
     }
+
   }
+    if (loading) {
 
-
-  if (loading) {
     return (
       <CustomerLayout>
+
         <div className="p-10 text-center">
           Loading...
         </div>
+
       </CustomerLayout>
     );
+
   }
 
 
   if (!booking) {
+
     return (
       <CustomerLayout>
+
         <div className="p-10 text-center">
           Booking not found.
         </div>
+
       </CustomerLayout>
     );
+
   }
 
 
-  const timeline = getBookingTimeline(
+  const steps = [
+    "Pending",
+    "Approved",
+    "Completed",
+  ];
+
+
+  const currentStep = steps.indexOf(
     booking.status
   );
 
@@ -122,6 +141,9 @@ export default function BookingDetails() {
     <CustomerLayout>
 
       <div className="max-w-5xl mx-auto space-y-6 p-6">
+
+
+        {/* BOOKING DETAILS */}
 
         <div className="bg-white rounded-xl shadow p-6">
 
@@ -133,6 +155,7 @@ export default function BookingDetails() {
           <div className="grid md:grid-cols-2 gap-5">
 
             <div>
+
               <p className="text-gray-500">
                 Worker
               </p>
@@ -146,10 +169,12 @@ export default function BookingDetails() {
                   .filter(Boolean)
                   .join(" ")}
               </p>
+
             </div>
 
 
             <div>
+
               <p className="text-gray-500">
                 Status
               </p>
@@ -167,10 +192,12 @@ export default function BookingDetails() {
               >
                 {booking.status}
               </span>
+
             </div>
 
 
             <div>
+
               <p className="text-gray-500">
                 Date
               </p>
@@ -178,10 +205,12 @@ export default function BookingDetails() {
               <p className="font-semibold">
                 {booking.booking_date}
               </p>
+
             </div>
 
 
             <div>
+
               <p className="text-gray-500">
                 Time
               </p>
@@ -189,6 +218,7 @@ export default function BookingDetails() {
               <p className="font-semibold">
                 {booking.booking_time}
               </p>
+
             </div>
 
 
@@ -220,27 +250,27 @@ export default function BookingDetails() {
           </div>
 
         </div>
-
+                {/* BOOKING PROGRESS */}
 
         <div className="bg-white rounded-xl shadow p-6">
 
-          <h2 className="text-2xl font-bold mb-5">
-            Booking Timeline
+          <h2 className="text-2xl font-bold mb-6">
+            Booking Progress
           </h2>
 
 
-          <div className="space-y-4">
+          <div className="space-y-5">
 
-            {timeline.map((item, index) => (
+            {steps.map((step, index) => (
 
               <div
-                key={index}
+                key={step}
                 className="flex items-center gap-4"
               >
 
                 <div
                   className={`w-5 h-5 rounded-full ${
-                    item.done
+                    index <= currentStep
                       ? "bg-green-600"
                       : "bg-gray-300"
                   }`}
@@ -248,13 +278,13 @@ export default function BookingDetails() {
 
 
                 <p
-                  className={
-                    item.done
-                      ? "font-semibold"
+                  className={`font-semibold ${
+                    index <= currentStep
+                      ? "text-green-700"
                       : "text-gray-400"
-                  }
+                  }`}
                 >
-                  {item.title}
+                  {step}
                 </p>
 
               </div>
@@ -266,7 +296,11 @@ export default function BookingDetails() {
         </div>
 
 
+
+        {/* ACTIONS */}
+
         <div className="flex flex-wrap gap-4">
+
 
           {booking.status === "Pending" && (
 
@@ -278,6 +312,7 @@ export default function BookingDetails() {
             </button>
 
           )}
+
 
 
           {booking.status === "Approved" && (
@@ -296,34 +331,41 @@ export default function BookingDetails() {
           )}
 
 
-          {booking.status === "Completed" && !reviewed && (
 
-            <button
-              onClick={() =>
-                navigate(
-                  `/customer/review/${booking.id}`
-                )
-              }
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg"
-            >
-              Leave Review
-            </button>
+          {booking.status === "Completed" &&
+            !reviewed && (
 
-          )}
+              <button
+                onClick={() =>
+                  navigate(
+                    `/customer/review/${booking.id}`
+                  )
+                }
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg"
+              >
+                Leave Review
+              </button>
+
+            )}
 
 
-          {booking.status === "Completed" && reviewed && (
 
-            <div className="bg-green-100 text-green-700 px-6 py-3 rounded-lg font-semibold">
-              ✅ Review Submitted
-            </div>
+          {booking.status === "Completed" &&
+            reviewed && (
 
-          )}
+              <div className="bg-green-100 text-green-700 px-6 py-3 rounded-lg font-semibold">
+                ✅ Review Submitted
+              </div>
+
+            )}
+
 
         </div>
+
 
       </div>
 
     </CustomerLayout>
   );
+
 }

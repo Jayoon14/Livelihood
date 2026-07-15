@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-import AdminSidebar from "./AdminSidebar";
-import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
+import AdminSidebar from "../components/admin/AdminSidebar";
+import AdminNavbar from "../components/admin/AdminNavbar";
+import Footer from "../components/common/Footer";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -18,7 +18,7 @@ export default function AdminLayout({
 
       <div className="flex-1 flex flex-col">
 
-        <Navbar />
+        <AdminNavbar />
 
         <main className="flex-1 p-8 overflow-auto">
           {children}

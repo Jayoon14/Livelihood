@@ -39,6 +39,7 @@ import WorkerBookings from "../pages/worker/bookings/Bookings";
 import WorkerReviews from "../pages/worker/reviews/Reviews";
 import WorkerProfile from "../pages/worker/profile/Profile";
 import WorkerSchedule from "../pages/worker/schedule/Schedule";
+import Services from "../pages/worker/Services/services";
 
 
 // ================= ADMIN PAGES =================
@@ -74,6 +75,9 @@ import LeaveReview from "../pages/customer/reviews/LeaveReview";
 
 import ChatList from "../pages/chat/ChatList";
 
+import Categories from "../pages/customer/categories/Categories";
+import WorkersByCategory from "../pages/customer/categories/WorkersByCategory";
+import Favorites from "../pages/customer/favorites/Favorites";
 
 
 export default function AppRoutes() {
@@ -139,6 +143,10 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+    path="/customer/favorites"
+    element={<Favorites />}
+/>
 
 
         <Route
@@ -215,6 +223,22 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/customer/categories"
+        element={
+          <ProtectedRoute>
+            <Categories />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/categories/:category"
+        element={
+          <ProtectedRoute>
+            <WorkersByCategory />
+          </ProtectedRoute>
+        }
+      />
 
 
         {/* ================= WORKER ================= */}
@@ -267,6 +291,15 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+        path="/worker/services"
+        element={
+          <ProtectedRoute>
+            <Services />
+          </ProtectedRoute>
+        }
+      />
 
 
 

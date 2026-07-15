@@ -14,12 +14,13 @@ import { logout } from "../../services/authService";
 import { getUnreadCount } from "../../services/notificationService";
 import { useProfile } from "../../context/ProfileContext";
 
-export default function Navbar() {
+export default function AdminNavbar() {
+  const navigate = useNavigate();
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const navigate = useNavigate();
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
 
@@ -30,38 +31,19 @@ export default function Navbar() {
 
     if (!user) return;
 
-    const count = await getUnreadCount(user.id);
-
-    setUnreadCount(count);
-  }
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
+    try {
+      const count = await getUnreadCount(user.id);
+      setUnreadCount(count);
+    } catch (err) {
+      console.error(err);
     }
-
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-
-    return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
-  }, []);
+  }
 
   useEffect(() => {
     loadUnread();
 
     const channel = supabase
-      .channel("navbar-notifications")
+      .channel("admin-navbar")
       .on(
         "postgres_changes",
         {
@@ -80,42 +62,70 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
+
   async function handleLogout() {
     await logout();
     navigate("/");
   }
 
-  const name = profile
+  const fullName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim()
-    : "Customer";
+    : "Administrator";
 
-  const email = profile?.email || "";
-  const avatar = profile?.profile_image || "";
+  const email = profile?.email ?? "";
+
+  const avatar = profile?.profile_picture || "";
 
   return (
-    <header className="bg-white shadow px-8 py-5 flex justify-between items-center">
+    <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
+
+      {/* LEFT */}
 
       <div>
-        <h1 className="text-2xl font-bold">
-          Customer Dashboard
+        <h1 className="text-2xl font-bold text-gray-800">
+          Administrator Dashboard
         </h1>
 
         <p className="text-gray-500">
-          Welcome back, {name}
+          Welcome back, {fullName}
         </p>
       </div>
 
+      {/* RIGHT */}
+
       <div className="flex items-center gap-6">
 
+        {/* Notifications */}
+
         <button
-          onClick={() =>
-            navigate("/customer/notifications")
-          }
+          onClick={() => navigate("/admin/notifications")}
           className="relative"
         >
           <Bell
             size={24}
-            className="text-gray-600"
+            className="text-gray-700"
           />
 
           {unreadCount > 0 && (
@@ -126,7 +136,6 @@ export default function Navbar() {
                 -right-2
                 bg-red-600
                 text-white
-                text-xs
                 rounded-full
                 min-w-[20px]
                 h-5
@@ -134,12 +143,15 @@ export default function Navbar() {
                 flex
                 items-center
                 justify-center
+                text-xs
               "
             >
               {unreadCount}
             </span>
           )}
         </button>
+
+        {/* Profile */}
 
         <div
           className="relative"
@@ -153,18 +165,18 @@ export default function Navbar() {
               <img
                 src={avatar}
                 alt="Profile"
-                className="w-11 h-11 rounded-full object-cover border-2 border-blue-600"
+                className="w-11 h-11 rounded-full object-cover border-2 border-red-600"
               />
             ) : (
               <UserCircle
-                size={44}
-                className="text-blue-600"
+                size={42}
+                className="text-red-600"
               />
             )}
 
             <div className="text-left">
               <p className="font-semibold">
-                {name || "Customer"}
+                {fullName}
               </p>
 
               <p className="text-sm text-gray-500">
@@ -176,12 +188,13 @@ export default function Navbar() {
           </button>
 
           {open && (
-            <div className="absolute right-0 mt-3 w-60 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
+            <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
 
               <button
-                onClick={() =>
-                  navigate("/customer/profile")
-                }
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/admin/profile");
+                }}
                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
               >
                 <User size={20} />
@@ -189,9 +202,10 @@ export default function Navbar() {
               </button>
 
               <button
-                onClick={() =>
-                  navigate("/customer/profile")
-                }
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/admin/profile/edit");
+                }}
                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
               >
                 <Pencil size={20} />
@@ -210,7 +224,6 @@ export default function Navbar() {
 
             </div>
           )}
-
         </div>
 
       </div>

@@ -332,64 +332,7 @@ export async function getCompleteWorkerProfile(
   };
 }
 
-// ====================
-// WORKER REVIEWS
-// ====================
 
-export async function getWorkerReviews(
-  workerId: string
-) {
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("reviews")
-    .select("*")
-    .eq("worker_id", workerId)
-    .order("created_at", {
-      ascending: false,
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
-}
-
-// ====================
-// WORKER RATING
-// ====================
-
-export async function getWorkerRating(
-  workerId: string
-) {
-  const reviews =
-    await getWorkerReviews(workerId);
-
-  if (reviews.length === 0) {
-    return {
-      rating: 0,
-      total: 0,
-    };
-  }
-
-  const totalStars = reviews.reduce(
-    (sum, review: any) =>
-      sum + review.rating,
-    0
-  );
-
-  return {
-    rating: Number(
-      (
-        totalStars /
-        reviews.length
-      ).toFixed(1)
-    ),
-    total: reviews.length,
-  };
-}
 // =====================
 // FEATURED WORKERS
 // =====================
@@ -440,12 +383,22 @@ export async function getCategories() {
 // SEARCH DASHBOARD
 // =====================
 
-export async function searchDashboard(keyword: string) {
+// =====================
+// ADVANCED SEARCH
+// =====================
+
+export async function searchDashboard(
+  keyword = "",
+  category = "",
+  minPrice?: number,
+  maxPrice?: number
+) {
   let query = supabase
     .from("profiles")
     .select(`
       *,
       services(
+        id,
         category,
         service_name,
         price
@@ -456,9 +409,7 @@ export async function searchDashboard(keyword: string) {
 
   if (keyword.trim()) {
     query = query.or(
-      `first_name.ilike.%${keyword}%,
-       last_name.ilike.%${keyword}%,
-       email.ilike.%${keyword}%`
+      `first_name.ilike.%${keyword}%,last_name.ilike.%${keyword}%,email.ilike.%${keyword}%`
     );
   }
 
@@ -466,7 +417,58 @@ export async function searchDashboard(keyword: string) {
 
   if (error) throw error;
 
-  return data ?? [];
+  let workers = data ?? [];
+
+  // Filter Category
+  if (category) {
+    workers = workers.filter((worker: any) =>
+      worker.services?.some(
+        (service: any) => service.category === category
+      )
+    );
+  }
+
+  // Filter Price
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    workers = workers.filter((worker: any) =>
+      worker.services?.some((service: any) => {
+        const price = Number(service.price);
+
+        if (minPrice !== undefined && price < minPrice) return false;
+        if (maxPrice !== undefined && price > maxPrice) return false;
+
+        return true;
+      })
+    );
+  }
+
+  // Compute average rating
+  const workersWithRating = await Promise.all(
+    workers.map(async (worker: any) => {
+      const { data: reviews } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("worker_id", worker.id);
+
+      let average = 0;
+
+      if (reviews && reviews.length > 0) {
+        const total = reviews.reduce(
+          (sum: number, review: any) => sum + Number(review.rating),
+          0
+        );
+
+        average = Number((total / reviews.length).toFixed(1));
+      }
+
+      return {
+        ...worker,
+        average_rating: average,
+      };
+    })
+  );
+
+  return workersWithRating;
 }
 // =============================
 // CUSTOMER WORKER PROFILE
@@ -476,4 +478,73 @@ export async function getCustomerWorkerProfile(workerId: string) {
   const profile = await getCompleteWorkerProfile(workerId);
 
   return profile;
+}
+export async function getWorkersByCategory(
+  category: string
+) {
+  const { data, error } = await supabase
+    .from("services")
+    .select(`
+      worker:profiles!worker_id(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        profile_image
+      )
+    `)
+    .eq("category", category)
+    .eq("status", "Approved");
+
+  if (error) {
+    throw error;
+  }
+
+  const uniqueWorkers = Array.from(
+    new Map(
+      (data ?? []).map((item: any) => [
+        item.worker.id,
+        item.worker,
+      ])
+    ).values()
+  );
+
+  return uniqueWorkers;
+}
+// =====================
+// CHECK AVAILABILITY
+// =====================
+
+export async function isWorkerAvailable(
+  workerId: string
+) {
+  const today = new Date();
+
+  const day = today.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+
+  const date = today.toISOString().split("T")[0];
+
+  // Weekly schedule
+  const { data: schedule } = await supabase
+    .from("worker_schedules")
+    .select("*")
+    .eq("worker_id", workerId)
+    .eq("day_of_week", day)
+    .eq("is_available", true);
+
+  // Unavailable dates
+  const { data: unavailable } = await supabase
+    .from("unavailable_dates")
+    .select("*")
+    .eq("worker_id", workerId)
+    .eq("unavailable_date", date);
+
+  return (
+    schedule &&
+    schedule.length > 0 &&
+    (!unavailable || unavailable.length === 0)
+  );
 }

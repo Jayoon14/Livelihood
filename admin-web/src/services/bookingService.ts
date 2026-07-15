@@ -138,36 +138,39 @@ export async function getBooking(id: string) {
 // =========================
 
 export async function updateBookingStatus(
-  id: string,
+  bookingId: number,
   status:
     | "Pending"
     | "Approved"
     | "Completed"
     | "Cancelled"
 ) {
-  const { error } = await supabase
+
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status,
     })
-    .eq("id", id);
+    .eq("id", bookingId)
+    .select()
+    .single();
 
   if (error) {
     throw error;
   }
 
   if (status === "Completed") {
-    const booking = await getBookingById(
-      Number(id)
-    );
 
     await createNotification(
       booking.customer_id,
       booking.id,
-      "Booking Completed",
-      "Your booking has been marked as completed."
+      "Job Completed",
+      "Your booking has been completed. You may now leave a review."
     );
+
   }
+
+  return booking;
 }
 // =========================
 // ASSIGN WORKER
@@ -196,18 +199,19 @@ export async function assignWorker(
 // =========================
 
 export async function acceptBooking(id: number) {
-  const { error } = await supabase
+
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status: "Approved",
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) {
     throw error;
   }
-
-  const booking = await getBookingById(id);
 
   await createNotification(
     booking.customer_id,
@@ -215,6 +219,8 @@ export async function acceptBooking(id: number) {
     "Booking Approved",
     "Your booking has been approved by the worker."
   );
+
+  return booking;
 }
 
 
@@ -223,25 +229,28 @@ export async function acceptBooking(id: number) {
 // =========================
 
 export async function rejectBooking(id: number) {
-  const { error } = await supabase
+
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status: "Cancelled",
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) {
     throw error;
   }
 
-  const booking = await getBookingById(id);
-
   await createNotification(
     booking.customer_id,
     booking.id,
     "Booking Cancelled",
-    "Your booking request has been rejected."
+    "The worker declined your booking."
   );
+
+  return booking;
 }
 
 

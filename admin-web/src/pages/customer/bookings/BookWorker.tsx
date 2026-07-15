@@ -5,10 +5,12 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 
 import { getCustomerWorkerProfile } from "../../../services/workerService";
+import { getApprovedServices } from "../../../services/serviceService";
 import { createBooking } from "../../../services/customerBookingService";
 
 export default function BookWorker() {
   const { workerId } = useParams();
+
   const navigate = useNavigate();
 
   const [worker, setWorker] = useState<any>(null);
@@ -29,10 +31,14 @@ export default function BookWorker() {
     try {
       const data = await getCustomerWorkerProfile(workerId);
 
+      const services = await getApprovedServices(workerId);
+
+      data.services = services;
+
       setWorker(data);
 
-      if (data?.services?.length > 0) {
-        setServiceId(data.services[0].id);
+      if (services.length > 0) {
+        setServiceId(services[0].id);
       }
     } catch (error) {
       console.error(error);
@@ -59,8 +65,26 @@ export default function BookWorker() {
       return;
     }
 
-    try {
+    if (worker.services.length === 0) {
+      alert("This worker has no approved services.");
+      return;
+    }
+        try {
       await createBooking({
+        customer_id: user.id,
+        worker_id: worker.profile.id,
+        service_id: serviceId,
+        booking_date: scheduleDate,
+        booking_time: scheduleTime,
+        address,
+        notes,
+      });
+
+      console.log("CUSTOMER:", user.id);
+      console.log("WORKER:", worker.profile.id);
+      console.log("SERVICE:", serviceId);
+
+      console.log({
         customer_id: user.id,
         worker_id: worker.profile.id,
         service_id: serviceId,
@@ -73,13 +97,11 @@ export default function BookWorker() {
       alert("Booking submitted successfully!");
 
       navigate("/customer/bookings");
-
     } catch (error) {
       console.error(error);
       alert("Unable to submit booking.");
     }
   }
-
 
   if (!worker) {
     return (
@@ -91,7 +113,6 @@ export default function BookWorker() {
     );
   }
 
-
   return (
     <CustomerLayout>
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow p-8">
@@ -99,7 +120,6 @@ export default function BookWorker() {
         <h1 className="text-3xl font-bold mb-6">
           Book Worker
         </h1>
-
 
         <div className="mb-6 p-5 bg-slate-100 rounded-xl">
 
@@ -119,9 +139,7 @@ export default function BookWorker() {
 
         </div>
 
-
         <div className="space-y-4">
-
 
           <div>
             <label className="font-semibold block mb-2">
@@ -130,33 +148,31 @@ export default function BookWorker() {
 
             <select
               value={serviceId}
-              onChange={(e) =>
-                setServiceId(e.target.value)
-              }
+              onChange={(e) => setServiceId(e.target.value)}
               className="border rounded-lg p-3 w-full"
             >
-
               <option value="">
                 Select Service
               </option>
 
-
-              {worker.services?.map((service: any) => (
-                <option
-                  key={service.id}
-                  value={service.id}
-                >
-                  {service.service_name}
+              {worker.services.length === 0 ? (
+                <option disabled>
+                  No approved services available
                 </option>
-              ))}
-
+              ) : (
+                worker.services.map((service: any) => (
+                  <option
+                    key={service.id}
+                    value={service.id}
+                  >
+                    {service.service_name}
+                  </option>
+                ))
+              )}
             </select>
 
           </div>
-
-
-
-          <div>
+                    <div>
             <label className="font-semibold block mb-2">
               Preferred Date
             </label>
@@ -171,7 +187,6 @@ export default function BookWorker() {
             />
 
           </div>
-
 
 
           <div>
@@ -189,7 +204,6 @@ export default function BookWorker() {
             />
 
           </div>
-
 
 
           <div>
@@ -210,7 +224,6 @@ export default function BookWorker() {
           </div>
 
 
-
           <div>
             <label className="font-semibold block mb-2">
               Job Description
@@ -229,7 +242,6 @@ export default function BookWorker() {
           </div>
 
 
-
           <button
             onClick={handleSubmit}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold"
@@ -241,6 +253,7 @@ export default function BookWorker() {
         </div>
 
       </div>
+
     </CustomerLayout>
   );
 }

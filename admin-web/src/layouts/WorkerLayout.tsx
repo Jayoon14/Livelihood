@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 
-import WorkerSidebar from "./WorkerSidebar";
-import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
+import WorkerSidebar from "../components/worker/WorkerSidebar";
+import WorkerNavbar from "../components/worker/WorkerNavbar";
+import Footer from "../components/common/Footer";
+
+import { ProfileProvider } from "../context/ProfileContext";
 
 interface WorkerLayoutProps {
   children: ReactNode;
@@ -12,22 +14,26 @@ export default function WorkerLayout({
   children,
 }: WorkerLayoutProps) {
   return (
-    <div className="min-h-screen bg-slate-100 flex">
+    <ProfileProvider>
 
-      <WorkerSidebar />
+      <div className="min-h-screen bg-slate-100 flex">
 
-      <div className="flex-1 flex flex-col">
+        <WorkerSidebar />
 
-        <Navbar />
+        <div className="flex-1 flex flex-col">
 
-        <main className="flex-1 p-8 overflow-auto">
-          {children}
-        </main>
+          <WorkerNavbar />
 
-        <Footer />
+          <main className="flex-1 p-8 overflow-auto">
+            {children}
+          </main>
+
+          <Footer />
+
+        </div>
 
       </div>
 
-    </div>
+    </ProfileProvider>
   );
 }
