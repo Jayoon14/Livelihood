@@ -127,6 +127,7 @@ export async function getApprovedServices(workerId: string) {
      console.log("WORKER ID:", workerId);
     console.log("SERVICES:", data);
     console.log("ERROR:", error);
+    console.log(data);
 
   if (error) {
     throw error;

@@ -378,7 +378,7 @@ export async function getCustomerBookings(
         first_name,
         middle_name,
         last_name,
-        profile_image,
+        profile_picture,
         phone,
         email
       )

@@ -60,7 +60,7 @@ export default function ChatList() {
 
             <img
               src={
-                chat.user.profile_image ||
+                chat.user.profile_picture ||
                 "https://placehold.co/70"
               }
               className="w-14 h-14 rounded-full object-cover"

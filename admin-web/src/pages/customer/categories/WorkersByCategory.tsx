@@ -77,10 +77,10 @@ export default function WorkersByCategory() {
 
                   <div className="flex items-center gap-4">
 
-                    {worker.profile_image ? (
+                    {worker.profile_picture ? (
 
                       <img
-                        src={worker.profile_image}
+                        src={worker.profile_picture}
                         className="w-20 h-20 rounded-full object-cover border"
                       />
 

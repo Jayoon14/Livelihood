@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+
 import {
   searchDashboard,
   getCategories,
@@ -9,6 +10,8 @@ import {
 } from "../../../services/workerService";
 
 export default function Workers() {
+  const navigate = useNavigate();
+
   const [workers, setWorkers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -81,7 +84,10 @@ export default function Workers() {
       // Rating Filter
       if (rating) {
         filtered = filtered.filter((worker: any) => {
-          const average = Number(worker.average_rating ?? 0);
+          const average = Number(
+            worker.average_rating ?? 0
+          );
+
           return average >= Number(rating);
         });
       }
@@ -91,7 +97,9 @@ export default function Workers() {
         const availableWorkers = [];
 
         for (const worker of filtered) {
-          const available = await isWorkerAvailable(worker.id);
+          const available = await isWorkerAvailable(
+            worker.id
+          );
 
           if (available) {
             availableWorkers.push(worker);
@@ -108,16 +116,17 @@ export default function Workers() {
       setLoading(false);
     }
   }
-
   return (
     <CustomerLayout>
       <div className="p-8">
+
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">
             Find Skilled Workers
           </h1>
 
           <div className="flex flex-wrap gap-3">
+
             <input
               type="text"
               placeholder="Search worker..."
@@ -131,10 +140,15 @@ export default function Workers() {
               onChange={(e) => setCategory(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">All Categories</option>
+              <option value="">
+                All Categories
+              </option>
 
               {categories.map((cat) => (
-                <option key={cat} value={cat}>
+                <option
+                  key={cat}
+                  value={cat}
+                >
                   {cat}
                 </option>
               ))}
@@ -145,11 +159,25 @@ export default function Workers() {
               onChange={(e) => setPriceRange(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">All Prices</option>
-              <option value="100-300">₱100-₱300</option>
-              <option value="300-500">₱300-₱500</option>
-              <option value="500-1000">₱500-₱1000</option>
-              <option value="1000+">₱1000+</option>
+              <option value="">
+                All Prices
+              </option>
+
+              <option value="100-300">
+                ₱100-₱300
+              </option>
+
+              <option value="300-500">
+                ₱300-₱500
+              </option>
+
+              <option value="500-1000">
+                ₱500-₱1000
+              </option>
+
+              <option value="1000+">
+                ₱1000+
+              </option>
             </select>
 
             <select
@@ -157,12 +185,29 @@ export default function Workers() {
               onChange={(e) => setRating(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">All Ratings</option>
-              <option value="5">★★★★★</option>
-              <option value="4">★★★★☆ &amp; up</option>
-              <option value="3">★★★☆☆ &amp; up</option>
-              <option value="2">★★☆☆☆ &amp; up</option>
-              <option value="1">★☆☆☆☆ &amp; up</option>
+              <option value="">
+                All Ratings
+              </option>
+
+              <option value="5">
+                ★★★★★
+              </option>
+
+              <option value="4">
+                ★★★★☆ &amp; up
+              </option>
+
+              <option value="3">
+                ★★★☆☆ &amp; up
+              </option>
+
+              <option value="2">
+                ★★☆☆☆ &amp; up
+              </option>
+
+              <option value="1">
+                ★☆☆☆☆ &amp; up
+              </option>
             </select>
 
             <select
@@ -178,27 +223,37 @@ export default function Workers() {
                 Available Today
               </option>
             </select>
+
           </div>
         </div>
 
+
         {loading ? (
+
           <div className="text-center py-20">
             Loading...
           </div>
+
         ) : workers.length === 0 ? (
+
           <div className="text-center py-20 text-gray-500">
             No workers found.
           </div>
+
         ) : (
+
           <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
+
             {workers.map((worker) => (
+
               <div
                 key={worker.id}
                 className="bg-white rounded-2xl shadow overflow-hidden"
               >
+
                 <img
                   src={
-                    worker.profile_image ||
+                    worker.profile_picture ||
                     "https://placehold.co/600x350?text=Worker"
                   }
                   alt={`${worker.first_name} ${worker.last_name}`}
@@ -206,6 +261,7 @@ export default function Workers() {
                 />
 
                 <div className="p-6">
+
                   <h2 className="text-xl font-bold">
                     {worker.first_name} {worker.last_name}
                   </h2>
@@ -223,6 +279,7 @@ export default function Workers() {
                   </p>
 
                   <div className="flex justify-between items-center mt-5">
+
                     <span className="text-green-600 font-bold text-lg">
                       ₱{worker.price}
                     </span>
@@ -230,19 +287,34 @@ export default function Workers() {
                     <span className="flex items-center gap-1 text-yellow-500 font-semibold">
                       ⭐ {Number(worker.average_rating ?? 0).toFixed(1)}
                     </span>
-                  </div>
 
+                  </div>
                   <Link
                     to={`/customer/workers/${worker.id}`}
                     className="block mt-6 text-center bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
                   >
                     View Profile
                   </Link>
+
+                  <button
+                    onClick={() =>
+                      navigate(`/customer/compare?worker=${worker.id}`)
+                    }
+                    className="mt-2 w-full bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg"
+                  >
+                    Compare
+                  </button>
+
                 </div>
+
               </div>
+
             ))}
+
           </div>
+
         )}
+
       </div>
     </CustomerLayout>
   );

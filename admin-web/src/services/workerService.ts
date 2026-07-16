@@ -475,6 +475,7 @@ export async function searchDashboard(
 // =============================
 
 export async function getCustomerWorkerProfile(workerId: string) {
+  
   const profile = await getCompleteWorkerProfile(workerId);
 
   return profile;
@@ -491,7 +492,7 @@ export async function getWorkersByCategory(
         last_name,
         email,
         phone,
-        profile_image
+        profile_picture
       )
     `)
     .eq("category", category)
@@ -542,9 +543,96 @@ export async function isWorkerAvailable(
     .eq("worker_id", workerId)
     .eq("unavailable_date", date);
 
-  return (
-    schedule &&
-    schedule.length > 0 &&
-    (!unavailable || unavailable.length === 0)
+return Boolean(
+  schedule &&
+  schedule.length > 0 &&
+  (!unavailable || unavailable.length === 0)
+);
+}
+// =====================
+// TOP RATED WORKERS
+// =====================
+
+export async function getTopRatedWorkers(limit = 5) {
+  const workers = await getFeaturedWorkers(100);
+
+  const ranked = await Promise.all(
+    workers.map(async (worker: any) => {
+      const { data: reviews } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("worker_id", worker.id);
+
+      let average = 0;
+
+      if (reviews && reviews.length > 0) {
+        const total = reviews.reduce(
+          (sum: number, review: any) =>
+            sum + Number(review.rating),
+          0
+        );
+
+        average = Number(
+          (total / reviews.length).toFixed(1)
+        );
+      }
+
+      return {
+        ...worker,
+        average_rating: average,
+      };
+    })
+  );
+
+  return ranked
+    .sort(
+      (a, b) =>
+        b.average_rating - a.average_rating
+    )
+    .slice(0, limit);
+}
+export async function getRecommendedWorkers(customerId: string) {
+  // Kunin ang latest completed booking ng customer
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("service_id")
+    .eq("customer_id", customerId)
+    .eq("status", "Completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  // Kung wala pang booking, ibalik ang top featured workers
+  if (!booking) {
+    return getFeaturedWorkers(5);
+  }
+
+  // Hanapin ang category ng service
+  const { data: service } = await supabase
+    .from("services")
+    .select("category")
+    .eq("id", booking.service_id)
+    .single();
+
+  if (!service) {
+    return getFeaturedWorkers(5);
+  }
+
+  // Kunin ang workers na may parehong category
+  const { data } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      services(*)
+    `)
+    .eq("role", "worker")
+    .eq("status", "Approved");
+
+  if (!data) return [];
+
+  return data.filter((worker: any) =>
+    worker.services?.some(
+      (s: any) => s.category === service.category
+    )
   );
 }

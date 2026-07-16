@@ -14,7 +14,7 @@ export async function getWorkers() {
         first_name,
         middle_name,
         last_name,
-        profile_image,
+        profile_picture,
         address,
         role,
         status

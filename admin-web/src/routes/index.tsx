@@ -56,7 +56,7 @@ import ChatRoom from "../pages/chat/ChatRoom";
 
 // ================= OTHER =================
 import Reports from "../pages/admin/reports/Reports";
-import Settings from "../pages/settings/Settings";
+import CustomerSettings from "../pages/customer/profile/Settings";
 
 
 // ================= PROTECTED =================
@@ -79,6 +79,11 @@ import Categories from "../pages/customer/categories/Categories";
 import WorkersByCategory from "../pages/customer/categories/WorkersByCategory";
 import Favorites from "../pages/customer/favorites/Favorites";
 
+import BookingConfirmation from "../pages/customer/bookings/BookingConfirmation";
+import CustomerReceipt from "../pages/customer/receipt/CustomerReceipt";
+import PaymentHistory from "../pages/customer/payments/PaymentHistory";
+import CompareWorkers from "../pages/customer/workers/CompareWorkers";
+
 
 export default function AppRoutes() {
   return (
@@ -93,6 +98,7 @@ export default function AppRoutes() {
           path="/"
           element={<Login />}
         />
+       
 
         <Route
           path="/register"
@@ -134,6 +140,21 @@ export default function AppRoutes() {
           }
         />
 
+        <Route
+          path="/customer/receipt/:id"
+          element={<CustomerReceipt />}
+      />
+
+         <Route
+        path="/customer/payment"
+        element={<Payment />}
+        />
+
+        <Route
+          path="/customer/payments"
+          element={<PaymentHistory />}
+        />
+
 
         <Route
           path="/customer/workers"
@@ -144,9 +165,18 @@ export default function AppRoutes() {
           }
         />
         <Route
-    path="/customer/favorites"
-    element={<Favorites />}
-/>
+          path="/customer/favorites"
+          element={<Favorites />}
+        />
+
+        <Route
+        path="/customer/booking-confirmation"
+        element={
+          <ProtectedRoute>
+            <BookingConfirmation />
+          </ProtectedRoute>
+        }
+      />
 
 
         <Route
@@ -239,6 +269,11 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+      path="/customer/compare"
+      element={<CompareWorkers />}
+    />
 
 
         {/* ================= WORKER ================= */}
@@ -406,14 +441,14 @@ export default function AppRoutes() {
 
         {/* ================= SETTINGS ================= */}
 
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
+      <Route
+        path="/customer/settings"
+        element={
+          <ProtectedRoute>
+            <CustomerSettings />
+          </ProtectedRoute>
+        }
+      />
 
 
         <Route

@@ -354,7 +354,7 @@ export default function WorkerDetails() {
                 <div className="flex items-center gap-3">
                   <img
                     src={
-                      review.customer?.profile_image ||
+                      review.customer?.profile_picture ||
                       "https://placehold.co/50x50"
                     }
                     alt="Customer"

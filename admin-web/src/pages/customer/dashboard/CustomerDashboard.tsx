@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+import UpcomingBookingCard from "../../../components/customer/UpcomingBookingCard";
 
 import {
   Star,
@@ -12,6 +13,8 @@ import {
   getFeaturedWorkers,
   getCategories,
   searchDashboard,
+  getRecommendedWorkers,
+  isWorkerAvailable,
 } from "../../../services/workerService";
 
 import {
@@ -24,140 +27,419 @@ import {
   isFavorite,
 } from "../../../services/favoriteService";
 
+import {
+  getCustomerAnalytics,
+} from "../../../services/customerAnalyticsService";
+
+import {
+  getRecentlyViewed,
+} from "../../../services/recentlyViewedService";
+
 import { supabase } from "../../../lib/supabase";
 
+
 export default function CustomerDashboard() {
+
   const navigate = useNavigate();
 
   const [workers, setWorkers] = useState<any[]>([]);
+  const [recommendedWorkers, setRecommendedWorkers] = useState<any[]>([]);
   const [, setCategories] = useState<string[]>([]);
-  const [search,] = useState("");
+  const [search] = useState("");
+
+  const [recentWorkers, setRecentWorkers] = useState<any[]>([]);
 
   const [ratings, setRatings] =
     useState<Record<string, number>>({});
 
-  const [favorites, setFavorites] =
+    const [favorites, setFavorites] =
+      useState<Record<string, boolean>>({});
+
+
+
+  const [availability, setAvailability] =
     useState<Record<string, boolean>>({});
+
+  const [analytics, setAnalytics] = useState({
+    totalBookings: 0,
+    completedBookings: 0,
+    pendingBookings: 0,
+    cancelledBookings: 0,
+    favoriteWorkers: 0,
+    totalPayments: 0,
+  });
+
 
   useEffect(() => {
     loadDashboard();
+    loadRecentWorkers();
   }, []);
+
 
   useEffect(() => {
     searchWorkers();
   }, [search]);
-    async function loadDashboard() {
-    const workerData =
-      await getFeaturedWorkers(6);
 
-    const categoryData =
-      await getCategories();
 
-    setWorkers(workerData);
 
-    setCategories(categoryData);
+  async function loadDashboard() {
 
-    const temp: Record<string, number> = {};
+    try {
 
-    for (const worker of workerData) {
-      temp[worker.id] =
-        await getWorkerAverageRating(worker.id);
-    }
+      const workerData =
+        await getFeaturedWorkers(6);
 
-    setRatings(temp);
+      const categoryData =
+        await getCategories();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (user) {
-      const favs: Record<string, boolean> = {};
+      setWorkers(workerData);
+      setCategories(categoryData);
 
-      for (const worker of workerData) {
-        favs[worker.id] =
-          await isFavorite(
-            user.id,
-            worker.id
+
+        const temp: Record<string, number> = {};
+        const available: Record<string, boolean> = {};
+
+        for (const worker of workerData) {
+
+          temp[worker.id] =
+            await getWorkerAverageRating(worker.id);
+
+          available[worker.id] = Boolean(
+            await isWorkerAvailable(worker.id)
           );
+
+        }
+
+        setRatings(temp);
+        setAvailability(available);
+
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+
+
+      if (user) {
+
+        const favs: Record<string, boolean> = {};
+
+
+          for (const worker of workerData) {
+
+            const favoriteStatus =
+              await isFavorite(
+                user.id,
+                worker.id
+              );
+
+            favs[String(worker.id)] = favoriteStatus === true;
+
+          }
+
+
+
+
+        setFavorites(favs);
+
+
+        const analyticsData =
+          await getCustomerAnalytics(user.id);
+
+        setAnalytics(analyticsData);
+
+
+        const recommended =
+          await getRecommendedWorkers(user.id);
+
+        setRecommendedWorkers(recommended);
+
       }
 
-      setFavorites(favs);
+
+    } catch (error) {
+
+      console.error(error);
+
     }
+
   }
 
-  async function searchWorkers() {
-    if (!search.trim()) {
-      loadDashboard();
-      return;
+
+
+  async function loadRecentWorkers() {
+
+    try {
+
+      const data =
+        await getRecentlyViewed(5);
+
+      setRecentWorkers(data);
+
+    } catch (error) {
+
+      console.error(error);
+
     }
+
+  }
+
+
+
+  async function searchWorkers() {
+
+    if (!search.trim()) {
+
+      loadDashboard();
+
+      return;
+
+    }
+
 
     const result =
       await searchDashboard(search);
 
+
     setWorkers(result);
+
 
     const temp: Record<string, number> = {};
 
+
     for (const worker of result) {
+
       temp[worker.id] =
         await getWorkerAverageRating(worker.id);
+
     }
 
+
     setRatings(temp);
+
   }
-    async function toggleFavorite(
-    workerId: string
-  ) {
+
+
+
+  async function toggleFavorite(workerId: string) {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
+
     if (!user) return;
 
+
     if (favorites[workerId]) {
+
       await removeFavorite(
         user.id,
         workerId
       );
+
 
       setFavorites({
         ...favorites,
         [workerId]: false,
       });
 
+
     } else {
+
       await addFavorite(
         user.id,
         workerId
       );
 
+
       setFavorites({
         ...favorites,
         [workerId]: true,
       });
-    }
-  }
 
+    }
+
+  }
   return (
     <CustomerLayout>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
 
-        {/* HERO */}
-        {/* ... Hindi ito babaguhin ... */}
 
-        {/* CATEGORIES */}
-        {/* ... Hindi ito babaguhin ... */}
+        {/* ANALYTICS */}
+
+        <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-5">
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Total Bookings
+            </p>
+            <h2 className="text-3xl font-bold text-blue-600">
+              {analytics.totalBookings}
+            </h2>
+          </div>
+
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Completed
+            </p>
+            <h2 className="text-3xl font-bold text-green-600">
+              {analytics.completedBookings}
+            </h2>
+          </div>
+
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Pending
+            </p>
+            <h2 className="text-3xl font-bold text-yellow-500">
+              {analytics.pendingBookings}
+            </h2>
+          </div>
+
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Cancelled
+            </p>
+            <h2 className="text-3xl font-bold text-red-600">
+              {analytics.cancelledBookings}
+            </h2>
+          </div>
+
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Favorite Workers
+            </p>
+            <h2 className="text-3xl font-bold text-pink-600">
+              {analytics.favoriteWorkers}
+            </h2>
+          </div>
+
+
+          <div className="bg-white rounded-xl shadow p-5">
+            <p className="text-gray-500 text-sm">
+              Total Payments
+            </p>
+            <h2 className="text-3xl font-bold text-purple-600">
+              ₱{analytics.totalPayments.toLocaleString()}
+            </h2>
+          </div>
+
+        </div>
+
+
+
+        {/* UPCOMING BOOKING */}
+
+        <div className="mt-8">
+          <UpcomingBookingCard />
+        </div>
+
+
+
+
+        {/* RECOMMENDED WORKERS */}
+
+        {recommendedWorkers.length > 0 && (
+
+          <div className="bg-white rounded-2xl shadow p-6">
+
+            <div className="flex justify-between items-center mb-5">
+
+              <h2 className="text-2xl font-bold">
+                ⭐ Recommended For You
+              </h2>
+
+            </div>
+
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+              {recommendedWorkers.map((worker) => (
+
+                <div
+                  key={worker.id}
+                  className="border rounded-2xl overflow-hidden hover:shadow-lg transition"
+                >
+
+                  <img
+                    src={
+                      worker.profile?.profile_picture ||
+                      worker.profile_picture ||
+                      "https://placehold.co/300"
+                    }
+                    alt="Worker"
+                    className="w-full h-48 object-cover"
+                  />
+
+
+                  <div className="p-5">
+
+                    <h3 className="text-xl font-bold">
+                      {worker.first_name}{" "}
+                      {worker.last_name}
+                    </h3>
+
+
+                <div className="mt-3">
+
+                  {availability[worker.id] ? (
+
+                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                      🟢 Available Today
+                    </span>
+
+                  ) : (
+
+                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                      🔴 Unavailable
+                    </span>
+
+                  )}
+
+                </div>
+
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/customer/workers/${worker.id}`
+                        )
+                      }
+                      className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2"
+                    >
+                      View Profile
+                    </button>
+
+
+                  </div>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </div>
+
+        )}
 
         {/* FEATURED WORKERS */}
 
-        <div>
+        <div className="bg-white rounded-2xl shadow p-6">
 
           <div className="flex justify-between items-center mb-5">
 
             <h2 className="text-2xl font-bold">
               Featured Workers
             </h2>
+
 
             <button
               onClick={() =>
@@ -170,25 +452,30 @@ export default function CustomerDashboard() {
 
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+
 
             {workers.map((worker) => (
 
               <div
                 key={worker.id}
-                className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden"
+                className="border rounded-2xl overflow-hidden hover:shadow-lg transition"
               >
+
 
                 <div className="relative">
 
                   <img
                     src={
-                      worker.profile_image ||
+                      worker.profile?.profile_picture ||
+                      worker.profile_picture ||
                       "https://placehold.co/400x250"
                     }
                     alt="Worker"
                     className="w-full h-52 object-cover"
                   />
+
 
                   <button
                     onClick={() =>
@@ -196,6 +483,7 @@ export default function CustomerDashboard() {
                     }
                     className="absolute top-4 right-4 bg-white rounded-full p-2 shadow"
                   >
+
                     <Heart
                       size={22}
                       className={
@@ -204,11 +492,15 @@ export default function CustomerDashboard() {
                           : "text-gray-400"
                       }
                     />
+
                   </button>
 
                 </div>
 
-                <div className="p-6">
+
+
+                <div className="p-5">
+
 
                   <h3 className="text-xl font-bold">
 
@@ -222,18 +514,19 @@ export default function CustomerDashboard() {
 
                   </h3>
 
+
+
                   <p className="text-gray-500 mt-1">
 
                     {worker.services?.[0]?.category ??
                       "No Category"}
 
                   </p>
-
                   <div className="flex items-center gap-2 mt-3">
 
                     <Star
-                      className="text-yellow-500 fill-yellow-500"
                       size={18}
+                      className="text-yellow-500 fill-yellow-500"
                     />
 
                     <span className="font-semibold">
@@ -242,26 +535,193 @@ export default function CustomerDashboard() {
 
                   </div>
 
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/customer/workers/${worker.id}`
-                      )
-                    }
-                    className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition"
-                  >
-                    View Profile
-                  </button>
+
+
+
+              <div className="mt-3">
+
+                {availability[worker.id] ? (
+
+                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                    🟢 Available Today
+                  </span>
+
+                ) : (
+
+                  <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                    🔴 Unavailable
+                  </span>
+
+                )}
+
+              </div>
+
+
+
+
+                  <div className="flex gap-2 mt-4">
+
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/customer/workers/${worker.id}`
+                        )
+                      }
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2"
+                    >
+                      View Profile
+                    </button>
+
+
+
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/customer/compare?worker=${worker.id}`
+                        )
+                      }
+                      className="bg-gray-700 hover:bg-gray-800 text-white px-4 rounded-lg"
+                    >
+                      Compare
+                    </button>
+
+
+                  </div>
+
 
                 </div>
+
 
               </div>
 
             ))}
 
+
           </div>
 
+
         </div>
+
+
+
+
+
+        {/* RECENTLY VIEWED WORKERS */}
+
+        <div className="bg-white rounded-2xl shadow p-6">
+
+
+          <h2 className="text-2xl font-bold mb-5">
+            Recently Viewed Workers
+          </h2>
+
+
+
+          {recentWorkers.length === 0 ? (
+
+            <p className="text-gray-500">
+              No recently viewed workers.
+            </p>
+
+
+          ) : (
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5">
+
+
+              {recentWorkers.map((item: any) => {
+
+
+                const worker = item.worker;
+
+
+                if (!worker) return null;
+
+
+
+                return (
+
+                  <div
+                    key={worker.id}
+                    className="border rounded-xl p-4 hover:shadow-lg transition"
+                  >
+
+
+                    <img
+                      src={
+                        worker.profile_picture ||
+                        "https://placehold.co/200x200"
+                      }
+                      alt="Worker"
+                      className="w-24 h-24 rounded-full object-cover mx-auto"
+                    />
+
+
+                    <div className="text-center mt-2">
+
+                      {availability[worker.id] ? (
+
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+                          🟢 Available
+                        </span>
+
+                      ) : (
+
+                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">
+                          🔴 Busy
+                        </span>
+
+                      )}
+
+                    </div>
+
+
+                    <div className="mt-5 flex gap-2">
+
+
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/customer/workers/${worker.id}`
+                          )
+                        }
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
+                      >
+                        View Profile
+                      </button>
+
+
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/customer/compare?worker=${worker.id}`
+                          )
+                        }
+                        className="px-5 bg-gray-700 hover:bg-gray-800 text-white rounded-xl"
+                      >
+                        Compare
+                      </button>
+
+
+                    </div>
+
+
+                  </div>
+
+                );
+
+
+              })}
+
+
+            </div>
+
+          )}
+
+
+        </div>
+
 
       </div>
 

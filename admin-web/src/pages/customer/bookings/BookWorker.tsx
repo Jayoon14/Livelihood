@@ -1,17 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 
 import { getCustomerWorkerProfile } from "../../../services/workerService";
 import { getApprovedServices } from "../../../services/serviceService";
-import { createBooking } from "../../../services/customerBookingService";
+import {
+  createBooking,
+  isWorkerAvailable,
+} from "../../../services/customerBookingService";
+import AvailabilityCalendar from "../../../components/customer/AvailabilityCalendar";
+
 
 export default function BookWorker() {
   const { workerId } = useParams();
 
   const navigate = useNavigate();
+
+  const location = useLocation();
+
+  const previousServiceId = location.state?.serviceId;
 
   const [worker, setWorker] = useState<any>(null);
 
@@ -31,78 +44,103 @@ export default function BookWorker() {
     try {
       const data = await getCustomerWorkerProfile(workerId);
 
-      const services = await getApprovedServices(workerId);
+        const services = await getApprovedServices(workerId);
 
-      data.services = services;
+        data.services = services;
 
-      setWorker(data);
+        setWorker(data);
 
-      if (services.length > 0) {
-        setServiceId(services[0].id);
-      }
+
+        if (previousServiceId) {
+
+          const selected = services.find(
+            (service: any) =>
+              service.id === previousServiceId
+          );
+
+
+          if (selected) {
+            setServiceId(selected.id);
+          }
+
+        }
     } catch (error) {
       console.error(error);
     }
   }
 
   async function handleSubmit() {
-    if (
-      !serviceId ||
-      !scheduleDate ||
-      !scheduleTime ||
-      !address.trim()
-    ) {
-      alert("Please complete all required fields.");
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      alert("Please login first.");
-      return;
-    }
-
-    if (worker.services.length === 0) {
-      alert("This worker has no approved services.");
-      return;
-    }
-        try {
-      await createBooking({
-        customer_id: user.id,
-        worker_id: worker.profile.id,
-        service_id: serviceId,
-        booking_date: scheduleDate,
-        booking_time: scheduleTime,
-        address,
-        notes,
-      });
-
-      console.log("CUSTOMER:", user.id);
-      console.log("WORKER:", worker.profile.id);
-      console.log("SERVICE:", serviceId);
-
-      console.log({
-        customer_id: user.id,
-        worker_id: worker.profile.id,
-        service_id: serviceId,
-        booking_date: scheduleDate,
-        booking_time: scheduleTime,
-        address,
-        notes,
-      });
-
-      alert("Booking submitted successfully!");
-
-      navigate("/customer/bookings");
-    } catch (error) {
-      console.error(error);
-      alert("Unable to submit booking.");
-    }
+  if (
+    !serviceId ||
+    !scheduleDate ||
+    !scheduleTime ||
+    !address.trim()
+  ) {
+    alert("Please complete all required fields.");
+    return;
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("Please login first.");
+    return;
+  }
+
+  if (worker.services.length === 0) {
+    alert("This worker has no approved services.");
+    return;
+  }
+
+  try {
+    // Check worker availability
+    const available = await isWorkerAvailable(
+      worker.profile.id,
+      scheduleDate,
+      scheduleTime
+    );
+
+    if (!available) {
+      alert(
+        "Worker is unavailable on the selected date and time."
+      );
+      return;
+    }
+
+    await createBooking({
+      customer_id: user.id,
+      worker_id: worker.profile.id,
+      service_id: serviceId,
+      booking_date: scheduleDate,
+      booking_time: scheduleTime,
+      address,
+      notes,
+    });
+
+    console.log("CUSTOMER:", user.id);
+    console.log("WORKER:", worker.profile.id);
+    console.log("SERVICE:", serviceId);
+
+    console.log({
+      customer_id: user.id,
+      worker_id: worker.profile.id,
+      service_id: serviceId,
+      booking_date: scheduleDate,
+      booking_time: scheduleTime,
+      address,
+      notes,
+    });
+
+    alert("Booking submitted successfully!");
+
+    navigate("/customer/bookings");
+  } catch (error) {
+    console.error(error);
+    alert("Unable to submit booking.");
+  }
+}
   if (!worker) {
     return (
       <CustomerLayout>
@@ -172,18 +210,12 @@ export default function BookWorker() {
             </select>
 
           </div>
-                    <div>
-            <label className="font-semibold block mb-2">
-              Preferred Date
-            </label>
+            <div>
 
-            <input
-              type="date"
-              value={scheduleDate}
-              onChange={(e) =>
-                setScheduleDate(e.target.value)
-              }
-              className="border rounded-lg p-3 w-full"
+            <AvailabilityCalendar
+                workerId={worker.profile.id}
+                value={scheduleDate}
+                onChange={setScheduleDate}
             />
 
           </div>

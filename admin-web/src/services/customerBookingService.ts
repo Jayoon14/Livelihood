@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
 
+
 /**
  * Get all bookings of logged in customer
  */
@@ -25,12 +26,15 @@ export async function getCustomerBookings(
       ascending: false,
     });
 
+
   if (error) {
     throw error;
   }
 
+
   return data ?? [];
 }
+
 
 
 /**
@@ -55,12 +59,15 @@ export async function getBookingDetails(
     .eq("id", id)
     .single();
 
+
   if (error) {
     throw error;
   }
 
+
   return data;
 }
+
 
 
 /**
@@ -68,8 +75,9 @@ export async function getBookingDetails(
  * Customer can only cancel Pending booking
  */
 export async function cancelBooking(
-  id: string
+  id: number
 ) {
+
   const { error } = await supabase
     .from("bookings")
     .update({
@@ -78,10 +86,13 @@ export async function cancelBooking(
     .eq("id", id)
     .eq("status", "Pending");
 
+
   if (error) {
     throw error;
   }
+
 }
+
 
 
 /**
@@ -90,6 +101,7 @@ export async function cancelBooking(
 export async function getCustomerBookingCount(
   customerId: string
 ) {
+
   const { count, error } = await supabase
     .from("bookings")
     .select("*", {
@@ -98,12 +110,16 @@ export async function getCustomerBookingCount(
     })
     .eq("customer_id", customerId);
 
+
   if (error) {
     throw error;
   }
 
+
   return count ?? 0;
+
 }
+
 
 
 /**
@@ -112,6 +128,7 @@ export async function getCustomerBookingCount(
 export async function getPendingBookings(
   customerId: string
 ) {
+
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -126,12 +143,16 @@ export async function getPendingBookings(
     .eq("customer_id", customerId)
     .eq("status", "Pending");
 
+
   if (error) {
     throw error;
   }
 
+
   return data ?? [];
+
 }
+
 
 
 /**
@@ -140,6 +161,7 @@ export async function getPendingBookings(
 export async function getCompletedBookings(
   customerId: string
 ) {
+
   const { data, error } = await supabase
     .from("bookings")
     .select(`
@@ -154,12 +176,16 @@ export async function getCompletedBookings(
     .eq("customer_id", customerId)
     .eq("status", "Completed");
 
+
   if (error) {
     throw error;
   }
 
+
   return data ?? [];
+
 }
+
 
 
 // ===============================
@@ -167,47 +193,129 @@ export async function getCompletedBookings(
 // ===============================
 
 export async function createBooking(data: {
+
   customer_id: string;
+
   worker_id: string;
+
   service_id: string;
+
   booking_date: string;
+
   booking_time: string;
+
   address: string;
+
   notes: string;
+
 }) {
+
+
+  // GET SERVICE DETAILS
+
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: service,
+    error: serviceError,
+  } = await supabase
+    .from("services")
+    .select(`
+      service_name,
+      category,
+      price
+    `)
+    .eq("id", data.service_id)
+    .single();
 
-  console.log("AUTH USER:", user?.id);
-  console.log("INSERT DATA:", data);
 
-  const { data: booking, error } = await supabase
+
+  if (serviceError) {
+
+    throw serviceError;
+
+  }
+
+
+
+  // CREATE BOOKING
+
+  const {
+    data: booking,
+    error,
+  } = await supabase
     .from("bookings")
     .insert({
+
       customer_id: data.customer_id,
+
       worker_id: data.worker_id,
+
       service_id: data.service_id,
+
+      service_name: service.service_name,
+
+      category: service.category,
+
+      price: service.price,
+
       booking_date: data.booking_date,
+
       booking_time: data.booking_time,
+
       address: data.address,
+
       notes: data.notes,
+
       status: "Pending",
+
     })
     .select()
     .single();
 
-  console.log("BOOKING:", booking);
-  console.log("ERROR:", error);
 
-  if (error) throw error;
+
+  if (error) {
+
+    throw error;
+
+  }
+
+
+
+  // NOTIFY WORKER
 
   await createNotification(
+
     booking.worker_id,
+
     booking.id,
+
     "New Booking",
+
     "You have received a new booking request."
+
   );
 
+
+
   return booking;
+
+}
+export async function isWorkerAvailable(
+  workerId: string,
+  bookingDate: string,
+  bookingTime: string
+) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("worker_id", workerId)
+    .eq("booking_date", bookingDate)
+    .eq("booking_time", bookingTime)
+    .in("status", ["Pending", "Approved", "On Going"]);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.length === 0;
 }

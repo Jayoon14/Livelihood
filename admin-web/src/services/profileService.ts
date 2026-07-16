@@ -5,18 +5,36 @@ import { supabase } from "../lib/supabase";
 // GET PROFILE
 // =========================
 export async function getProfile(id: string) {
+
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", id)
-    .single();
+    .maybeSingle();
+
 
   if (error) {
+
+    console.error(
+      "GET PROFILE ERROR:",
+      error
+    );
+
     throw error;
+
   }
 
+
+  console.log(
+    "PROFILE DATA:",
+    data
+  );
+
+
   return data;
+
 }
+
 
 
 // =========================
@@ -26,15 +44,26 @@ export async function updateProfile(
   id: string,
   updates: any
 ) {
+
   const { error } = await supabase
     .from("profiles")
     .update(updates)
     .eq("id", id);
 
+
   if (error) {
+
+    console.error(
+      "UPDATE PROFILE ERROR:",
+      error
+    );
+
     throw error;
+
   }
+
 }
+
 
 
 // =========================
@@ -45,15 +74,18 @@ export async function uploadAvatar(
   file: File
 ) {
 
-  const fileExt = file.name
-    .split(".")
-    .pop();
+
+  const fileExt =
+    file.name.split(".").pop();
+
 
   const fileName =
     `${userId}-${Date.now()}.${fileExt}`;
 
 
-  // Upload image to Storage
+
+  // Upload to Storage
+
   const {
     error: uploadError
   } = await supabase.storage
@@ -62,57 +94,86 @@ export async function uploadAvatar(
       fileName,
       file,
       {
-        upsert: true,
+        upsert:true,
       }
     );
 
 
-  if (uploadError) {
+
+  if(uploadError){
+
+    console.error(
+      "UPLOAD ERROR:",
+      uploadError
+    );
+
     throw uploadError;
+
   }
 
 
+
   // Get public URL
+
   const {
-    data
+    data:urlData
   } = supabase.storage
     .from("avatars")
-    .getPublicUrl(fileName);
+    .getPublicUrl(
+      fileName
+    );
 
 
-  const publicUrl = data.publicUrl;
+  const publicUrl =
+    urlData.publicUrl;
+
 
 
   console.log(
-    "Uploaded Image:",
+    "IMAGE URL:",
     publicUrl
   );
 
 
-  // Save URL to profiles table
+
+
+  // Save image URL
+
   const {
-    data: updatedProfile,
-    error: updateError
+    data:updatedProfile,
+    error:updateError
+
   } = await supabase
     .from("profiles")
     .update({
-      profile_image: publicUrl,
+      profile_picture: publicUrl,
     })
     .eq("id", userId)
     .select()
-    .single();
+    .maybeSingle();
+
+
+
+  if(updateError){
+
+    console.error(
+      "SAVE IMAGE ERROR:",
+      updateError
+    );
+
+    throw updateError;
+
+  }
+
 
 
   console.log(
-    "Updated Profile:",
+    "UPDATED PROFILE:",
     updatedProfile
   );
 
 
-  if (updateError) {
-    throw updateError;
-  }
-
 
   return publicUrl;
+
 }

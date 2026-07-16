@@ -31,7 +31,7 @@ function ProfileContent() {
 
 
   useEffect(() => {
-
+    console.log(profile);
     if (!profile) {
       refreshProfile();
     }
@@ -105,7 +105,7 @@ function ProfileContent() {
 
       setProfile({
         ...profile,
-        profile_image:url,
+        profile_picture:url,
       });
 
 
@@ -152,14 +152,15 @@ function ProfileContent() {
 
       <div className="flex flex-col items-center mb-8">
 
-        <img
-          src={
-            profile.profile_image ||
-            "https://placehold.co/150x150"
-          }
-          alt="Profile"
-          className="w-32 h-32 rounded-full object-cover border-4 border-blue-600 shadow"
-        />
+      <img
+        src={
+          profile.profile_picture
+            ? profile.profile_picture
+            : "https://placehold.co/150x150?text=Avatar"
+        }
+        alt="Profile"
+        className="w-32 h-32 rounded-full object-cover border-4 border-blue-600 shadow"
+      />
 
 
         <input

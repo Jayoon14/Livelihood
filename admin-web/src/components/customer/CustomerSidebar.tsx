@@ -3,6 +3,7 @@ import {
   Users,
   CalendarDays,
   Heart,
+  Wallet,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -30,6 +31,11 @@ export default function CustomerSidebar() {
       icon: Heart,
       path: "/customer/favorites",
     },
+    {
+    name: "Payments",
+    path: "/customer/payments",
+    icon: Wallet,
+  },
   ];
 
   return (

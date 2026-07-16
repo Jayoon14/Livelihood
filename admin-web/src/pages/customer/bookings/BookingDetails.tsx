@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+import BookingTimeline from "../../../components/customer/BookingTimeline";
 
 import {
   getBooking,
@@ -142,7 +143,9 @@ export default function BookingDetails() {
 
       <div className="max-w-5xl mx-auto space-y-6 p-6">
 
-
+        <div className="bg-white rounded-2xl shadow p-6 mb-6">
+          <BookingTimeline status={booking.status} />
+        </div>
         {/* BOOKING DETAILS */}
 
         <div className="bg-white rounded-xl shadow p-6">

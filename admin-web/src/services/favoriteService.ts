@@ -18,6 +18,7 @@ export async function addFavorite(
   if (error) throw error;
 }
 
+
 // =============================
 // REMOVE FAVORITE
 // =============================
@@ -35,6 +36,7 @@ export async function removeFavorite(
   if (error) throw error;
 }
 
+
 // =============================
 // CHECK FAVORITE
 // =============================
@@ -42,16 +44,25 @@ export async function removeFavorite(
 export async function isFavorite(
   customerId: string,
   workerId: string
-) {
-  const { data } = await supabase
+): Promise<boolean> {
+
+  const { data, error } = await supabase
     .from("favorites")
     .select("id")
     .eq("customer_id", customerId)
     .eq("worker_id", workerId)
     .maybeSingle();
 
-  return !!data;
+
+  if (error) {
+    throw error;
+  }
+
+
+  return Boolean(data);
+
 }
+
 
 // =============================
 // GET FAVORITES
@@ -60,6 +71,7 @@ export async function isFavorite(
 export async function getFavoriteWorkers(
   customerId: string
 ) {
+
   const { data, error } = await supabase
     .from("favorites")
     .select(`
@@ -68,14 +80,21 @@ export async function getFavoriteWorkers(
         first_name,
         middle_name,
         last_name,
-        profile_image,
+        profile_picture,
         phone,
         email
       )
     `)
     .eq("customer_id", customerId);
 
-  if (error) throw error;
 
-  return (data ?? []).map((item: any) => item.worker);
+  if (error) {
+    throw error;
+  }
+
+
+  return (data ?? []).map(
+    (item: any) => item.worker
+  );
+
 }

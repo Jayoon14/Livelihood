@@ -146,7 +146,7 @@ export async function getWorkerReviews(
         first_name,
         middle_name,
         last_name,
-        profile_image
+        profile_picture
       )
     `)
     .eq(

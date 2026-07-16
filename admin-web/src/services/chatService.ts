@@ -99,7 +99,7 @@ export async function getMessages(
           id,
           first_name,
           last_name,
-          profile_image
+          profile_picture
         )
       `)
       .eq(
@@ -184,14 +184,14 @@ export async function getChatList(
           id,
           first_name,
           last_name,
-          profile_image
+          profile_picture
         ),
 
         worker:profiles!worker_id(
           id,
           first_name,
           last_name,
-          profile_image
+          profile_picture
         )
       `)
       .or(
