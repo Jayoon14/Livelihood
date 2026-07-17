@@ -22,8 +22,15 @@ export default function ChatList() {
 
     const chats = await getChatList(user.id);
 
-    const items = chats.map((booking: any) => {
+    // Show chats only for approved, ongoing, or completed bookings
+    const approvedChats = chats.filter(
+      (booking: any) =>
+        booking.status === "Approved" ||
+        booking.status === "On Going" ||
+        booking.status === "Completed"
+    );
 
+    const items = approvedChats.map((booking: any) => {
       const other =
         booking.customer_id === user.id
           ? booking.worker
@@ -41,56 +48,47 @@ export default function ChatList() {
 
   return (
     <div className="max-w-4xl mx-auto p-8">
-
       <h1 className="text-3xl font-bold mb-8">
         Messages
       </h1>
 
       <div className="bg-white rounded-2xl shadow">
-
-        {list.map((chat) => (
-
-          <button
-            key={chat.bookingId}
-            onClick={() =>
-              navigate(`/chat/${chat.bookingId}`)
-            }
-            className="w-full flex items-center gap-5 p-5 border-b hover:bg-slate-50"
-          >
-
-            <img
-              src={
-                chat.user.profile_picture ||
-                "https://placehold.co/70"
+        {list.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            No available conversations.
+          </div>
+        ) : (
+          list.map((chat) => (
+            <button
+              key={chat.bookingId}
+              onClick={() =>
+                navigate(`/chat/${chat.bookingId}`)
               }
-              className="w-14 h-14 rounded-full object-cover"
-            />
+              className="w-full flex items-center gap-5 p-5 border-b hover:bg-slate-50"
+            >
+              <img
+                src={
+                  chat.user.profile_picture ||
+                  "https://placehold.co/70"
+                }
+                alt="Profile"
+                className="w-14 h-14 rounded-full object-cover"
+              />
 
-            <div className="flex-1 text-left">
+              <div className="flex-1 text-left">
+                <h3 className="font-bold">
+                  {chat.user.first_name}{" "}
+                  {chat.user.last_name}
+                </h3>
 
-              <h3 className="font-bold">
-
-                {chat.user.first_name}{" "}
-                {chat.user.last_name}
-
-              </h3>
-
-              <p className="text-gray-500">
-
-                Booking Status:
-                {" "}
-                {chat.status}
-
-              </p>
-
-            </div>
-
-          </button>
-
-        ))}
-
+                <p className="text-gray-500">
+                  Booking Status: {chat.status}
+                </p>
+              </div>
+            </button>
+          ))
+        )}
       </div>
-
     </div>
   );
 }

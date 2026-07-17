@@ -12,6 +12,29 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { hasReviewed } from "../../../services/reviewService";
 
+function getStatusColor(status: string) {
+  switch (status) {
+    case "Pending":
+      return "bg-yellow-100 text-yellow-700";
+
+    case "Approved":
+      return "bg-blue-100 text-blue-700";
+
+    case "On Going":
+      return "bg-purple-100 text-purple-700";
+
+    case "Completed":
+      return "bg-green-100 text-green-700";
+
+    case "Cancelled":
+      return "bg-red-100 text-red-700";
+
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+}
+
+
 
 export default function BookingDetails() {
 
@@ -96,7 +119,10 @@ export default function BookingDetails() {
     }
 
   }
+  
+      
     if (loading) {
+      
 
     return (
       <CustomerLayout>
@@ -183,21 +209,23 @@ export default function BookingDetails() {
               </p>
 
               <span
-                className={`inline-block px-3 py-1 rounded-full text-white text-sm ${
-                  booking.status === "Pending"
-                    ? "bg-yellow-500"
-                    : booking.status === "Approved"
-                    ? "bg-green-600"
-                    : booking.status === "Completed"
-                    ? "bg-blue-600"
-                    : "bg-red-600"
-                }`}
+                className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
+                  booking.status
+                )}`}
               >
                 {booking.status}
               </span>
 
-            </div>
+              {booking.status !== "Pending" && (
+                <button
+                  onClick={() => navigate(`/chat/${booking.id}`)}
+                  className="mt-4 block bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+                >
+                  💬 Message Worker
+                </button>
+              )}
 
+            </div>
 
             <div>
 

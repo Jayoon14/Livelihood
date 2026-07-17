@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Star,
   Briefcase,
+  CreditCard,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -35,6 +36,11 @@ export default function WorkerSidebar() {
       icon: Briefcase,
       path: "/worker/services",
     },
+    {
+      name: "Payment Information",
+      icon: CreditCard,
+      path: "/worker/payment-information",
+    },
   ];
 
   return (
@@ -42,7 +48,6 @@ export default function WorkerSidebar() {
 
       {/* LOGO */}
       <div className="p-6 border-b border-blue-600">
-
         <h1 className="text-2xl font-bold">
           LivelihoodGo
         </h1>
@@ -50,12 +55,10 @@ export default function WorkerSidebar() {
         <p className="text-blue-200 text-sm">
           Worker Portal
         </p>
-
       </div>
 
       {/* MENU */}
       <nav className="flex-1 p-4 space-y-2">
-
         {menus.map((menu) => {
           const Icon = menu.icon;
 
@@ -72,15 +75,10 @@ export default function WorkerSidebar() {
               }
             >
               <Icon size={20} />
-
-              <span>
-                {menu.name}
-              </span>
-
+              <span>{menu.name}</span>
             </NavLink>
           );
         })}
-
       </nav>
 
     </aside>

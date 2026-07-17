@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
-import UpcomingBookingCard from "../../../components/customer/UpcomingBookingCard";
+import { getUpcomingBooking } from "../../../services/reminderService";
 
 import {
   Star,
@@ -46,6 +46,7 @@ export default function CustomerDashboard() {
   const [recommendedWorkers, setRecommendedWorkers] = useState<any[]>([]);
   const [, setCategories] = useState<string[]>([]);
   const [search] = useState("");
+  
 
   const [recentWorkers, setRecentWorkers] = useState<any[]>([]);
 
@@ -59,6 +60,8 @@ export default function CustomerDashboard() {
 
   const [availability, setAvailability] =
     useState<Record<string, boolean>>({});
+    const [upcomingBooking, setUpcomingBooking] =
+  useState<any>(null);
 
   const [analytics, setAnalytics] = useState({
     totalBookings: 0,
@@ -68,6 +71,8 @@ export default function CustomerDashboard() {
     favoriteWorkers: 0,
     totalPayments: 0,
   });
+  
+  
 
 
   useEffect(() => {
@@ -148,6 +153,10 @@ export default function CustomerDashboard() {
           await getCustomerAnalytics(user.id);
 
         setAnalytics(analyticsData);
+        const booking =
+          await getUpcomingBooking();
+
+        setUpcomingBooking(booking);
 
 
         const recommended =
@@ -224,46 +233,86 @@ export default function CustomerDashboard() {
 
   async function toggleFavorite(workerId: string) {
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
+  if (!user) return;
 
-    if (!user) return;
+  if (favorites[workerId]) {
 
+    await removeFavorite(
+      user.id,
+      workerId
+    );
 
-    if (favorites[workerId]) {
+    setFavorites({
+      ...favorites,
+      [workerId]: false,
+    });
 
-      await removeFavorite(
-        user.id,
-        workerId
-      );
+  } else {
 
+    await addFavorite(
+      user.id,
+      workerId
+    );
 
-      setFavorites({
-        ...favorites,
-        [workerId]: false,
-      });
-
-
-    } else {
-
-      await addFavorite(
-        user.id,
-        workerId
-      );
-
-
-      setFavorites({
-        ...favorites,
-        [workerId]: true,
-      });
-
-    }
+    setFavorites({
+      ...favorites,
+      [workerId]: true,
+    });
 
   }
-  return (
-    <CustomerLayout>
+
+}
+
+function getReminderLabel(date: string, time: string) {
+  const booking = new Date(`${date}T${time}`);
+  const now = new Date();
+
+  const diff = booking.getTime() - now.getTime();
+
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes <= 30 && minutes >= 0) {
+    return {
+      text: "🚨 Starts in less than 30 minutes",
+      color: "bg-red-100 text-red-700",
+    };
+  }
+
+  if (hours < 3 && hours >= 0) {
+    return {
+      text: `⏰ Starts in ${hours} hour(s)`,
+      color: "bg-orange-100 text-orange-700",
+    };
+  }
+
+  if (days === 0) {
+    return {
+      text: "📅 Today",
+      color: "bg-green-100 text-green-700",
+    };
+  }
+
+  if (days === 1) {
+    return {
+      text: "📆 Tomorrow",
+      color: "bg-blue-100 text-blue-700",
+    };
+  }
+
+  return {
+    text: `📅 In ${days} day(s)`,
+    color: "bg-gray-100 text-gray-700",
+  };
+}
+
+return (
+  <CustomerLayout>
 
       <div className="space-y-6">
 
@@ -337,9 +386,55 @@ export default function CustomerDashboard() {
 
         {/* UPCOMING BOOKING */}
 
-        <div className="mt-8">
-          <UpcomingBookingCard />
-        </div>
+        {upcomingBooking && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+            <h2 className="text-xl font-bold mb-2">
+              🔔 Upcoming Booking
+            </h2>
+
+            <p className="text-gray-700">
+              <strong>
+                {upcomingBooking.worker?.first_name}{" "}
+                {upcomingBooking.worker?.last_name}
+              </strong>
+            </p>
+
+            <p className="text-gray-600">
+              {upcomingBooking.service?.service_name}
+            </p>
+
+            <p className="text-gray-600">
+              {upcomingBooking.booking_date}
+            </p>
+
+            <p className="text-gray-600">
+              {upcomingBooking.booking_time}
+            </p>
+            {(() => {
+              const reminder = getReminderLabel(
+                upcomingBooking.booking_date,
+                upcomingBooking.booking_time
+              );
+
+              return (
+                <div
+                  className={`mt-4 inline-block px-4 py-2 rounded-full text-sm font-semibold ${reminder.color}`}
+                >
+                  {reminder.text}
+                </div>
+              );
+            })()}
+
+        <button
+          onClick={() =>
+            navigate(`/customer/bookings/${upcomingBooking.id}`)
+          }
+          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl"
+        >
+          View Booking
+        </button>
+          </div>
+        )}
 
 
 

@@ -592,6 +592,7 @@ export async function getTopRatedWorkers(limit = 5) {
     .slice(0, limit);
 }
 export async function getRecommendedWorkers(customerId: string) {
+
   // Kunin ang latest completed booking ng customer
   const { data: booking } = await supabase
     .from("bookings")
@@ -600,13 +601,13 @@ export async function getRecommendedWorkers(customerId: string) {
     .eq("status", "Completed")
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  // Kung wala pang booking, ibalik ang top featured workers
-  if (!booking) {
+  // Kung walang completed booking o walang service_id,
+  // ibalik ang featured workers
+  if (!booking || !booking.service_id) {
     return getFeaturedWorkers(5);
   }
-
   // Hanapin ang category ng service
   const { data: service } = await supabase
     .from("services")

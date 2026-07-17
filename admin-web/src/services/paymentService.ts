@@ -12,6 +12,18 @@ export async function createPayment(
   amount: number,
   paymentMethod: string
 ) {
+
+  // Prevent duplicate payment
+  const { data: existingPayment } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .maybeSingle();
+
+  if (existingPayment) {
+    throw new Error("This booking has already been paid.");
+  }
+
   const { data, error } = await supabase
     .from("payments")
     .insert({
@@ -78,15 +90,27 @@ export async function getAllPayments() {
 // COMPLETE PAYMENT
 // ==============================
 
-export async function completePayment(id: number) {
+export async function completePayment(
+  paymentId: number,
+  bookingId: number
+) {
   const { error } = await supabase
     .from("payments")
     .update({
       payment_status: "Paid",
     })
-    .eq("id", id);
+    .eq("id", paymentId);
 
   if (error) throw error;
+
+  const { error: bookingError } = await supabase
+    .from("bookings")
+    .update({
+      payment_status: "Paid",
+    })
+    .eq("id", bookingId);
+
+  if (bookingError) throw bookingError;
 }
 
 
@@ -157,7 +181,7 @@ export async function getPaymentByBooking(
       )
     `)
     .eq("booking_id", bookingId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
 

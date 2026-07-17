@@ -6,9 +6,15 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 
 import { getBookingById } from "../../../services/bookingService";
-import { createPayment } from "../../../services/paymentService";
+
+import {
+  createPayment,
+  completePayment,
+} from "../../../services/paymentService";
+
 
 export default function Payment() {
+
   const { id } = useParams();
 
   const navigate = useNavigate();
@@ -16,25 +22,47 @@ export default function Payment() {
   const [method, setMethod] = useState("Cash");
   const [loading, setLoading] = useState(false);
 
+
+
   async function handlePay() {
+
     try {
+
       setLoading(true);
 
+
+
       if (!id) {
+
         alert("Booking ID is missing.");
+
         return;
+
       }
 
-      const booking = await getBookingById(Number(id));
+
+
+      const booking = await getBookingById(
+        Number(id)
+      );
+
+
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
+
+
       if (!user) {
+
         alert("User not authenticated.");
+
         return;
+
       }
+
+
 
       const payment = await createPayment(
         booking.id,
@@ -44,27 +72,62 @@ export default function Payment() {
         method
       );
 
-      alert("Payment recorded successfully.");
 
-      navigate(`/customer/receipt/${payment.id}`);
 
-    } catch (error) {
+      await completePayment(
+        payment.id,
+        booking.id
+      );
+
+
+
+      alert(
+        "Payment recorded successfully."
+      );
+
+
+
+      navigate(
+        `/customer/receipt/${booking.id}`
+      );
+
+
+
+    } catch (error: any) {
+
+
       console.error(error);
 
-      alert("Payment failed.");
+
+      alert(
+        error.message || "Payment failed."
+      );
+
+
     } finally {
+
+
       setLoading(false);
+
+
     }
+
   }
 
+
+
+
   return (
+
     <CustomerLayout>
 
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow p-8">
 
+
         <h1 className="text-3xl font-bold mb-8">
           Payment
         </h1>
+
 
 
         <label className="block mb-3 font-semibold">
@@ -72,47 +135,71 @@ export default function Payment() {
         </label>
 
 
+
         <select
+
           value={method}
-          onChange={(e) => setMethod(e.target.value)}
+
+          onChange={(e) =>
+            setMethod(e.target.value)
+          }
+
           className="border rounded-lg p-3 w-full"
+
         >
 
           <option value="Cash">
             Cash
           </option>
 
+
           <option value="GCash">
             GCash
           </option>
+
 
           <option value="Maya">
             Maya
           </option>
 
+
           <option value="Bank Transfer">
             Bank Transfer
           </option>
 
+
         </select>
 
 
+
+
+
         <button
+
           onClick={handlePay}
+
           disabled={loading}
-          className="mt-8 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white w-full py-3 rounded-xl"
+
+          className="mt-8 w-full rounded-xl bg-blue-600 py-3 text-white hover:bg-blue-700 disabled:bg-gray-400"
+
         >
 
-          {loading
-            ? "Processing..."
-            : "Confirm Payment"
+          {
+            loading
+              ? "Processing..."
+              : "Confirm Payment"
           }
+
 
         </button>
 
 
+
       </div>
 
+
     </CustomerLayout>
+
   );
+
 }

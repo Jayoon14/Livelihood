@@ -83,6 +83,9 @@ import BookingConfirmation from "../pages/customer/bookings/BookingConfirmation"
 import CustomerReceipt from "../pages/customer/receipt/CustomerReceipt";
 import PaymentHistory from "../pages/customer/payments/PaymentHistory";
 import CompareWorkers from "../pages/customer/workers/CompareWorkers";
+import CompleteJob from "../pages/worker/bookings/CompleteJob";
+import CompletionProof from "../pages/customer/bookings/CompletionProof";
+import PaymentInformation from "../pages/worker/payment/PaymentInformation";
 
 
 export default function AppRoutes() {
@@ -293,6 +296,24 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <WorkerBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/worker/bookings/complete/:bookingId"
+          element={<CompleteJob />}
+        />
+
+        <Route
+          path="/customer/completion-proof/:bookingId"
+          element={<CompletionProof />}
+        />
+
+        <Route
+          path="/worker/payment-information"
+          element={
+            <ProtectedRoute>
+              <PaymentInformation />
             </ProtectedRoute>
           }
         />

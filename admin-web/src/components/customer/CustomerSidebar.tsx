@@ -6,6 +6,8 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { MessageCircle } from "lucide-react";
+
 import { NavLink } from "react-router-dom";
 
 export default function CustomerSidebar() {
@@ -35,7 +37,12 @@ export default function CustomerSidebar() {
     name: "Payments",
     path: "/customer/payments",
     icon: Wallet,
-  },
+    },
+    {
+  name: "Messages",
+  path: "/chat",
+  icon: MessageCircle,
+  }
   ];
 
   return (

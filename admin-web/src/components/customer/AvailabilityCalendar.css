@@ -1,0 +1,23 @@
+.available-day {
+  background: #22c55e !important;
+  color: white !important;
+  border-radius: 50%;
+}
+
+.booked-day {
+  background: #ef4444 !important;
+  color: white !important;
+  border-radius: 50%;
+}
+
+.react-calendar__tile--active {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+.react-calendar {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  padding: 12px;
+}
