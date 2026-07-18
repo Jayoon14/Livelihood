@@ -1,6 +1,16 @@
 import { supabase } from "../lib/supabase";
 
-export async function getReceipt(bookingId: number) {
+
+export async function getReceipt(
+  bookingId: number
+) {
+
+  console.log(
+    "Searching receipt booking_id:",
+    bookingId
+  );
+
+
   const { data, error } = await supabase
     .from("payments")
     .select(`
@@ -21,14 +31,40 @@ export async function getReceipt(bookingId: number) {
         last_name
       )
     `)
-    .eq("booking_id", bookingId)
+    .eq(
+      "booking_id",
+      bookingId
+    )
     .maybeSingle();
 
-  if (error) throw error;
+
+
+  console.log(
+    "Receipt result:",
+    data
+  );
+
+
+  console.log(
+    "Receipt error:",
+    error
+  );
+
+
+
+  if (error) {
+    throw error;
+  }
+
+
 
   if (!data) {
-    throw new Error("Receipt not found.");
+    throw new Error(
+      "Receipt not found."
+    );
   }
+
+
 
   return data;
 }

@@ -516,33 +516,31 @@ return (
                 {booking.status === "Completed" && (
 
                   <>
+                  {booking.payment_status === "Paid" ? (
 
-                    {!booking.payment_status ||
-                    booking.payment_status === "Pending" ? (
+                    <button
+                      onClick={() =>
+                        navigate(`/customer/receipt/${booking.id}`)
+                      }
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl"
+                    >
+                      <Receipt size={18} />
+                      Receipt
+                    </button>
 
-                  <button
-                    onClick={() =>
-                      navigate(`/customer/payment/${booking.id}`)
-                    }
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
-                  >
-                    <CreditCard size={18} />
-                    Continue Payment
-                  </button>
-                    ) : (
+                  ) : (
 
-                  <button
-                    onClick={() =>
-                      navigate(`/customer/receipt/${booking.id}`)
-                    }
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl"
-                  >
-                    <Receipt size={18} />
-                    Receipt
-                  </button>
+                    <button
+                      onClick={() =>
+                        navigate(`/customer/payment/${booking.id}`)
+                      }
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+                    >
+                      <CreditCard size={18} />
+                      Continue Payment
+                    </button>
 
-                    )}
-
+                  )}
 
 
 

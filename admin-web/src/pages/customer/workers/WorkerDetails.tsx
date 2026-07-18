@@ -106,26 +106,36 @@ export default function WorkerDetails() {
     }
 
     try {
-      const available = await isWorkerAvailable(
-        worker.id,
-        bookingDate,
-        bookingTime
-      );
+      const selectedService = worker.services.find(
+      (item: any) => item.service_name === service
+    );
 
-      if (!available) {
-        alert("Worker is unavailable on this schedule.");
-        return;
-      }
+    if (!selectedService) {
+      alert("Please select a service.");
+      return;
+    }
 
-      // Existing booking function
-      await createBooking(
-        user.id,
-        worker.id,
-        bookingDate,
-        bookingTime,
-        address,
-        notes
-      );
+    // CHECK AVAILABILITY
+    const available = await isWorkerAvailable(
+      worker.id,
+      bookingDate,
+      bookingTime
+    );
+
+    if (!available) {
+      alert("Worker is unavailable on the selected date and time.");
+      return;
+    }
+
+    await createBooking({
+      customer_id: user.id,
+      worker_id: worker.id,
+      service_id: selectedService.id,
+      booking_date: bookingDate,
+      booking_time: bookingTime,
+      address,
+      notes,
+    });
 
       alert("Booking submitted successfully!");
 

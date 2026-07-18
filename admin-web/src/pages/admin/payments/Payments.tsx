@@ -17,15 +17,25 @@ export default function Payments() {
     setPayments(data);
   }
 
-  async function handlePaid(id: number) {
-    if (!window.confirm("Mark this payment as Paid?")) return;
+async function handlePaid(payment: any) {
 
-    await completePayment(id);
-
-    alert("Payment updated.");
-
-    loadPayments();
+  if (!window.confirm("Mark this payment as Paid?")) {
+    return;
   }
+
+
+  await completePayment(
+    payment.id,
+    payment.booking_id
+  );
+
+
+  alert("Payment updated.");
+
+
+  loadPayments();
+
+}
 
   return (
     <AdminLayout>

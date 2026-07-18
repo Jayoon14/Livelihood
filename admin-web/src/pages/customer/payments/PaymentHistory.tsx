@@ -92,8 +92,8 @@ export default function PaymentHistory() {
                   </td>
 
                   <td className="p-4">
-                    {payment.booking.service_name}
-                  </td>
+                  {payment.booking?.service_name ?? "-"}
+                </td>
 
                   <td className="p-4">
                     ₱{payment.amount}
@@ -118,16 +118,17 @@ export default function PaymentHistory() {
                   </td>
 
                   <td className="p-4">
-
-                    <button
-                      onClick={()=>navigate(`/customer/receipt/${payment.id}`)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      View Receipt
-                    </button>
-
-                  </td>
-
+                {payment.payment_status === "Paid" && (
+                  <button
+                    onClick={() =>
+                      navigate(`/customer/receipt/${payment.booking_id}`)
+                    }
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                  >
+                    View Receipt
+                  </button>
+                )}
+              </td>
                 </tr>
 
               ))}

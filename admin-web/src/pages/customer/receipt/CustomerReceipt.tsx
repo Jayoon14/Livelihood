@@ -6,27 +6,38 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function CustomerReceipt() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [receipt, setReceipt] = useState<any>(null);
 
   useEffect(() => {
     loadReceipt();
   }, []);
 
-  async function loadReceipt() {
-    if (!id) return;
+async function loadReceipt() {
+  if (!id) return;
 
-    const data = await getReceipt(Number(id));
+  const bookingId = Number(id);
+
+  console.log("Receipt URL ID:", bookingId);
+
+  try {
+    const data = await getReceipt(bookingId);
+
+    console.log("Receipt Data:", data);
+
     setReceipt(data);
-  }
 
+  } catch (error) {
+    console.error("Receipt loading error:", error);
+  }
+}
   function printReceipt() {
     window.print();
   }
 
   function downloadPDF() {
     if (!receipt) return;
-
+    
     const doc = new jsPDF();
 
     doc.setFontSize(20);

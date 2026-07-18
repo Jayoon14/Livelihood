@@ -6,34 +6,39 @@ import { createNotification } from "./notificationService";
 // CREATE BOOKING
 // =========================
 
-export async function createBooking(
-  customerId: string,
-  workerId: string,
-  bookingDate: string,
-  bookingTime: string,
-  address: string,
-  notes: string
-) {
+export async function createBooking(booking: {
+  customer_id: string;
+  worker_id: string;
+  service_id: string;
+  booking_date: string;
+  booking_time: string;
+  address: string;
+  notes: string;
+}) {
+  // Kunin ang presyo ng service
+  const { data: service, error: serviceError } = await supabase
+    .from("services")
+    .select("price")
+    .eq("id", booking.service_id)
+    .single();
+
+  if (serviceError) throw serviceError;
+
   const { data, error } = await supabase
     .from("bookings")
     .insert({
-      customer_id: customerId,
-      worker_id: workerId,
-      booking_date: bookingDate,
-      booking_time: bookingTime,
-      address,
-      notes,
+      ...booking,
+      price: service.price,
       status: "Pending",
+      payment_status: "Unpaid",
     })
     .select()
     .single();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   await createNotification(
-    workerId,
+    booking.worker_id,
     data.id,
     "New Booking Request",
     "A customer has sent you a booking request."

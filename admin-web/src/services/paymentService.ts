@@ -10,7 +10,10 @@ export async function createPayment(
   customerId: string,
   workerId: string,
   amount: number,
-  paymentMethod: string
+  paymentMethod: string,
+  amountPaid: number,
+  referenceNumber: string,
+  proofOfPayment: string
 ) {
 
   // Prevent duplicate payment
@@ -20,9 +23,13 @@ export async function createPayment(
     .eq("booking_id", bookingId)
     .maybeSingle();
 
+    
   if (existingPayment) {
-    throw new Error("This booking has already been paid.");
+    throw new Error(
+      "This booking already has a payment request."
+    );
   }
+
 
   const { data, error } = await supabase
     .from("payments")
@@ -30,34 +37,77 @@ export async function createPayment(
       booking_id: bookingId,
       customer_id: customerId,
       worker_id: workerId,
+
       amount,
+
+      amount_paid: amountPaid,
+
+      balance: amount - amountPaid,
+
       payment_method: paymentMethod,
+
+      reference_number: referenceNumber,
+
+      proof_of_payment: proofOfPayment,
+
       payment_status: "Pending",
+
+      verification_status:
+        paymentMethod === "Cash"
+          ? "Verified"
+          : "Pending Verification",
     })
     .select()
     .single();
+    console.log("Insert error:", error);
+    console.log("Inserted data:", data);
 
   if (error) throw error;
 
+
   return data;
 }
+
+
 
 
 // ==============================
 // GET WORKER PAYMENTS
 // ==============================
 
-export async function getWorkerPayments(workerId: string) {
+export async function getWorkerPayments(
+  workerId: string
+) {
+
   const { data, error } = await supabase
     .from("payments")
-    .select("*")
-    .eq("worker_id", workerId)
-    .order("created_at", { ascending: false });
+    .select(`
+      *,
+      customer:profiles!customer_id(
+        first_name,
+        last_name
+      )
+    `)
+    .eq(
+      "worker_id",
+      workerId
+    )
+    .order(
+      "created_at",
+      {
+        ascending:false
+      }
+    );
+
 
   if (error) throw error;
 
+
   return data ?? [];
+
 }
+
+
 
 
 // ==============================
@@ -65,6 +115,7 @@ export async function getWorkerPayments(workerId: string) {
 // ==============================
 
 export async function getAllPayments() {
+
   const { data, error } = await supabase
     .from("payments")
     .select(`
@@ -78,86 +129,157 @@ export async function getAllPayments() {
         last_name
       )
     `)
-    .order("created_at", { ascending: false });
+    .order(
+      "created_at",
+      {
+        ascending:false
+      }
+    );
+
 
   if (error) throw error;
 
+
   return data ?? [];
+
 }
 
 
+
+
 // ==============================
-// COMPLETE PAYMENT
+// APPROVE PAYMENT
+// Worker uses this
 // ==============================
 
 export async function completePayment(
-  paymentId: number,
-  bookingId: number
+  paymentId:number,
+  bookingId:number
 ) {
+
+
   const { error } = await supabase
     .from("payments")
     .update({
-      payment_status: "Paid",
+
+      payment_status:"Paid"
+
     })
-    .eq("id", paymentId);
+    .eq(
+      "id",
+      paymentId
+    );
 
-  if (error) throw error;
 
-  const { error: bookingError } = await supabase
+  if(error) throw error;
+
+
+
+  const { error:bookingError } =
+    await supabase
     .from("bookings")
     .update({
-      payment_status: "Paid",
-    })
-    .eq("id", bookingId);
 
-  if (bookingError) throw bookingError;
+      payment_status:"Paid"
+
+    })
+    .eq(
+      "id",
+      bookingId
+    );
+
+
+  if(bookingError)
+    throw bookingError;
+
 }
+
+
+
+
+
+// ==============================
+// REJECT PAYMENT
+// Worker uses this
+// ==============================
+
+
+
 
 
 // ==============================
 // GET WORKER TOTAL EARNINGS
 // ==============================
 
-export async function getWorkerTotalEarnings(workerId: string) {
-  const { data, error } = await supabase
+export async function getWorkerTotalEarnings(
+  workerId:string
+) {
+
+
+  const { data,error } =
+    await supabase
     .from("payments")
     .select("amount")
-    .eq("worker_id", workerId)
-    .eq("payment_status", "Paid");
+    .eq(
+      "worker_id",
+      workerId
+    )
+    .eq(
+      "payment_status",
+      "Paid"
+    );
 
-  if (error) throw error;
 
-  const total =
+  if(error) throw error;
+
+
+
+  return (
     data?.reduce(
-      (sum, payment) =>
+      (sum,payment)=>
         sum + Number(payment.amount),
       0
-    ) ?? 0;
+    ) ?? 0
+  );
 
-  return total;
 }
+
+
+
 
 
 // ==============================
 // GET TOTAL REVENUE
 // ==============================
 
-export async function getTotalRevenue() {
-  const { data, error } = await supabase
+export async function getTotalRevenue(){
+
+  const {data,error} =
+    await supabase
     .from("payments")
     .select("amount")
-    .eq("payment_status", "Paid");
+    .eq(
+      "payment_status",
+      "Paid"
+    );
 
-  if (error) throw error;
+
+  if(error) throw error;
+
+
 
   return (
     data?.reduce(
-      (sum, payment) =>
+      (sum,payment)=>
         sum + Number(payment.amount),
       0
     ) ?? 0
   );
+
 }
+
+
+
 
 
 // ==============================
@@ -165,9 +287,11 @@ export async function getTotalRevenue() {
 // ==============================
 
 export async function getPaymentByBooking(
-  bookingId: number
-) {
-  const { data, error } = await supabase
+  bookingId:number
+){
+
+  const {data,error} =
+    await supabase
     .from("payments")
     .select(`
       *,
@@ -180,13 +304,22 @@ export async function getPaymentByBooking(
         last_name
       )
     `)
-    .eq("booking_id", bookingId)
+    .eq(
+      "booking_id",
+      bookingId
+    )
     .maybeSingle();
 
-  if (error) throw error;
+
+  if(error) throw error;
+
 
   return data;
+
 }
+
+
+
 
 
 // ==============================
@@ -204,6 +337,12 @@ export async function getCustomerPayments(
         first_name,
         last_name,
         profile_picture
+      ),
+      booking:bookings!booking_id(
+        service_name,
+        booking_date,
+        booking_time,
+        address
       )
     `)
     .eq("customer_id", customerId)
@@ -215,4 +354,136 @@ export async function getCustomerPayments(
 
   return data ?? [];
 }
+// ==============================
+// GET WORKER PAYMENT REQUESTS
+// ==============================
 
+export async function getWorkerPaymentRequests(
+  workerId: string
+) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select(`
+      *,
+      customer:profiles!payments_customer_id_fkey(
+        first_name,
+        last_name
+      ),
+      booking:bookings!payments_booking_id_fkey(
+        booking_date,
+        booking_time,
+        address
+      )
+    `)
+    .eq("worker_id", workerId)
+    .neq("payment_status", "Paid")
+    .order("created_at", {
+      ascending: false,
+    });
+
+  console.log(data);
+  console.log(error);
+
+  if (error) throw error;
+
+  return data ?? [];
+}
+
+
+
+
+
+// ==============================
+// APPROVE PAYMENT
+// ==============================
+
+export async function approvePayment(
+  paymentId: number,
+  bookingId: number
+) {
+
+  // Payment
+  const { error: paymentError } =
+    await supabase
+      .from("payments")
+      .update({
+        payment_status: "Paid",
+        verification_status: "Verified",
+      })
+      .eq("id", paymentId);
+
+  if (paymentError) throw paymentError;
+
+  // Booking
+  const { error: bookingError } =
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: "Paid",
+        status: "Completed",
+      })
+      .eq("id", bookingId);
+
+  if (bookingError) throw bookingError;
+}
+
+
+
+
+
+// ==============================
+// REJECT PAYMENT
+// ==============================
+
+export async function rejectPayment(
+  paymentId: number
+) {
+
+  const { error } =
+    await supabase
+      .from("payments")
+      .update({
+        payment_status: "Rejected",
+      })
+      .eq(
+        "id",
+        paymentId
+      );
+
+
+  if (error) {
+    throw error;
+  }
+
+}
+// ==============================
+// UPLOAD PAYMENT PROOF
+// ==============================
+
+export async function uploadPaymentProof(
+  file: File,
+  customerId: string
+) {
+
+  const extension = file.name.split(".").pop();
+
+  const fileName =
+    `${customerId}_${Date.now()}.${extension}`;
+
+
+  const { error } = await supabase.storage
+    .from("payment-proofs")
+    .upload(fileName, file);
+
+
+  if (error) throw error;
+
+
+  const { data } =
+    supabase.storage
+      .from("payment-proofs")
+      .getPublicUrl(fileName);
+
+
+  return data.publicUrl;
+}

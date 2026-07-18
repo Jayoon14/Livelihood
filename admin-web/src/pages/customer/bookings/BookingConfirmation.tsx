@@ -38,14 +38,15 @@ function BookingConfirmationContent() {
         return;
       }
 
-      await createBooking(
-          user.id,
-          state.workerId,
-          state.date,
-          state.time,
-          state.address,
-          ""
-      );
+await createBooking({
+  customer_id: user.id,
+  worker_id: state.workerId,
+  service_id: state.serviceId,
+  booking_date: state.date,
+  booking_time: state.time,
+  address: state.address,
+  notes: "",
+});
 
       alert("Booking submitted successfully.");
 

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
+import { Wallet } from "lucide-react";
 
 export default function WorkerSidebar() {
   const menus = [
@@ -40,6 +41,11 @@ export default function WorkerSidebar() {
       name: "Payment Information",
       icon: CreditCard,
       path: "/worker/payment-information",
+    },
+    {
+      name: "Payment Requests",
+      icon: Wallet,
+      path: "/worker/payments",
     },
   ];
 

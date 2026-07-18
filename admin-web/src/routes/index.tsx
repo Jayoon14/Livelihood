@@ -86,6 +86,7 @@ import CompareWorkers from "../pages/customer/workers/CompareWorkers";
 import CompleteJob from "../pages/worker/bookings/CompleteJob";
 import CompletionProof from "../pages/customer/bookings/CompletionProof";
 import PaymentInformation from "../pages/worker/payment/PaymentInformation";
+import PaymentRequests from "../pages/worker/payment/PaymentRequests";
 
 
 export default function AppRoutes() {
@@ -147,11 +148,6 @@ export default function AppRoutes() {
           path="/customer/receipt/:id"
           element={<CustomerReceipt />}
       />
-
-         <Route
-        path="/customer/payment"
-        element={<Payment />}
-        />
 
         <Route
           path="/customer/payments"
@@ -356,6 +352,14 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/worker/payments"
+        element={
+          <ProtectedRoute>
+            <PaymentRequests />
+          </ProtectedRoute>
+        }
+/>
 
 
 
