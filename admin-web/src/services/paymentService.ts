@@ -17,18 +17,22 @@ export async function createPayment(
 ) {
 
   // Prevent duplicate payment
-  const { data: existingPayment } = await supabase
-    .from("payments")
-    .select("id")
-    .eq("booking_id", bookingId)
-    .maybeSingle();
+// Prevent duplicate payment only if there is still
+// a Pending or Paid payment for this booking.
+const { data: existingPayment, error: existingError } = await supabase
+  .from("payments")
+  .select("id, payment_status")
+  .eq("booking_id", bookingId)
+  .in("payment_status", ["Pending", "Paid"])
+  .maybeSingle();
 
-    
-  if (existingPayment) {
-    throw new Error(
-      "This booking already has a payment request."
-    );
-  }
+if (existingError) throw existingError;
+
+if (existingPayment) {
+  throw new Error(
+    "This booking already has a payment request."
+  );
+}
 
 
   const { data, error } = await supabase
@@ -329,22 +333,24 @@ export async function getPaymentByBooking(
 export async function getCustomerPayments(
   customerId: string
 ) {
-  const { data, error } = await supabase
-    .from("payments")
-    .select(`
-      *,
-      worker:profiles!worker_id(
-        first_name,
-        last_name,
-        profile_picture
-      ),
-      booking:bookings!booking_id(
-        service_name,
-        booking_date,
-        booking_time,
-        address
+ const { data, error } = await supabase
+  .from("payments")
+  .select(`
+    *,
+    worker:profiles!worker_id(
+      first_name,
+      last_name,
+      profile_picture
+    ),
+    booking:bookings!booking_id(
+      booking_date,
+      booking_time,
+      address,
+      services(
+        service_name
       )
-    `)
+    )
+  `)
     .eq("customer_id", customerId)
     .order("created_at", {
       ascending: false,
@@ -362,24 +368,24 @@ export async function getWorkerPaymentRequests(
   workerId: string
 ) {
   const { data, error } = await supabase
-    .from("payments")
-    .select(`
-      *,
-      customer:profiles!payments_customer_id_fkey(
-        first_name,
-        last_name
-      ),
-      booking:bookings!payments_booking_id_fkey(
-        booking_date,
-        booking_time,
-        address
-      )
-    `)
-    .eq("worker_id", workerId)
-    .neq("payment_status", "Paid")
-    .order("created_at", {
-      ascending: false,
-    });
+  .from("payments")
+  .select(`
+    *,
+    customer:profiles!payments_customer_id_fkey(
+      first_name,
+      last_name
+    ),
+    booking:bookings!payments_booking_id_fkey(
+      booking_date,
+      booking_time,
+      address
+    )
+  `)
+  .eq("worker_id", workerId)
+  .eq("payment_status", "Pending")
+  .order("created_at", {
+    ascending: false,
+  });
 
   console.log(data);
   console.log(error);
@@ -403,14 +409,18 @@ export async function approvePayment(
 ) {
 
   // Payment
-  const { error: paymentError } =
-    await supabase
-      .from("payments")
-      .update({
-        payment_status: "Paid",
-        verification_status: "Verified",
-      })
-      .eq("id", paymentId);
+      const { data, error: paymentError } =
+      await supabase
+        .from("payments")
+        .update({
+          payment_status: "Paid",
+          verification_status: "Verified",
+        })
+        .eq("id", paymentId)
+        .select();
+
+    console.log(data);
+    console.log(paymentError);
 
   if (paymentError) throw paymentError;
 
@@ -436,7 +446,8 @@ export async function approvePayment(
 // ==============================
 
 export async function rejectPayment(
-  paymentId: number
+  paymentId: number,
+  bookingId: number
 ) {
 
   const { error } =
@@ -444,17 +455,23 @@ export async function rejectPayment(
       .from("payments")
       .update({
         payment_status: "Rejected",
+        verification_status: "Rejected",
       })
-      .eq(
-        "id",
-        paymentId
-      );
+      .eq("id", paymentId);
+      
 
+  if (error) throw error;
 
-  if (error) {
-    throw error;
-  }
+  const { error: bookingError } =
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: "Rejected"
+      })
+      .eq("id", bookingId);
+      
 
+  if (bookingError) throw bookingError;
 }
 // ==============================
 // UPLOAD PAYMENT PROOF

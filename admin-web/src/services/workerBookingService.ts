@@ -18,6 +18,9 @@ export async function getWorkerBookings(
         last_name,
         email,
         phone
+        profile_picture
+
+        
       )
     `)
     .eq("worker_id", workerId)

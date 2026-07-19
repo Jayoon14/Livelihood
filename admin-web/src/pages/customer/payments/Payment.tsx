@@ -42,9 +42,9 @@ async function loadData() {
     const bookingData = await getBookingById(Number(id));
 
     console.log("Booking:", bookingData);
+    console.log("BOOKING PRICE:", bookingData.price);
 
     setBooking(bookingData);
-
 
     const paymentData =
       await getWorkerPaymentInformation(
@@ -66,6 +66,7 @@ async function loadData() {
 
  async function handlePay() {
   console.log(proof);
+  
 
   try {
     setLoading(true);
@@ -154,9 +155,7 @@ if (method === "Cash") {
     "Payment submitted successfully."
   );
 
-    navigate(
-      `/customer/receipt/${payment.booking_id}`
-    );
+    navigate("/customer/payment-history");
 
 }
 

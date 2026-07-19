@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import BookingTimeline from "../../../components/customer/BookingTimeline";
@@ -39,7 +39,6 @@ function getStatusColor(status: string) {
 export default function BookingDetails() {
 
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -216,15 +215,6 @@ export default function BookingDetails() {
                 {booking.status}
               </span>
 
-              {booking.status !== "Pending" && (
-                <button
-                  onClick={() => navigate(`/chat/${booking.id}`)}
-                  className="mt-4 block bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
-                >
-                  💬 Message Worker
-                </button>
-              )}
-
             </div>
 
             <div>
@@ -343,41 +333,6 @@ export default function BookingDetails() {
             </button>
 
           )}
-
-
-
-          {booking.status === "Approved" && (
-
-            <button
-              onClick={() =>
-                navigate(
-                  `/chat/${booking.id}`
-                )
-              }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
-            >
-              Chat Worker
-            </button>
-
-          )}
-
-
-
-          {booking.status === "Completed" &&
-            !reviewed && (
-
-              <button
-                onClick={() =>
-                  navigate(
-                    `/customer/review/${booking.id}`
-                  )
-                }
-                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg"
-              >
-                Leave Review
-              </button>
-
-            )}
 
 
 

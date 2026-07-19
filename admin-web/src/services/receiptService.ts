@@ -11,31 +11,31 @@ export async function getReceipt(
   );
 
 
-  const { data, error } = await supabase
-    .from("payments")
-    .select(`
-      *,
-      booking:bookings(
-        id,
-        service_name,
-        category,
-        booking_date,
-        booking_time
-      ),
-      customer:profiles!customer_id(
-        first_name,
-        last_name
-      ),
-      worker:profiles!worker_id(
-        first_name,
-        last_name
-      )
-    `)
-    .eq(
-      "booking_id",
-      bookingId
+ const { data, error } = await supabase
+  .from("payments")
+  .select(`
+    *,
+    booking:bookings(
+      id,
+      service_name,
+      category,
+      booking_date,
+      booking_time
+    ),
+    customer:profiles!customer_id(
+      first_name,
+      last_name
+    ),
+    worker:profiles!worker_id(
+      first_name,
+      last_name
     )
-    .maybeSingle();
+  `)
+  .eq("booking_id", bookingId)
+  .eq("payment_status", "Paid")
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
 
 

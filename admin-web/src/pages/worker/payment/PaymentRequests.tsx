@@ -28,8 +28,8 @@ async function loadPayments() {
 
     const data = await getWorkerPaymentRequests(user.id);
 
-    console.log("Worker ID:", user.id);
     console.log("Payments:", data);
+    console.log("First Payment:", data?.[0]);
 
     setPayments(data);
   } catch (err) {
@@ -61,7 +61,10 @@ async function loadPayments() {
 
     if (!confirmReject) return;
 
-    await rejectPayment(payment.id);
+    await rejectPayment(
+      payment.id,
+      payment.booking_id
+    );
 
     loadPayments();
   }
@@ -101,12 +104,16 @@ async function loadPayments() {
 
           <div className="space-y-5">
 
-            {payments.map((payment) => (
+            {payments.map((payment) => {
+              console.log(payment.customer);
+              console.log(payment.booking);
+              console.log(payment.proof_of_payment);
 
-              <div
-                key={payment.id}
-                className="bg-white rounded-2xl shadow p-6"
-              >
+              return (
+                <div
+                  key={payment.id}
+                  className="bg-white rounded-2xl shadow p-6"
+                >
 
                 <div className="grid md:grid-cols-2 gap-6">
 
@@ -204,10 +211,10 @@ async function loadPayments() {
                 </div>
 
               </div>
+            );
+          })}
 
-            ))}
-
-          </div>
+        </div>
 
         )}
 
