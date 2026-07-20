@@ -2,9 +2,7 @@ interface Props {
   status: string;
 }
 
-export default function BookingTimeline({
-  status,
-}: Props) {
+export default function BookingTimeline({ status }: Props) {
   const steps = [
     "Pending",
     "Approved",
@@ -14,27 +12,39 @@ export default function BookingTimeline({
 
   if (status === "Cancelled") {
     return (
-      <div className="space-y-3">
+      <div className="relative">
+        <div className="absolute left-5 top-5 h-16 w-[3px] bg-red-300" />
 
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center">
-            ✓
+        <div className="space-y-8">
+          <div className="flex gap-4">
+            <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-green-600 font-bold text-white shadow-md">
+              ✓
+            </div>
+
+            <div>
+              <p className="font-semibold">Pending</p>
+              <p className="text-sm text-gray-500">
+                Booking request submitted.
+              </p>
+            </div>
           </div>
-          <span>Pending</span>
-        </div>
 
-        <div className="ml-3 h-6 border-l-2 border-red-500"></div>
+          <div className="flex gap-4">
+            <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-red-600 font-bold text-white shadow-md">
+              ✕
+            </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center">
-            ✕
+            <div>
+              <p className="font-semibold text-red-600">
+                Cancelled
+              </p>
+
+              <p className="text-sm text-gray-500">
+                This booking has been cancelled.
+              </p>
+            </div>
           </div>
-
-          <span className="text-red-600 font-semibold">
-            Cancelled
-          </span>
         </div>
-
       </div>
     );
   }
@@ -42,46 +52,100 @@ export default function BookingTimeline({
   const current = steps.indexOf(status);
 
   return (
-    <div className="space-y-3">
+    <div>
+      {/* Timeline */}
+      <div className="space-y-8">
+        {steps.map((step, index) => (
+          <div
+            key={step}
+            className="relative flex gap-4"
+          >
+            {/* Vertical Line */}
+            {index !== steps.length - 1 && (
+              <div
+                className={`absolute left-5 top-10 h-12 -translate-x-1/2 w-[3px] ${
+                  index < current
+                    ? "bg-green-600"
+                    : "bg-gray-300"
+                }`}
+              />
+            )}
 
-      {steps.map((step, index) => (
-
-        <div key={step}>
-
-          <div className="flex items-center gap-3">
-
+            {/* Circle */}
             <div
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-white
-              ${
+              className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full font-bold shadow-md transition-all duration-300 ${
                 index <= current
-                  ? "bg-green-600"
-                  : "bg-gray-300"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 text-gray-500"
               }`}
             >
               {index <= current ? "✓" : ""}
             </div>
 
-            <span
-              className={
-                index <= current
-                  ? "font-semibold"
-                  : "text-gray-400"
-              }
-            >
-              {step}
-            </span>
+            {/* Content */}
+            <div>
+              <h4
+                className={`font-semibold ${
+                  index <= current
+                    ? "text-gray-900"
+                    : "text-gray-400"
+                }`}
+              >
+                {step}
+              </h4>
 
+              <p className="mt-1 text-sm text-gray-500">
+                {step === "Pending" &&
+                  "Booking request submitted."}
+
+                {step === "Approved" &&
+                  "Worker accepted the booking."}
+
+                {step === "On Going" &&
+                  "Worker is currently providing the service."}
+
+                {step === "Completed" &&
+                  "Service has been completed successfully."}
+              </p>
+            </div>
           </div>
+        ))}
+      </div>
 
-          {index !== steps.length - 1 && (
-            <div className="ml-3 h-6 border-l-2 border-gray-300"></div>
-          )}
+      {/* ETA Card */}
+      {(status === "Approved" ||
+        status === "On Going") && (
+        <div className="mt-10 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+          <p className="text-sm text-gray-500">
+            Estimated Completion
+          </p>
 
+          <h3 className="mt-2 text-3xl font-bold text-blue-700">
+            Today
+          </h3>
+
+          <p className="mt-1 text-gray-600">
+            4:00 PM
+          </p>
         </div>
+      )}
 
-      ))}
+      {/* Success Card */}
+      {status === "Completed" && (
+        <div className="mt-10 rounded-3xl border border-green-100 bg-gradient-to-r from-green-50 to-emerald-50 p-6">
+          <p className="text-sm text-gray-500">
+            Service Status
+          </p>
 
+          <h3 className="mt-2 text-2xl font-bold text-green-700">
+            Completed Successfully
+          </h3>
+
+          <p className="mt-1 text-gray-600">
+            Thank you for choosing our service.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
-

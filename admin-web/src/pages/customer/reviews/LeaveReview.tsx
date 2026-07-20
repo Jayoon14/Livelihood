@@ -20,40 +20,61 @@ export default function LeaveReview() {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit() {
-    if (!bookingId) return;
+  if (!bookingId) return;
 
-    try {
-      setLoading(true);
+  try {
+    console.log("Submit clicked");
 
-      const booking = await getBooking(bookingId!);
+    setLoading(true);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const booking = await getBooking(bookingId);
 
-      if (!user) {
-        alert("Please login.");
-        return;
-      }
+    console.log("Booking:", booking);
 
-        await createReview(
-        Number(bookingId),
-        booking.worker_id,
-        user.id,
-        rating,
-        comment
-        );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      alert("Review submitted successfully!");
+    console.log("User:", user);
 
-      navigate(`/customer/bookings/${bookingId}`);
-    } catch (error) {
-      console.error(error);
-      alert("Unable to submit review.");
-    } finally {
-      setLoading(false);
+    if (!user) {
+      alert("Please login.");
+      return;
     }
+
+    console.log({
+      bookingId,
+      workerId: booking.worker_id,
+      customerId: user.id,
+      rating,
+      comment,
+    });
+
+    const result = await createReview(
+      Number(bookingId),
+      booking.worker_id,
+      user.id,
+      rating,
+      comment
+    );
+
+    console.log("Review created:", result);
+
+    alert("Review submitted successfully!");
+
+    navigate(`/customer/bookings/${bookingId}`);
+  } catch (error) {
+    console.error("Review Error:", error);
+
+    if (error instanceof Error) {
+      alert(error.message);
+    } else {
+      alert(JSON.stringify(error));
+    }
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <CustomerLayout>

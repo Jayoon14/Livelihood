@@ -11,16 +11,21 @@ export async function getWorkerBookings(
     .from("bookings")
     .select(`
       *,
+      service:services!service_id(
+        id,
+        service_name,
+        category,
+        description,
+        price
+      ),
       customer:profiles!customer_id(
         id,
         first_name,
         middle_name,
         last_name,
         email,
-        phone
+        phone,
         profile_picture
-
-        
       )
     `)
     .eq("worker_id", workerId)

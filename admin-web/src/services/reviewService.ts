@@ -1,44 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
 
-
-// =====================
-// SUBMIT REVIEW
-// =====================
-
-export async function submitReview(
-  bookingId: number,
-  workerId: string,
-  customerId: string,
-  rating: number,
-  review: string
-) {
-  const { error } = await supabase
-    .from("reviews")
-    .insert({
-      booking_id: bookingId,
-      worker_id: workerId,
-      customer_id: customerId,
-      rating,
-      review,
-    });
-
-
-  if (error) {
-    throw error;
-  }
-
-
-  await createNotification(
-    workerId,
-    bookingId,
-    "New Review",
-    "A customer has submitted a review on your profile."
-  );
-}
-
-
-
 // =====================
 // CREATE REVIEW
 // =====================

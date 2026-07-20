@@ -11,9 +11,15 @@ import {
   completeBooking,
 } from "../../../services/workerBookingService";
 import BookingTimeline from "../../../components/worker/Timeline/BookingTimeline";
-import CustomerProfileCard from "../../../components/worker/Cards/CustomerProfileCard";
-import BookingSummaryCard from "../../../components/worker/Cards/BookingSummaryCard";
 import BookingActivity from "../../../components/worker/Timeline/BookingActivity";
+import {
+  CalendarDays,
+  Clock3,
+  CircleCheckBig,
+  CircleX,
+  WalletCards,
+  Search,
+} from "lucide-react";
 
 
 export default function Bookings() {
@@ -322,15 +328,129 @@ export default function Bookings() {
 
         {/* Header */}
 
-        <div className="mb-6">
+        <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 rounded-3xl p-8 shadow-xl text-white">
 
-          <h1 className="text-4xl font-bold text-gray-800">
-            My Bookings
-          </h1>
+          <div className="flex justify-between items-center">
+
+            <div>
+
+              <p className="uppercase tracking-[5px] text-blue-100 text-sm">
+                Worker Dashboard
+              </p>
+
+              <h1 className="text-4xl font-extrabold mt-2">
+                My Bookings
+              </h1>
+
+              <p className="text-blue-100 mt-3 max-w-2xl">
+                View customer requests, approve bookings, communicate with clients,
+                and complete jobs from one professional dashboard.
+              </p>
+
+            </div>
+
+            <div className="hidden lg:flex items-center justify-center w-28 h-28 rounded-full bg-white/10 backdrop-blur">
+
+              <span className="text-6xl">
+                📅
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Search & Filter */}
+
+<div className="bg-white rounded-3xl shadow-lg border p-6">
+
+  <div className="flex flex-col lg:flex-row gap-5 items-center justify-between">
+
+    {/* Search */}
+
+    <div className="relative flex-1 w-full">
+
+      <Search
+        size={20}
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+      />
+
+      <input
+        type="text"
+        placeholder="Search customer, booking ID..."
+        value={search}
+        onChange={(e) =>
+          setSearch(e.target.value)
+        }
+        className="w-full rounded-2xl border border-gray-200 bg-gray-50 pl-12 pr-4 py-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+      />
+
+    </div>
+
+    {/* Status Filter */}
+
+    <select
+      value={statusFilter}
+      onChange={(e) =>
+        setStatusFilter(e.target.value)
+      }
+      className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 min-w-[220px] focus:ring-2 focus:ring-blue-500 outline-none"
+    >
+
+      <option value="All">
+        📋 All Bookings
+      </option>
+
+      <option value="Pending">
+        🟡 Pending
+      </option>
+
+      <option value="Approved">
+        🟢 Approved
+      </option>
+
+      <option value="Completed">
+        🔵 Completed
+      </option>
+
+      <option value="Cancelled">
+        🔴 Cancelled
+      </option>
+
+    </select>
+
+  </div>
+
+</div>
 
 
-          <p className="text-gray-500 mt-2">
-            Manage all customer booking requests.
+
+
+
+
+
+      {/* Premium Statistics */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
+
+        {/* Total */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl text-white p-6 shadow-xl">
+
+          <div className="absolute -right-5 -top-5 opacity-10">
+            <CalendarDays size={120}/>
+          </div>
+
+          <p className="text-blue-100">
+            Total Bookings
+          </p>
+
+          <h2 className="text-5xl font-bold mt-3">
+            {totalBookings}
+          </h2>
+
+          <p className="mt-5 text-sm text-blue-100">
+            All customer bookings
           </p>
 
         </div>
@@ -338,54 +458,49 @@ export default function Bookings() {
 
 
 
-        {/* Search & Filter */}
 
-        <div className="bg-white rounded-2xl shadow p-5 flex flex-col md:flex-row gap-4 justify-between">
+        {/* Pending */}
 
+        <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
 
-          <input
-            type="text"
-            placeholder="Search customer..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="border rounded-xl px-4 py-3 w-full md:w-80"
-          />
+          <div className="flex justify-between items-center">
 
+            <div>
 
+              <p className="text-gray-500">
+                Pending
+              </p>
 
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value)
-            }
-            className="border rounded-xl px-4 py-3 w-full md:w-56"
-          >
+              <h2 className="text-4xl font-bold text-yellow-500 mt-2">
+                {pendingBookings}
+              </h2>
 
-            <option value="All">
-              All Status
-            </option>
+            </div>
 
-            <option value="Pending">
-              Pending
-            </option>
+            <div className="bg-yellow-100 p-4 rounded-2xl">
 
-            <option value="Approved">
-              Approved
-            </option>
+              <Clock3
+                className="text-yellow-500"
+                size={30}
+              />
 
-            <option value="Completed">
-              Completed
-            </option>
+            </div>
 
-            <option value="Cancelled">
-              Cancelled
-            </option>
+          </div>
 
+          <div className="mt-5 h-2 rounded-full bg-yellow-100">
 
-          </select>
+            <div
+              className="h-2 rounded-full bg-yellow-500"
+              style={{
+                width:
+                  totalBookings
+                    ? `${pendingBookings / totalBookings * 100}%`
+                    : "0%"
+              }}
+            />
 
+          </div>
 
         </div>
 
@@ -394,83 +509,48 @@ export default function Bookings() {
 
 
 
-        {/* Statistics */}
+        {/* Approved */}
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
+        <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
 
+          <div className="flex justify-between items-center">
 
-          <div className="bg-white rounded-2xl shadow p-5">
+            <div>
 
-            <p className="text-gray-500">
-              Total
-            </p>
+              <p className="text-gray-500">
+                Approved
+              </p>
 
-            <h2 className="text-3xl font-bold text-blue-600">
-              {totalBookings}
-            </h2>
+              <h2 className="text-4xl font-bold text-green-600 mt-2">
+                {approvedBookings}
+              </h2>
 
-          </div>
+            </div>
 
+            <div className="bg-green-100 p-4 rounded-2xl">
 
+              <CircleCheckBig
+                className="text-green-600"
+                size={30}
+              />
 
-
-          <div className="bg-white rounded-2xl shadow p-5">
-
-            <p className="text-gray-500">
-              Pending
-            </p>
-
-            <h2 className="text-3xl font-bold text-yellow-500">
-              {pendingBookings}
-            </h2>
+            </div>
 
           </div>
 
+          <div className="mt-5 h-2 rounded-full bg-green-100">
 
-
-
-          <div className="bg-white rounded-2xl shadow p-5">
-
-            <p className="text-gray-500">
-              Approved
-            </p>
-
-            <h2 className="text-3xl font-bold text-green-600">
-              {approvedBookings}
-            </h2>
-
-          </div>
-
-
-
-
-          <div className="bg-white rounded-2xl shadow p-5">
-
-            <p className="text-gray-500">
-              Completed
-            </p>
-
-            <h2 className="text-3xl font-bold text-blue-600">
-              {completedBookings}
-            </h2>
+            <div
+              className="h-2 rounded-full bg-green-600"
+              style={{
+                width:
+                  totalBookings
+                    ? `${approvedBookings / totalBookings * 100}%`
+                    : "0%"
+              }}
+            />
 
           </div>
-
-
-
-
-          <div className="bg-white rounded-2xl shadow p-5">
-
-            <p className="text-gray-500">
-              Cancelled
-            </p>
-
-            <h2 className="text-3xl font-bold text-red-600">
-              {cancelledBookings}
-            </h2>
-
-          </div>
-
 
         </div>
 
@@ -478,6 +558,106 @@ export default function Bookings() {
 
 
 
+
+
+        {/* Completed */}
+
+        <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
+
+          <div className="flex justify-between items-center">
+
+            <div>
+
+              <p className="text-gray-500">
+                Completed
+              </p>
+
+              <h2 className="text-4xl font-bold text-blue-600 mt-2">
+                {completedBookings}
+              </h2>
+
+            </div>
+
+            <div className="bg-blue-100 p-4 rounded-2xl">
+
+              <WalletCards
+                className="text-blue-600"
+                size={30}
+              />
+
+            </div>
+
+          </div>
+
+          <div className="mt-5 h-2 rounded-full bg-blue-100">
+
+            <div
+              className="h-2 rounded-full bg-blue-600"
+              style={{
+                width:
+                  totalBookings
+                    ? `${completedBookings / totalBookings * 100}%`
+                    : "0%"
+              }}
+            />
+
+          </div>
+
+        </div>
+
+
+
+
+
+
+
+
+        {/* Cancelled */}
+
+        <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
+
+          <div className="flex justify-between items-center">
+
+            <div>
+
+              <p className="text-gray-500">
+                Cancelled
+              </p>
+
+              <h2 className="text-4xl font-bold text-red-600 mt-2">
+                {cancelledBookings}
+              </h2>
+
+            </div>
+
+            <div className="bg-red-100 p-4 rounded-2xl">
+
+              <CircleX
+                className="text-red-600"
+                size={30}
+              />
+
+            </div>
+
+          </div>
+
+          <div className="mt-5 h-2 rounded-full bg-red-100">
+
+            <div
+              className="h-2 rounded-full bg-red-600"
+              style={{
+                width:
+                  totalBookings
+                    ? `${cancelledBookings / totalBookings * 100}%`
+                    : "0%"
+              }}
+            />
+
+          </div>
+
+        </div>
+
+      </div>
 
 
         {/* Booking Groups */}
@@ -550,225 +730,181 @@ export default function Bookings() {
                         (booking:any)=>(
 
 
-                          <div
-                            key={booking.id}
-                            className="bg-white border rounded-2xl p-6 hover:shadow-lg transition"
-                          >
+                       <div
+                          key={booking.id}
+                          className="group bg-white rounded-3xl border border-gray-200 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                        >
+                          {/* Hero Header */}
+                          <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
 
+                            <div className="absolute top-5 right-5">
+                              <span
+                                className={`px-4 py-2 rounded-full text-xs font-bold ${
+                                  booking.status === "Pending"
+                                    ? "bg-yellow-400 text-yellow-900"
+                                    : booking.status === "Approved"
+                                    ? "bg-green-400 text-green-900"
+                                    : booking.status === "Completed"
+                                    ? "bg-blue-300 text-blue-900"
+                                    : "bg-red-300 text-red-900"
+                                }`}
+                              >
+                                {booking.status}
+                              </span>
+                            </div>
 
+                            <div className="flex items-center gap-4">
 
-                            <div className="flex justify-between gap-4">
-
+                              <img
+                                src={
+                                  booking.customer?.profile_picture ||
+                                  `https://ui-avatars.com/api/?name=${booking.customer?.first_name}+${booking.customer?.last_name}`
+                                }
+                                alt="Customer"
+                                className="w-16 h-16 rounded-2xl object-cover border-4 border-white"
+                              />
 
                               <div>
 
-
-                                <h3 className="text-xl font-bold">
-
-                                  {booking.customer?.first_name}
-
-                                  {" "}
-
+                                <h2 className="text-xl font-bold">
+                                  {booking.customer?.first_name}{" "}
                                   {booking.customer?.last_name}
+                                </h2>
 
-                                </h3>
-
-
-
-                                <p className="text-gray-500 mt-1">
-
-                                  {booking.service?.service_name ??
-                                  "Service"}
-
+                                <p className="text-blue-100">
+                                  Customer
                                 </p>
-
 
                               </div>
 
+                            </div>
 
+                          </div>
 
-                              <span
-                                className={`px-3 py-1 rounded-full text-sm font-semibold h-fit ${
-                                  booking.status === "Pending"
-                                  ? "bg-yellow-100 text-yellow-700"
+                          <div className="p-6">
 
-                                  : booking.status === "Approved"
-                                  ? "bg-green-100 text-green-700"
+                            {/* Service */}
+                            <div className="bg-blue-50 rounded-2xl p-5">
 
-                                  : booking.status === "Completed"
-                                  ? "bg-blue-100 text-blue-700"
+                              <p className="text-gray-500 text-sm">
+                                Service
+                              </p>
 
-                                  : "bg-red-100 text-red-700"
-                                }`}
-                              >
-
-                                {booking.status}
-
-                              </span>
-
+                              <h2 className="text-2xl font-bold text-blue-700 mt-1">
+                                {booking.service?.service_name ?? "General Service"}
+                              </h2>
 
                             </div>
-                                                        {/* Booking Info */}
 
-                            <div className="mt-6 space-y-3">
+                            {/* Booking Information */}
+                            <div className="grid grid-cols-2 gap-4 mt-6">
 
+                              <div className="bg-gray-50 rounded-xl p-4">
 
-                              <div>
-
-                                <p className="text-gray-400 text-sm">
+                                <p className="text-xs text-gray-400">
                                   Booking Date
                                 </p>
 
-                                <p className="font-semibold">
+                                <h3 className="font-bold">
                                   {booking.booking_date}
-                                </p>
+                                </h3>
 
                               </div>
 
+                              <div className="bg-gray-50 rounded-xl p-4">
 
-
-
-                              <div>
-
-                                <p className="text-gray-400 text-sm">
+                                <p className="text-xs text-gray-400">
                                   Time
                                 </p>
 
-                                <p className="font-semibold">
+                                <h3 className="font-bold">
                                   {booking.booking_time}
-                                </p>
+                                </h3>
 
                               </div>
 
+                              <div className="col-span-2 bg-gray-50 rounded-xl p-4">
 
+                                <p className="text-xs text-gray-400">
+                                  Address
+                                </p>
 
+                                <h3 className="font-semibold">
+                                  {booking.address}
+                                </h3>
+
+                              </div>
+
+                            </div>
+
+                            {/* Price */}
+                            <div className="mt-6 flex items-center justify-between">
 
                               <div>
 
                                 <p className="text-gray-400 text-sm">
-                                  Address
+                                  Total Payment
                                 </p>
 
-                                <p className="font-semibold">
-                                  {booking.address}
-                                </p>
+                                <h2 className="text-3xl font-bold text-blue-700">
+                                  ₱{Number(booking.price ?? 0).toLocaleString()}
+                                </h2>
 
                               </div>
 
-
                             </div>
 
-
-
-
-
-                            {/* Card Actions */}
-
-                            <div className="flex flex-wrap gap-3 mt-6">
-
+                            {/* Buttons */}
+                            <div className="grid grid-cols-2 gap-3 mt-8">
 
                               <button
-                                onClick={() =>
-                                  setSelectedBooking(
-                                    booking
-                                  )
-                                }
-                                className="bg-gray-800 hover:bg-gray-900 text-white px-5 py-2 rounded-xl"
+                                onClick={() => setSelectedBooking(booking)}
+                                className="rounded-xl bg-gray-800 hover:bg-gray-900 text-white py-3 font-semibold shadow hover:scale-105 transition"
                               >
-
                                 View Details
-
                               </button>
 
-
-
-
-
                               {booking.status === "Pending" && (
-
                                 <>
-
                                   <button
-                                    onClick={() =>
-                                      handleApprove(
-                                        booking.id
-                                      )
-                                    }
-                                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-xl"
+                                    onClick={() => handleApprove(booking.id)}
+                                    className="rounded-xl bg-green-600 hover:bg-green-700 text-white py-3 font-semibold shadow hover:scale-105 transition"
                                   >
-
                                     Accept
-
                                   </button>
-
-
 
                                   <button
-                                    onClick={() =>
-                                      handleReject(
-                                        booking.id
-                                      )
-                                    }
-                                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl"
+                                    onClick={() => handleReject(booking.id)}
+                                    className="rounded-xl bg-red-600 hover:bg-red-700 text-white py-3 font-semibold shadow hover:scale-105 transition"
                                   >
-
                                     Reject
-
                                   </button>
-
-
                                 </>
-
                               )}
 
-
-
-
-
-
                               {booking.status === "Approved" && (
-
                                 <>
-
                                   <button
-                                    onClick={() =>
-                                      handleComplete(
-                                        booking.id
-                                      )
-                                    }
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl"
+                                    onClick={() => handleComplete(booking.id)}
+                                    className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white py-3 font-semibold shadow hover:scale-105 transition"
                                   >
-
                                     Complete
-
                                   </button>
-
-
-
-
 
                                   <Link
                                     to={`/chat/${booking.id}`}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl"
+                                    className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-3 text-center font-semibold shadow hover:scale-105 transition"
                                   >
-
                                     Chat
-
                                   </Link>
-
-
                                 </>
-
                               )}
-
-
 
                             </div>
 
-
-
-
                           </div>
+
+                        </div>
 
 
                         )
@@ -794,6 +930,7 @@ export default function Bookings() {
 
 
       </div>
+      
 
 
 
@@ -805,309 +942,255 @@ export default function Bookings() {
 
       {selectedBooking && (
 
+  <div
+    className="
+      fixed
+      inset-0
+      z-50
+      bg-black/50
+      backdrop-blur-sm
+      flex
+      items-center
+      justify-center
+      p-6
+      animate-fadeIn
+    "
+  >
 
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div
+      className="
+        bg-white
+        rounded-[30px]
+        shadow-2xl
+        w-full
+        max-w-5xl
+        max-h-[90vh]
+        overflow-y-auto
+        animate-scaleIn
+      "
+    >
 
+      {/* Header */}
 
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-8 max-h-[90vh] overflow-y-auto">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
 
+        <div className="flex justify-between items-start">
 
+          <div>
 
+            <h1 className="text-3xl font-bold">
+              Booking Details
+            </h1>
 
-
-            {/* Modal Header */}
-
-            <div className="flex justify-between items-center mb-6">
-
-
-              <div>
-
-              <h2 className="text-3xl font-bold">
+            <p className="text-blue-100 mt-2">
               Booking # {selectedBooking.id}
-              </h2>
+            </p>
 
-              <p className="text-gray-500 mt-1">
+          </div>
 
-              {selectedBooking.service?.service_name}
 
+          <button
+            onClick={() => setSelectedBooking(null)}
+            className="
+              text-white
+              text-3xl
+              hover:rotate-90
+              transition
+            "
+          >
+            ✕
+          </button>
+
+        </div>
+
+      </div>
+
+
+      {/* Content */}
+
+      <div className="p-8 space-y-8">
+
+
+        {/* Customer Profile */}
+
+        <div className="flex items-center gap-6">
+
+          <img
+            src={
+              selectedBooking.customer?.profile_picture ||
+              `https://ui-avatars.com/api/?name=${selectedBooking.customer?.first_name}+${selectedBooking.customer?.last_name}`
+            }
+            alt="Customer"
+            className="
+              w-28
+              h-28
+              rounded-3xl
+              object-cover
+              shadow-xl
+              border-4
+              border-white
+            "
+          />
+
+
+          <div>
+
+            <h2 className="text-3xl font-bold">
+
+              {selectedBooking.customer?.first_name}
+
+              {" "}
+
+              {selectedBooking.customer?.last_name}
+
+            </h2>
+
+
+            <p className="text-gray-500 mt-2">
+              ⭐ Verified Customer
+            </p>
+
+
+            <p className="text-gray-500">
+              📞 {selectedBooking.customer?.phone ?? "No phone"}
+            </p>
+
+
+            <p className="text-gray-500">
+              ✉ {selectedBooking.customer?.email ?? "No email"}
+            </p>
+
+
+          </div>
+
+        </div>
+
+
+
+        {/* Service Card */}
+
+        <div
+          className="
+            rounded-3xl
+            bg-gradient-to-r
+            from-blue-50
+            to-indigo-50
+            p-6
+          "
+        >
+
+          <p className="text-gray-500">
+            Booked Service
+          </p>
+
+
+          <h1 className="text-4xl font-bold text-blue-700 mt-2">
+
+            {selectedBooking.service?.service_name ??
+            "General Service"}
+
+          </h1>
+
+
+          <h2 className="text-3xl font-bold mt-4">
+
+            ₱
+            {Number(
+              selectedBooking.price ?? 0
+            ).toLocaleString()}
+
+          </h2>
+
+
+        </div>
+
+
+
+        {/* Booking Information */}
+
+        <div>
+
+          <h2 className="text-2xl font-bold mb-5">
+            Booking Information
+          </h2>
+
+
+          <div className="grid md:grid-cols-2 gap-5">
+
+
+            <div
+              className="
+                bg-gray-50
+                rounded-2xl
+                p-5
+                hover:bg-blue-50
+                transition
+              "
+            >
+
+              <p className="text-sm text-gray-400">
+                📅 Booking Date
               </p>
 
-              </div>
 
-              <span
-              className="px-4 py-2 rounded-full bg-green-100 text-green-700 font-semibold"
-              >
+              <h3 className="font-bold mt-2">
 
-              {selectedBooking.status}
+                {selectedBooking.booking_date}
 
-              </span>
-
-
-
-              <button
-                onClick={() =>
-                  setSelectedBooking(null)
-                }
-                className="text-gray-500 hover:text-black text-xl"
-              >
-
-                ✕
-
-              </button>
-
-
-            </div>
-
-                  <CustomerProfileCard
-                    customer={selectedBooking.customer}
-                  />
-                  <div className="mt-6">
-
-                  <BookingSummaryCard
-                      booking={selectedBooking}
-                  />
-
-              </div>
-                        {/* Booking Details */}
-
-            <div className="space-y-4">
-
-
-              <h3 className="text-xl font-bold">
-                Booking Information
               </h3>
 
-
-
-              <div>
-
-                <p className="text-gray-500 text-sm">
-                  Service
-                </p>
-
-                <p className="font-semibold">
-                  {selectedBooking.service?.service_name ?? "Service"}
-                </p>
-
-              </div>
-
-
-
-
-
-              <div>
-
-                <p className="text-gray-500 text-sm">
-                  Booking Date
-                </p>
-
-                <p className="font-semibold">
-                  {selectedBooking.booking_date}
-                </p>
-
-              </div>
-
-
-
-
-
-              <div>
-
-                <p className="text-gray-500 text-sm">
-                  Time
-                </p>
-
-                <p className="font-semibold">
-                  {selectedBooking.booking_time}
-                </p>
-
-              </div>
-
-
-
-
-
-              <div>
-
-                <p className="text-gray-500 text-sm">
-                  Address
-                </p>
-
-                <p className="font-semibold">
-                  {selectedBooking.address}
-                </p>
-
-              </div>
-
-
-
-
-
-              {selectedBooking.notes && (
-
-                <div>
-
-                  <p className="text-gray-500 text-sm">
-                    Notes
-                  </p>
-
-
-                  <p className="font-semibold">
-                    {selectedBooking.notes}
-                  </p>
-
-
-                </div>
-
-              )}
-
-
             </div>
-              
-              {/* Booking Progress */}
 
-              <BookingTimeline
-                status={selectedBooking.status}
-              />
-              <BookingActivity
-                  booking={selectedBooking}
-              />
 
-            {/* Booking Action Bar */}
 
-            <div className="mt-8 border-t pt-6 flex flex-wrap justify-end gap-3">
+            <div
+              className="
+                bg-gray-50
+                rounded-2xl
+                p-5
+                hover:bg-blue-50
+                transition
+              "
+            >
 
+              <p className="text-sm text-gray-400">
+                🕒 Time
+              </p>
 
-              {selectedBooking.status === "Pending" && (
 
-                <>
+              <h3 className="font-bold mt-2">
 
+                {selectedBooking.booking_time}
 
-                  <button
-                    onClick={() => {
-
-                      handleApprove(
-                        selectedBooking.id
-                      );
-
-                      setSelectedBooking(null);
-
-                    }}
-                    className="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
-                  >
-
-                    ✓ Accept Booking
-
-                  </button>
-
-
-
-
-
-                  <button
-                    onClick={() => {
-
-                      handleReject(
-                        selectedBooking.id
-                      );
-
-                      setSelectedBooking(null);
-
-                    }}
-                    className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
-                  >
-
-                    ✕ Reject Booking
-
-                  </button>
-
-
-                </>
-
-              )}
-
-
-
-
-
-
-
-
-              {selectedBooking.status === "Approved" && (
-
-                <>
-
-
-                  <Link
-                    to={`/chat/${selectedBooking.id}`}
-                    className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold"
-                  >
-
-                    💬 Chat Customer
-
-                  </Link>
-
-
-
-
-
-                  <button
-                    onClick={() => {
-
-                      handleComplete(
-                        selectedBooking.id
-                      );
-
-                      setSelectedBooking(null);
-
-                    }}
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                  >
-
-                    ✓ Mark as Completed
-
-                  </button>
-
-
-                </>
-
-              )}
-
-
-
-
-
-
-
-              {selectedBooking.status === "Completed" && (
-
-                <div className="px-5 py-3 rounded-xl bg-green-100 text-green-700 font-semibold">
-
-                  ✔ Job Completed
-
-                </div>
-
-              )}
-
-
-
-
-              <button
-                onClick={() =>
-                  setSelectedBooking(null)
-                }
-                className="px-6 py-3 rounded-xl bg-gray-800 hover:bg-gray-900 text-white font-semibold"
-              >
-
-                Close
-
-              </button>
-
+              </h3>
 
             </div>
 
 
 
+            <div
+              className="
+                md:col-span-2
+                bg-gray-50
+                rounded-2xl
+                p-5
+                hover:bg-blue-50
+                transition
+              "
+            >
+
+              <p className="text-sm text-gray-400">
+                📍 Address
+              </p>
+
+
+              <h3 className="font-semibold mt-2">
+
+                {selectedBooking.address}
+
+              </h3>
+
+            </div>
 
 
           </div>
@@ -1116,13 +1199,454 @@ export default function Bookings() {
         </div>
 
 
-      )}
+
+        {/* Notes */}
+
+        {selectedBooking.notes && (
+
+          <div
+            className="
+              bg-gray-50
+              rounded-2xl
+              p-5
+            "
+          >
+
+            <p className="text-sm text-gray-400">
+              📝 Customer Notes
+            </p>
+
+
+            <p className="mt-2 font-medium">
+
+              {selectedBooking.notes}
+
+            </p>
+
+
+          </div>
+
+        )}
+          {/* Booking Progress Card */}
+
+          <div
+            className="
+              bg-white
+              rounded-3xl
+              shadow-lg
+              border
+              border-gray-100
+              p-8
+            "
+          >
+
+            <h2 className="text-2xl font-bold mb-8">
+              Booking Progress
+            </h2>
+
+
+            <div className="relative">
+
+
+              {/* Connecting Line */}
+
+              <div
+                className="
+                  absolute
+                  top-6
+                  left-12
+                  right-12
+                  h-1
+                  bg-gray-200
+                "
+              />
+
+
+              <div className="grid grid-cols-4 gap-4 relative z-10">
 
 
 
-    </WorkerLayout>
+                {/* Submitted */}
 
-  );
+                <div className="text-center">
+
+                  <div
+                    className="
+                      w-14
+                      h-14
+                      mx-auto
+                      rounded-full
+                      bg-blue-600
+                      text-white
+                      flex
+                      items-center
+                      justify-center
+                      text-xl
+                      shadow-lg
+                    "
+                  >
+                    ✓
+                  </div>
 
 
+                  <h3 className="mt-4 font-bold">
+                    Submitted
+                  </h3>
+
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Customer request sent
+                  </p>
+
+                </div>
+
+
+
+
+                {/* Approved */}
+
+                <div className="text-center">
+
+                  <div
+                    className={`
+                      w-14
+                      h-14
+                      mx-auto
+                      rounded-full
+                      flex
+                      items-center
+                      justify-center
+                      text-xl
+                      shadow-lg
+                      ${
+                        selectedBooking.status === "Pending"
+                        ? "bg-gray-300 text-gray-600"
+                        : "bg-green-500 text-white"
+                      }
+                    `}
+                  >
+                    ✓
+                  </div>
+
+
+                  <h3 className="mt-4 font-bold">
+                    Approved
+                  </h3>
+
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Worker accepted
+                  </p>
+
+
+                </div>
+
+
+
+
+
+                {/* In Progress */}
+
+                <div className="text-center">
+
+
+                  <div
+                    className={`
+                      w-14
+                      h-14
+                      mx-auto
+                      rounded-full
+                      flex
+                      items-center
+                      justify-center
+                      text-xl
+                      shadow-lg
+                      ${
+                        selectedBooking.status === "Completed"
+                        ? "bg-purple-600 text-white"
+                        : selectedBooking.status === "Approved"
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-300 text-gray-600"
+                      }
+                    `}
+                  >
+                    ⚙
+                  </div>
+
+
+                  <h3 className="mt-4 font-bold">
+                    In Progress
+                  </h3>
+
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Service ongoing
+                  </p>
+
+
+                </div>
+
+
+
+
+
+
+                {/* Completed */}
+
+                <div className="text-center">
+
+
+                  <div
+                    className={`
+                      w-14
+                      h-14
+                      mx-auto
+                      rounded-full
+                      flex
+                      items-center
+                      justify-center
+                      text-xl
+                      shadow-lg
+                      ${
+                        selectedBooking.status === "Completed"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-300 text-gray-600"
+                      }
+                    `}
+                  >
+                    🏁
+                  </div>
+
+
+                  <h3 className="mt-4 font-bold">
+                    Completed
+                  </h3>
+
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Job finished
+                  </p>
+
+
+                </div>
+
+
+
+              </div>
+
+
+            </div>
+
+
+          </div>
+
+
+
+        {/* Existing Timeline Components */}
+
+        <BookingTimeline
+          status={selectedBooking.status}
+        />
+
+        <BookingActivity
+          booking={selectedBooking}
+        />
+
+
+
+        {/* Action Buttons */}
+
+        <div
+          className="
+            border-t
+            pt-6
+            grid
+            grid-cols-2
+            md:grid-cols-5
+            gap-4
+          "
+        >
+
+
+          {selectedBooking.status === "Pending" && (
+
+            <>
+
+
+              <button
+                onClick={() => {
+
+                  handleApprove(
+                    selectedBooking.id
+                  );
+
+                  setSelectedBooking(null);
+
+                }}
+                className="
+                  rounded-xl
+                  bg-green-600
+                  hover:bg-green-700
+                  text-white
+                  py-3
+                  font-semibold
+                  shadow-lg
+                  hover:-translate-y-1
+                  transition
+                "
+              >
+                ✔ Accept
+              </button>
+
+
+
+              <button
+                onClick={() => {
+
+                  handleReject(
+                    selectedBooking.id
+                  );
+
+                  setSelectedBooking(null);
+
+                }}
+                className="
+                  rounded-xl
+                  bg-red-600
+                  hover:bg-red-700
+                  text-white
+                  py-3
+                  font-semibold
+                  shadow-lg
+                  hover:-translate-y-1
+                  transition
+                "
+              >
+                ✖ Reject
+              </button>
+
+
+            </>
+
+          )}
+
+
+
+
+          {selectedBooking.status === "Approved" && (
+
+            <>
+
+
+              <Link
+                to={`/chat/${selectedBooking.id}`}
+                className="
+                  rounded-xl
+                  bg-purple-600
+                  hover:bg-purple-700
+                  text-white
+                  py-3
+                  text-center
+                  font-semibold
+                  shadow-lg
+                  hover:-translate-y-1
+                  transition
+                "
+              >
+                💬 Chat
+              </Link>
+
+
+
+              <button
+                onClick={() => {
+
+                  handleComplete(
+                    selectedBooking.id
+                  );
+
+                  setSelectedBooking(null);
+
+                }}
+                className="
+                  rounded-xl
+                  bg-blue-600
+                  hover:bg-blue-700
+                  text-white
+                  py-3
+                  font-semibold
+                  shadow-lg
+                  hover:-translate-y-1
+                  transition
+                "
+              >
+                🏁 Complete
+              </button>
+
+
+            </>
+
+          )}
+
+
+
+
+
+          {selectedBooking.status === "Completed" && (
+
+            <div
+              className="
+                rounded-xl
+                bg-green-100
+                text-green-700
+                py-3
+                text-center
+                font-semibold
+                shadow
+              "
+            >
+              ✔ Completed
+            </div>
+
+          )}
+
+
+
+
+          <button
+            onClick={() =>
+              setSelectedBooking(null)
+            }
+            className="
+              rounded-xl
+              bg-gray-800
+              hover:bg-gray-900
+              text-white
+              py-3
+              font-semibold
+              shadow-lg
+              hover:-translate-y-1
+              transition
+            "
+          >
+            ⬅ Close
+          </button>
+
+
+        </div>
+
+
+      </div>
+
+
+    </div>
+
+
+  </div>
+
+
+)}
+</WorkerLayout>
+
+);
 }

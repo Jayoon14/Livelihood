@@ -16,6 +16,11 @@
   RotateCcw,
   Trash2,
 } from "lucide-react";
+import {
+  checkWorkerAvailability,
+  getAvailableTimeSlots,
+} from "../../../services/scheduleService";
+import { createReview } from "../../../services/reviewService";
 
 
   export default function Bookings() {
@@ -39,6 +44,11 @@
   const [professionalismRating, setProfessionalismRating] = useState(0);
   const [communicationRating, setCommunicationRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
+  const [availableSlots, setAvailableSlots] =
+  useState<string[]>([]);
+
+  const [availabilityMessage, setAvailabilityMessage] =
+    useState("");
   
   const navigate = useNavigate();
   
@@ -586,13 +596,25 @@ return (
                         )}
                       <button
                       onClick={() => {
-                        setRebookBooking(booking);
-                        setPreferredDate("");
-                        setPreferredTime("");
-                        setRebookNotes("");
-                        setRebookAddress(booking.address || "");
+
+                          setRebookBooking(booking);
+
+                          setPreferredDate("");
+
+                          setPreferredTime("");
+
+                          setAvailableSlots([]);
+
+                          setAvailabilityMessage("");
+
+                          setRebookNotes("");
+
+                          setRebookAddress(
+                            booking.address || ""
+                          );
+
                       }}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl"
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl"
                       >
                         <RotateCcw size={18}/>
                         Rebook
@@ -1192,13 +1214,87 @@ Preferred Date
 </label>
 
 <input
-type="date"
-value={preferredDate}
-onChange={(e)=>setPreferredDate(e.target.value)}
-className="w-full mt-2 border rounded-xl px-4 py-3"
+  type="date"
+  value={preferredDate}
+  onChange={async (e) => {
+
+    const date = e.target.value;
+
+    setPreferredDate(date);
+
+    // reset muna kapag nagpalit ng date
+    setPreferredTime("");
+
+    setAvailableSlots([]);
+
+    setAvailabilityMessage("");
+
+
+    if (!date) return;
+
+
+    // check kung available si worker sa date na ito
+    const availability =
+      await checkWorkerAvailability(
+        rebookBooking.worker_id,
+        date
+      );
+
+
+    if (!availability.available) {
+
+      setAvailabilityMessage(
+        availability.reason
+      );
+
+      return;
+
+    }
+
+
+    // kunin available time slots
+    const slots =
+      await getAvailableTimeSlots(
+        rebookBooking.worker_id,
+        date
+      );
+
+
+    setAvailableSlots(slots);
+
+  }}
+  className="
+    w-full
+    mt-2
+    border
+    border-gray-200
+    rounded-xl
+    px-4
+    py-3
+    focus:ring-2
+    focus:ring-blue-500
+    outline-none
+  "
 />
 
-</div>
+  </div>
+  {availabilityMessage && (
+
+  <div className="
+  mt-3
+  rounded-xl
+  bg-red-50
+  border
+  border-red-200
+  text-red-600
+  p-4
+  ">
+
+  {availabilityMessage}
+
+  </div>
+
+  )}
 
 <div>
 
@@ -1206,12 +1302,69 @@ className="w-full mt-2 border rounded-xl px-4 py-3"
 Preferred Time
 </label>
 
-<input
-type="time"
+<select
 value={preferredTime}
-onChange={(e)=>setPreferredTime(e.target.value)}
+onChange={(e)=>
+setPreferredTime(e.target.value)
+}
 className="w-full mt-2 border rounded-xl px-4 py-3"
-/>
+>
+
+<option value="">
+Select Available Time
+</option>
+
+{availableSlots.map((slot)=>(
+<option
+key={slot}
+value={slot}
+>
+{slot}
+</option>
+))}
+
+</select>
+<label className="font-medium">
+Preferred Time
+</label>
+
+<select
+value={preferredTime}
+onChange={(e)=>
+setPreferredTime(e.target.value)
+}
+className="w-full mt-2 border rounded-xl px-4 py-3"
+>
+
+<option value="">
+Select Available Time
+</option>
+
+{availableSlots.map((slot)=>(
+<option
+key={slot}
+value={slot}
+>
+{slot}
+</option>
+))}
+
+</select>
+
+{preferredDate &&
+availableSlots.length === 0 &&
+!availabilityMessage && (
+
+<div className="mt-3 rounded-xl bg-yellow-50 border border-yellow-200 p-4">
+
+<p className="text-yellow-700 font-medium">
+No available time slots for this date.
+Please choose another date.
+</p>
+
+</div>
+
+)}
 
 </div>
 
@@ -1267,27 +1420,27 @@ className="w-full mt-2 border rounded-xl px-4 py-3 resize-none"
 <div className="flex justify-end gap-4">
 
 <button
-onClick={()=>setRebookBooking(null)}
-className="border rounded-xl px-6 py-3"
->
-Cancel
-</button>
-
-<button
+disabled={
+  !preferredDate ||
+  !preferredTime
+}
 onClick={()=>{
-
-navigate(`/customer/book/${rebookBooking.worker_id}`,{
-  state: {
-    serviceId: rebookBooking.service_id,
-    preferredDate,
-    preferredTime,
-    notes: rebookNotes,
-    address: rebookAddress,
-  },
-})
-
+  navigate(`/customer/book/${rebookBooking.worker_id}`,{
+    state:{
+      serviceId: rebookBooking.service_id,
+      preferredDate,
+      preferredTime,
+      notes: rebookNotes,
+      address: rebookAddress,
+    }
+  })
 }}
-className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 py-3 font-semibold"
+className={`rounded-xl px-8 py-3 font-semibold text-white
+${
+  !preferredDate || !preferredTime
+    ? "bg-gray-400 cursor-not-allowed"
+    : "bg-blue-600 hover:bg-blue-700"
+}`}
 >
 Confirm Rebook
 </button>
@@ -1426,14 +1579,39 @@ Cancel
 </button>
 
 <button
-onClick={async()=>{
+  onClick={async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-// dito natin ilalagay save review
+      if (!user) {
+        alert("Please login.");
+        return;
+      }
 
-}}
-className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl"
+      await createReview(
+        reviewBooking.id,
+        reviewBooking.worker_id,
+        user.id,
+        overallRating,
+        reviewComment
+      );
+
+      alert("Review submitted successfully!");
+
+      setReviewBooking(null);
+
+      await loadBookings();
+
+    } catch (error) {
+      console.error(error);
+      alert("Unable to submit review.");
+    }
+  }}
+  className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl"
 >
-Submit Review
+  Submit Review
 </button>
 
 </div>
