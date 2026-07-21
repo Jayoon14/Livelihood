@@ -40,25 +40,40 @@ export default function WorkerNavbar() {
   }
 
   useEffect(() => {
-    loadUnread();
+    let channel: ReturnType<typeof supabase.channel> | undefined;
 
-    const channel = supabase
-      .channel("worker-navbar")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        () => {
-          loadUnread();
-        }
-      )
-      .subscribe();
+    async function initialize() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      await loadUnread();
+
+      channel = supabase
+        .channel("worker-navbar")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            loadUnread();
+          }
+        )
+        .subscribe();
+    }
+
+    initialize();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -100,9 +115,7 @@ export default function WorkerNavbar() {
 
   return (
     <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
-
       {/* LEFT */}
-
       <div>
         <h1 className="text-2xl font-bold text-gray-800">
           Worker Dashboard
@@ -114,11 +127,8 @@ export default function WorkerNavbar() {
       </div>
 
       {/* RIGHT */}
-
       <div className="flex items-center gap-6">
-
         {/* Notification */}
-
         <button
           onClick={() =>
             navigate("/worker/notifications")
@@ -154,17 +164,14 @@ export default function WorkerNavbar() {
         </button>
 
         {/* USER MENU */}
-
         <div
           className="relative"
           ref={dropdownRef}
         >
-
           <button
             onClick={() => setOpen(!open)}
             className="flex items-center gap-3 hover:bg-gray-100 rounded-xl px-3 py-2 transition"
           >
-
             {avatar ? (
               <img
                 src={avatar}
@@ -179,7 +186,6 @@ export default function WorkerNavbar() {
             )}
 
             <div className="text-left">
-
               <p className="font-semibold">
                 {fullName}
               </p>
@@ -187,17 +193,13 @@ export default function WorkerNavbar() {
               <p className="text-sm text-gray-500">
                 {email}
               </p>
-
             </div>
 
             <ChevronDown size={18} />
-
           </button>
 
           {open && (
-
             <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
-
               <button
                 onClick={() => {
                   setOpen(false);
@@ -229,15 +231,10 @@ export default function WorkerNavbar() {
                 <LogOut size={20} />
                 Logout
               </button>
-
             </div>
-
           )}
-
         </div>
-
       </div>
-
     </header>
   );
 }

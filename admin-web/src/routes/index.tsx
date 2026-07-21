@@ -87,7 +87,7 @@ import CompleteJob from "../pages/worker/bookings/CompleteJob";
 import CompletionProof from "../pages/customer/bookings/CompletionProof";
 import PaymentInformation from "../pages/worker/payment/PaymentInformation";
 import PaymentRequests from "../pages/worker/payment/PaymentRequests";
-
+import WorkerNotifications from "../pages/worker/notifications/Notifications";
 
 export default function AppRoutes() {
   return (
@@ -304,6 +304,11 @@ export default function AppRoutes() {
           path="/customer/completion-proof/:bookingId"
           element={<CompletionProof />}
         />
+
+        <Route
+        path="/worker/notifications"
+        element={<WorkerNotifications />}
+      />
 
         <Route
           path="/worker/payment-information"

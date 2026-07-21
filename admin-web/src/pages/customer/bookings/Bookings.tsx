@@ -1324,32 +1324,6 @@ value={slot}
 ))}
 
 </select>
-<label className="font-medium">
-Preferred Time
-</label>
-
-<select
-value={preferredTime}
-onChange={(e)=>
-setPreferredTime(e.target.value)
-}
-className="w-full mt-2 border rounded-xl px-4 py-3"
->
-
-<option value="">
-Select Available Time
-</option>
-
-{availableSlots.map((slot)=>(
-<option
-key={slot}
-value={slot}
->
-{slot}
-</option>
-))}
-
-</select>
 
 {preferredDate &&
 availableSlots.length === 0 &&
@@ -1590,14 +1564,18 @@ Cancel
         return;
       }
 
-      await createReview(
-        reviewBooking.id,
-        reviewBooking.worker_id,
-        user.id,
-        overallRating,
-        reviewComment
-      );
+        await createReview(
+          reviewBooking.id,
+          reviewBooking.worker_id,
+          user.id,
 
+          overallRating,
+          qualityRating,
+          professionalismRating,
+          communicationRating,
+
+          reviewComment
+        );
       alert("Review submitted successfully!");
 
       setReviewBooking(null);

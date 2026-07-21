@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
+import { createSchedule } from "./scheduleService";
 
 
 // =========================
@@ -15,6 +16,18 @@ export async function createBooking(booking: {
   address: string;
   notes: string;
 }) {
+  const available = await isWorkerAvailable(
+    booking.worker_id,
+    booking.booking_date,
+    booking.booking_time
+  );
+
+  if (!available) {
+    throw new Error(
+      "This time slot has already been booked. Please choose another schedule."
+    );
+  }
+
   // Kunin ang presyo ng service
   const { data: service, error: serviceError } = await supabase
     .from("services")
@@ -31,6 +44,8 @@ export async function createBooking(booking: {
       price: service.price,
       status: "Pending",
       payment_status: "Unpaid",
+      schedule_status: "Pending",
+      completion_status: "Not Started",
     })
     .select()
     .single();
@@ -150,12 +165,20 @@ export async function updateBookingStatus(
     | "Completed"
     | "Cancelled"
 ) {
+  const updateData: {
+    status: typeof status;
+    completion_status?: "Completed";
+  } = {
+    status,
+  };
+
+  if (status === "Completed") {
+    updateData.completion_status = "Completed";
+  }
 
   const { data: booking, error } = await supabase
     .from("bookings")
-    .update({
-      status,
-    })
+    .update(updateData)
     .eq("id", bookingId)
     .select()
     .single();
@@ -165,14 +188,12 @@ export async function updateBookingStatus(
   }
 
   if (status === "Completed") {
-
     await createNotification(
       booking.customer_id,
       booking.id,
       "Job Completed",
       "Your booking has been completed. You may now leave a review."
     );
-
   }
 
   return booking;
@@ -204,11 +225,11 @@ export async function assignWorker(
 // =========================
 
 export async function acceptBooking(id: number) {
-
   const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status: "Approved",
+      schedule_status: "Pending",
     })
     .eq("id", id)
     .select()
@@ -225,16 +246,20 @@ export async function acceptBooking(id: number) {
     "Your booking has been approved by the worker."
   );
 
+  await createSchedule({
+    booking_id: booking.id,
+    worker_id: booking.worker_id,
+    customer_id: booking.customer_id,
+    schedule_date: booking.booking_date,
+    schedule_time: booking.booking_time,
+    address: booking.address,
+    status: "Scheduled",
+  });
+
   return booking;
 }
 
-
-// =========================
-// WORKER REJECT BOOKING
-// =========================
-
 export async function rejectBooking(id: number) {
-
   const { data: booking, error } = await supabase
     .from("bookings")
     .update({
@@ -252,12 +277,11 @@ export async function rejectBooking(id: number) {
     booking.customer_id,
     booking.id,
     "Booking Cancelled",
-    "The worker declined your booking."
+    "Unfortunately, the worker cancelled your booking."
   );
 
   return booking;
 }
-
 
 // =========================
 // GET BOOKING BY ID

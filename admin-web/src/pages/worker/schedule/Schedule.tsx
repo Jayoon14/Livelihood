@@ -89,18 +89,29 @@ export default function Schedule() {
 
 
 
-  async function handleSave(){
+    async function handleSave() {
 
-    await saveWorkerSchedule(
-      workerId,
-      schedule
-    );
+      for (const day of schedule) {
 
-    alert(
-      "Schedule saved successfully."
-    );
+        if (!day.is_available) continue;
 
-  }
+        if (day.start_time >= day.end_time) {
+
+          alert(
+            `${day.day_of_week}: End time must be later than Start time.`
+          );
+
+          return;
+        }
+      }
+
+      await saveWorkerSchedule(
+        workerId,
+        schedule
+      );
+
+      alert("Schedule saved successfully.");
+    }
 
 
 
@@ -587,28 +598,25 @@ export default function Schedule() {
 
                         <input
                           type="time"
+                          disabled={!item.is_available}
                           value={item.start_time}
-                          onChange={(e)=>{
+                          onChange={(e) => {
 
-                            const copy=[
-                              ...schedule
-                            ];
+                            const copy = [...schedule];
 
-                            copy[index].start_time =
-                              e.target.value;
+                            copy[index].start_time = e.target.value;
 
                             setSchedule(copy);
 
                           }}
-
-                          className="
+                          className={`
                             w-full
                             py-3
                             outline-none
                             bg-transparent
-                          "
+                            ${!item.is_available ? "opacity-50 cursor-not-allowed" : ""}
+                          `}
                         />
-
 
                       </div>
 

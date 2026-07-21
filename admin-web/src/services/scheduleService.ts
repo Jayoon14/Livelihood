@@ -225,7 +225,6 @@ export async function getAvailableTimeSlots(
 export async function getFullyBookedDates(
   workerId: string
 ) {
-
   const { data, error } = await supabase
     .from("bookings")
     .select("booking_date, booking_time")
@@ -241,28 +240,61 @@ export async function getFullyBookedDates(
   const grouped: Record<string, number> = {};
 
   data?.forEach((booking) => {
-
     grouped[booking.booking_date] =
       (grouped[booking.booking_date] ?? 0) + 1;
-
   });
 
   const fullyBooked: string[] = [];
 
-  Object.keys(grouped).forEach((date) => {
+  for (const date of Object.keys(grouped)) {
+    // check muna ang worker schedule sa araw na iyon
+    const availability =
+      await checkWorkerAvailability(
+        workerId,
+        date
+      );
 
-    // Example:
-    // worker works 8AM-5PM
-    // 9 slots available
+    if (!availability.available) continue;
 
-    if (grouped[date] >= 9) {
+    const schedule = availability.schedule;
 
+    const start =
+      parseInt(schedule.start_time.split(":")[0]);
+
+    const end =
+      parseInt(schedule.end_time.split(":")[0]);
+
+    // halimbawa:
+    // 8AM-5PM = 9 slots
+    const totalSlots = end - start;
+
+    if (grouped[date] >= totalSlots) {
       fullyBooked.push(date);
-
     }
-
-  });
+  }
 
   return fullyBooked;
+}
+// ===============================
+// CREATE SCHEDULE
+// ===============================
 
+export async function createSchedule(schedule: {
+  booking_id: number;
+  worker_id: string;
+  customer_id: string;
+  schedule_date: string;
+  schedule_time: string;
+  address: string;
+  status: string;
+}) {
+  const { data, error } = await supabase
+    .from("schedules")
+    .insert(schedule)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return data;
 }

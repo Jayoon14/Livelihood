@@ -9,18 +9,37 @@ export async function createReview(
   bookingId: number,
   workerId: string,
   customerId: string,
-  rating: number,
-  review: string
+
+  overallRating: number,
+  qualityRating: number,
+  professionalismRating: number,
+  communicationRating: number,
+
+  comment: string
 ) {
 
   const { data, error } = await supabase
     .from("reviews")
     .insert({
-      booking_id: bookingId,
-      worker_id: workerId,
-      customer_id: customerId,
-      rating,
-      review,
+
+    booking_id: bookingId,
+
+    worker_id: workerId,
+
+    customer_id: customerId,
+
+    overall_rating: overallRating,
+
+    quality_rating: qualityRating,
+
+    professionalism_rating: professionalismRating,
+
+    communication_rating: communicationRating,
+
+    review: comment,
+
+    rating: overallRating
+
     })
     .select()
     .single();
@@ -139,41 +158,32 @@ export async function getWorkerReviews(
 // =====================
 
 export async function getAverageRating(
-  workerId:string
+  workerId: string
 ) {
 
-  const { data,error } = await supabase
+  const { data, error } = await supabase
     .from("reviews")
-    .select("rating")
-    .eq(
-      "worker_id",
-      workerId
-    );
+    .select("overall_rating")
+    .eq("worker_id", workerId);
 
-
-  if(error){
+  if (error) {
     console.error(error);
     return 0;
   }
 
-
-  if(!data || data.length === 0){
+  if (!data || data.length === 0) {
     return 0;
   }
 
-
   const total = data.reduce(
-    (sum,item)=>
-      sum + Number(item.rating),
+    (sum, item) => sum + Number(item.overall_rating),
     0
   );
-
 
   return Number(
     (total / data.length).toFixed(1)
   );
 }
-
 // =====================
 // GET WORKER AVERAGE RATING
 // =====================
@@ -220,42 +230,3 @@ export async function hasReviewed(
   return !!data;
 }
 
-
-
-// ===========================
-// CREATE REVIEW (OBJECT)
-// ===========================
-
-export async function createReviewData(
-  review: {
-    booking_id: number;
-    customer_id: string;
-    worker_id: string;
-    rating: number;
-    comment: string;
-  }
-) {
-
-  const { error } = await supabase
-    .from("reviews")
-    .insert({
-      booking_id: review.booking_id,
-      customer_id: review.customer_id,
-      worker_id: review.worker_id,
-      rating: review.rating,
-      review: review.comment,
-    });
-
-
-  if (error) {
-    throw error;
-  }
-
-
-  await createNotification(
-    review.worker_id,
-    review.booking_id,
-    "New Review",
-    "A customer has submitted a review on your profile."
-  );
-}

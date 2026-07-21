@@ -33,10 +33,12 @@
     getApprovedServices,
   } from "../../../services/serviceService";
 
-  import {
-    getWorkerSchedule,
-    getUnavailableDates,
-  } from "../../../services/scheduleService";
+    import {
+      getWorkerSchedule,
+      getUnavailableDates,
+      checkWorkerAvailability,
+      getAvailableTimeSlots,
+    } from "../../../services/scheduleService";
 
   export default function CustomerWorkerProfile() {
 
@@ -54,6 +56,9 @@
     const [selectedService, setSelectedService] = useState<any>(null);
     const [bookingDate, setBookingDate] = useState("");
     const [bookingTime, setBookingTime] = useState("");
+
+    const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+    const [availabilityMessage, setAvailabilityMessage] = useState("");
 
     useEffect(() => {
       loadWorker();
@@ -269,7 +274,43 @@
               <input
                 type="date"
                 value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
+                onChange={async (e) => {
+
+                  const date = e.target.value;
+
+                  setBookingDate(date);
+
+                  setBookingTime("");
+                  setAvailableSlots([]);
+                  setAvailabilityMessage("");
+
+                  if (!date) return;
+
+                  const availability =
+                    await checkWorkerAvailability(
+                      worker.profile.id,
+                      date
+                    );
+
+                  if (!availability.available) {
+
+                    setAvailabilityMessage(
+                      availability.reason
+                    );
+
+                    return;
+
+                  }
+
+                  const slots =
+                    await getAvailableTimeSlots(
+                      worker.profile.id,
+                      date
+                    );
+
+                  setAvailableSlots(slots);
+
+                }}
                 className="border rounded-lg px-3 py-2 w-full"
               />
 
@@ -281,13 +322,49 @@
                 Booking Time
               </label>
 
-              <input
-                type="time"
-                value={bookingTime}
-                onChange={(e) => setBookingTime(e.target.value)}
-                className="border rounded-lg px-3 py-2 w-full"
-              />
+              <select
+              value={bookingTime}
+              onChange={(e) => setBookingTime(e.target.value)}
+              className="border rounded-lg px-3 py-2 w-full"
+            >
 
+              <option value="">
+                Select Available Time
+              </option>
+
+              {availableSlots.map((slot) => (
+
+                <option
+                  key={slot}
+                  value={slot}
+                >
+                  {slot}
+                </option>
+
+              ))}
+
+            </select>
+                {availabilityMessage && (
+
+                  <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-red-600">
+
+                    {availabilityMessage}
+
+                  </div>
+
+                )}
+
+                {bookingDate &&
+                availableSlots.length === 0 &&
+                !availabilityMessage && (
+
+                  <div className="mt-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-700">
+
+                    No available time slots for this date.
+
+                  </div>
+
+                )}
             </div>
 
             <button
@@ -302,12 +379,41 @@
                   alert("Please select booking date.");
                   return;
                 }
+                
 
                 if (!bookingTime) {
                   alert("Please select booking time.");
                   return;
                 }
+                const availability =
+                    await checkWorkerAvailability(
+                      worker.profile.id,
+                      bookingDate
+                    );
 
+                  if (!availability.available) {
+
+                    alert(availability.reason);
+
+                    return;
+
+                  }
+
+                  const latestSlots =
+                    await getAvailableTimeSlots(
+                      worker.profile.id,
+                      bookingDate
+                    );
+
+                  if (!latestSlots.includes(bookingTime)) {
+
+                    alert(
+                      "This time slot has already been booked. Please choose another time."
+                    );
+
+                    return;
+
+                  }
                 const {
                   data: { user },
                 } = await supabase.auth.getUser();

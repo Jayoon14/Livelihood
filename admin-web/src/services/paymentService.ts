@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-
+import { createNotification } from "./notificationService";
 
 // ==============================
 // CREATE PAYMENT
@@ -67,7 +67,12 @@ if (existingPayment) {
     console.log("Inserted data:", data);
 
   if (error) throw error;
-
+    await createNotification(
+      workerId,
+      bookingId,
+      "New Payment Request",
+      "A customer has submitted a payment for verification."
+    );
 
   return data;
 }
@@ -407,20 +412,29 @@ export async function approvePayment(
   paymentId: number,
   bookingId: number
 ) {
+  // Kunin muna ang customer
+  const { data: payment, error: fetchError } =
+    await supabase
+      .from("payments")
+      .select("customer_id")
+      .eq("id", paymentId)
+      .single();
+
+  if (fetchError) throw fetchError;
 
   // Payment
-      const { data, error: paymentError } =
-      await supabase
-        .from("payments")
-        .update({
-          payment_status: "Paid",
-          verification_status: "Verified",
-        })
-        .eq("id", paymentId)
-        .select();
+  const { data, error: paymentError } =
+    await supabase
+      .from("payments")
+      .update({
+        payment_status: "Paid",
+        verification_status: "Verified",
+      })
+      .eq("id", paymentId)
+      .select();
 
-    console.log(data);
-    console.log(paymentError);
+  console.log(data);
+  console.log(paymentError);
 
   if (paymentError) throw paymentError;
 
@@ -435,10 +449,14 @@ export async function approvePayment(
       .eq("id", bookingId);
 
   if (bookingError) throw bookingError;
+
+  await createNotification(
+    payment.customer_id,
+    bookingId,
+    "Payment Approved",
+    "Your payment has been verified and approved."
+  );
 }
-
-
-
 
 
 // ==============================
@@ -449,6 +467,15 @@ export async function rejectPayment(
   paymentId: number,
   bookingId: number
 ) {
+  // Kunin muna ang customer
+  const { data: payment, error: fetchError } =
+    await supabase
+      .from("payments")
+      .select("customer_id")
+      .eq("id", paymentId)
+      .single();
+
+  if (fetchError) throw fetchError;
 
   const { error } =
     await supabase
@@ -458,7 +485,6 @@ export async function rejectPayment(
         verification_status: "Rejected",
       })
       .eq("id", paymentId);
-      
 
   if (error) throw error;
 
@@ -466,12 +492,18 @@ export async function rejectPayment(
     await supabase
       .from("bookings")
       .update({
-        payment_status: "Rejected"
+        payment_status: "Rejected",
       })
       .eq("id", bookingId);
-      
 
   if (bookingError) throw bookingError;
+
+  await createNotification(
+    payment.customer_id,
+    bookingId,
+    "Payment Rejected",
+    "Your payment was rejected. Please upload a new proof of payment."
+  );
 }
 // ==============================
 // UPLOAD PAYMENT PROOF
