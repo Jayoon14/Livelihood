@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Bell,
-  UserCircle,
-  ChevronDown,
-  User,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { UserCircle, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import { supabase } from "../../lib/supabase";
 import { logout } from "../../services/authService";
-import { getUnreadCount } from "../../services/notificationService";
 import { useProfile } from "../../context/ProfileContext";
+import NotificationDropdown from "../notifications/NotificationDropdown";
 
 export default function CustomerNavbar() {
   const navigate = useNavigate();
@@ -20,46 +12,8 @@ export default function CustomerNavbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const { profile } = useProfile();
-
-  async function loadUnread() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    try {
-      const count = await getUnreadCount(user.id);
-
-      setUnreadCount(count);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  useEffect(() => {
-    loadUnread();
-
-    const channel = supabase
-      .channel("customer-navbar")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        () => loadUnread(),
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,7 +45,6 @@ export default function CustomerNavbar() {
   const email = profile?.email ?? "";
 
   const avatar = profile?.profile_picture || "";
-
   return (
     <header
       className="
@@ -118,33 +71,7 @@ export default function CustomerNavbar() {
       <div className="flex items-center gap-3">
         {/* NOTIFICATION */}
 
-        <button
-          onClick={() => navigate("/customer/notifications")}
-          className="relative p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <Bell size={22} className="text-gray-700" />
-
-          {unreadCount > 0 && (
-            <span
-              className="
-                absolute
-                -top-1
-                -right-1
-                bg-red-600
-                text-white
-                text-xs
-                rounded-full
-                min-w-5
-                h-5
-                flex
-                items-center
-                justify-center
-              "
-            >
-              {unreadCount}
-            </span>
-          )}
-        </button>
+        <NotificationDropdown role="customer" />
 
         {/* PROFILE */}
 
