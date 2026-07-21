@@ -59,14 +59,10 @@ export default function WorkerAnalytics() {
             <h2 className="text-2xl font-bold text-gray-800">
               Weekly Bookings
             </h2>
-            <p className="text-gray-500 mt-1">
-              Last 7 days performance
-            </p>
+            <p className="text-gray-500 mt-1">Last 7 days performance</p>
           </div>
 
-          <div className="bg-blue-50 p-3 rounded-2xl text-2xl">
-            📈
-          </div>
+          <div className="bg-blue-50 p-3 rounded-2xl text-2xl">📈</div>
         </div>
 
         <ResponsiveContainer width="100%" height={340}>
@@ -100,17 +96,11 @@ export default function WorkerAnalytics() {
       >
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              Booking Status
-            </h2>
-            <p className="text-gray-500 mt-1">
-              Overall booking distribution
-            </p>
+            <h2 className="text-2xl font-bold text-gray-800">Booking Status</h2>
+            <p className="text-gray-500 mt-1">Overall booking distribution</p>
           </div>
 
-          <div className="bg-blue-50 p-3 rounded-2xl text-2xl">
-            🥧
-          </div>
+          <div className="bg-blue-50 p-3 rounded-2xl text-2xl">🥧</div>
         </div>
 
         <ResponsiveContainer width="100%" height={340}>
@@ -124,10 +114,7 @@ export default function WorkerAnalytics() {
               label
             >
               {statusData.map((_, index) => (
-                <Cell
-                  key={index}
-                  fill={COLORS[index]}
-                />
+                <Cell key={index} fill={COLORS[index]} />
               ))}
             </Pie>
 

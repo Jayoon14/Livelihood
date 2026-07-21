@@ -7,7 +7,7 @@ export async function logActivity(
   userId: string,
   action: string,
   module: string,
-  description: string
+  description: string,
 ) {
   // Check authenticated user
   const {
@@ -77,7 +77,7 @@ export async function getActivityLogs() {
         first_name,
         last_name
       )
-      `
+      `,
     )
     .order("created_at", {
       ascending: false,

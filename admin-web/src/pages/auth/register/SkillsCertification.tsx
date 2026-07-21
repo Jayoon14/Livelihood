@@ -19,12 +19,7 @@ const skills = [
 ];
 
 export default function SkillsCertification() {
-  const {
-    data,
-    updateData,
-    errors,
-    clearError,
-  } = useRegisterStore();
+  const { data, updateData, errors, clearError } = useRegisterStore();
 
   function toggleSkill(skill: string) {
     if (data.skills.includes(skill)) {
@@ -42,13 +37,9 @@ export default function SkillsCertification() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">
-        Skills & Certifications
-      </h2>
+      <h2 className="text-2xl font-bold mb-6">Skills & Certifications</h2>
 
-      <p className="text-gray-500 mb-6">
-        Select all skills that apply.
-      </p>
+      <p className="text-gray-500 mb-6">Select all skills that apply.</p>
 
       <div className="grid grid-cols-3 gap-4">
         {skills.map((skill) => (
@@ -75,15 +66,11 @@ export default function SkillsCertification() {
       </div>
 
       {errors.skills && (
-        <p className="text-red-500 text-sm mt-4">
-          {errors.skills}
-        </p>
+        <p className="text-red-500 text-sm mt-4">{errors.skills}</p>
       )}
 
       <div className="mt-8">
-        <h3 className="font-semibold mb-3">
-          Selected Skills
-        </h3>
+        <h3 className="font-semibold mb-3">Selected Skills</h3>
 
         <div className="flex flex-wrap gap-3">
           {data.skills.map((skill) => (

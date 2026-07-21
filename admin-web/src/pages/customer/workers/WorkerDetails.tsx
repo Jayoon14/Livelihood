@@ -107,35 +107,35 @@ export default function WorkerDetails() {
 
     try {
       const selectedService = worker.services.find(
-      (item: any) => item.service_name === service
-    );
+        (item: any) => item.service_name === service,
+      );
 
-    if (!selectedService) {
-      alert("Please select a service.");
-      return;
-    }
+      if (!selectedService) {
+        alert("Please select a service.");
+        return;
+      }
 
-    // CHECK AVAILABILITY
-    const available = await isWorkerAvailable(
-      worker.id,
-      bookingDate,
-      bookingTime
-    );
+      // CHECK AVAILABILITY
+      const available = await isWorkerAvailable(
+        worker.id,
+        bookingDate,
+        bookingTime,
+      );
 
-    if (!available) {
-      alert("Worker is unavailable on the selected date and time.");
-      return;
-    }
+      if (!available) {
+        alert("Worker is unavailable on the selected date and time.");
+        return;
+      }
 
-    await createBooking({
-      customer_id: user.id,
-      worker_id: worker.id,
-      service_id: selectedService.id,
-      booking_date: bookingDate,
-      booking_time: bookingTime,
-      address,
-      notes,
-    });
+      await createBooking({
+        customer_id: user.id,
+        worker_id: worker.id,
+        service_id: selectedService.id,
+        booking_date: bookingDate,
+        booking_time: bookingTime,
+        address,
+        notes,
+      });
 
       alert("Booking submitted successfully!");
 
@@ -158,9 +158,7 @@ export default function WorkerDetails() {
   if (!worker) {
     return (
       <CustomerLayout>
-        <div className="text-center py-20">
-          Loading...
-        </div>
+        <div className="text-center py-20">Loading...</div>
       </CustomerLayout>
     );
   }
@@ -178,9 +176,7 @@ export default function WorkerDetails() {
                 .join(" ")}
             </h1>
 
-            <p className="text-gray-500 mt-2">
-              {worker.email}
-            </p>
+            <p className="text-gray-500 mt-2">{worker.email}</p>
 
             <p className="mt-2">
               Status:
@@ -191,11 +187,9 @@ export default function WorkerDetails() {
 
             {/* BOOKING FORM STARTS HERE */}
             <div className="mt-5 space-y-4">
-                            {/* Service */}
+              {/* Service */}
               <div>
-                <label className="font-semibold block mb-2">
-                  Service
-                </label>
+                <label className="font-semibold block mb-2">Service</label>
 
                 <select
                   value={service}
@@ -204,23 +198,16 @@ export default function WorkerDetails() {
 
                     setService(selected);
 
-                    const selectedService =
-                      worker.services?.find(
-                        (item: any) =>
-                          item.service_name === selected
-                      );
-
-                    setEstimatedPrice(
-                      selectedService?.price ?? 0
+                    const selectedService = worker.services?.find(
+                      (item: any) => item.service_name === selected,
                     );
+
+                    setEstimatedPrice(selectedService?.price ?? 0);
                   }}
                   className="w-full border rounded-lg p-3"
                 >
                   {worker.services?.map((item: any) => (
-                    <option
-                      key={item.id}
-                      value={item.service_name}
-                    >
+                    <option key={item.id} value={item.service_name}>
                       {item.service_name}
                     </option>
                   ))}
@@ -236,9 +223,7 @@ export default function WorkerDetails() {
                 <input
                   type="text"
                   value={contactNumber}
-                  onChange={(e) =>
-                    setContactNumber(e.target.value)
-                  }
+                  onChange={(e) => setContactNumber(e.target.value)}
                   placeholder="09XXXXXXXXX"
                   className="w-full border rounded-lg p-3"
                 />
@@ -253,9 +238,7 @@ export default function WorkerDetails() {
                 <input
                   type="date"
                   value={bookingDate}
-                  onChange={(e) =>
-                    setBookingDate(e.target.value)
-                  }
+                  onChange={(e) => setBookingDate(e.target.value)}
                   className="w-full border rounded-lg p-3"
                 />
               </div>
@@ -269,9 +252,7 @@ export default function WorkerDetails() {
                 <input
                   type="time"
                   value={bookingTime}
-                  onChange={(e) =>
-                    setBookingTime(e.target.value)
-                  }
+                  onChange={(e) => setBookingTime(e.target.value)}
                   className="w-full border rounded-lg p-3"
                 />
               </div>
@@ -284,9 +265,7 @@ export default function WorkerDetails() {
 
                 <input
                   value={address}
-                  onChange={(e) =>
-                    setAddress(e.target.value)
-                  }
+                  onChange={(e) => setAddress(e.target.value)}
                   placeholder="Enter complete address"
                   className="w-full border rounded-lg p-3"
                 />
@@ -301,9 +280,7 @@ export default function WorkerDetails() {
                 <textarea
                   rows={5}
                   value={notes}
-                  onChange={(e) =>
-                    setNotes(e.target.value)
-                  }
+                  onChange={(e) => setNotes(e.target.value)}
                   placeholder="Describe the work..."
                   className="w-full border rounded-lg p-3"
                 />
@@ -334,33 +311,22 @@ export default function WorkerDetails() {
         </div>
 
         {/* REVIEWS SECTION */}
-                {/* REVIEWS SECTION */}
+        {/* REVIEWS SECTION */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
-          <h2 className="text-2xl font-bold mb-4">
-            Customer Reviews
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
 
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-4xl font-bold">
-              {averageRating}
-            </span>
+            <span className="text-4xl font-bold">{averageRating}</span>
 
-            <span className="text-yellow-500 text-2xl">
-              ⭐
-            </span>
+            <span className="text-yellow-500 text-2xl">⭐</span>
           </div>
 
           {reviews.length === 0 ? (
-            <p className="text-gray-500">
-              No reviews yet.
-            </p>
+            <p className="text-gray-500">No reviews yet.</p>
           ) : (
             reviews.map((review) => (
-              <div
-                key={review.id}
-                className="border-b py-3 last:border-b-0"
-              >
+              <div key={review.id} className="border-b py-3 last:border-b-0">
                 <div className="flex items-center gap-3">
                   <img
                     src={
@@ -388,9 +354,7 @@ export default function WorkerDetails() {
                   </div>
                 </div>
 
-                <p className="mt-2 text-gray-600">
-                  {review.review}
-                </p>
+                <p className="mt-2 text-gray-600">{review.review}</p>
               </div>
             ))
           )}
@@ -399,33 +363,20 @@ export default function WorkerDetails() {
         {/* SERVICES */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
-          <h2 className="text-2xl font-bold mb-4">
-            Services Offered
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Services Offered</h2>
 
           {services.length === 0 ? (
-            <p className="text-gray-500">
-              No services available.
-            </p>
+            <p className="text-gray-500">No services available.</p>
           ) : (
             services.map((service) => (
-              <div
-                key={service.id}
-                className="border rounded-lg p-4 mb-3"
-              >
-                <h3 className="font-bold text-lg">
-                  {service.service_name}
-                </h3>
+              <div key={service.id} className="border rounded-lg p-4 mb-3">
+                <h3 className="font-bold text-lg">{service.service_name}</h3>
 
                 <p>{service.category}</p>
 
-                <p className="text-gray-500 mt-2">
-                  {service.description}
-                </p>
+                <p className="text-gray-500 mt-2">{service.description}</p>
 
-                <p className="font-bold text-blue-600 mt-3">
-                  ₱{service.price}
-                </p>
+                <p className="font-bold text-blue-600 mt-3">₱{service.price}</p>
               </div>
             ))
           )}
@@ -434,14 +385,10 @@ export default function WorkerDetails() {
         {/* SKILLS */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
-          <h2 className="text-2xl font-bold mb-4">
-            Skills
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Skills</h2>
 
           {skills.length === 0 ? (
-            <p className="text-gray-500">
-              No skills added.
-            </p>
+            <p className="text-gray-500">No skills added.</p>
           ) : (
             <div className="flex flex-wrap gap-3">
               {skills.map((skill) => (
@@ -459,23 +406,14 @@ export default function WorkerDetails() {
         {/* WORK EXPERIENCE */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
-          <h2 className="text-2xl font-bold mb-4">
-            Work Experience
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Work Experience</h2>
 
           {workExperience.length === 0 ? (
-            <p className="text-gray-500">
-              No work experience.
-            </p>
+            <p className="text-gray-500">No work experience.</p>
           ) : (
             workExperience.map((work) => (
-              <div
-                key={work.id}
-                className="border-b py-3 last:border-b-0"
-              >
-                <h3 className="font-bold">
-                  {work.position}
-                </h3>
+              <div key={work.id} className="border-b py-3 last:border-b-0">
+                <h3 className="font-bold">{work.position}</h3>
 
                 <p>{work.company_name}</p>
 
@@ -490,36 +428,28 @@ export default function WorkerDetails() {
         {/* EDUCATION */}
 
         <div className="bg-white rounded-xl shadow p-5 mt-6">
-          <h2 className="text-2xl font-bold mb-4">
-            Education
-          </h2>
+          <h2 className="text-2xl font-bold mb-4">Education</h2>
 
           {education ? (
             <>
               <p>
-                <strong>Highest Level:</strong>{" "}
-                {education.education_level}
+                <strong>Highest Level:</strong> {education.education_level}
               </p>
 
               <p>
-                <strong>School:</strong>{" "}
-                {education.school_name}
+                <strong>School:</strong> {education.school_name}
               </p>
 
               <p>
-                <strong>Course:</strong>{" "}
-                {education.course}
+                <strong>Course:</strong> {education.course}
               </p>
 
               <p>
-                <strong>Year Graduated:</strong>{" "}
-                {education.year_graduated}
+                <strong>Year Graduated:</strong> {education.year_graduated}
               </p>
             </>
           ) : (
-            <p className="text-gray-500">
-              No education information.
-            </p>
+            <p className="text-gray-500">No education information.</p>
           )}
         </div>
       </div>

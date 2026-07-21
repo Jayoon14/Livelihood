@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { createNotification } from "./notificationService";
 
 // ==============================
 // WEEKLY SCHEDULE
@@ -16,29 +17,32 @@ export async function getWorkerSchedule(workerId: string) {
   return data ?? [];
 }
 
-export async function saveWorkerSchedule(
-  workerId: string,
-  schedules: any[]
-) {
-  // delete old schedule
-  await supabase
-    .from("worker_schedules")
-    .delete()
-    .eq("worker_id", workerId);
+export async function saveWorkerSchedule(workerId: string, schedules: any[]) {
+  if (!workerId) {
+    throw new Error("Worker ID is missing.");
+  }
 
   const payload = schedules.map((item) => ({
     worker_id: workerId,
-    day_of_week: item.day_of_week,
+    day_of_week: String(item.day_of_week).trim(),
     start_time: item.start_time,
     end_time: item.end_time,
-    is_available: item.is_available,
+    is_available: Boolean(item.is_available),
   }));
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("worker_schedules")
-    .insert(payload);
+    .upsert(payload, {
+      onConflict: "worker_id,day_of_week",
+    })
+    .select();
 
-  if (error) throw error;
+  if (error) {
+    console.error("SAVE WORKER SCHEDULE ERROR:", error);
+    throw error;
+  }
+
+  return data ?? [];
 }
 
 // ==============================
@@ -60,15 +64,13 @@ export async function getUnavailableDates(workerId: string) {
 export async function addUnavailableDate(
   workerId: string,
   unavailable_date: string,
-  reason: string
+  reason: string,
 ) {
-  const { error } = await supabase
-    .from("unavailable_dates")
-    .insert({
-      worker_id: workerId,
-      unavailable_date,
-      reason,
-    });
+  const { error } = await supabase.from("unavailable_dates").insert({
+    worker_id: workerId,
+    unavailable_date,
+    reason,
+  });
 
   if (error) throw error;
 }
@@ -81,28 +83,41 @@ export async function deleteUnavailableDate(id: number) {
 
   if (error) throw error;
 }
+
 // ===============================
 // CHECK WORKER AVAILABILITY
 // ===============================
 
 export async function checkWorkerAvailability(
   workerId: string,
-  bookingDate: string
+  bookingDate: string,
 ) {
+  const dayName = new Date(bookingDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "Asia/Manila",
+  });
 
-  const dayName = new Date(bookingDate)
-    .toLocaleDateString("en-US", {
-      weekday: "long",
-      timeZone: "Asia/Manila",
-    });
+  console.log("Booking Date:", bookingDate);
+  console.log("Day Name:", dayName);
 
-  // Weekly Schedule
-  const { data: schedule } = await supabase
+  // ===============================
+  // WEEKLY SCHEDULE
+  // ===============================
+
+  const { data: schedule, error: scheduleError } = await supabase
     .from("worker_schedules")
     .select("*")
     .eq("worker_id", workerId)
     .eq("day_of_week", dayName)
-    .single();
+    .maybeSingle();
+
+  if (scheduleError) {
+    console.error("GET SCHEDULE ERROR:", scheduleError);
+
+    throw scheduleError;
+  }
+
+  console.log("MATCHED SCHEDULE:", schedule);
 
   if (!schedule || !schedule.is_available) {
     return {
@@ -111,13 +126,20 @@ export async function checkWorkerAvailability(
     };
   }
 
-  // Vacation / Unavailable Date
-  const { data: unavailable } = await supabase
+  // ===============================
+  // UNAVAILABLE DATE
+  // ===============================
+
+  const { data: unavailable, error: unavailableError } = await supabase
     .from("unavailable_dates")
     .select("*")
     .eq("worker_id", workerId)
     .eq("unavailable_date", bookingDate)
     .maybeSingle();
+
+  if (unavailableError) {
+    throw unavailableError;
+  }
 
   if (unavailable) {
     return {
@@ -130,7 +152,6 @@ export async function checkWorkerAvailability(
     available: true,
     schedule,
   };
-
 }
 // ===============================
 // GET AVAILABLE TIME SLOTS
@@ -138,12 +159,9 @@ export async function checkWorkerAvailability(
 
 export async function getAvailableTimeSlots(
   workerId: string,
-  bookingDate: string
+  bookingDate: string,
 ) {
-  const availability = await checkWorkerAvailability(
-    workerId,
-    bookingDate
-  );
+  const availability = await checkWorkerAvailability(workerId, bookingDate);
 
   if (!availability.available) {
     return [];
@@ -151,63 +169,43 @@ export async function getAvailableTimeSlots(
 
   const schedule = availability.schedule;
 
-  const { data: bookings } = await supabase
+  const { data: bookings, error } = await supabase
     .from("bookings")
     .select("booking_time")
     .eq("worker_id", workerId)
     .eq("booking_date", bookingDate)
-    .in("status", [
-      "Pending",
-      "Approved",
-      "On Going",
-    ]);
+    .in("status", ["Pending", "Approved", "On Going"]);
 
-  const bookedTimes =
-    bookings?.map((b) => b.booking_time) ?? [];
+  if (error) {
+    throw error;
+  }
 
-  // Buffer settings
+  const bookedTimes = bookings?.map((b) => b.booking_time) ?? [];
+
   const blockedTimes = new Set<string>();
 
   const BUFFER_HOURS = 1;
 
-  // Block booked hour ± buffer
   bookedTimes.forEach((time) => {
+    const hour = parseInt(time.split(":")[0]);
 
-    const hour =
-      parseInt(time.split(":")[0]);
-
-    for (
-      let i = -BUFFER_HOURS;
-      i <= BUFFER_HOURS;
-      i++
-    ) {
-
+    for (let i = -BUFFER_HOURS; i <= BUFFER_HOURS; i++) {
       const h = hour + i;
 
       if (h >= 0 && h <= 23) {
-
-        blockedTimes.add(
-          `${String(h).padStart(2, "0")}:00`
-        );
-
+        blockedTimes.add(`${String(h).padStart(2, "0")}:00`);
       }
-
     }
-
   });
 
   const slots: string[] = [];
 
-  let current =
-    parseInt(schedule.start_time.split(":")[0]);
+  let current = parseInt(schedule.start_time.split(":")[0]);
 
-  const end =
-    parseInt(schedule.end_time.split(":")[0]);
+  const end = parseInt(schedule.end_time.split(":")[0]);
 
   while (current < end) {
-
-    const slot =
-      `${String(current).padStart(2, "0")}:00`;
+    const slot = `${String(current).padStart(2, "0")}:00`;
 
     if (!blockedTimes.has(slot)) {
       slots.push(slot);
@@ -218,54 +216,43 @@ export async function getAvailableTimeSlots(
 
   return slots;
 }
+
 // ===============================
 // GET FULLY BOOKED DATES
 // ===============================
 
-export async function getFullyBookedDates(
-  workerId: string
-) {
+export async function getFullyBookedDates(workerId: string) {
   const { data, error } = await supabase
     .from("bookings")
     .select("booking_date, booking_time")
     .eq("worker_id", workerId)
-    .in("status", [
-      "Pending",
-      "Approved",
-      "On Going",
-    ]);
+    .in("status", ["Pending", "Approved", "On Going"]);
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
   const grouped: Record<string, number> = {};
 
   data?.forEach((booking) => {
-    grouped[booking.booking_date] =
-      (grouped[booking.booking_date] ?? 0) + 1;
+    grouped[booking.booking_date] = (grouped[booking.booking_date] ?? 0) + 1;
   });
 
   const fullyBooked: string[] = [];
 
   for (const date of Object.keys(grouped)) {
-    // check muna ang worker schedule sa araw na iyon
-    const availability =
-      await checkWorkerAvailability(
-        workerId,
-        date
-      );
+    const availability = await checkWorkerAvailability(workerId, date);
 
-    if (!availability.available) continue;
+    if (!availability.available) {
+      continue;
+    }
 
     const schedule = availability.schedule;
 
-    const start =
-      parseInt(schedule.start_time.split(":")[0]);
+    const start = parseInt(schedule.start_time.split(":")[0]);
 
-    const end =
-      parseInt(schedule.end_time.split(":")[0]);
+    const end = parseInt(schedule.end_time.split(":")[0]);
 
-    // halimbawa:
-    // 8AM-5PM = 9 slots
     const totalSlots = end - start;
 
     if (grouped[date] >= totalSlots) {
@@ -275,6 +262,7 @@ export async function getFullyBookedDates(
 
   return fullyBooked;
 }
+
 // ===============================
 // CREATE SCHEDULE
 // ===============================
@@ -294,7 +282,55 @@ export async function createSchedule(schedule: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
+
+  // ===============================
+  // NOTIFY CUSTOMER
+  // ===============================
+
+  await createNotification(
+    schedule.customer_id,
+    schedule.booking_id,
+    "Schedule Created",
+    `Your booking has been scheduled on ${schedule.schedule_date} at ${schedule.schedule_time}.`,
+  );
+
+  // ===============================
+  // NOTIFY WORKER
+  // ===============================
+
+  await createNotification(
+    schedule.worker_id,
+    schedule.booking_id,
+    "New Schedule",
+    `A schedule has been created for your booking on ${schedule.schedule_date} at ${schedule.schedule_time}.`,
+  );
+
+  // ===============================
+  // NOTIFY ADMINS
+  // ===============================
+
+  const { data: admins, error: adminError } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("role", "admin");
+
+  if (adminError) {
+    console.error("ADMIN NOTIFICATION ERROR:", adminError);
+  }
+
+  if (admins) {
+    for (const admin of admins) {
+      await createNotification(
+        admin.id,
+        schedule.booking_id,
+        "New Schedule Created",
+        "A booking schedule has been created.",
+      );
+    }
+  }
 
   return data;
 }

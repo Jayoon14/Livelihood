@@ -27,14 +27,12 @@ export default function ChatList() {
       (booking: any) =>
         booking.status === "Approved" ||
         booking.status === "On Going" ||
-        booking.status === "Completed"
+        booking.status === "Completed",
     );
 
     const items = approvedChats.map((booking: any) => {
       const other =
-        booking.customer_id === user.id
-          ? booking.worker
-          : booking.customer;
+        booking.customer_id === user.id ? booking.worker : booking.customer;
 
       return {
         bookingId: booking.id,
@@ -48,9 +46,7 @@ export default function ChatList() {
 
   return (
     <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">
-        Messages
-      </h1>
+      <h1 className="text-3xl font-bold mb-8">Messages</h1>
 
       <div className="bg-white rounded-2xl shadow">
         {list.length === 0 ? (
@@ -61,29 +57,21 @@ export default function ChatList() {
           list.map((chat) => (
             <button
               key={chat.bookingId}
-              onClick={() =>
-                navigate(`/chat/${chat.bookingId}`)
-              }
+              onClick={() => navigate(`/chat/${chat.bookingId}`)}
               className="w-full flex items-center gap-5 p-5 border-b hover:bg-slate-50"
             >
               <img
-                src={
-                  chat.user.profile_picture ||
-                  "https://placehold.co/70"
-                }
+                src={chat.user.profile_picture || "https://placehold.co/70"}
                 alt="Profile"
                 className="w-14 h-14 rounded-full object-cover"
               />
 
               <div className="flex-1 text-left">
                 <h3 className="font-bold">
-                  {chat.user.first_name}{" "}
-                  {chat.user.last_name}
+                  {chat.user.first_name} {chat.user.last_name}
                 </h3>
 
-                <p className="text-gray-500">
-                  Booking Status: {chat.status}
-                </p>
+                <p className="text-gray-500">Booking Status: {chat.status}</p>
               </div>
             </button>
           ))

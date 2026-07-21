@@ -11,7 +11,8 @@ export async function getUpcomingBooking() {
 
   const { data, error } = await supabase
     .from("bookings")
-    .select(`
+    .select(
+      `
       *,
       worker:profiles!bookings_worker_id_fkey(
         first_name,
@@ -20,7 +21,8 @@ export async function getUpcomingBooking() {
       service:services(
         service_name
       )
-    `)
+    `,
+    )
     .eq("customer_id", user.id)
     .in("status", ["Pending", "Approved"])
     .gte("booking_date", today)

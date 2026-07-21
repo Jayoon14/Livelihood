@@ -7,7 +7,8 @@ import { supabase } from "../lib/supabase";
 export async function getFeaturedWorkers(limit = 6) {
   const { data, error } = await supabase
     .from("profiles")
-    .select(`
+    .select(
+      `
       *,
       services(
         id,
@@ -15,7 +16,8 @@ export async function getFeaturedWorkers(limit = 6) {
         service_name,
         price
       )
-    `)
+    `,
+    )
     .eq("role", "worker")
     .eq("status", "Approved")
     .limit(limit);
@@ -32,7 +34,8 @@ export async function getFeaturedWorkers(limit = 6) {
 export async function searchWorkers(keyword: string) {
   let query = supabase
     .from("profiles")
-    .select(`
+    .select(
+      `
       *,
       services(
         id,
@@ -40,7 +43,8 @@ export async function searchWorkers(keyword: string) {
         service_name,
         price
       )
-    `)
+    `,
+    )
     .eq("role", "worker")
     .eq("status", "Approved");
 
@@ -48,7 +52,7 @@ export async function searchWorkers(keyword: string) {
     query = query.or(
       `first_name.ilike.%${keyword}%,
        last_name.ilike.%${keyword}%,
-       email.ilike.%${keyword}%`
+       email.ilike.%${keyword}%`,
     );
   }
 
@@ -66,14 +70,16 @@ export async function searchWorkers(keyword: string) {
 export async function getWorkersByCategory(category: string) {
   const { data, error } = await supabase
     .from("profiles")
-    .select(`
+    .select(
+      `
       *,
       services!inner(
         category,
         service_name,
         price
       )
-    `)
+    `,
+    )
     .eq("role", "worker")
     .eq("status", "Approved")
     .eq("services.category", category);
@@ -88,18 +94,12 @@ export async function getWorkersByCategory(category: string) {
 // ================================
 
 export async function getCategories() {
-  const { data, error } = await supabase
-    .from("services")
-    .select("category");
+  const { data, error } = await supabase.from("services").select("category");
 
   if (error) throw error;
 
   return [
-    ...new Set(
-      (data ?? [])
-        .map((item) => item.category)
-        .filter(Boolean)
-    ),
+    ...new Set((data ?? []).map((item) => item.category).filter(Boolean)),
   ];
 }
 
@@ -110,13 +110,15 @@ export async function getCategories() {
 export async function getRecentBookings(customerId: string) {
   const { data, error } = await supabase
     .from("bookings")
-    .select(`
+    .select(
+      `
       *,
       worker:profiles!worker_id(
         first_name,
         last_name
       )
-    `)
+    `,
+    )
     .eq("customer_id", customerId)
     .order("created_at", {
       ascending: false,

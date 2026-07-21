@@ -32,110 +32,66 @@ export default function Services() {
 
   return (
     <AdminLayout>
-
       <div className="space-y-6">
-
-        <h1 className="text-3xl font-bold">
-          Pending Services
-        </h1>
+        <h1 className="text-3xl font-bold">Pending Services</h1>
         <div className="bg-white rounded-2xl shadow overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left p-4">Worker</th>
 
-<table className="w-full">
+                <th>Category</th>
 
-<thead>
+                <th>Service</th>
 
-<tr className="border-b">
+                <th>Price</th>
 
-<th className="text-left p-4">
-Worker
-</th>
+                <th>Status</th>
 
-<th>Category</th>
+                <th>Action</th>
+              </tr>
+            </thead>
 
-<th>Service</th>
+            <tbody>
+              {services.map((service) => (
+                <tr key={service.id} className="border-b">
+                  <td className="p-4">
+                    {service.worker.first_name} {service.worker.last_name}
+                  </td>
 
-<th>Price</th>
+                  <td>{service.category}</td>
 
-<th>Status</th>
+                  <td>{service.service_name}</td>
 
-<th>Action</th>
+                  <td>₱{service.price}</td>
 
-</tr>
+                  <td>
+                    <span className="bg-yellow-500 text-white px-3 py-1 rounded-full">
+                      {service.status}
+                    </span>
+                  </td>
 
-</thead>
+                  <td className="space-x-2">
+                    <button
+                      onClick={() => handleApprove(service.id)}
+                      className="bg-green-600 text-white px-4 py-2 rounded"
+                    >
+                      Approve
+                    </button>
 
-<tbody>
-
-{services.map((service)=>(
-
-<tr
-key={service.id}
-className="border-b"
->
-
-<td className="p-4">
-{service.worker.first_name}{" "}
-{service.worker.last_name}
-</td>
-
-<td>
-{service.category}
-</td>
-
-<td>
-{service.service_name}
-</td>
-
-<td>
-₱{service.price}
-</td>
-
-<td>
-
-<span className="bg-yellow-500 text-white px-3 py-1 rounded-full">
-
-{service.status}
-
-</span>
-
-</td>
-
-<td className="space-x-2">
-
-<button
-onClick={()=>handleApprove(service.id)}
-className="bg-green-600 text-white px-4 py-2 rounded"
->
-
-Approve
-
-</button>
-
-<button
-onClick={()=>handleReject(service.id)}
-className="bg-red-600 text-white px-4 py-2 rounded"
->
-
-Reject
-
-</button>
-
-</td>
-
-</tr>
-
-))}
-
-</tbody>
-
-</table>
-
-</div>
-
-</div>
-
-</AdminLayout>
-
-);
-
+                    <button
+                      onClick={() => handleReject(service.id)}
+                      className="bg-red-600 text-white px-4 py-2 rounded"
+                    >
+                      Reject
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </AdminLayout>
+  );
 }

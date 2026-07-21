@@ -1,29 +1,27 @@
-  import { useState } from "react";
-  import { useLocation, useNavigate } from "react-router-dom";
-  import CustomerLayout from "../../../layouts/CustomerLayout";
-  import { supabase } from "../../../lib/supabase";
-  import { createBooking } from "../../../services/bookingService";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import CustomerLayout from "../../../layouts/CustomerLayout";
+import { supabase } from "../../../lib/supabase";
+import { createBooking } from "../../../services/bookingService";
 
-  export default function BookingConfirmation() {
+export default function BookingConfirmation() {
+  return (
+    <CustomerLayout>
+      <BookingConfirmationContent />
+    </CustomerLayout>
+  );
+}
+
+function BookingConfirmationContent() {
+  const navigate = useNavigate();
+  const { state } = useLocation();
+  const [loading, setLoading] = useState(false);
+
+  if (!state) {
     return (
-      <CustomerLayout>
-        <BookingConfirmationContent />
-      </CustomerLayout>
+      <div className="p-10 text-center">Booking information not found.</div>
     );
   }
-
-  function BookingConfirmationContent() {
-    const navigate = useNavigate();
-    const { state } = useLocation();
-    const [loading, setLoading] = useState(false);
-
-    if (!state) {
-      return (
-        <div className="p-10 text-center">
-          Booking information not found.
-        </div>
-      );
-    }
 
   async function handleConfirmBooking() {
     try {
@@ -35,10 +33,11 @@
 
       if (!user) {
         alert("Please login first.");
+        navigate("/");
         return;
       }
 
-      const booking = await createBooking({
+      await createBooking({
         customer_id: user.id,
         worker_id: state.workerId,
         service_id: state.serviceId,
@@ -48,84 +47,80 @@
         notes: state.notes,
       });
 
-      alert("Booking submitted successfully.");
+      alert(
+        "Booking submitted successfully. Please wait for the worker's approval.",
+      );
 
-      navigate(`/customer/payment/${booking.id}`);
+      navigate("/customer/bookings", {
+        replace: true,
+      });
     } catch (error) {
-      console.error(error);
-      alert("Failed to submit booking.");
+      console.error("BOOKING SUBMISSION ERROR:", error);
+
+      const message =
+        error instanceof Error ? error.message : "Failed to submit booking.";
+
+      alert(message);
     } finally {
       setLoading(false);
     }
   }
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold mb-8">
-            Confirm Booking
-          </h1>
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white rounded-2xl shadow-lg p-8">
+        <h1 className="text-3xl font-bold mb-8">Confirm Booking</h1>
 
-          <div className="space-y-5">
-            <div className="flex justify-between">
-              <span className="font-semibold">
-                Worker
-              </span>
+        <div className="space-y-5">
+          <div className="flex justify-between">
+            <span className="font-semibold">Worker</span>
 
-              <span>{state.workerName}</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="font-semibold">
-                Service
-              </span>
-
-              <span>{state.service}</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="font-semibold">
-                Booking Date
-              </span>
-
-              <span>{state.date}</span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="font-semibold">
-                Booking Time
-              </span>
-
-              <span>{state.time}</span>
-            </div>
-
-            <div className="border-t pt-6 flex justify-between">
-              <span className="text-xl font-bold">
-                Total Amount
-              </span>
-
-              <span className="text-2xl text-blue-600 font-bold">
-                ₱{state.price}
-              </span>
-            </div>
+            <span>{state.workerName}</span>
           </div>
 
-          <div className="flex justify-end gap-4 mt-10">
-            <button
-              onClick={() => navigate(-1)}
-              className="px-6 py-3 rounded-xl border"
-            >
-              Back
-            </button>
+          <div className="flex justify-between">
+            <span className="font-semibold">Service</span>
 
-            <button
-              onClick={handleConfirmBooking}
-              disabled={loading}
-              className="px-8 py-3 rounded-xl bg-blue-600 text-white disabled:bg-gray-400"
-            >
-              {loading ? "Submitting..." : "Confirm Booking"}
-            </button>
+            <span>{state.service}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="font-semibold">Booking Date</span>
+
+            <span>{state.date}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="font-semibold">Booking Time</span>
+
+            <span>{state.time}</span>
+          </div>
+
+          <div className="border-t pt-6 flex justify-between">
+            <span className="text-xl font-bold">Total Amount</span>
+
+            <span className="text-2xl text-blue-600 font-bold">
+              ₱{state.price}
+            </span>
           </div>
         </div>
+
+        <div className="flex justify-end gap-4 mt-10">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 rounded-xl border"
+          >
+            Back
+          </button>
+
+          <button
+            onClick={handleConfirmBooking}
+            disabled={loading}
+            className="px-8 py-3 rounded-xl bg-blue-600 text-white disabled:bg-gray-400"
+          >
+            {loading ? "Submitting..." : "Confirm Booking"}
+          </button>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}

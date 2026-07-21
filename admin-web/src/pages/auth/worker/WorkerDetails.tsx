@@ -36,19 +36,14 @@ export default function WorkerDetails() {
       const profile = await getWorker(id!);
       setWorker(profile);
 
-      const [
-        educationData,
-        workData,
-        skillsData,
-        documentsData,
-        servicesData,
-      ] = await Promise.all([
-        getEducation(id!),
-        getWorkExperience(id!),
-        getSkills(id!),
-        getDocuments(id!),
-        getServices(id!),
-      ]);
+      const [educationData, workData, skillsData, documentsData, servicesData] =
+        await Promise.all([
+          getEducation(id!),
+          getWorkExperience(id!),
+          getSkills(id!),
+          getDocuments(id!),
+          getServices(id!),
+        ]);
 
       setEducation(educationData);
       setExperience(workData);
@@ -102,34 +97,65 @@ export default function WorkerDetails() {
 
   return (
     <div className="p-8 space-y-8">
-
-      <h1 className="text-3xl font-bold">
-        Worker Details
-      </h1>
+      <h1 className="text-3xl font-bold">Worker Details</h1>
 
       {/* PERSONAL INFORMATION */}
       <div className="bg-white rounded-xl shadow p-8">
-        <h2 className="text-xl font-bold mb-6">
-          Personal Information
-        </h2>
+        <h2 className="text-xl font-bold mb-6">Personal Information</h2>
 
         <div className="grid grid-cols-2 gap-6">
+          <div>
+            <strong>First Name</strong>
+            <p>{worker.first_name}</p>
+          </div>
+          <div>
+            <strong>Middle Name</strong>
+            <p>{worker.middle_name}</p>
+          </div>
+          <div>
+            <strong>Last Name</strong>
+            <p>{worker.last_name}</p>
+          </div>
+          <div>
+            <strong>Suffix</strong>
+            <p>{worker.suffix}</p>
+          </div>
 
-          <div><strong>First Name</strong><p>{worker.first_name}</p></div>
-          <div><strong>Middle Name</strong><p>{worker.middle_name}</p></div>
-          <div><strong>Last Name</strong><p>{worker.last_name}</p></div>
-          <div><strong>Suffix</strong><p>{worker.suffix}</p></div>
+          <div>
+            <strong>Email</strong>
+            <p>{worker.email}</p>
+          </div>
+          <div>
+            <strong>Phone</strong>
+            <p>{worker.phone}</p>
+          </div>
 
-          <div><strong>Email</strong><p>{worker.email}</p></div>
-          <div><strong>Phone</strong><p>{worker.phone}</p></div>
+          <div>
+            <strong>Birth Date</strong>
+            <p>
+              {worker.birth_date
+                ? new Date(worker.birth_date).toLocaleDateString("en-PH")
+                : "-"}
+            </p>
+          </div>
+          <div>
+            <strong>Gender</strong>
+            <p>{worker.gender}</p>
+          </div>
 
-          <div><strong>Birth Date</strong><p>{worker.birth_date? new Date(worker.birth_date).toLocaleDateString("en-PH"): "-"}</p></div>
-          <div><strong>Gender</strong><p>{worker.gender}</p></div>
+          <div>
+            <strong>Civil Status</strong>
+            <p>{worker.civil_status}</p>
+          </div>
+          <div>
+            <strong>Religion</strong>
+            <p>{worker.religion}</p>
+          </div>
 
-          <div><strong>Civil Status</strong><p>{worker.civil_status}</p></div>
-          <div><strong>Religion</strong><p>{worker.religion}</p></div>
-
-          <div><strong>Address</strong><p>{worker.address}</p></div>
+          <div>
+            <strong>Address</strong>
+            <p>{worker.address}</p>
+          </div>
 
           <div>
             <strong>Status</strong>
@@ -138,35 +164,62 @@ export default function WorkerDetails() {
                 worker.status === "Approved"
                   ? "bg-green-600"
                   : worker.status === "Rejected"
-                  ? "bg-red-600"
-                  : "bg-yellow-500"
+                    ? "bg-red-600"
+                    : "bg-yellow-500"
               }`}
             >
               {worker.status}
             </span>
           </div>
-
         </div>
       </div>
 
       {/* EDUCATION */}
       <div className="bg-white rounded-xl shadow p-8">
-        <h2 className="text-xl font-bold mb-6">
-          Educational Background
-        </h2>
+        <h2 className="text-xl font-bold mb-6">Educational Background</h2>
 
         {education ? (
           <div className="grid grid-cols-2 gap-6">
-            <div><strong>Highest Attainment</strong><p>{education.highest_attainment}</p></div>
-            <div><strong>Elementary</strong><p>{education.elementary}</p></div>
-            <div><strong>Secondary</strong><p>{education.secondary}</p></div>
-            <div><strong>Senior High</strong><p>{education.senior_high}</p></div>
-            <div><strong>College</strong><p>{education.college}</p></div>
-            <div><strong>Course</strong><p>{education.course}</p></div>
-            <div><strong>Year Graduated</strong><p>{education.year_graduated}</p></div>
-            <div><strong>TESDA</strong><p>{education.tesda}</p></div>
-            <div><strong>PRC</strong><p>{education.prc}</p></div>
-            <div><strong>Trainings</strong><p>{education.trainings}</p></div>
+            <div>
+              <strong>Highest Attainment</strong>
+              <p>{education.highest_attainment}</p>
+            </div>
+            <div>
+              <strong>Elementary</strong>
+              <p>{education.elementary}</p>
+            </div>
+            <div>
+              <strong>Secondary</strong>
+              <p>{education.secondary}</p>
+            </div>
+            <div>
+              <strong>Senior High</strong>
+              <p>{education.senior_high}</p>
+            </div>
+            <div>
+              <strong>College</strong>
+              <p>{education.college}</p>
+            </div>
+            <div>
+              <strong>Course</strong>
+              <p>{education.course}</p>
+            </div>
+            <div>
+              <strong>Year Graduated</strong>
+              <p>{education.year_graduated}</p>
+            </div>
+            <div>
+              <strong>TESDA</strong>
+              <p>{education.tesda}</p>
+            </div>
+            <div>
+              <strong>PRC</strong>
+              <p>{education.prc}</p>
+            </div>
+            <div>
+              <strong>Trainings</strong>
+              <p>{education.trainings}</p>
+            </div>
           </div>
         ) : (
           <p className="text-gray-500">No educational background found.</p>
@@ -238,13 +291,10 @@ export default function WorkerDetails() {
 
       {/* DOCUMENTS */}
       <div className="bg-white rounded-xl shadow p-8">
-        <h2 className="text-xl font-bold mb-6">
-          Uploaded Documents
-        </h2>
+        <h2 className="text-xl font-bold mb-6">Uploaded Documents</h2>
 
         {documents ? (
           <div className="grid grid-cols-2 gap-6">
-
             {[
               ["Valid ID", "valid_id"],
               ["Resume", "resume"],
@@ -253,7 +303,10 @@ export default function WorkerDetails() {
               ["Police Clearance", "police_clearance"],
               ["NBI Clearance", "nbi_clearance"],
             ].map(([label, key]) => (
-              <div key={key} className="border rounded-lg p-4 flex justify-between items-center">
+              <div
+                key={key}
+                className="border rounded-lg p-4 flex justify-between items-center"
+              >
                 <span>{label}</span>
 
                 {documents[key as keyof typeof documents] ? (
@@ -268,10 +321,8 @@ export default function WorkerDetails() {
                 ) : (
                   <span className="text-gray-400">Not Uploaded</span>
                 )}
-
               </div>
             ))}
-
           </div>
         ) : (
           <p className="text-gray-500">No documents uploaded.</p>
@@ -280,7 +331,6 @@ export default function WorkerDetails() {
 
       {/* ACTION BUTTONS */}
       <div className="flex justify-end gap-4">
-
         {worker.status === "Pending" && (
           <>
             <button
@@ -310,9 +360,7 @@ export default function WorkerDetails() {
             Worker Rejected
           </span>
         )}
-
       </div>
-
     </div>
   );
 }

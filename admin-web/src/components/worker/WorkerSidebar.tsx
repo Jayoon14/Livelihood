@@ -51,16 +51,11 @@ export default function WorkerSidebar() {
 
   return (
     <aside className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
-
       {/* LOGO */}
       <div className="p-6 border-b border-blue-600">
-        <h1 className="text-2xl font-bold">
-          LivelihoodGo
-        </h1>
+        <h1 className="text-2xl font-bold">LivelihoodGo</h1>
 
-        <p className="text-blue-200 text-sm">
-          Worker Portal
-        </p>
+        <p className="text-blue-200 text-sm">Worker Portal</p>
       </div>
 
       {/* MENU */}
@@ -86,7 +81,6 @@ export default function WorkerSidebar() {
           );
         })}
       </nav>
-
     </aside>
   );
 }

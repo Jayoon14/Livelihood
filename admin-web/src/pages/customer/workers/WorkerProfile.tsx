@@ -1,70 +1,62 @@
-  import { supabase } from "../../../lib/supabase";
-  import { useEffect, useState } from "react";
-  import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../../lib/supabase";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
-  import CustomerLayout from "../../../layouts/CustomerLayout";
-  import { saveRecentlyViewed } from "../../../services/recentlyViewedService";
+import CustomerLayout from "../../../layouts/CustomerLayout";
+import { saveRecentlyViewed } from "../../../services/recentlyViewedService";
 
-
-  import {
-    Star,
+import {
+  Star,
   Briefcase,
-    GraduationCap,
-    Award,
-    Phone,
-    Mail,
-    MapPin,
-    Share2,
-    Copy,
-    MessageCircle,
-  } from "lucide-react";
+  GraduationCap,
+  Award,
+  Phone,
+  Mail,
+  MapPin,
+  Share2,
+  Copy,
+  MessageCircle,
+} from "lucide-react";
 
-  import { FaFacebook } from "react-icons/fa";
+import { FaFacebook } from "react-icons/fa";
 
-  import {
-    getCustomerWorkerProfile,
-  } from "../../../services/workerService";
+import { getCustomerWorkerProfile } from "../../../services/workerService";
 
-  import {
-    getWorkerAverageRating,
-  } from "../../../services/reviewService";
+import { getWorkerAverageRating } from "../../../services/reviewService";
 
-  import {
-    getApprovedServices,
-  } from "../../../services/serviceService";
+import { getApprovedServices } from "../../../services/serviceService";
 
-    import {
-      getWorkerSchedule,
-      getUnavailableDates,
-      checkWorkerAvailability,
-      getAvailableTimeSlots,
-    } from "../../../services/scheduleService";
+import {
+  getWorkerSchedule,
+  getUnavailableDates,
+  checkWorkerAvailability,
+  getAvailableTimeSlots,
+} from "../../../services/scheduleService";
 
-  export default function CustomerWorkerProfile() {
+export default function CustomerWorkerProfile() {
+  const { id } = useParams();
 
-    const { id } = useParams();
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
+  const [worker, setWorker] = useState<any>(null);
 
-    const [worker, setWorker] = useState<any>(null);
+  const [rating, setRating] = useState(0);
 
-    const [rating, setRating] = useState(0);
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [unavailableDates, setUnavailableDates] = useState<any[]>([]);
 
-    const [schedule, setSchedule] = useState<any[]>([]);
-    const [unavailableDates, setUnavailableDates] = useState<any[]>([]);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [bookingDate, setBookingDate] = useState("");
+  const [bookingTime, setBookingTime] = useState("");
 
-    const [selectedService, setSelectedService] = useState<any>(null);
-    const [bookingDate, setBookingDate] = useState("");
-    const [bookingTime, setBookingTime] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [availabilityMessage, setAvailabilityMessage] = useState("");
 
-    const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-    const [availabilityMessage, setAvailabilityMessage] = useState("");
+  useEffect(() => {
+    loadWorker();
+  }, []);
 
-    useEffect(() => {
-      loadWorker();
-    }, []);
-
-    function shareProfile() {
+  function shareProfile() {
     const url = window.location.href;
 
     if (navigator.share) {
@@ -87,19 +79,18 @@
   function shareFacebook() {
     window.open(
       `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`,
-      "_blank"
+      "_blank",
     );
   }
 
   function shareMessenger() {
     window.open(
       `https://www.facebook.com/dialog/send?link=${encodeURIComponent(window.location.href)}`,
-      "_blank"
+      "_blank",
     );
   }
 
-
-    async function loadWorker() {
+  async function loadWorker() {
     if (!id) return;
 
     const data = await getCustomerWorkerProfile(id);
@@ -115,7 +106,7 @@
     setSelectedService(null);
 
     setWorker(data);
-    
+
     await saveRecentlyViewed(id);
 
     const avg = await getWorkerAverageRating(id);
@@ -128,154 +119,111 @@
     setUnavailableDates(dates);
   }
 
-    if (!worker) {
-      return (
-        <CustomerLayout>
-          <div className="p-10">
-            Loading...
-          </div>
-        </CustomerLayout>
-      );
-    }
-
+  if (!worker) {
     return (
       <CustomerLayout>
-        <div className="max-w-7xl mx-auto p-8">
+        <div className="p-10">Loading...</div>
+      </CustomerLayout>
+    );
+  }
 
-          {/* HEADER */}
+  return (
+    <CustomerLayout>
+      <div className="max-w-7xl mx-auto p-8">
+        {/* HEADER */}
 
-          <div className="bg-white rounded-3xl shadow p-8 flex gap-8">
+        <div className="bg-white rounded-3xl shadow p-8 flex gap-8">
+          <img
+            src={
+              worker.profile.profile_picture || "https://placehold.co/250x250"
+            }
+            className="w-52 h-52 rounded-2xl object-cover"
+            alt="Worker"
+          />
 
-            <img
-              src={
-                worker.profile.profile_picture ||
-                "https://placehold.co/250x250"
-              }
-              className="w-52 h-52 rounded-2xl object-cover"
-              alt="Worker"
-            />
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold">
+              {worker.profile.first_name} {worker.profile.middle_name}{" "}
+              {worker.profile.last_name}
+            </h1>
 
-            <div className="flex-1">
+            <div className="flex items-center gap-2 mt-4">
+              <Star className="text-yellow-500 fill-yellow-500" />
 
-              <h1 className="text-4xl font-bold">
-                {worker.profile.first_name}{" "}
-                {worker.profile.middle_name}{" "}
-                {worker.profile.last_name}
-              </h1>
+              <span className="font-semibold">{rating}</span>
+            </div>
 
-              <div className="flex items-center gap-2 mt-4">
+            <div className="space-y-3 mt-6">
+              <p className="flex items-center gap-3">
+                <Mail size={18} />
+                {worker.profile.email}
+              </p>
 
-                <Star
-                  className="text-yellow-500 fill-yellow-500"
+              <p className="flex items-center gap-3">
+                <Phone size={18} />
+                {worker.profile.phone}
+              </p>
+
+              <p className="flex items-center gap-3">
+                <MapPin size={18} />
+                {worker.profile.address}
+              </p>
+            </div>
+            {/* WORKER LOCATION */}
+
+            {worker.profile.latitude && worker.profile.longitude && (
+              <div className="mt-6">
+                <h3 className="font-bold mb-3">📍 Worker Location</h3>
+
+                <iframe
+                  width="100%"
+                  height="300"
+                  loading="lazy"
+                  allowFullScreen
+                  className="rounded-xl border"
+                  src={`https://maps.google.com/maps?q=${worker.profile.latitude},${worker.profile.longitude}&z=15&output=embed`}
                 />
 
-                <span className="font-semibold">
-                  {rating}
-                </span>
-
-              </div>
-
-              <div className="space-y-3 mt-6">
-
-                <p className="flex items-center gap-3">
-                  <Mail size={18} />
-                  {worker.profile.email}
-                </p>
-
-                <p className="flex items-center gap-3">
-                  <Phone size={18} />
-                  {worker.profile.phone}
-                </p>
-
-                <p className="flex items-center gap-3">
-                  <MapPin size={18} />
-                  {worker.profile.address}
-                </p>
-
-              </div>
-              {/* WORKER LOCATION */}
-
-              {worker.profile.latitude &&
-              worker.profile.longitude && (
-
-                <div className="mt-6">
-
-                  <h3 className="font-bold mb-3">
-                    📍 Worker Location
-                  </h3>
-
-
-                  <iframe
-                    width="100%"
-                    height="300"
-                    loading="lazy"
-                    allowFullScreen
-                    className="rounded-xl border"
-                    src={`https://maps.google.com/maps?q=${worker.profile.latitude},${worker.profile.longitude}&z=15&output=embed`}
-                  />
-
-
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${worker.profile.latitude},${worker.profile.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg"
-                  >
-                    Get Directions
-                  </a>
-
-                </div>
-
-              )}
-              <div className="mt-6">
-
-                <label className="block font-semibold mb-2">
-                  Select Service
-                </label>
-
-                <select
-                  value={selectedService?.id || ""}
-                  onChange={(e) => {
-
-                    const service = worker.services.find(
-                      (s: any) => s.id === Number(e.target.value)
-                    );
-
-                    setSelectedService(service);
-
-                  }}
-                  className="border rounded-lg px-3 py-2 w-full"
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${worker.profile.latitude},${worker.profile.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg"
                 >
-
-                  <option value="">
-                    -- Select Service --
-                  </option>
-
-                  {worker.services.map((service: any) => (
-
-                    <option
-                      key={service.id}
-                      value={service.id}
-                    >
-                      {service.service_name} - ₱{service.price}
-                    </option>
-
-                  ))}
-
-                </select>
-
+                  Get Directions
+                </a>
               </div>
-              <div className="mt-6">
+            )}
+            <div className="mt-6">
+              <label className="block font-semibold mb-2">Select Service</label>
 
-              <label className="block font-semibold mb-2">
-                Booking Date
-              </label>
+              <select
+                value={selectedService?.id || ""}
+                onChange={(e) => {
+                  const service = worker.services.find(
+                    (s: any) => s.id === Number(e.target.value),
+                  );
+
+                  setSelectedService(service);
+                }}
+                className="border rounded-lg px-3 py-2 w-full"
+              >
+                <option value="">-- Select Service --</option>
+
+                {worker.services.map((service: any) => (
+                  <option key={service.id} value={service.id}>
+                    {service.service_name} - ₱{service.price}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-6">
+              <label className="block font-semibold mb-2">Booking Date</label>
 
               <input
                 type="date"
                 value={bookingDate}
                 onChange={async (e) => {
-
                   const date = e.target.value;
 
                   setBookingDate(date);
@@ -286,90 +234,61 @@
 
                   if (!date) return;
 
-                  const availability =
-                    await checkWorkerAvailability(
-                      worker.profile.id,
-                      date
-                    );
+                  const availability = await checkWorkerAvailability(
+                    worker.profile.id,
+                    date,
+                  );
 
                   if (!availability.available) {
-
-                    setAvailabilityMessage(
-                      availability.reason
-                    );
+                    setAvailabilityMessage(availability.reason);
 
                     return;
-
                   }
 
-                  const slots =
-                    await getAvailableTimeSlots(
-                      worker.profile.id,
-                      date
-                    );
+                  const slots = await getAvailableTimeSlots(
+                    worker.profile.id,
+                    date,
+                  );
 
                   setAvailableSlots(slots);
-
                 }}
                 className="border rounded-lg px-3 py-2 w-full"
               />
-
             </div>
 
             <div className="mt-4">
-
-              <label className="block font-semibold mb-2">
-                Booking Time
-              </label>
+              <label className="block font-semibold mb-2">Booking Time</label>
 
               <select
-              value={bookingTime}
-              onChange={(e) => setBookingTime(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full"
-            >
+                value={bookingTime}
+                onChange={(e) => setBookingTime(e.target.value)}
+                className="border rounded-lg px-3 py-2 w-full"
+              >
+                <option value="">Select Available Time</option>
 
-              <option value="">
-                Select Available Time
-              </option>
+                {availableSlots.map((slot) => (
+                  <option key={slot} value={slot}>
+                    {slot}
+                  </option>
+                ))}
+              </select>
+              {availabilityMessage && (
+                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-red-600">
+                  {availabilityMessage}
+                </div>
+              )}
 
-              {availableSlots.map((slot) => (
-
-                <option
-                  key={slot}
-                  value={slot}
-                >
-                  {slot}
-                </option>
-
-              ))}
-
-            </select>
-                {availabilityMessage && (
-
-                  <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-red-600">
-
-                    {availabilityMessage}
-
-                  </div>
-
-                )}
-
-                {bookingDate &&
+              {bookingDate &&
                 availableSlots.length === 0 &&
                 !availabilityMessage && (
-
                   <div className="mt-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-700">
-
                     No available time slots for this date.
-
                   </div>
-
                 )}
             </div>
 
             <button
               onClick={async () => {
-
                 if (!selectedService) {
                   alert("Please select a service.");
                   return;
@@ -379,41 +298,34 @@
                   alert("Please select booking date.");
                   return;
                 }
-                
 
                 if (!bookingTime) {
                   alert("Please select booking time.");
                   return;
                 }
-                const availability =
-                    await checkWorkerAvailability(
-                      worker.profile.id,
-                      bookingDate
-                    );
+                const availability = await checkWorkerAvailability(
+                  worker.profile.id,
+                  bookingDate,
+                );
 
-                  if (!availability.available) {
+                if (!availability.available) {
+                  alert(availability.reason);
 
-                    alert(availability.reason);
+                  return;
+                }
 
-                    return;
+                const latestSlots = await getAvailableTimeSlots(
+                  worker.profile.id,
+                  bookingDate,
+                );
 
-                  }
+                if (!latestSlots.includes(bookingTime)) {
+                  alert(
+                    "This time slot has already been booked. Please choose another time.",
+                  );
 
-                  const latestSlots =
-                    await getAvailableTimeSlots(
-                      worker.profile.id,
-                      bookingDate
-                    );
-
-                  if (!latestSlots.includes(bookingTime)) {
-
-                    alert(
-                      "This time slot has already been booked. Please choose another time."
-                    );
-
-                    return;
-
-                  }
+                  return;
+                }
                 const {
                   data: { user },
                 } = await supabase.auth.getUser();
@@ -435,303 +347,191 @@
                     address: worker.profile.address ?? "",
                   },
                 });
-
               }}
               className="mt-8 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl"
             >
               Book Now
             </button>
-              <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={shareProfile}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Share2 size={18} />
+                Share
+              </button>
 
-    <button
-      onClick={shareProfile}
-      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-    >
-      <Share2 size={18} />
-      Share
-    </button>
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+              >
+                <Copy size={18} />
+                Copy Link
+              </button>
 
-    <button
-      onClick={copyLink}
-      className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
-    >
-      <Copy size={18} />
-      Copy Link
-    </button>
+              <button
+                onClick={shareFacebook}
+                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+              >
+                <FaFacebook size={18} />
+                Facebook
+              </button>
 
-  <button
-    onClick={shareFacebook}
-    className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
-  >
-    <FaFacebook size={18} />
-    Facebook
-  </button>
-
-    <button
-      onClick={shareMessenger}
-      className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
-    >
-      <MessageCircle size={18} />
-      Messenger
-    </button>
-
-  </div>
-
+              <button
+                onClick={shareMessenger}
+                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+              >
+                <MessageCircle size={18} />
+                Messenger
+              </button>
             </div>
-
           </div>
+        </div>
 
-          {/* SERVICES */}
+        {/* SERVICES */}
 
-          <div className="bg-white rounded-3xl shadow p-8 mt-8">
+        <div className="bg-white rounded-3xl shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-5 flex items-center gap-3">
+            <Briefcase />
+            Services
+          </h2>
 
-            <h2 className="text-2xl font-bold mb-5 flex items-center gap-3">
-              <Briefcase />
-              Services
-            </h2>
-
-            <div className="grid md:grid-cols-2 gap-5">
-
-              {worker.services.length === 0 ? (
-
-                <p className="text-gray-500">
-                  No approved services yet.
-                </p>
-
-              ) : (
-
-                worker.services.map((service: any) => (
-
-                  <div
-                    key={service.id}
-                    className="border rounded-xl p-5"
-                  >
-
-                    <h3 className="font-bold text-xl">
-                      {service.service_name}
-                    </h3>
-
-                    <p className="text-gray-500 mt-2">
-                      {service.category}
-                    </p>
-
-                    <p className="text-blue-700 font-bold mt-3">
-                      ₱{service.price}
-                    </p>
-
-                  </div>
-
-                ))
-
-              )}
-
-            </div>
-
-          </div>
-
-          {/* EDUCATION */}
-
-          <div className="bg-white rounded-3xl shadow p-8 mt-8">
-
-            <h2 className="text-2xl font-bold flex gap-3 mb-5">
-              <GraduationCap />
-              Education
-            </h2>
-
-            {worker.education ? (
-
-              <div>
-
-                <h3 className="font-bold">
-                  {worker.education.school}
-                </h3>
-
-                <p>
-                  {worker.education.course}
-                </p>
-
-                <p>
-                  {worker.education.year_graduated}
-                </p>
-
-              </div>
-
+          <div className="grid md:grid-cols-2 gap-5">
+            {worker.services.length === 0 ? (
+              <p className="text-gray-500">No approved services yet.</p>
             ) : (
+              worker.services.map((service: any) => (
+                <div key={service.id} className="border rounded-xl p-5">
+                  <h3 className="font-bold text-xl">{service.service_name}</h3>
 
-              <p className="text-gray-500">
-                No education information available.
-              </p>
+                  <p className="text-gray-500 mt-2">{service.category}</p>
 
-            )}
-
-          </div>
-
-          {/* EXPERIENCE */}
-
-          <div className="bg-white rounded-3xl shadow p-8 mt-8">
-
-            <h2 className="text-2xl font-bold mb-5">
-              Work Experience
-            </h2>
-
-            {worker.workExperience?.length ? (
-
-              worker.workExperience.map((job: any) => (
-
-                <div
-                  key={job.id}
-                  className="mb-5"
-                >
-
-                  <h3 className="font-bold">
-                    {job.company}
-                  </h3>
-
-                  <p>{job.position}</p>
-
+                  <p className="text-blue-700 font-bold mt-3">
+                    ₱{service.price}
+                  </p>
                 </div>
-
               ))
-
-            ) : (
-
-              <p className="text-gray-500">
-                No work experience available.
-              </p>
-
             )}
-
           </div>
+        </div>
+
+        {/* EDUCATION */}
+
+        <div className="bg-white rounded-3xl shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold flex gap-3 mb-5">
+            <GraduationCap />
+            Education
+          </h2>
+
+          {worker.education ? (
+            <div>
+              <h3 className="font-bold">{worker.education.school}</h3>
+
+              <p>{worker.education.course}</p>
+
+              <p>{worker.education.year_graduated}</p>
+            </div>
+          ) : (
+            <p className="text-gray-500">No education information available.</p>
+          )}
+        </div>
+
+        {/* EXPERIENCE */}
+
+        <div className="bg-white rounded-3xl shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-5">Work Experience</h2>
+
+          {worker.workExperience?.length ? (
+            worker.workExperience.map((job: any) => (
+              <div key={job.id} className="mb-5">
+                <h3 className="font-bold">{job.company}</h3>
+
+                <p>{job.position}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No work experience available.</p>
+          )}
+        </div>
 
         {/* SKILLS */}
 
-          <div className="bg-white rounded-3xl shadow p-8 mt-8">
-
-            <h2 className="text-2xl font-bold flex gap-3 mb-5">
-              <Award />
-              Skills
-            </h2>
-
-            <div className="flex flex-wrap gap-3">
-
-              {worker.skills?.length ? (
-
-                worker.skills.map((skill: any) => (
-
-                  <span
-                    key={skill.id}
-                    className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
-                  >
-                    {skill.skill_name}
-                  </span>
-
-                ))
-
-              ) : (
-
-                <p className="text-gray-500">
-                  No skills available.
-                </p>
-
-              )}
-
-            </div>
-
-          </div>
-          {/* WEEKLY AVAILABILITY */}
-
-          <div className="bg-white rounded-3xl shadow p-8 mt-8">
-
-            <h2 className="text-2xl font-bold mb-5">
-              Weekly Availability
-            </h2>
-
-            {schedule.length === 0 ? (
-
-              <p className="text-gray-500">
-                No schedule available.
-              </p>
-
-            ) : (
-
-              <div className="space-y-3">
-
-                {schedule.map((item: any) => (
-
-                  <div
-                    key={item.id}
-                    className="flex justify-between border-b pb-3"
-                  >
-
-                    <span className="font-medium">
-                      {item.day_of_week}
-                    </span>
-
-                    <span
-                      className={
-                        item.is_available
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }
-                    >
-                      {item.is_available
-                        ? `${item.start_time} - ${item.end_time}`
-                        : "Unavailable"}
-                    </span>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            )}
-
-          </div>
-      {/* UNAVAILABLE DATES */}
-
         <div className="bg-white rounded-3xl shadow p-8 mt-8">
-
-          <h2 className="text-2xl font-bold mb-5">
-            Unavailable Dates
+          <h2 className="text-2xl font-bold flex gap-3 mb-5">
+            <Award />
+            Skills
           </h2>
 
-          {unavailableDates.length === 0 ? (
+          <div className="flex flex-wrap gap-3">
+            {worker.skills?.length ? (
+              worker.skills.map((skill: any) => (
+                <span
+                  key={skill.id}
+                  className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
+                >
+                  {skill.skill_name}
+                </span>
+              ))
+            ) : (
+              <p className="text-gray-500">No skills available.</p>
+            )}
+          </div>
+        </div>
+        {/* WEEKLY AVAILABILITY */}
 
-            <p className="text-gray-500">
-              No unavailable dates.
-            </p>
+        <div className="bg-white rounded-3xl shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-5">Weekly Availability</h2>
 
+          {schedule.length === 0 ? (
+            <p className="text-gray-500">No schedule available.</p>
           ) : (
-
             <div className="space-y-3">
+              {schedule.map((item: any) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between border-b pb-3"
+                >
+                  <span className="font-medium">{item.day_of_week}</span>
 
+                  <span
+                    className={
+                      item.is_available ? "text-green-600" : "text-red-600"
+                    }
+                  >
+                    {item.is_available
+                      ? `${item.start_time} - ${item.end_time}`
+                      : "Unavailable"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* UNAVAILABLE DATES */}
+
+        <div className="bg-white rounded-3xl shadow p-8 mt-8">
+          <h2 className="text-2xl font-bold mb-5">Unavailable Dates</h2>
+
+          {unavailableDates.length === 0 ? (
+            <p className="text-gray-500">No unavailable dates.</p>
+          ) : (
+            <div className="space-y-3">
               {unavailableDates.map((date: any) => (
-
                 <div
                   key={date.id}
                   className="flex justify-between border-b pb-3"
                 >
-
-                  <span>
-                    {date.unavailable_date}
-                  </span>
+                  <span>{date.unavailable_date}</span>
 
                   <span className="text-red-600">
                     {date.reason || "Unavailable"}
                   </span>
-
                 </div>
-
               ))}
-
             </div>
-
           )}
-
-        </div>                   
-
         </div>
-      </CustomerLayout>
-    );
-  }
+      </div>
+    </CustomerLayout>
+  );
+}

@@ -1,9 +1,6 @@
 import { supabase } from "../lib/supabase";
 
-export function subscribeToNotifications(
-  userId: string,
-  callback: () => void
-) {
+export function subscribeToNotifications(userId: string, callback: () => void) {
   return supabase
     .channel(`notifications-${userId}`)
     .on(
@@ -14,7 +11,7 @@ export function subscribeToNotifications(
         table: "notifications",
         filter: `user_id=eq.${userId}`,
       },
-      callback
+      callback,
     )
     .subscribe();
 }

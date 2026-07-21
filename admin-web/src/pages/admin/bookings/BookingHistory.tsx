@@ -31,35 +31,25 @@ export default function BookingHistory() {
   return (
     <AdminLayout>
       <div className="p-8">
-
-        <Link
-          to="/bookings"
-          className="text-blue-600 hover:underline"
-        >
+        <Link to="/bookings" className="text-blue-600 hover:underline">
           ← Back to Bookings
         </Link>
 
         <div className="bg-white rounded-xl shadow mt-6 p-8">
-
-          <h1 className="text-3xl font-bold mb-8">
-            Booking Details
-          </h1>
+          <h1 className="text-3xl font-bold mb-8">Booking Details</h1>
 
           <div className="grid grid-cols-2 gap-6">
-
             <div>
               <p className="text-gray-500">Customer</p>
               <p className="font-semibold">
-                {booking.customer?.first_name}{" "}
-                {booking.customer?.last_name}
+                {booking.customer?.first_name} {booking.customer?.last_name}
               </p>
             </div>
 
             <div>
               <p className="text-gray-500">Worker</p>
               <p className="font-semibold">
-                {booking.worker?.first_name}{" "}
-                {booking.worker?.last_name}
+                {booking.worker?.first_name} {booking.worker?.last_name}
               </p>
             </div>
 
@@ -94,11 +84,8 @@ export default function BookingHistory() {
               <p className="text-gray-500">Notes</p>
               <p>{booking.notes || "No notes"}</p>
             </div>
-
           </div>
-
         </div>
-
       </div>
     </AdminLayout>
   );

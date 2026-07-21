@@ -14,11 +14,9 @@ import { logout } from "../../services/authService";
 import { getUnreadCount } from "../../services/notificationService";
 import { useProfile } from "../../context/ProfileContext";
 
-
 export default function CustomerNavbar() {
-
   const navigate = useNavigate();
-  
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
@@ -26,9 +24,7 @@ export default function CustomerNavbar() {
 
   const { profile } = useProfile();
 
-
   async function loadUnread() {
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -36,22 +32,15 @@ export default function CustomerNavbar() {
     if (!user) return;
 
     try {
-
       const count = await getUnreadCount(user.id);
 
       setUnreadCount(count);
-
     } catch (error) {
-
       console.error(error);
-
     }
-
   }
 
-
   useEffect(() => {
-
     loadUnread();
 
     const channel = supabase
@@ -63,82 +52,47 @@ export default function CustomerNavbar() {
           schema: "public",
           table: "notifications",
         },
-        () => loadUnread()
+        () => loadUnread(),
       )
       .subscribe();
 
-
     return () => {
-
       supabase.removeChannel(channel);
-
     };
-
   }, []);
-
-
 
   useEffect(() => {
-
     function handleClickOutside(event: MouseEvent) {
-
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(
-          event.target as Node
-        )
+        !dropdownRef.current.contains(event.target as Node)
       ) {
-
         setOpen(false);
-
       }
-
     }
 
-
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
-
+      document.removeEventListener("mousedown", handleClickOutside);
     };
-
   }, []);
 
-
-
   async function handleLogout() {
-
     await logout();
 
     navigate("/");
-
   }
-
-
 
   const fullName = profile
     ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim()
     : "Customer";
 
-
   const email = profile?.email ?? "";
-
 
   const avatar = profile?.profile_picture || "";
 
-
-
   return (
-
     <header
       className="
         bg-white
@@ -151,46 +105,26 @@ export default function CustomerNavbar() {
         px-6
       "
     >
-
-
       {/* LEFT */}
 
       <div>
+        <h1 className="text-xl font-bold text-gray-800">Customer Dashboard</h1>
 
-        <h1 className="text-xl font-bold text-gray-800">
-          Customer Dashboard
-        </h1>
-
-        <p className="text-sm text-gray-500">
-          Welcome back, {fullName}
-        </p>
-
+        <p className="text-sm text-gray-500">Welcome back, {fullName}</p>
       </div>
-
-
 
       {/* RIGHT */}
 
       <div className="flex items-center gap-3">
-
-
         {/* NOTIFICATION */}
 
         <button
-          onClick={() =>
-            navigate("/customer/notifications")
-          }
+          onClick={() => navigate("/customer/notifications")}
           className="relative p-2 hover:bg-gray-100 rounded-lg"
         >
-
-          <Bell
-            size={22}
-            className="text-gray-700"
-          />
-
+          <Bell size={22} className="text-gray-700" />
 
           {unreadCount > 0 && (
-
             <span
               className="
                 absolute
@@ -207,26 +141,14 @@ export default function CustomerNavbar() {
                 justify-center
               "
             >
-
               {unreadCount}
-
             </span>
-
           )}
-
         </button>
-
-
-
 
         {/* PROFILE */}
 
-        <div
-          className="relative"
-          ref={dropdownRef}
-        >
-
-
+        <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setOpen(!open)}
             className="
@@ -239,10 +161,7 @@ export default function CustomerNavbar() {
               hover:bg-gray-100
             "
           >
-
-
             {avatar ? (
-
               <img
                 src={avatar}
                 alt="Profile"
@@ -255,41 +174,20 @@ export default function CustomerNavbar() {
                   border-blue-600
                 "
               />
-
             ) : (
-
-              <UserCircle
-                size={40}
-                className="text-blue-600"
-              />
-
+              <UserCircle size={40} className="text-blue-600" />
             )}
 
-
-
             <div className="text-left">
+              <p className="font-semibold text-sm">{fullName}</p>
 
-              <p className="font-semibold text-sm">
-                {fullName}
-              </p>
-
-              <p className="text-xs text-gray-500">
-                {email}
-              </p>
-
+              <p className="text-xs text-gray-500">{email}</p>
             </div>
 
-
-            <ChevronDown size={16}/>
-
-
+            <ChevronDown size={16} />
           </button>
 
-
-
-
           {open && (
-
             <div
               className="
                 absolute
@@ -304,8 +202,6 @@ export default function CustomerNavbar() {
                 z-50
               "
             >
-
-
               <button
                 onClick={() => {
                   setOpen(false);
@@ -321,11 +217,8 @@ export default function CustomerNavbar() {
                   hover:bg-gray-100
                 "
               >
-
-                <User size={17}/>
-
+                <User size={17} />
                 My Profile
-
               </button>
 
               <button
@@ -343,18 +236,11 @@ export default function CustomerNavbar() {
                   hover:bg-gray-100
                 "
               >
-
-                <Settings size={17}/>
-
+                <Settings size={17} />
                 Settings
-
               </button>
 
-
-
               <hr />
-
-
 
               <button
                 onClick={handleLogout}
@@ -369,27 +255,13 @@ export default function CustomerNavbar() {
                   hover:bg-red-50
                 "
               >
-
-                <LogOut size={17}/>
-
+                <LogOut size={17} />
                 Logout
-
               </button>
-
-
             </div>
-
           )}
-
-
         </div>
-
-
       </div>
-
-
     </header>
-
   );
-
 }

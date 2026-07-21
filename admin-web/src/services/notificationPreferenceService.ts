@@ -22,7 +22,7 @@ export async function saveNotificationPreference(
     chat_notifications: boolean;
     payment_notifications: boolean;
     review_reminders: boolean;
-  }
+  },
 ) {
   const { data, error } = await supabase
     .from("notification_preferences")
@@ -36,7 +36,7 @@ export async function saveNotificationPreference(
       },
       {
         onConflict: "customer_id",
-      }
+      },
     )
     .select();
 

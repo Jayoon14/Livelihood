@@ -40,25 +40,40 @@ export default function AdminNavbar() {
   }
 
   useEffect(() => {
-    loadUnread();
+    let channel: ReturnType<typeof supabase.channel> | undefined;
 
-    const channel = supabase
-      .channel("admin-navbar")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        () => {
-          loadUnread();
-        }
-      )
-      .subscribe();
+    async function initialize() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      await loadUnread();
+
+      channel = supabase
+        .channel("admin-navbar")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            loadUnread();
+          },
+        )
+        .subscribe();
+    }
+
+    initialize();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -72,16 +87,10 @@ export default function AdminNavbar() {
       }
     }
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -100,7 +109,6 @@ export default function AdminNavbar() {
 
   return (
     <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
-
       {/* LEFT */}
 
       <div>
@@ -108,25 +116,19 @@ export default function AdminNavbar() {
           Administrator Dashboard
         </h1>
 
-        <p className="text-gray-500">
-          Welcome back, {fullName}
-        </p>
+        <p className="text-gray-500">Welcome back, {fullName}</p>
       </div>
 
       {/* RIGHT */}
 
       <div className="flex items-center gap-6">
-
         {/* Notifications */}
 
         <button
           onClick={() => navigate("/admin/notifications")}
           className="relative"
         >
-          <Bell
-            size={24}
-            className="text-gray-700"
-          />
+          <Bell size={24} className="text-gray-700" />
 
           {unreadCount > 0 && (
             <span
@@ -153,10 +155,7 @@ export default function AdminNavbar() {
 
         {/* Profile */}
 
-        <div
-          className="relative"
-          ref={dropdownRef}
-        >
+        <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setOpen(!open)}
             className="flex items-center gap-3 hover:bg-gray-100 rounded-xl px-3 py-2 transition"
@@ -168,20 +167,13 @@ export default function AdminNavbar() {
                 className="w-11 h-11 rounded-full object-cover border-2 border-red-600"
               />
             ) : (
-              <UserCircle
-                size={42}
-                className="text-red-600"
-              />
+              <UserCircle size={42} className="text-red-600" />
             )}
 
             <div className="text-left">
-              <p className="font-semibold">
-                {fullName}
-              </p>
+              <p className="font-semibold">{fullName}</p>
 
-              <p className="text-sm text-gray-500">
-                {email}
-              </p>
+              <p className="text-sm text-gray-500">{email}</p>
             </div>
 
             <ChevronDown size={18} />
@@ -189,7 +181,6 @@ export default function AdminNavbar() {
 
           {open && (
             <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
-
               <button
                 onClick={() => {
                   setOpen(false);
@@ -221,13 +212,10 @@ export default function AdminNavbar() {
                 <LogOut size={20} />
                 Logout
               </button>
-
             </div>
           )}
         </div>
-
       </div>
-
     </header>
   );
 }

@@ -36,11 +36,7 @@ export function exportToExcel(summary: any) {
   const sheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    sheet,
-    "Reports"
-  );
+  XLSX.utils.book_append_sheet(workbook, sheet, "Reports");
 
   const excelBuffer = XLSX.write(workbook, {
     bookType: "xlsx",
@@ -48,8 +44,7 @@ export function exportToExcel(summary: any) {
   });
 
   const file = new Blob([excelBuffer], {
-    type:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 
   saveAs(file, "LivelihoodGo-Report.xlsx");

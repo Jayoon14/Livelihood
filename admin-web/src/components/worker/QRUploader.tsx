@@ -24,8 +24,7 @@ export default function QRUploader({
 
       const ext = file.name.split(".").pop();
 
-      const fileName =
-        `${folder}/${Date.now()}.${ext}`;
+      const fileName = `${folder}/${Date.now()}.${ext}`;
 
       const { error } = await supabase.storage
         .from("payment-qr")
@@ -50,10 +49,7 @@ export default function QRUploader({
 
   return (
     <div className="space-y-3">
-
-      <label className="block font-medium">
-        {label}
-      </label>
+      <label className="block font-medium">{label}</label>
 
       {value && (
         <img
@@ -81,13 +77,8 @@ export default function QRUploader({
         onClick={() => inputRef.current?.click()}
         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
       >
-        {uploading
-          ? "Uploading..."
-          : value
-          ? "Replace QR"
-          : "Upload QR"}
+        {uploading ? "Uploading..." : value ? "Replace QR" : "Upload QR"}
       </button>
-
     </div>
   );
 }

@@ -9,9 +9,7 @@ export default function Settings() {
     confirmPassword: "",
   });
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
@@ -34,20 +32,13 @@ export default function Settings() {
   return (
     <AdminLayout>
       <div className="p-8 space-y-8">
-
-        <h1 className="text-3xl font-bold">
-          Settings
-        </h1>
+        <h1 className="text-3xl font-bold">Settings</h1>
 
         {/* PROFILE */}
         <div className="bg-white rounded-xl shadow p-8">
-
-          <h2 className="text-xl font-bold mb-6">
-            Admin Profile
-          </h2>
+          <h2 className="text-xl font-bold mb-6">Admin Profile</h2>
 
           <div className="grid grid-cols-2 gap-6">
-
             <div>
               <label>Name</label>
               <input
@@ -67,7 +58,6 @@ export default function Settings() {
                 className="border rounded-lg p-3 w-full mt-2"
               />
             </div>
-
           </div>
 
           <button
@@ -80,13 +70,9 @@ export default function Settings() {
 
         {/* PASSWORD */}
         <div className="bg-white rounded-xl shadow p-8">
-
-          <h2 className="text-xl font-bold mb-6">
-            Change Password
-          </h2>
+          <h2 className="text-xl font-bold mb-6">Change Password</h2>
 
           <div className="grid grid-cols-2 gap-6">
-
             <input
               type="password"
               name="password"
@@ -104,7 +90,6 @@ export default function Settings() {
               onChange={handleChange}
               className="border rounded-lg p-3"
             />
-
           </div>
 
           <button
@@ -117,23 +102,26 @@ export default function Settings() {
 
         {/* SYSTEM */}
         <div className="bg-white rounded-xl shadow p-8">
-
-          <h2 className="text-xl font-bold mb-6">
-            System Information
-          </h2>
+          <h2 className="text-xl font-bold mb-6">System Information</h2>
 
           <div className="space-y-3">
-
-            <p><strong>System:</strong> LivelihoodGo</p>
-            <p><strong>Version:</strong> 1.0</p>
-            <p><strong>Database:</strong> Supabase</p>
-            <p><strong>Framework:</strong> React + TypeScript</p>
-            <p><strong>CSS:</strong> Tailwind CSS</p>
-
+            <p>
+              <strong>System:</strong> LivelihoodGo
+            </p>
+            <p>
+              <strong>Version:</strong> 1.0
+            </p>
+            <p>
+              <strong>Database:</strong> Supabase
+            </p>
+            <p>
+              <strong>Framework:</strong> React + TypeScript
+            </p>
+            <p>
+              <strong>CSS:</strong> Tailwind CSS
+            </p>
           </div>
-
         </div>
-
       </div>
     </AdminLayout>
   );

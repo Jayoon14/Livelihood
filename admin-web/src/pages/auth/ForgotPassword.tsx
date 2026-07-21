@@ -21,10 +21,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="bg-white p-8 rounded-xl shadow w-96">
-
-        <h1 className="text-2xl font-bold mb-6">
-          Forgot Password
-        </h1>
+        <h1 className="text-2xl font-bold mb-6">Forgot Password</h1>
 
         <input
           type="email"
@@ -41,13 +38,9 @@ export default function ForgotPassword() {
           Send Reset Link
         </button>
 
-        <Link
-          to="/"
-          className="block text-center mt-4 text-blue-600"
-        >
+        <Link to="/" className="block text-center mt-4 text-blue-600">
           Back to Login
         </Link>
-
       </div>
     </div>
   );

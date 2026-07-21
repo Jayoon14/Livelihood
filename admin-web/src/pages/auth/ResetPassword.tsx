@@ -21,10 +21,7 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="bg-white p-8 rounded-xl shadow w-96">
-
-        <h1 className="text-2xl font-bold mb-6">
-          Reset Password
-        </h1>
+        <h1 className="text-2xl font-bold mb-6">Reset Password</h1>
 
         <input
           type="password"
@@ -40,7 +37,6 @@ export default function ResetPassword() {
         >
           Save Password
         </button>
-
       </div>
     </div>
   );

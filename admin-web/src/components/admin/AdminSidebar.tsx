@@ -10,14 +10,9 @@ import {
   History,
 } from "lucide-react";
 
-import {
-  NavLink,
-  useNavigate,
-} from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import { logout } from "../../services/authService";
-
-
 
 const menus = [
   {
@@ -69,26 +64,16 @@ const menus = [
   },
 ];
 
-
-
 export default function AdminSidebar() {
-
   const navigate = useNavigate();
 
-
-
   async function handleLogout() {
-
     await logout();
 
     navigate("/");
-
   }
 
-
-
   return (
-
     <aside
       className="
         w-72
@@ -99,8 +84,6 @@ export default function AdminSidebar() {
         flex-col
       "
     >
-
-
       {/* LOGO */}
 
       <div
@@ -110,7 +93,6 @@ export default function AdminSidebar() {
           border-slate-700
         "
       >
-
         <h1
           className="
             text-3xl
@@ -119,7 +101,6 @@ export default function AdminSidebar() {
         >
           LivelihoodGo
         </h1>
-
 
         <p
           className="
@@ -130,12 +111,7 @@ export default function AdminSidebar() {
         >
           Administrator Panel
         </p>
-
-
       </div>
-
-
-
 
       {/* MENU */}
 
@@ -145,18 +121,13 @@ export default function AdminSidebar() {
           mt-6
         "
       >
-
         {menus.map((menu) => {
-
           const Icon = menu.icon;
 
-
           return (
-
             <NavLink
               key={menu.label}
               to={menu.path}
-
               className={({ isActive }) =>
                 `
                 flex
@@ -173,27 +144,13 @@ export default function AdminSidebar() {
                 `
               }
             >
-
               <Icon size={20} />
 
-
-              <span>
-                {menu.label}
-              </span>
-
-
+              <span>{menu.label}</span>
             </NavLink>
-
           );
-
         })}
-
-
       </nav>
-
-
-
-
 
       {/* LOGOUT */}
 
@@ -204,10 +161,8 @@ export default function AdminSidebar() {
           p-6
         "
       >
-
         <button
           onClick={handleLogout}
-
           className="
             flex
             items-center
@@ -217,21 +172,10 @@ export default function AdminSidebar() {
             transition
           "
         >
-
           <LogOut size={20} />
-
           Logout
-
-
         </button>
-
-
       </div>
-
-
-
     </aside>
-
   );
-
 }

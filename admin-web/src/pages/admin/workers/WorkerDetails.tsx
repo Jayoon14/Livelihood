@@ -85,9 +85,7 @@ export default function WorkerDetails() {
   if (!worker) {
     return (
       <AdminLayout>
-        <div className="p-8">
-          Loading...
-        </div>
+        <div className="p-8">Loading...</div>
       </AdminLayout>
     );
   }
@@ -154,25 +152,20 @@ export default function WorkerDetails() {
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto p-8">
-
         {/* PROFILE HEADER */}
 
         <div className="flex items-center gap-6 mb-10">
-
           {worker.profile_picture ? (
-
-          <img
-            src={worker.profile_picture}
-            alt="Profile"
-            onError={() => console.log("Image failed to load")}
-            onLoad={() => console.log("Image loaded")}
-            className="w-24 h-24 rounded-full object-cover border"
-          />
-
+            <img
+              src={worker.profile_picture}
+              alt="Profile"
+              onError={() => console.log("Image failed to load")}
+              onLoad={() => console.log("Image loaded")}
+              className="w-24 h-24 rounded-full object-cover border"
+            />
           ) : (
-
-          <div
-          className="
+            <div
+              className="
           w-24 h-24
           rounded-full
           bg-blue-100
@@ -183,21 +176,17 @@ export default function WorkerDetails() {
           text-4xl
           font-bold
           "
-          >
-          {worker.first_name?.charAt(0)}
-          </div>
-
+            >
+              {worker.first_name?.charAt(0)}
+            </div>
           )}
 
           <div>
-
             <h1 className="text-4xl font-bold">
               {worker.first_name} {worker.middle_name} {worker.last_name}
             </h1>
 
-            <p className="text-gray-500 mt-2">
-              {worker.email}
-            </p>
+            <p className="text-gray-500 mt-2">{worker.email}</p>
 
             <span
               className={`
@@ -209,30 +198,32 @@ export default function WorkerDetails() {
                   worker.status === "Pending"
                     ? "bg-yellow-100 text-yellow-700"
                     : worker.status === "Approved"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
                 }
               `}
             >
               {worker.status}
             </span>
-
           </div>
-
         </div>
 
         <div className="bg-white rounded-xl shadow p-8">
-          
           {/* PERSONAL INFORMATION */}
 
           <Section title="👤 Personal Information">
-
             <div className="grid grid-cols-2 gap-6">
-
               <Info title="First Name" value={worker.first_name} />
               <Info title="Middle Name" value={worker.middle_name} />
               <Info title="Last Name" value={worker.last_name} />
-              <Info title="Birthday" value={worker.birth_date? new Date(worker.birth_date).toLocaleDateString("en-GB"): "-"}/>
+              <Info
+                title="Birthday"
+                value={
+                  worker.birth_date
+                    ? new Date(worker.birth_date).toLocaleDateString("en-GB")
+                    : "-"
+                }
+              />
 
               <Info title="Email" value={worker.email} />
               <Info title="Phone" value={worker.phone} />
@@ -247,83 +238,46 @@ export default function WorkerDetails() {
               <Info title="Province" value={worker.province} />
 
               <Info title="Status" value={worker.status} />
-
             </div>
-
           </Section>
-
-
 
           {/* EDUCATIONAL BACKGROUND */}
 
           <Section title="🎓 Educational Background">
-
             <div className="grid grid-cols-2 gap-6">
-
               <Info
                 title="Highest Attainment"
                 value={worker.education?.highest_attainment}
               />
 
-              <Info
-                title="Elementary"
-                value={worker.education?.elementary}
-              />
+              <Info title="Elementary" value={worker.education?.elementary} />
 
-              <Info
-                title="Secondary"
-                value={worker.education?.secondary}
-              />
+              <Info title="Secondary" value={worker.education?.secondary} />
 
-              <Info
-                title="Senior High"
-                value={worker.education?.senior_high}
-              />
+              <Info title="Senior High" value={worker.education?.senior_high} />
 
-              <Info
-                title="College"
-                value={worker.education?.college}
-              />
+              <Info title="College" value={worker.education?.college} />
 
-              <Info
-                title="Course"
-                value={worker.education?.course}
-              />
+              <Info title="Course" value={worker.education?.course} />
 
               <Info
                 title="Year Graduated"
                 value={worker.education?.year_graduated}
               />
 
-              <Info
-                title="TESDA"
-                value={worker.education?.tesda}
-              />
+              <Info title="TESDA" value={worker.education?.tesda} />
 
-              <Info
-                title="PRC"
-                value={worker.education?.prc}
-              />
+              <Info title="PRC" value={worker.education?.prc} />
 
-              <Info
-                title="Trainings"
-                value={worker.education?.trainings}
-              />
-
+              <Info title="Trainings" value={worker.education?.trainings} />
             </div>
-
           </Section>
-
-
 
           {/* WORK EXPERIENCE */}
 
           <Section title="💼 Work Experience">
-
             {worker.work?.length > 0 ? (
-
-              worker.work.map((job:any) => (
-
+              worker.work.map((job: any) => (
                 <div
                   key={job.id}
                   className="
@@ -334,68 +288,40 @@ export default function WorkerDetails() {
                     space-y-3
                   "
                 >
+                  <Info title="Company" value={job.company} />
 
-                  <Info
-                    title="Company"
-                    value={job.company}
-                  />
-
-                  <Info
-                    title="Position"
-                    value={job.position}
-                  />
+                  <Info title="Position" value={job.position} />
 
                   <Info
                     title="Employment Status"
                     value={job.employment_status}
                   />
 
-                  <Info
-                    title="Start Date"
-                    value={job.start_date}
-                  />
+                  <Info title="Start Date" value={job.start_date} />
 
-                  <Info
-                    title="End Date"
-                    value={job.end_date}
-                  />
+                  <Info title="End Date" value={job.end_date} />
 
-                  <Info
-                    title="Description"
-                    value={job.description}
-                  />
-
+                  <Info title="Description" value={job.description} />
                 </div>
-
               ))
-
             ) : (
-
-             <div className="border rounded-xl p-5 bg-gray-50">
-
-                <h3 className="font-semibold text-lg">
-                  Work Experience
-                </h3>
+              <div className="border rounded-xl p-5 bg-gray-50">
+                <h3 className="font-semibold text-lg">Work Experience</h3>
 
                 <p className="text-gray-500 mt-2">
-                  Applicant declared that he/she has no previous work experience.
+                  Applicant declared that he/she has no previous work
+                  experience.
                 </p>
-
               </div>
             )}
-
           </Section>
-          
+
           {/* SKILLS */}
 
           <Section title="🛠 Skills">
-
             <div className="flex flex-wrap gap-3">
-
               {worker.skills?.length > 0 ? (
-
-                worker.skills.map((skill:any) => (
-
+                worker.skills.map((skill: any) => (
                   <span
                     key={skill.id}
                     className="
@@ -408,31 +334,18 @@ export default function WorkerDetails() {
                   >
                     {skill.skill_name}
                   </span>
-
                 ))
-
               ) : (
-
-                <p className="text-gray-500">
-                  No skills added.
-                </p>
-
+                <p className="text-gray-500">No skills added.</p>
               )}
-
             </div>
-
           </Section>
-
-
 
           {/* DOCUMENTS */}
 
           <Section title="📄 Documents">
-
             {documentList.length > 0 ? (
-
-              documentList.map((doc,index) => (
-
+              documentList.map((doc, index) => (
                 <div
                   key={doc.title}
                   className="
@@ -445,19 +358,11 @@ export default function WorkerDetails() {
                     mb-3
                   "
                 >
-
                   <div>
+                    <p className="text-gray-500 text-sm">Document</p>
 
-                    <p className="text-gray-500 text-sm">
-                      Document
-                    </p>
-
-                    <p className="font-semibold">
-                      {doc.title}
-                    </p>
-
+                    <p className="font-semibold">{doc.title}</p>
                   </div>
-
 
                   <button
                     onClick={() => openPreview(index)}
@@ -472,31 +377,17 @@ export default function WorkerDetails() {
                   >
                     View
                   </button>
-
-
                 </div>
-
               ))
-
             ) : (
-
-              <p className="text-gray-500">
-                No documents uploaded.
-              </p>
-
+              <p className="text-gray-500">No documents uploaded.</p>
             )}
-
           </Section>
-
-
-
 
           {/* APPROVE / REJECT */}
 
           {worker.status === "Pending" && (
-
             <div className="flex justify-end gap-4 mt-10">
-
               <button
                 onClick={handleReject}
                 className="
@@ -511,7 +402,6 @@ export default function WorkerDetails() {
                 Reject
               </button>
 
-
               <button
                 onClick={handleApprove}
                 className="
@@ -525,22 +415,14 @@ export default function WorkerDetails() {
               >
                 Approve
               </button>
-
             </div>
-
           )}
-
         </div>
-
       </div>
-
-
-
 
       {/* DOCUMENT VIEWER MODAL */}
 
       {preview && (
-
         <div
           className="
             fixed
@@ -554,7 +436,6 @@ export default function WorkerDetails() {
             p-4
           "
         >
-
           <div
             className="
               bg-white
@@ -565,7 +446,6 @@ export default function WorkerDetails() {
               overflow-hidden
             "
           >
-
             <div
               className="
                 flex
@@ -576,11 +456,7 @@ export default function WorkerDetails() {
                 border-b
               "
             >
-
-              <h2 className="text-xl font-bold">
-                {previewTitle}
-              </h2>
-
+              <h2 className="text-xl font-bold">{previewTitle}</h2>
 
               <button
                 onClick={() => setPreview(null)}
@@ -592,10 +468,7 @@ export default function WorkerDetails() {
               >
                 ×
               </button>
-
             </div>
-
-
 
             <div
               className="
@@ -607,22 +480,14 @@ export default function WorkerDetails() {
                 overflow-auto
               "
             >
-
               {preview.toLowerCase().endsWith(".pdf") ? (
-
-                <iframe
-                  src={preview}
-                  className="w-full h-full"
-                />
-
+                <iframe src={preview} className="w-full h-full" />
               ) : (
-
                 <img
                   src={preview}
                   style={{
-                    transform:
-                      `scale(${zoom}) rotate(${rotation}deg)`,
-                    transition:"0.3s",
+                    transform: `scale(${zoom}) rotate(${rotation}deg)`,
+                    transition: "0.3s",
                   }}
                   className="
                     max-h-full
@@ -630,11 +495,9 @@ export default function WorkerDetails() {
                     object-contain
                   "
                 />
-
               )}
-
             </div>
-            
+
             {/* DOCUMENT CONTROLS */}
 
             <div
@@ -648,7 +511,6 @@ export default function WorkerDetails() {
                 gap-3
               "
             >
-
               <button
                 onClick={previousDocument}
                 disabled={currentIndex === 0}
@@ -664,12 +526,9 @@ export default function WorkerDetails() {
                 ← Previous
               </button>
 
-
               <button
                 onClick={nextDocument}
-                disabled={
-                  currentIndex === documentList.length - 1
-                }
+                disabled={currentIndex === documentList.length - 1}
                 className="
                   bg-gray-200
                   hover:bg-gray-300
@@ -682,18 +541,10 @@ export default function WorkerDetails() {
                 Next →
               </button>
 
-
-
               {!preview.toLowerCase().endsWith(".pdf") && (
-
                 <>
-
                   <button
-                    onClick={() =>
-                      setZoom((prev) =>
-                        Math.min(prev + 0.2, 3)
-                      )
-                    }
+                    onClick={() => setZoom((prev) => Math.min(prev + 0.2, 3))}
                     className="
                       bg-blue-600
                       hover:bg-blue-700
@@ -706,13 +557,8 @@ export default function WorkerDetails() {
                     Zoom +
                   </button>
 
-
                   <button
-                    onClick={() =>
-                      setZoom((prev) =>
-                        Math.max(prev - 0.2, 0.5)
-                      )
-                    }
+                    onClick={() => setZoom((prev) => Math.max(prev - 0.2, 0.5))}
                     className="
                       bg-blue-600
                       hover:bg-blue-700
@@ -725,13 +571,8 @@ export default function WorkerDetails() {
                     Zoom -
                   </button>
 
-
                   <button
-                    onClick={() =>
-                      setRotation((prev) =>
-                        prev + 90
-                      )
-                    }
+                    onClick={() => setRotation((prev) => prev + 90)}
                     className="
                       bg-purple-600
                       hover:bg-purple-700
@@ -743,11 +584,8 @@ export default function WorkerDetails() {
                   >
                     Rotate
                   </button>
-
                 </>
-
               )}
-
 
               <a
                 href={preview}
@@ -763,31 +601,16 @@ export default function WorkerDetails() {
               >
                 Download
               </a>
-
             </div>
-
-
           </div>
-
         </div>
-
       )}
-
     </AdminLayout>
   );
 }
 
-
-
-
-
-function Section({
-  title,
-  children,
-}: any) {
-
+function Section({ title, children }: any) {
   return (
-
     <div
       className="
         bg-white
@@ -799,7 +622,6 @@ function Section({
         overflow-hidden
       "
     >
-
       <div
         className="
           bg-slate-50
@@ -808,43 +630,17 @@ function Section({
           border-b
         "
       >
-
-        <h2 className="text-xl font-bold">
-          {title}
-        </h2>
-
+        <h2 className="text-xl font-bold">{title}</h2>
       </div>
 
-
-      <div className="p-6">
-
-        {children}
-
-      </div>
-
-
+      <div className="p-6">{children}</div>
     </div>
-
   );
-
 }
 
-
-
-
-
-function Info({
-  title,
-  value,
-}: {
-  title:string;
-  value:any;
-}) {
-
+function Info({ title, value }: { title: string; value: any }) {
   return (
-
     <div>
-
       <p
         className="
           text-gray-500
@@ -853,7 +649,6 @@ function Info({
       >
         {title}
       </p>
-
 
       <p
         className="
@@ -864,9 +659,6 @@ function Info({
       >
         {value || "-"}
       </p>
-
     </div>
-
   );
-
 }

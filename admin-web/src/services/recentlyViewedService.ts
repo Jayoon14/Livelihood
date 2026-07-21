@@ -25,12 +25,10 @@ export async function saveRecentlyViewed(workerId: string) {
       .eq("id", existing.id);
   } else {
     // Insert bago
-    await supabase
-      .from("recently_viewed")
-      .insert({
-        customer_id: user.id,
-        worker_id: workerId,
-      });
+    await supabase.from("recently_viewed").insert({
+      customer_id: user.id,
+      worker_id: workerId,
+    });
   }
 }
 
@@ -43,7 +41,8 @@ export async function getRecentlyViewed(limit = 10) {
 
   const { data, error } = await supabase
     .from("recently_viewed")
-    .select(`
+    .select(
+      `
       viewed_at,
       worker:profiles!worker_id(
         id,
@@ -53,7 +52,8 @@ export async function getRecentlyViewed(limit = 10) {
         email,
         phone
       )
-    `)
+    `,
+    )
     .eq("customer_id", user.id)
     .order("viewed_at", { ascending: false })
     .limit(limit);

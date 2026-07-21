@@ -1,23 +1,15 @@
 import { useRegisterStore } from "../../../store/registerStore";
 
 export default function EducationalBackground() {
-  const {
-    data,
-    updateData,
-    errors,
-    clearError,
-  } = useRegisterStore();
+  const { data, updateData, errors, clearError } = useRegisterStore();
 
   const education = data.highestEducation;
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">
-        Educational Background
-      </h2>
+      <h2 className="text-2xl font-bold mb-6">Educational Background</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
         <div>
           <label className="block mb-2 font-medium">
             Highest Educational Attainment
@@ -33,42 +25,24 @@ export default function EducationalBackground() {
               clearError("highestEducation");
             }}
             className={`w-full border rounded-xl p-3 ${
-              errors.highestEducation
-                ? "border-red-500"
-                : "border-gray-300"
+              errors.highestEducation ? "border-red-500" : "border-gray-300"
             }`}
           >
-            <option value="">
-              Select Highest Educational Attainment
-            </option>
+            <option value="">Select Highest Educational Attainment</option>
 
-            <option value="Elementary">
-              Elementary
-            </option>
+            <option value="Elementary">Elementary</option>
 
-            <option value="Junior High">
-              Junior High School
-            </option>
+            <option value="Junior High">Junior High School</option>
 
-            <option value="Senior High">
-              Senior High School
-            </option>
+            <option value="Senior High">Senior High School</option>
 
-            <option value="College">
-              College
-            </option>
+            <option value="College">College</option>
 
-            <option value="Master">
-              Master's Degree
-            </option>
+            <option value="Master">Master's Degree</option>
 
-            <option value="Doctorate">
-              Doctorate Degree
-            </option>
+            <option value="Doctorate">Doctorate Degree</option>
 
-            <option value="Other">
-              Other
-            </option>
+            <option value="Other">Other</option>
           </select>
 
           {errors.highestEducation && (
@@ -77,7 +51,6 @@ export default function EducationalBackground() {
             </p>
           )}
         </div>
-
 
         {education === "Other" && (
           <Input
@@ -93,7 +66,6 @@ export default function EducationalBackground() {
             }}
           />
         )}
-
 
         {[
           "Elementary",
@@ -117,7 +89,6 @@ export default function EducationalBackground() {
           />
         )}
 
-
         {[
           "Junior High",
           "Senior High",
@@ -139,13 +110,9 @@ export default function EducationalBackground() {
           />
         )}
 
-
-        {[
-          "Senior High",
-          "College",
-          "Master",
-          "Doctorate",
-        ].includes(education) && (
+        {["Senior High", "College", "Master", "Doctorate"].includes(
+          education,
+        ) && (
           <Input
             label="Senior High School"
             value={data.seniorHigh}
@@ -160,18 +127,11 @@ export default function EducationalBackground() {
           />
         )}
 
-
-        {[
-          "College",
-          "Master",
-          "Doctorate",
-        ].includes(education) && (
+        {["College", "Master", "Doctorate"].includes(education) && (
           <>
             <Input
               label={
-                education === "College"
-                  ? "College / University"
-                  : "University"
+                education === "College" ? "College / University" : "University"
               }
               value={data.college}
               error={errors.college}
@@ -189,8 +149,8 @@ export default function EducationalBackground() {
                 education === "Master"
                   ? "Master's Degree"
                   : education === "Doctorate"
-                  ? "Doctorate Degree"
-                  : "Course"
+                    ? "Doctorate Degree"
+                    : "Course"
               }
               value={data.course}
               error={errors.course}
@@ -219,11 +179,7 @@ export default function EducationalBackground() {
           </>
         )}
 
-
-        {[
-          "Master",
-          "Doctorate",
-        ].includes(education) && (
+        {["Master", "Doctorate"].includes(education) && (
           <Input
             label="PRC License No."
             value={data.prc}
@@ -238,7 +194,6 @@ export default function EducationalBackground() {
           />
         )}
 
-
         <Input
           label="TESDA Certificate (Optional)"
           value={data.tesda}
@@ -248,7 +203,6 @@ export default function EducationalBackground() {
             })
           }
         />
-
 
         <div className="md:col-span-2">
           <label className="block mb-2 font-medium">
@@ -273,54 +227,34 @@ export default function EducationalBackground() {
             "
           />
         </div>
-
       </div>
     </div>
   );
 }
 
-
 type InputProps = {
   label: string;
   value: string;
-  onChange: (value:string)=>void;
+  onChange: (value: string) => void;
   type?: string;
   error?: string;
 };
 
-
-function Input({
-  label,
-  value,
-  onChange,
-  type="text",
-  error,
-}:InputProps){
-
+function Input({ label, value, onChange, type = "text", error }: InputProps) {
   return (
     <div>
-
-      <label className="block mb-2 font-medium">
-        {label}
-      </label>
+      <label className="block mb-2 font-medium">{label}</label>
 
       <input
         type={type}
         value={value}
-        onChange={(e)=>onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
         className={`w-full border rounded-xl p-3 ${
-          error
-            ? "border-red-500"
-            : "border-gray-300"
+          error ? "border-red-500" : "border-gray-300"
         }`}
       />
 
-      {error && (
-        <p className="text-red-500 text-sm mt-1">
-          {error}
-        </p>
-      )}
-
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 }

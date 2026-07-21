@@ -17,15 +17,13 @@ import {
 import { supabase } from "../../../lib/supabase";
 
 export default function PaymentInformation() {
-
   const [loading, setLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
 
   const [workerId, setWorkerId] = useState("");
 
-  const [form, setForm] =
-    useState<PaymentForm>(defaultPaymentForm);
+  const [form, setForm] = useState<PaymentForm>(defaultPaymentForm);
 
   useEffect(() => {
     loadPaymentInformation();
@@ -33,7 +31,6 @@ export default function PaymentInformation() {
 
   async function loadPaymentInformation() {
     try {
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -42,11 +39,9 @@ export default function PaymentInformation() {
 
       setWorkerId(user.id);
 
-      const data =
-        await getWorkerPaymentInformation(user.id);
+      const data = await getWorkerPaymentInformation(user.id);
 
       if (data) {
-
         setForm({
           accept_cash: data.accept_cash,
 
@@ -66,92 +61,59 @@ export default function PaymentInformation() {
           account_number: data.account_number || "",
           bank_qr: data.bank_qr || "",
         });
-
       }
-
     } catch (err) {
-
       console.error(err);
-
     } finally {
-
       setLoading(false);
-
     }
   }
 
-  function handleChange(
-    field: keyof PaymentForm,
-    value: any
-  ) {
-
+  function handleChange(field: keyof PaymentForm, value: any) {
     setForm((prev) => ({
       ...prev,
       [field]: value,
     }));
-
   }
 
   async function handleSave() {
-
     try {
-
       setSaving(true);
 
-      await saveWorkerPaymentInformation(
-        workerId,
-        form
-      );
+      await saveWorkerPaymentInformation(workerId, form);
 
       alert("Payment information saved successfully.");
-
     } catch (err) {
-
       console.error(err);
 
       alert("Unable to save payment information.");
-
     } finally {
-
       setSaving(false);
-
     }
-
   }
 
   if (loading) {
-
     return (
       <WorkerLayout>
-        <div className="p-10 text-center">
-          Loading...
-        </div>
+        <div className="p-10 text-center">Loading...</div>
       </WorkerLayout>
     );
-
-  }  return (
+  }
+  return (
     <WorkerLayout>
-
       <div className="max-w-5xl mx-auto">
-
         <div className="bg-white rounded-2xl shadow p-8 mb-6">
-
-          <h1 className="text-3xl font-bold">
-            Payment Information
-          </h1>
+          <h1 className="text-3xl font-bold">Payment Information</h1>
 
           <p className="text-gray-500 mt-2">
-            Configure the payment methods that customers can use when paying
-            for your services.
+            Configure the payment methods that customers can use when paying for
+            your services.
           </p>
-
         </div>
 
         <CashSection
           acceptCash={form.accept_cash}
-          onChange={(value) =>
-            handleChange("accept_cash", value)
-          }
+          onChange={(value) => handleChange("accept_cash", value)}
         />
 
         <GCashSection
@@ -192,7 +154,6 @@ export default function PaymentInformation() {
         />
 
         <div className="mt-8 flex justify-end">
-
           <button
             onClick={handleSave}
             disabled={saving}
@@ -200,11 +161,8 @@ export default function PaymentInformation() {
           >
             {saving ? "Saving..." : "Save Payment Information"}
           </button>
-
         </div>
-
       </div>
-
     </WorkerLayout>
   );
 }

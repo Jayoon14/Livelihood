@@ -14,7 +14,7 @@ export async function getWorkerPaymentInformation(workerId: string) {
 
 export async function saveWorkerPaymentInformation(
   workerId: string,
-  values: any
+  values: any,
 ) {
   const payload = {
     worker_id: workerId,

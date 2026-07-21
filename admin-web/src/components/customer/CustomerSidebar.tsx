@@ -11,7 +11,6 @@ import { MessageCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 export default function CustomerSidebar() {
-
   const menus = [
     {
       name: "Dashboard",
@@ -34,36 +33,27 @@ export default function CustomerSidebar() {
       path: "/customer/favorites",
     },
     {
-    name: "Payments",
-    path: "/customer/payments",
-    icon: Wallet,
+      name: "Payments",
+      path: "/customer/payments",
+      icon: Wallet,
     },
     {
-  name: "Messages",
-  path: "/chat",
-  icon: MessageCircle,
-  }
+      name: "Messages",
+      path: "/chat",
+      icon: MessageCircle,
+    },
   ];
 
   return (
     <aside className="w-72 min-h-screen bg-blue-700 text-white flex flex-col shadow-xl">
-
       <div className="p-8 border-b border-blue-600">
+        <h1 className="text-3xl font-bold">LivelihoodGo</h1>
 
-        <h1 className="text-3xl font-bold">
-          LivelihoodGo
-        </h1>
-
-        <p className="text-blue-200 mt-1">
-          Customer Portal
-        </p>
-
+        <p className="text-blue-200 mt-1">Customer Portal</p>
       </div>
 
       <nav className="flex-1 p-5 space-y-2">
-
         {menus.map((menu) => {
-
           const Icon = menu.icon;
 
           return (
@@ -80,17 +70,11 @@ export default function CustomerSidebar() {
             >
               <Icon size={22} />
 
-              <span>
-                {menu.name}
-              </span>
-
+              <span>{menu.name}</span>
             </NavLink>
           );
-
         })}
-
       </nav>
-
     </aside>
   );
 }

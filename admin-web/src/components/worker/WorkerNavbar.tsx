@@ -24,35 +24,37 @@ export default function WorkerNavbar() {
 
   const { profile } = useProfile();
 
-  async function loadUnread() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    try {
-      const count = await getUnreadCount(user.id);
-      setUnreadCount(count);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | undefined;
+    let isCancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function initialize() {
       const {
         data: { user },
+        error,
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (error) {
+        console.error(error);
+        return;
+      }
 
-      await loadUnread();
+      if (!user || isCancelled) return;
+
+      try {
+        const count = await getUnreadCount(user.id);
+
+        if (!isCancelled) {
+          setUnreadCount(count);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      if (isCancelled) return;
 
       channel = supabase
-        .channel("worker-navbar")
+        .channel(`worker-navbar-${user.id}-${Date.now()}`)
         .on(
           "postgres_changes",
           {
@@ -61,16 +63,28 @@ export default function WorkerNavbar() {
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
-          () => {
-            loadUnread();
-          }
+          async () => {
+            try {
+              const count = await getUnreadCount(user.id);
+
+              if (!isCancelled) {
+                setUnreadCount(count);
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          },
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log("Worker Navbar Channel:", status);
+        });
     }
 
     initialize();
 
     return () => {
+      isCancelled = true;
+
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -87,16 +101,10 @@ export default function WorkerNavbar() {
       }
     }
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -112,33 +120,25 @@ export default function WorkerNavbar() {
   const email = profile?.email ?? "";
 
   const avatar = profile?.profile_picture || "";
-
   return (
     <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
       {/* LEFT */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">
-          Worker Dashboard
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-800">Worker Dashboard</h1>
 
-        <p className="text-gray-500">
-          Welcome back, {fullName}
-        </p>
+        <p className="text-gray-500">Welcome back, {fullName}</p>
       </div>
 
       {/* RIGHT */}
       <div className="flex items-center gap-6">
-        {/* Notification */}
+        {/* NOTIFICATION */}
         <button
-          onClick={() =>
-            navigate("/worker/notifications")
-          }
+          type="button"
+          onClick={() => navigate("/worker/notifications")}
           className="relative"
+          aria-label="Open notifications"
         >
-          <Bell
-            size={24}
-            className="text-gray-700"
-          />
+          <Bell size={24} className="text-gray-700" />
 
           {unreadCount > 0 && (
             <span
@@ -158,78 +158,135 @@ export default function WorkerNavbar() {
                 text-xs
               "
             >
-              {unreadCount}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </button>
 
         {/* USER MENU */}
-        <div
-          className="relative"
-          ref={dropdownRef}
-        >
+        <div className="relative" ref={dropdownRef}>
           <button
-            onClick={() => setOpen(!open)}
-            className="flex items-center gap-3 hover:bg-gray-100 rounded-xl px-3 py-2 transition"
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            className="
+              flex
+              items-center
+              gap-3
+              hover:bg-gray-100
+              rounded-xl
+              px-3
+              py-2
+              transition
+            "
           >
             {avatar ? (
               <img
                 src={avatar}
-                alt="Profile"
-                className="w-11 h-11 rounded-full object-cover border-2 border-green-600"
+                alt={`${fullName} profile`}
+                className="
+                  w-11
+                  h-11
+                  rounded-full
+                  object-cover
+                  border-2
+                  border-green-600
+                "
               />
             ) : (
-              <UserCircle
-                size={42}
-                className="text-green-600"
-              />
+              <UserCircle size={42} className="text-green-600" />
             )}
 
             <div className="text-left">
-              <p className="font-semibold">
-                {fullName}
-              </p>
+              <p className="font-semibold text-gray-800">{fullName}</p>
 
-              <p className="text-sm text-gray-500">
-                {email}
-              </p>
+              <p className="text-sm text-gray-500">{email}</p>
             </div>
 
-            <ChevronDown size={18} />
+            <ChevronDown
+              size={18}
+              className={`transition-transform ${open ? "rotate-180" : ""}`}
+            />
           </button>
 
           {open && (
-            <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
+            <div
+              className="
+                absolute
+                right-0
+                mt-3
+                w-64
+                bg-white
+                rounded-xl
+                shadow-xl
+                border
+                overflow-hidden
+                z-50
+              "
+            >
               <button
+                type="button"
                 onClick={() => {
                   setOpen(false);
                   navigate("/worker/profile");
                 }}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
+                className="
+                  w-full
+                  flex
+                  items-center
+                  gap-3
+                  px-5
+                  py-3
+                  text-left
+                  hover:bg-gray-100
+                "
               >
                 <User size={20} />
-                My Profile
+
+                <span>My Profile</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   setOpen(false);
                   navigate("/worker/profile/edit");
                 }}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
+                className="
+                  w-full
+                  flex
+                  items-center
+                  gap-3
+                  px-5
+                  py-3
+                  text-left
+                  hover:bg-gray-100
+                "
               >
                 <Pencil size={20} />
-                Edit Profile
+
+                <span>Edit Profile</span>
               </button>
 
               <hr />
 
               <button
+                type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-5 py-3 text-red-600 hover:bg-red-50"
+                className="
+                  w-full
+                  flex
+                  items-center
+                  gap-3
+                  px-5
+                  py-3
+                  text-left
+                  text-red-600
+                  hover:bg-red-50
+                "
               >
                 <LogOut size={20} />
-                Logout
+
+                <span>Logout</span>
               </button>
             </div>
           )}

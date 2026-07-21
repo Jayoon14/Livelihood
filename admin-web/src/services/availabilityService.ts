@@ -10,7 +10,5 @@ export async function getUnavailableDates(workerId: string) {
     throw error;
   }
 
-  return (data ?? []).map(
-    (item: any) => item.unavailable_date
-  );
+  return (data ?? []).map((item: any) => item.unavailable_date);
 }

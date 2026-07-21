@@ -1,6 +1,5 @@
 import { supabase } from "../lib/supabase";
 
-
 // =========================
 // GET ALL PROFILES (DEBUG)
 // =========================
@@ -21,7 +20,6 @@ export async function getPendingWorkers() {
   return data ?? [];
 }
 
-
 // =========================
 // APPROVE WORKER
 // =========================
@@ -38,7 +36,6 @@ export async function approveWorker(id: string) {
     throw error;
   }
 }
-
 
 // =========================
 // REJECT WORKER

@@ -20,10 +20,9 @@ export default function ChangePassword() {
     try {
       setLoading(true);
 
-      const { error } =
-        await supabase.auth.updateUser({
-          password,
-        });
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
 
       if (error) throw error;
 
@@ -41,18 +40,14 @@ export default function ChangePassword() {
 
   return (
     <div className="bg-white rounded-2xl shadow p-6">
-
-      <h2 className="text-xl font-bold mb-5">
-        Change Password
-      </h2>
+      <h2 className="text-xl font-bold mb-5">Change Password</h2>
 
       <div className="space-y-4">
-
         <input
           type="password"
           placeholder="New Password"
           value={password}
-          onChange={(e)=>setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           className="border rounded-lg p-3 w-full"
         />
 
@@ -60,7 +55,7 @@ export default function ChangePassword() {
           type="password"
           placeholder="Confirm Password"
           value={confirm}
-          onChange={(e)=>setConfirm(e.target.value)}
+          onChange={(e) => setConfirm(e.target.value)}
           className="border rounded-lg p-3 w-full"
         />
 
@@ -71,9 +66,7 @@ export default function ChangePassword() {
         >
           {loading ? "Saving..." : "Update Password"}
         </button>
-
       </div>
-
     </div>
   );
 }

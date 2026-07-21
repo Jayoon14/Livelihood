@@ -13,33 +13,38 @@ export async function createPayment(
   paymentMethod: string,
   amountPaid: number,
   referenceNumber: string,
-  proofOfPayment: string
+  proofOfPayment: string,
 ) {
+  // ==============================
+  // CHECK EXISTING PAYMENT
+  // ==============================
 
-  // Prevent duplicate payment
-// Prevent duplicate payment only if there is still
-// a Pending or Paid payment for this booking.
-const { data: existingPayment, error: existingError } = await supabase
-  .from("payments")
-  .select("id, payment_status")
-  .eq("booking_id", bookingId)
-  .in("payment_status", ["Pending", "Paid"])
-  .maybeSingle();
+  const { data: existingPayment, error: existingError } = await supabase
+    .from("payments")
+    .select("id, payment_status")
+    .eq("booking_id", bookingId)
+    .in("payment_status", ["Pending", "Paid"])
+    .maybeSingle();
 
-if (existingError) throw existingError;
+  if (existingError) {
+    throw existingError;
+  }
 
-if (existingPayment) {
-  throw new Error(
-    "This booking already has a payment request."
-  );
-}
+  if (existingPayment) {
+    throw new Error("This booking already has a payment request.");
+  }
 
+  // ==============================
+  // INSERT PAYMENT
+  // ==============================
 
   const { data, error } = await supabase
     .from("payments")
     .insert({
       booking_id: bookingId,
+
       customer_id: customerId,
+
       worker_id: workerId,
 
       amount,
@@ -57,77 +62,90 @@ if (existingPayment) {
       payment_status: "Pending",
 
       verification_status:
-        paymentMethod === "Cash"
-          ? "Verified"
-          : "Pending Verification",
+        paymentMethod === "Cash" ? "Verified" : "Pending Verification",
     })
     .select()
     .single();
-    console.log("Insert error:", error);
-    console.log("Inserted data:", data);
 
-  if (error) throw error;
-    await createNotification(
-      workerId,
-      bookingId,
-      "New Payment Request",
-      "A customer has submitted a payment for verification."
-    );
+  if (error) {
+    throw error;
+  }
+
+  // ==============================
+  // NOTIFY WORKER
+  // ==============================
+
+  await createNotification(
+    workerId,
+    bookingId,
+    "New Payment Submitted",
+    "A customer has submitted a payment. Please verify the payment proof.",
+  );
+
+  // ==============================
+  // NOTIFY ADMINS
+  // ==============================
+
+  const { data: admins, error: adminError } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("role", "admin");
+
+  if (adminError) {
+    console.error(adminError);
+  }
+
+  if (admins) {
+    for (const admin of admins) {
+      await createNotification(
+        admin.id,
+        bookingId,
+        "New Payment Submitted",
+        "A customer has submitted a payment for verification.",
+      );
+    }
+  }
 
   return data;
 }
-
-
-
 
 // ==============================
 // GET WORKER PAYMENTS
 // ==============================
 
-export async function getWorkerPayments(
-  workerId: string
-) {
-
+export async function getWorkerPayments(workerId: string) {
   const { data, error } = await supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       customer:profiles!customer_id(
         first_name,
         last_name
       )
-    `)
-    .eq(
-      "worker_id",
-      workerId
+      `,
     )
-    .order(
-      "created_at",
-      {
-        ascending:false
-      }
-    );
+    .eq("worker_id", workerId)
+    .order("created_at", {
+      ascending: false,
+    });
 
-
-  if (error) throw error;
-
+  if (error) {
+    throw error;
+  }
 
   return data ?? [];
-
 }
-
-
-
 
 // ==============================
 // GET ALL PAYMENTS
 // ==============================
 
 export async function getAllPayments() {
-
   const { data, error } = await supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       customer:profiles!customer_id(
         first_name,
@@ -137,172 +155,90 @@ export async function getAllPayments() {
         first_name,
         last_name
       )
-    `)
-    .order(
-      "created_at",
-      {
-        ascending:false
-      }
-    );
+      `,
+    )
+    .order("created_at", {
+      ascending: false,
+    });
 
-
-  if (error) throw error;
-
+  if (error) {
+    throw error;
+  }
 
   return data ?? [];
-
 }
 
-
-
-
 // ==============================
-// APPROVE PAYMENT
-// Worker uses this
+// COMPLETE PAYMENT
 // ==============================
 
-export async function completePayment(
-  paymentId:number,
-  bookingId:number
-) {
-
-
+export async function completePayment(paymentId: number, bookingId: number) {
   const { error } = await supabase
     .from("payments")
     .update({
-
-      payment_status:"Paid"
-
+      payment_status: "Paid",
     })
-    .eq(
-      "id",
-      paymentId
-    );
+    .eq("id", paymentId);
 
+  if (error) {
+    throw error;
+  }
 
-  if(error) throw error;
-
-
-
-  const { error:bookingError } =
-    await supabase
+  const { error: bookingError } = await supabase
     .from("bookings")
     .update({
-
-      payment_status:"Paid"
-
+      payment_status: "Paid",
     })
-    .eq(
-      "id",
-      bookingId
-    );
+    .eq("id", bookingId);
 
-
-  if(bookingError)
+  if (bookingError) {
     throw bookingError;
-
+  }
 }
-
-
-
-
-
-// ==============================
-// REJECT PAYMENT
-// Worker uses this
-// ==============================
-
-
-
-
 
 // ==============================
 // GET WORKER TOTAL EARNINGS
 // ==============================
 
-export async function getWorkerTotalEarnings(
-  workerId:string
-) {
-
-
-  const { data,error } =
-    await supabase
+export async function getWorkerTotalEarnings(workerId: string) {
+  const { data, error } = await supabase
     .from("payments")
     .select("amount")
-    .eq(
-      "worker_id",
-      workerId
-    )
-    .eq(
-      "payment_status",
-      "Paid"
-    );
+    .eq("worker_id", workerId)
+    .eq("payment_status", "Paid");
 
+  if (error) {
+    throw error;
+  }
 
-  if(error) throw error;
-
-
-
-  return (
-    data?.reduce(
-      (sum,payment)=>
-        sum + Number(payment.amount),
-      0
-    ) ?? 0
-  );
-
+  return data?.reduce((sum, payment) => sum + Number(payment.amount), 0) ?? 0;
 }
-
-
-
-
 
 // ==============================
 // GET TOTAL REVENUE
 // ==============================
 
-export async function getTotalRevenue(){
-
-  const {data,error} =
-    await supabase
+export async function getTotalRevenue() {
+  const { data, error } = await supabase
     .from("payments")
     .select("amount")
-    .eq(
-      "payment_status",
-      "Paid"
-    );
+    .eq("payment_status", "Paid");
 
+  if (error) {
+    throw error;
+  }
 
-  if(error) throw error;
-
-
-
-  return (
-    data?.reduce(
-      (sum,payment)=>
-        sum + Number(payment.amount),
-      0
-    ) ?? 0
-  );
-
+  return data?.reduce((sum, payment) => sum + Number(payment.amount), 0) ?? 0;
 }
-
-
-
-
-
 // ==============================
 // GET PAYMENT BY BOOKING
 // ==============================
 
-export async function getPaymentByBooking(
-  bookingId:number
-){
-
-  const {data,error} =
-    await supabase
+export async function getPaymentByBooking(bookingId: number) {
+  const { data, error } = await supabase
     .from("payments")
-    .select(`
+    .select(
+      `
       *,
       customer:profiles!customer_id(
         first_name,
@@ -312,227 +248,260 @@ export async function getPaymentByBooking(
         first_name,
         last_name
       )
-    `)
-    .eq(
-      "booking_id",
-      bookingId
+      `,
     )
+    .eq("booking_id", bookingId)
     .maybeSingle();
 
-
-  if(error) throw error;
-
+  if (error) {
+    throw error;
+  }
 
   return data;
-
 }
-
-
-
-
 
 // ==============================
 // GET CUSTOMER PAYMENTS
 // ==============================
 
-export async function getCustomerPayments(
-  customerId: string
-) {
- const { data, error } = await supabase
-  .from("payments")
-  .select(`
-    *,
-    worker:profiles!worker_id(
-      first_name,
-      last_name,
-      profile_picture
-    ),
-    booking:bookings!booking_id(
-      booking_date,
-      booking_time,
-      address,
-      services(
-        service_name
+export async function getCustomerPayments(customerId: string) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select(
+      `
+      *,
+      worker:profiles!worker_id(
+        first_name,
+        last_name,
+        profile_picture
+      ),
+      booking:bookings!booking_id(
+        booking_date,
+        booking_time,
+        address,
+        services(
+          service_name
+        )
       )
+      `,
     )
-  `)
     .eq("customer_id", customerId)
     .order("created_at", {
       ascending: false,
     });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
   return data ?? [];
 }
+
 // ==============================
 // GET WORKER PAYMENT REQUESTS
 // ==============================
 
-export async function getWorkerPaymentRequests(
-  workerId: string
-) {
+export async function getWorkerPaymentRequests(workerId: string) {
   const { data, error } = await supabase
-  .from("payments")
-  .select(`
-    *,
-    customer:profiles!payments_customer_id_fkey(
-      first_name,
-      last_name
-    ),
-    booking:bookings!payments_booking_id_fkey(
-      booking_date,
-      booking_time,
-      address
+    .from("payments")
+    .select(
+      `
+      *,
+      customer:profiles!payments_customer_id_fkey(
+        first_name,
+        last_name
+      ),
+      booking:bookings!payments_booking_id_fkey(
+        booking_date,
+        booking_time,
+        address
+      )
+      `,
     )
-  `)
-  .eq("worker_id", workerId)
-  .eq("payment_status", "Pending")
-  .order("created_at", {
-    ascending: false,
-  });
+    .eq("worker_id", workerId)
+    .eq("payment_status", "Pending")
+    .order("created_at", {
+      ascending: false,
+    });
 
-  console.log(data);
-  console.log(error);
-
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
   return data ?? [];
 }
-
-
-
-
 
 // ==============================
 // APPROVE PAYMENT
 // ==============================
 
-export async function approvePayment(
-  paymentId: number,
-  bookingId: number
-) {
-  // Kunin muna ang customer
-  const { data: payment, error: fetchError } =
-    await supabase
-      .from("payments")
-      .select("customer_id")
-      .eq("id", paymentId)
-      .single();
+export async function approvePayment(paymentId: number, bookingId: number) {
+  // Get customer
+  const { data: payment, error: fetchError } = await supabase
+    .from("payments")
+    .select("customer_id")
+    .eq("id", paymentId)
+    .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) {
+    throw fetchError;
+  }
 
-  // Payment
-  const { data, error: paymentError } =
-    await supabase
-      .from("payments")
-      .update({
-        payment_status: "Paid",
-        verification_status: "Verified",
-      })
-      .eq("id", paymentId)
-      .select();
+  // Update payment
 
-  console.log(data);
-  console.log(paymentError);
+  const { error: paymentError } = await supabase
+    .from("payments")
+    .update({
+      payment_status: "Paid",
 
-  if (paymentError) throw paymentError;
+      verification_status: "Verified",
+    })
+    .eq("id", paymentId);
 
-  // Booking
-  const { error: bookingError } =
-    await supabase
-      .from("bookings")
-      .update({
-        payment_status: "Paid",
-        status: "Completed",
-      })
-      .eq("id", bookingId);
+  if (paymentError) {
+    throw paymentError;
+  }
 
-  if (bookingError) throw bookingError;
+  // Update booking
+
+  const { error: bookingError } = await supabase
+    .from("bookings")
+    .update({
+      payment_status: "Paid",
+
+      status: "Completed",
+    })
+    .eq("id", bookingId);
+
+  if (bookingError) {
+    throw bookingError;
+  }
+
+  // Notify Customer
 
   await createNotification(
     payment.customer_id,
     bookingId,
     "Payment Approved",
-    "Your payment has been verified and approved."
+    "Your payment has been verified and approved.",
   );
-}
 
+  // ==============================
+  // NOTIFY ADMINS
+  // ==============================
+
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("role", "admin");
+
+  if (admins) {
+    for (const admin of admins) {
+      await createNotification(
+        admin.id,
+        bookingId,
+        "Payment Approved",
+        "A worker approved a customer's payment.",
+      );
+    }
+  }
+}
 
 // ==============================
 // REJECT PAYMENT
 // ==============================
 
-export async function rejectPayment(
-  paymentId: number,
-  bookingId: number
-) {
-  // Kunin muna ang customer
-  const { data: payment, error: fetchError } =
-    await supabase
-      .from("payments")
-      .select("customer_id")
-      .eq("id", paymentId)
-      .single();
+export async function rejectPayment(paymentId: number, bookingId: number) {
+  // Get customer
 
-  if (fetchError) throw fetchError;
+  const { data: payment, error: fetchError } = await supabase
+    .from("payments")
+    .select("customer_id")
+    .eq("id", paymentId)
+    .single();
 
-  const { error } =
-    await supabase
-      .from("payments")
-      .update({
-        payment_status: "Rejected",
-        verification_status: "Rejected",
-      })
-      .eq("id", paymentId);
+  if (fetchError) {
+    throw fetchError;
+  }
 
-  if (error) throw error;
+  // Update payment
 
-  const { error: bookingError } =
-    await supabase
-      .from("bookings")
-      .update({
-        payment_status: "Rejected",
-      })
-      .eq("id", bookingId);
+  const { error } = await supabase
+    .from("payments")
+    .update({
+      payment_status: "Rejected",
 
-  if (bookingError) throw bookingError;
+      verification_status: "Rejected",
+    })
+    .eq("id", paymentId);
+
+  if (error) {
+    throw error;
+  }
+
+  // Update booking
+
+  const { error: bookingError } = await supabase
+    .from("bookings")
+    .update({
+      payment_status: "Rejected",
+    })
+    .eq("id", bookingId);
+
+  if (bookingError) {
+    throw bookingError;
+  }
+
+  // Notify Customer
 
   await createNotification(
     payment.customer_id,
     bookingId,
     "Payment Rejected",
-    "Your payment was rejected. Please upload a new proof of payment."
+    "Your payment was rejected. Please upload a new proof of payment.",
   );
+
+  // ==============================
+  // NOTIFY ADMINS
+  // ==============================
+
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("role", "admin");
+
+  if (admins) {
+    for (const admin of admins) {
+      await createNotification(
+        admin.id,
+        bookingId,
+        "Payment Rejected",
+        "A worker rejected a customer's payment.",
+      );
+    }
+  }
 }
+
 // ==============================
 // UPLOAD PAYMENT PROOF
 // ==============================
 
-export async function uploadPaymentProof(
-  file: File,
-  customerId: string
-) {
-
+export async function uploadPaymentProof(file: File, customerId: string) {
   const extension = file.name.split(".").pop();
 
-  const fileName =
-    `${customerId}_${Date.now()}.${extension}`;
-
+  const fileName = `${customerId}_${Date.now()}.${extension}`;
 
   const { error } = await supabase.storage
     .from("payment-proofs")
     .upload(fileName, file);
 
+  if (error) {
+    throw error;
+  }
 
-  if (error) throw error;
-
-
-  const { data } =
-    supabase.storage
-      .from("payment-proofs")
-      .getPublicUrl(fileName);
-
+  const { data } = supabase.storage
+    .from("payment-proofs")
+    .getPublicUrl(fileName);
 
   return data.publicUrl;
 }

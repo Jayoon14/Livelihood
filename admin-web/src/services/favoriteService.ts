@@ -4,29 +4,20 @@ import { supabase } from "../lib/supabase";
 // ADD FAVORITE
 // =============================
 
-export async function addFavorite(
-  customerId: string,
-  workerId: string
-) {
-  const { error } = await supabase
-    .from("favorites")
-    .insert({
-      customer_id: customerId,
-      worker_id: workerId,
-    });
+export async function addFavorite(customerId: string, workerId: string) {
+  const { error } = await supabase.from("favorites").insert({
+    customer_id: customerId,
+    worker_id: workerId,
+  });
 
   if (error) throw error;
 }
-
 
 // =============================
 // REMOVE FAVORITE
 // =============================
 
-export async function removeFavorite(
-  customerId: string,
-  workerId: string
-) {
+export async function removeFavorite(customerId: string, workerId: string) {
   const { error } = await supabase
     .from("favorites")
     .delete()
@@ -36,16 +27,14 @@ export async function removeFavorite(
   if (error) throw error;
 }
 
-
 // =============================
 // CHECK FAVORITE
 // =============================
 
 export async function isFavorite(
   customerId: string,
-  workerId: string
+  workerId: string,
 ): Promise<boolean> {
-
   const { data, error } = await supabase
     .from("favorites")
     .select("id")
@@ -53,28 +42,22 @@ export async function isFavorite(
     .eq("worker_id", workerId)
     .maybeSingle();
 
-
   if (error) {
     throw error;
   }
 
-
   return Boolean(data);
-
 }
-
 
 // =============================
 // GET FAVORITES
 // =============================
 
-export async function getFavoriteWorkers(
-  customerId: string
-) {
-
+export async function getFavoriteWorkers(customerId: string) {
   const { data, error } = await supabase
     .from("favorites")
-    .select(`
+    .select(
+      `
       worker:profiles!worker_id(
         id,
         first_name,
@@ -84,17 +67,13 @@ export async function getFavoriteWorkers(
         phone,
         email
       )
-    `)
+    `,
+    )
     .eq("customer_id", customerId);
-
 
   if (error) {
     throw error;
   }
 
-
-  return (data ?? []).map(
-    (item: any) => item.worker
-  );
-
+  return (data ?? []).map((item: any) => item.worker);
 }

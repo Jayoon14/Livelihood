@@ -1,74 +1,34 @@
 import { useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  User,
-  Lock,
-} from "lucide-react";
+import { Eye, EyeOff, User, Lock } from "lucide-react";
 
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import {
-  login,
-  logout,
-} from "../../services/authService";
+import { login, logout } from "../../services/authService";
 
-import {
-  logActivity,
-} from "../../services/activityService";
+import { logActivity } from "../../services/activityService";
 
-import {
-  supabase,
-} from "../../lib/supabase";
-
+import { supabase } from "../../lib/supabase";
 
 export default function Login() {
   const navigate = useNavigate();
 
-  const [
-    showPassword,
-    setShowPassword,
-  ] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [
-    email,
-    setEmail,
-  ] = useState("");
+  const [email, setEmail] = useState("");
 
-  const [
-    password,
-    setPassword,
-  ] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(false);
-
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-
     if (!email || !password) {
-      alert(
-        "Please enter your email and password."
-      );
+      alert("Please enter your email and password.");
       return;
     }
 
-
     setLoading(true);
 
-
-    const {
-      error,
-    } = await login(
-      email,
-      password
-    );
-
+    const { error } = await login(email, password);
 
     if (error) {
       setLoading(false);
@@ -76,48 +36,31 @@ export default function Login() {
       return;
     }
 
-
     const {
-      data: {
-        user,
-      },
+      data: { user },
     } = await supabase.auth.getUser();
-
 
     if (!user) {
       setLoading(false);
 
-      alert(
-        "Unable to retrieve user."
-      );
+      alert("Unable to retrieve user.");
 
       return;
     }
-
 
     // =========================
     // LOG LOGIN ACTIVITY
     // =========================
 
-    await logActivity(
-      user.id,
-      "LOGIN",
-      "Authentication",
-      "User logged in"
-    );
+    await logActivity(user.id, "LOGIN", "Authentication", "User logged in");
 
-
-    const {
-      data: profile,
-    } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("role, status")
       .eq("id", user.id)
       .maybeSingle();
 
-
     setLoading(false);
-
 
     // ADMIN
 
@@ -126,67 +69,45 @@ export default function Login() {
       return;
     }
 
-
     if (profile.role === "admin") {
       navigate("/dashboard");
       return;
     }
 
-
     // WORKER
 
     if (profile.role === "worker") {
-
-      if (
-        profile.status !== "Approved"
-      ) {
-
-        alert(
-          "Your account is waiting for admin approval."
-        );
-
+      if (profile.status !== "Approved") {
+        alert("Your account is waiting for admin approval.");
 
         await logout();
 
         return;
       }
 
-
-      navigate(
-        "/worker/dashboard"
-      );
+      navigate("/worker/dashboard");
 
       return;
     }
-
 
     // CUSTOMER
 
     if (profile.role === "customer") {
-
-      navigate(
-        "/customer/dashboard"
-      );
+      navigate("/customer/dashboard");
 
       return;
     }
 
-
-    alert(
-      "Unknown account role."
-    );
-
+    alert("Unknown account role.");
 
     await logout();
   }
-    return (
+  return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-
         {/* LOGO */}
 
         <div className="flex flex-col items-center mb-8">
-
           <div
             className="
               w-20
@@ -204,33 +125,21 @@ export default function Login() {
             L
           </div>
 
-
           <h1 className="text-2xl font-bold mt-4">
             Livelihood Services Platform
           </h1>
 
-
           <p className="text-gray-500 text-sm">
             Your Local Skilled Worker Partner
           </p>
-
         </div>
 
-
-        <h2 className="text-xl font-semibold mb-6">
-          Welcome Back
-        </h2>
-
-
+        <h2 className="text-xl font-semibold mb-6">Welcome Back</h2>
 
         {/* EMAIL */}
 
         <div className="mb-4">
-
-          <label className="text-sm font-medium">
-            Email Address
-          </label>
-
+          <label className="text-sm font-medium">Email Address</label>
 
           <div
             className="
@@ -242,34 +151,22 @@ export default function Login() {
               px-3
             "
           >
-
             <User className="w-5 h-5 text-gray-400" />
-
 
             <input
               type="email"
               placeholder="Enter email"
               className="w-full p-3 outline-none"
               value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
+              onChange={(e) => setEmail(e.target.value)}
             />
-
           </div>
-
         </div>
-
-
 
         {/* PASSWORD */}
 
         <div>
-
-          <label className="text-sm font-medium">
-            Password
-          </label>
-
+          <label className="text-sm font-medium">Password</label>
 
           <div
             className="
@@ -281,61 +178,36 @@ export default function Login() {
               px-3
             "
           >
-
             <Lock className="w-5 h-5 text-gray-400" />
 
-
             <input
-              type={
-                showPassword
-                  ? "text"
-                  : "password"
-              }
+              type={showPassword ? "text" : "password"}
               placeholder="Enter password"
               className="w-full p-3 outline-none"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
             />
-
 
             <button
               type="button"
-              onClick={() =>
-                setShowPassword(!showPassword)
-              }
+              onClick={() => setShowPassword(!showPassword)}
             >
-
-              {
-                showPassword ? (
-                  <EyeOff className="w-5 h-5 text-gray-500" />
-                ) : (
-                  <Eye className="w-5 h-5 text-gray-500" />
-                )
-              }
-
+              {showPassword ? (
+                <EyeOff className="w-5 h-5 text-gray-500" />
+              ) : (
+                <Eye className="w-5 h-5 text-gray-500" />
+              )}
             </button>
-
           </div>
-
         </div>
-
-
 
         {/* REMEMBER + FORGOT PASSWORD */}
 
         <div className="flex justify-between mt-5 text-sm">
-
           <label className="flex items-center gap-2">
-
             <input type="checkbox" />
-
             Remember me
-
           </label>
-
-
 
           <Link
             to="/forgot-password"
@@ -346,10 +218,7 @@ export default function Login() {
           >
             Forgot Password?
           </Link>
-
         </div>
-
-
 
         {/* LOGIN BUTTON */}
 
@@ -369,23 +238,13 @@ export default function Login() {
             transition
           "
         >
-
-          {
-            loading
-              ? "Logging in..."
-              : "Login"
-          }
-
+          {loading ? "Logging in..." : "Login"}
         </button>
-
-
 
         {/* REGISTER */}
 
         <p className="text-center mt-6 text-sm">
-
           Don't have an account?
-
           <Link
             to="/register-choice"
             className="
@@ -397,10 +256,7 @@ export default function Login() {
           >
             Register
           </Link>
-
         </p>
-
-
       </div>
     </div>
   );

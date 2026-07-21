@@ -1,14 +1,8 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import type { ReactNode } from "react";
 
 import { supabase } from "../lib/supabase";
-
 
 interface ProfileContextType {
   profile: any;
@@ -17,71 +11,42 @@ interface ProfileContextType {
   updateProfileState: (data: any) => void;
 }
 
+const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
-const ProfileContext = createContext<
-  ProfileContextType | undefined
->(undefined);
-
-
-
-export function ProfileProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-
+export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
 
-
   async function refreshProfile() {
-
     const {
-      data: {
-        user,
-      },
+      data: { user },
     } = await supabase.auth.getUser();
-
 
     if (!user) return;
 
-
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single();
-
 
     if (error) {
       console.error(error);
       return;
     }
 
-
     setProfile(data);
   }
 
-
-
   function updateProfileState(data: any) {
-
     setProfile({
       ...profile,
       ...data,
     });
-
   }
-
-
 
   useEffect(() => {
     refreshProfile();
   }, []);
-
-
 
   return (
     <ProfileContext.Provider
@@ -95,23 +60,14 @@ export function ProfileProvider({
       {children}
     </ProfileContext.Provider>
   );
-
 }
 
-
-
 export function useProfile() {
-
   const context = useContext(ProfileContext);
 
-
   if (!context) {
-    throw new Error(
-      "useProfile must be used inside ProfileProvider"
-    );
+    throw new Error("useProfile must be used inside ProfileProvider");
   }
 
-
   return context;
-
 }

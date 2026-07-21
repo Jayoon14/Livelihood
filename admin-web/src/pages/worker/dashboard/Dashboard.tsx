@@ -4,160 +4,76 @@ import { useNavigate } from "react-router-dom";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 
-import { 
-  getWorkerBookings 
-} from "../../../services/workerBookingService";
+import { getWorkerBookings } from "../../../services/workerBookingService";
 
-import {
-  acceptBooking,
-  rejectBooking,
-} from "../../../services/bookingService";
+import { acceptBooking, rejectBooking } from "../../../services/bookingService";
 import WorkerAnalytics from "../../../components/worker/dashboard/WorkerAnalytics";
 import TodaySchedule from "../../../components/worker/dashboard/TodaySchedule";
 
-
 export default function Dashboard() {
-
   const navigate = useNavigate();
 
-
   const [bookings, setBookings] = useState<any[]>([]);
-
 
   useEffect(() => {
     loadDashboard();
   }, []);
 
-
-
   async function loadDashboard() {
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-
     if (!user) return;
 
-
     try {
-
-      const data =
-        await getWorkerBookings(user.id);
-
+      const data = await getWorkerBookings(user.id);
 
       setBookings(data);
-
-
-    } catch(error) {
-
+    } catch (error) {
       console.error(error);
-
     }
-
   }
 
-
-
-  async function handleAccept(
-    id:number
-  ) {
-
+  async function handleAccept(id: number) {
     try {
-
       await acceptBooking(id);
 
-      alert(
-        "Booking Approved."
-      );
+      alert("Booking Approved.");
 
       loadDashboard();
-
-
-    } catch(error) {
-
+    } catch (error) {
       console.error(error);
 
-      alert(
-        "Failed to approve booking."
-      );
-
+      alert("Failed to approve booking.");
     }
-
   }
 
-
-
-  async function handleReject(
-    id:number
-  ) {
-
+  async function handleReject(id: number) {
     try {
-
       await rejectBooking(id);
 
-      alert(
-        "Booking Cancelled."
-      );
+      alert("Booking Cancelled.");
 
       loadDashboard();
-
-
-    } catch(error) {
-
+    } catch (error) {
       console.error(error);
 
-      alert(
-        "Failed to cancel booking."
-      );
-
+      alert("Failed to cancel booking.");
     }
-
   }
 
+  const pending = bookings.filter((b) => b.status === "Pending").length;
 
+  const approved = bookings.filter((b) => b.status === "Approved").length;
 
+  const completed = bookings.filter((b) => b.status === "Completed").length;
 
-  const pending =
-    bookings.filter(
-      (b) =>
-        b.status === "Pending"
-    ).length;
-
-
-
-  const approved =
-    bookings.filter(
-      (b) =>
-        b.status === "Approved"
-    ).length;
-
-
-
-  const completed =
-    bookings.filter(
-      (b) =>
-        b.status === "Completed"
-    ).length;
-
-
-
-  const cancelled =
-    bookings.filter(
-      (b) =>
-        b.status === "Cancelled"
-    ).length;
-
-
-
+  const cancelled = bookings.filter((b) => b.status === "Cancelled").length;
 
   return (
-
     <WorkerLayout>
-
       <div className="p-8 space-y-8">
-
-
         {/* Hero Section */}
 
         <div
@@ -174,7 +90,6 @@ export default function Dashboard() {
             shadow-xl
           "
         >
-
           <div
             className="
               flex
@@ -185,29 +100,18 @@ export default function Dashboard() {
               gap-6
             "
           >
-
-
             <div>
-
-              <p className="text-blue-100">
-                Worker Portal
-              </p>
-
+              <p className="text-blue-100">Worker Portal</p>
 
               <h1 className="text-4xl font-bold mt-2">
                 Manage Your Work Easily
               </h1>
 
-
               <p className="text-blue-100 mt-3 max-w-xl">
-                Track customer bookings, manage services,
-                communicate with clients, and complete your jobs.
+                Track customer bookings, manage services, communicate with
+                clients, and complete your jobs.
               </p>
-
-
             </div>
-
-
 
             <div
               className="
@@ -219,33 +123,17 @@ export default function Dashboard() {
                 min-w-[180px]
               "
             >
+              <p className="text-blue-100">Pending Requests</p>
 
-              <p className="text-blue-100">
-                Pending Requests
-              </p>
-
-
-              <h2 className="text-5xl font-bold mt-2">
-                {pending}
-              </h2>
-
-
+              <h2 className="text-5xl font-bold mt-2">{pending}</h2>
             </div>
-
-
           </div>
-
-
         </div>
-                {/* Quick Actions */}
+        {/* Quick Actions */}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-
-
           <button
-            onClick={() =>
-              navigate("/worker/services")
-            }
+            onClick={() => navigate("/worker/services")}
             className="
               bg-white
               rounded-2xl
@@ -257,7 +145,6 @@ export default function Dashboard() {
               hover:-translate-y-1
             "
           >
-
             <div
               className="
                 w-14
@@ -274,25 +161,15 @@ export default function Dashboard() {
               🛠️
             </div>
 
-
-            <h2 className="font-bold text-lg mt-4">
-              My Services
-            </h2>
-
+            <h2 className="font-bold text-lg mt-4">My Services</h2>
 
             <p className="text-gray-500 text-sm mt-1">
               Manage your offered services
             </p>
-
-
           </button>
 
-
-
           <button
-            onClick={() =>
-              navigate("/worker/bookings")
-            }
+            onClick={() => navigate("/worker/bookings")}
             className="
               bg-white
               rounded-2xl
@@ -304,7 +181,6 @@ export default function Dashboard() {
               hover:-translate-y-1
             "
           >
-
             <div
               className="
                 w-14
@@ -321,25 +197,13 @@ export default function Dashboard() {
               📅
             </div>
 
+            <h2 className="font-bold text-lg mt-4">Bookings</h2>
 
-            <h2 className="font-bold text-lg mt-4">
-              Bookings
-            </h2>
-
-
-            <p className="text-gray-500 text-sm mt-1">
-              View customer requests
-            </p>
-
-
+            <p className="text-gray-500 text-sm mt-1">View customer requests</p>
           </button>
 
-
-
           <button
-            onClick={() =>
-              navigate("/worker/chat")
-            }
+            onClick={() => navigate("/worker/chat")}
             className="
               bg-white
               rounded-2xl
@@ -351,7 +215,6 @@ export default function Dashboard() {
               hover:-translate-y-1
             "
           >
-
             <div
               className="
                 w-14
@@ -368,25 +231,13 @@ export default function Dashboard() {
               💬
             </div>
 
+            <h2 className="font-bold text-lg mt-4">Messages</h2>
 
-            <h2 className="font-bold text-lg mt-4">
-              Messages
-            </h2>
-
-
-            <p className="text-gray-500 text-sm mt-1">
-              Chat with customers
-            </p>
-
-
+            <p className="text-gray-500 text-sm mt-1">Chat with customers</p>
           </button>
 
-
-
           <button
-            onClick={() =>
-              navigate("/worker/profile")
-            }
+            onClick={() => navigate("/worker/profile")}
             className="
               bg-white
               rounded-2xl
@@ -398,7 +249,6 @@ export default function Dashboard() {
               hover:-translate-y-1
             "
           >
-
             <div
               className="
                 w-14
@@ -415,29 +265,15 @@ export default function Dashboard() {
               👤
             </div>
 
+            <h2 className="font-bold text-lg mt-4">Profile</h2>
 
-            <h2 className="font-bold text-lg mt-4">
-              Profile
-            </h2>
-
-
-            <p className="text-gray-500 text-sm mt-1">
-              Update your account
-            </p>
-
-
+            <p className="text-gray-500 text-sm mt-1">Update your account</p>
           </button>
-
-
         </div>
-
-
 
         {/* Statistics Cards */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-
-
           <div
             className="
               bg-white
@@ -449,25 +285,14 @@ export default function Dashboard() {
               transition
             "
           >
-
-            <p className="text-gray-500">
-              Pending
-            </p>
-
+            <p className="text-gray-500">Pending</p>
 
             <h2 className="text-4xl font-bold text-yellow-500 mt-3">
               {pending}
             </h2>
 
-
-            <p className="text-gray-400 text-sm mt-2">
-              Waiting for approval
-            </p>
-
-
+            <p className="text-gray-400 text-sm mt-2">Waiting for approval</p>
           </div>
-
-
 
           <div
             className="
@@ -480,25 +305,14 @@ export default function Dashboard() {
               transition
             "
           >
-
-            <p className="text-gray-500">
-              Approved
-            </p>
-
+            <p className="text-gray-500">Approved</p>
 
             <h2 className="text-4xl font-bold text-green-600 mt-3">
               {approved}
             </h2>
 
-
-            <p className="text-gray-400 text-sm mt-2">
-              Active bookings
-            </p>
-
-
+            <p className="text-gray-400 text-sm mt-2">Active bookings</p>
           </div>
-
-
 
           <div
             className="
@@ -511,25 +325,14 @@ export default function Dashboard() {
               transition
             "
           >
-
-            <p className="text-gray-500">
-              Completed
-            </p>
-
+            <p className="text-gray-500">Completed</p>
 
             <h2 className="text-4xl font-bold text-blue-600 mt-3">
               {completed}
             </h2>
 
-
-            <p className="text-gray-400 text-sm mt-2">
-              Finished jobs
-            </p>
-
-
+            <p className="text-gray-400 text-sm mt-2">Finished jobs</p>
           </div>
-
-
 
           <div
             className="
@@ -542,29 +345,17 @@ export default function Dashboard() {
               transition
             "
           >
-
-            <p className="text-gray-500">
-              Cancelled
-            </p>
-
+            <p className="text-gray-500">Cancelled</p>
 
             <h2 className="text-4xl font-bold text-red-600 mt-3">
               {cancelled}
             </h2>
 
-
-            <p className="text-gray-400 text-sm mt-2">
-              Cancelled requests
-            </p>
-
-
+            <p className="text-gray-400 text-sm mt-2">Cancelled requests</p>
           </div>
-
-
         </div>
 
-        
-                {/* Latest Bookings */}
+        {/* Latest Bookings */}
 
         <div
           className="
@@ -575,18 +366,11 @@ export default function Dashboard() {
             p-6
           "
         >
-
           <div className="flex justify-between items-center mb-5">
-
-            <h2 className="text-2xl font-bold">
-              Latest Bookings
-            </h2>
-
+            <h2 className="text-2xl font-bold">Latest Bookings</h2>
 
             <button
-              onClick={() =>
-                navigate("/worker/bookings")
-              }
+              onClick={() => navigate("/worker/bookings")}
               className="
                 text-blue-600
                 font-semibold
@@ -595,63 +379,29 @@ export default function Dashboard() {
             >
               View All
             </button>
-
           </div>
 
-
-
           <div className="overflow-x-auto">
-
             <table className="w-full">
-
-
               <thead>
-
                 <tr className="border-b text-gray-500">
+                  <th className="text-left p-3">Customer</th>
 
-                  <th className="text-left p-3">
-                    Customer
-                  </th>
+                  <th className="text-left p-3">Date</th>
 
+                  <th className="text-left p-3">Time</th>
 
-                  <th className="text-left p-3">
-                    Date
-                  </th>
+                  <th className="text-left p-3">Address</th>
 
+                  <th className="text-left p-3">Status</th>
 
-                  <th className="text-left p-3">
-                    Time
-                  </th>
-
-
-                  <th className="text-left p-3">
-                    Address
-                  </th>
-
-
-                  <th className="text-left p-3">
-                    Status
-                  </th>
-
-
-                  <th className="text-left p-3">
-                    Action
-                  </th>
-
-
+                  <th className="text-left p-3">Action</th>
                 </tr>
-
               </thead>
 
-
-
               <tbody>
-
-
                 {bookings.length === 0 ? (
-
                   <tr>
-
                     <td
                       colSpan={6}
                       className="
@@ -662,69 +412,36 @@ export default function Dashboard() {
                     >
                       No bookings available
                     </td>
-
                   </tr>
-
-
                 ) : (
-
-
-                  bookings.slice(0,5).map(
-                    (booking) => (
-
-
-                      <tr
-                        key={booking.id}
-                        className="
+                  bookings.slice(0, 5).map((booking) => (
+                    <tr
+                      key={booking.id}
+                      className="
                           border-b
                           hover:bg-gray-50
                           transition
                         "
-                      >
+                    >
+                      <td className="p-3 font-semibold">
+                        {[
+                          booking.customer?.first_name,
+                          booking.customer?.middle_name,
+                          booking.customer?.last_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      </td>
 
+                      <td className="p-3">{booking.booking_date}</td>
 
-                        <td className="p-3 font-semibold">
+                      <td className="p-3">{booking.booking_time}</td>
 
-                          {[
-                            booking.customer?.first_name,
-                            booking.customer?.middle_name,
-                            booking.customer?.last_name,
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
+                      <td className="p-3">{booking.address}</td>
 
-                        </td>
-
-
-
-                        <td className="p-3">
-
-                          {booking.booking_date}
-
-                        </td>
-
-
-
-                        <td className="p-3">
-
-                          {booking.booking_time}
-
-                        </td>
-
-
-
-                        <td className="p-3">
-
-                          {booking.address}
-
-                        </td>
-
-
-
-                        <td className="p-3">
-
-                          <span
-                            className={`
+                      <td className="p-3">
+                        <span
+                          className={`
                               px-3
                               py-1
                               rounded-full
@@ -734,46 +451,27 @@ export default function Dashboard() {
 
                               ${
                                 booking.status === "Pending"
-                                ? "bg-yellow-500"
-
-                                : booking.status === "Approved"
-                                ? "bg-green-600"
-
-                                : booking.status === "Completed"
-                                ? "bg-blue-600"
-
-                                : booking.status === "Cancelled"
-                                ? "bg-red-600"
-
-                                : "bg-gray-500"
+                                  ? "bg-yellow-500"
+                                  : booking.status === "Approved"
+                                    ? "bg-green-600"
+                                    : booking.status === "Completed"
+                                      ? "bg-blue-600"
+                                      : booking.status === "Cancelled"
+                                        ? "bg-red-600"
+                                        : "bg-gray-500"
                               }
                             `}
-                          >
+                        >
+                          {booking.status}
+                        </span>
+                      </td>
 
-                            {booking.status}
-
-                          </span>
-
-
-                        </td>
-
-
-
-                        <td className="p-3">
-
-
-                          {booking.status === "Pending" ? (
-
-                            <div className="flex gap-2">
-
-
-                              <button
-                                onClick={() =>
-                                  handleAccept(
-                                    booking.id
-                                  )
-                                }
-                                className="
+                      <td className="p-3">
+                        {booking.status === "Pending" ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAccept(booking.id)}
+                              className="
                                   bg-green-600
                                   hover:bg-green-700
                                   text-white
@@ -783,19 +481,13 @@ export default function Dashboard() {
                                   text-sm
                                   font-semibold
                                 "
-                              >
-                                Accept
-                              </button>
+                            >
+                              Accept
+                            </button>
 
-
-
-                              <button
-                                onClick={() =>
-                                  handleReject(
-                                    booking.id
-                                  )
-                                }
-                                className="
+                            <button
+                              onClick={() => handleReject(booking.id)}
+                              className="
                                   bg-red-600
                                   hover:bg-red-700
                                   text-white
@@ -805,58 +497,27 @@ export default function Dashboard() {
                                   text-sm
                                   font-semibold
                                 "
-                              >
-                                Reject
-                              </button>
-
-
-                            </div>
-                            
-
-
-                          ) : (
-
-                            <span className="text-gray-400">
-                              No Action
-                            </span>
-
-                          )}
-
-
-                        </td>
-
-
-                      </tr>
-
-
-                    )
-
-                  )
-
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No Action</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
                 )}
-
-
               </tbody>
-
-
             </table>
-
-
           </div>
-
-
         </div>
-
-
       </div>
       <div className="mb-10">
         <WorkerAnalytics />
       </div>
 
       <TodaySchedule bookings={bookings} />
-
     </WorkerLayout>
-
   );
-
 }

@@ -9,7 +9,7 @@ export async function getCustomers(search = "") {
 
   if (search.trim() !== "") {
     query = query.or(
-      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`
+      `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`,
     );
   }
 
@@ -22,11 +22,7 @@ export async function getCustomers(search = "") {
   return (data ?? []).map((customer) => ({
     ...customer,
 
-    full_name: [
-      customer.first_name,
-      customer.middle_name,
-      customer.last_name,
-    ]
+    full_name: [customer.first_name, customer.middle_name, customer.last_name]
       .filter(Boolean)
       .join(" "),
 
@@ -55,20 +51,11 @@ export async function getCustomer(id: string) {
   return {
     ...data,
 
-    full_name: [
-      data.first_name,
-      data.middle_name,
-      data.last_name,
-    ]
+    full_name: [data.first_name, data.middle_name, data.last_name]
       .filter(Boolean)
       .join(" "),
 
-    address: [
-      data.address,
-      data.barangay,
-      data.municipality,
-      data.province,
-    ]
+    address: [data.address, data.barangay, data.municipality, data.province]
       .filter(Boolean)
       .join(", "),
   };

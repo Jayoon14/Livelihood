@@ -7,7 +7,6 @@ import {
 } from "../../../services/notificationPreferenceService";
 
 export default function NotificationPreferences() {
-
   const [settings, setSettings] = useState({
     booking_updates: true,
     chat_notifications: true,
@@ -45,79 +44,63 @@ export default function NotificationPreferences() {
 
   return (
     <div className="bg-white rounded-2xl shadow p-6">
-
-      <h2 className="text-xl font-bold mb-5">
-        Notification Preferences
-      </h2>
+      <h2 className="text-xl font-bold mb-5">Notification Preferences</h2>
 
       <div className="space-y-4">
-
         <label className="flex justify-between">
-
           Booking Updates
-
           <input
             type="checkbox"
             checked={settings.booking_updates}
-            onChange={(e)=>
+            onChange={(e) =>
               setSettings({
                 ...settings,
-                booking_updates:e.target.checked,
+                booking_updates: e.target.checked,
               })
             }
           />
-
         </label>
 
         <label className="flex justify-between">
-
           Chat Notifications
-
           <input
             type="checkbox"
             checked={settings.chat_notifications}
-            onChange={(e)=>
+            onChange={(e) =>
               setSettings({
                 ...settings,
-                chat_notifications:e.target.checked,
+                chat_notifications: e.target.checked,
               })
             }
           />
-
         </label>
 
         <label className="flex justify-between">
-
           Payment Notifications
-
           <input
             type="checkbox"
             checked={settings.payment_notifications}
-            onChange={(e)=>
+            onChange={(e) =>
               setSettings({
                 ...settings,
-                payment_notifications:e.target.checked,
+                payment_notifications: e.target.checked,
               })
             }
           />
-
         </label>
 
         <label className="flex justify-between">
-
           Review Reminder
-
           <input
             type="checkbox"
             checked={settings.review_reminders}
-            onChange={(e)=>
+            onChange={(e) =>
               setSettings({
                 ...settings,
-                review_reminders:e.target.checked,
+                review_reminders: e.target.checked,
               })
             }
           />
-
         </label>
 
         <button
@@ -126,9 +109,7 @@ export default function NotificationPreferences() {
         >
           Save
         </button>
-
       </div>
-
     </div>
   );
 }

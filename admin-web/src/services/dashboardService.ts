@@ -64,9 +64,7 @@ export async function getPendingWorkers() {
 // ======================================
 
 export async function getBookingStatusCounts() {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("status");
+  const { data, error } = await supabase.from("bookings").select("status");
 
   if (error) throw error;
 
@@ -92,9 +90,7 @@ export async function getBookingStatusCounts() {
 // ======================================
 
 export async function getMonthlyBookings() {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("created_at");
+  const { data, error } = await supabase.from("bookings").select("created_at");
 
   if (error) throw error;
 
@@ -135,7 +131,8 @@ export async function getMonthlyBookings() {
 export async function getRecentBookings() {
   const { data, error } = await supabase
     .from("bookings")
-    .select(`
+    .select(
+      `
       *,
       worker:profiles!worker_id(
         first_name,
@@ -145,7 +142,8 @@ export async function getRecentBookings() {
         first_name,
         last_name
       )
-    `)
+    `,
+    )
     .order("created_at", {
       ascending: false,
     })
@@ -178,9 +176,7 @@ export async function getRecentActivities() {
 // ======================================
 
 export async function getTopWorkers() {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(`
+  const { data, error } = await supabase.from("reviews").select(`
       rating,
       worker:profiles!reviews_worker_id_fkey(
         first_name,
@@ -200,7 +196,8 @@ export async function getTopWorkers() {
   > = {};
 
   data?.forEach((item: any) => {
-    const workerName = `${item.worker?.first_name ?? ""} ${item.worker?.last_name ?? ""}`.trim();
+    const workerName =
+      `${item.worker?.first_name ?? ""} ${item.worker?.last_name ?? ""}`.trim();
 
     if (!workers[workerName]) {
       workers[workerName] = {
@@ -217,9 +214,7 @@ export async function getTopWorkers() {
   return Object.values(workers)
     .map((worker) => ({
       worker: worker.worker,
-      rating: Number(
-        (worker.totalRating / worker.totalReviews).toFixed(1)
-      ),
+      rating: Number((worker.totalRating / worker.totalReviews).toFixed(1)),
       reviews: worker.totalReviews,
     }))
     .sort((a, b) => b.rating - a.rating);

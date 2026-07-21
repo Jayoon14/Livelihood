@@ -3,12 +3,7 @@ interface Props {
 }
 
 export default function BookingTimeline({ status }: Props) {
-  const steps = [
-    "Pending",
-    "Approved",
-    "On Going",
-    "Completed",
-  ];
+  const steps = ["Pending", "Approved", "On Going", "Completed"];
 
   if (status === "Cancelled") {
     return (
@@ -35,9 +30,7 @@ export default function BookingTimeline({ status }: Props) {
             </div>
 
             <div>
-              <p className="font-semibold text-red-600">
-                Cancelled
-              </p>
+              <p className="font-semibold text-red-600">Cancelled</p>
 
               <p className="text-sm text-gray-500">
                 This booking has been cancelled.
@@ -56,17 +49,12 @@ export default function BookingTimeline({ status }: Props) {
       {/* Timeline */}
       <div className="space-y-8">
         {steps.map((step, index) => (
-          <div
-            key={step}
-            className="relative flex gap-4"
-          >
+          <div key={step} className="relative flex gap-4">
             {/* Vertical Line */}
             {index !== steps.length - 1 && (
               <div
                 className={`absolute left-5 top-10 h-12 -translate-x-1/2 w-[3px] ${
-                  index < current
-                    ? "bg-green-600"
-                    : "bg-gray-300"
+                  index < current ? "bg-green-600" : "bg-gray-300"
                 }`}
               />
             )}
@@ -86,20 +74,16 @@ export default function BookingTimeline({ status }: Props) {
             <div>
               <h4
                 className={`font-semibold ${
-                  index <= current
-                    ? "text-gray-900"
-                    : "text-gray-400"
+                  index <= current ? "text-gray-900" : "text-gray-400"
                 }`}
               >
                 {step}
               </h4>
 
               <p className="mt-1 text-sm text-gray-500">
-                {step === "Pending" &&
-                  "Booking request submitted."}
+                {step === "Pending" && "Booking request submitted."}
 
-                {step === "Approved" &&
-                  "Worker accepted the booking."}
+                {step === "Approved" && "Worker accepted the booking."}
 
                 {step === "On Going" &&
                   "Worker is currently providing the service."}
@@ -113,29 +97,20 @@ export default function BookingTimeline({ status }: Props) {
       </div>
 
       {/* ETA Card */}
-      {(status === "Approved" ||
-        status === "On Going") && (
+      {(status === "Approved" || status === "On Going") && (
         <div className="mt-10 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
-          <p className="text-sm text-gray-500">
-            Estimated Completion
-          </p>
+          <p className="text-sm text-gray-500">Estimated Completion</p>
 
-          <h3 className="mt-2 text-3xl font-bold text-blue-700">
-            Today
-          </h3>
+          <h3 className="mt-2 text-3xl font-bold text-blue-700">Today</h3>
 
-          <p className="mt-1 text-gray-600">
-            4:00 PM
-          </p>
+          <p className="mt-1 text-gray-600">4:00 PM</p>
         </div>
       )}
 
       {/* Success Card */}
       {status === "Completed" && (
         <div className="mt-10 rounded-3xl border border-green-100 bg-gradient-to-r from-green-50 to-emerald-50 p-6">
-          <p className="text-sm text-gray-500">
-            Service Status
-          </p>
+          <p className="text-sm text-gray-500">Service Status</p>
 
           <h3 className="mt-2 text-2xl font-bold text-green-700">
             Completed Successfully

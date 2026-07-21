@@ -3,7 +3,8 @@ import { supabase } from "../lib/supabase";
 export async function getWorkers() {
   const { data, error } = await supabase
     .from("services")
-    .select(`
+    .select(
+      `
       id,
       category,
       service_name,
@@ -19,7 +20,8 @@ export async function getWorkers() {
         role,
         status
       )
-    `)
+    `,
+    )
     .eq("status", "Approved");
 
   if (error) throw error;
@@ -29,7 +31,7 @@ export async function getWorkers() {
       (worker: any) =>
         worker.profiles &&
         worker.profiles.role === "worker" &&
-        worker.profiles.status === "Approved"
+        worker.profiles.status === "Approved",
     ) || []
   );
 }

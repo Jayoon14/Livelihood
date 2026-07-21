@@ -9,8 +9,7 @@ export default function TodaySchedule({ bookings }: Props) {
 
   const todayBookings = bookings.filter(
     (booking) =>
-      booking.booking_date === today &&
-      booking.status === "Approved"
+      booking.booking_date === today && booking.status === "Approved",
   );
 
   return (
@@ -33,35 +32,25 @@ export default function TodaySchedule({ bookings }: Props) {
               Today's Schedule
             </h2>
 
-            <p className="text-gray-500 mt-1">
-              Approved bookings for today
-            </p>
+            <p className="text-gray-500 mt-1">Approved bookings for today</p>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-2xl">
-            <Calendar
-              size={36}
-              className="text-blue-600"
-            />
+            <Calendar size={36} className="text-blue-600" />
           </div>
         </div>
 
         {todayBookings.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-28 h-28 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
-              <Calendar
-                size={56}
-                className="text-blue-600"
-              />
+              <Calendar size={56} className="text-blue-600" />
             </div>
 
-            <h2 className="text-2xl font-bold mt-6">
-              No Schedule Today
-            </h2>
+            <h2 className="text-2xl font-bold mt-6">No Schedule Today</h2>
 
             <p className="text-gray-500 mt-3 max-w-md mx-auto">
-              You don't have any approved bookings for today.
-              Enjoy your free time or check upcoming requests.
+              You don't have any approved bookings for today. Enjoy your free
+              time or check upcoming requests.
             </p>
           </div>
         ) : (
@@ -83,10 +72,7 @@ export default function TodaySchedule({ bookings }: Props) {
                 <div className="flex items-start justify-between">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <User
-                        size={20}
-                        className="text-blue-600"
-                      />
+                      <User size={20} className="text-blue-600" />
 
                       <div>
                         <h3 className="font-bold text-lg text-gray-800">
@@ -95,25 +81,18 @@ export default function TodaySchedule({ bookings }: Props) {
                         </h3>
 
                         <p className="text-gray-500">
-                          {booking.service?.service_name ??
-                            "Service"}
+                          {booking.service?.service_name ?? "Service"}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3 text-gray-700">
-                      <Clock
-                        size={18}
-                        className="text-blue-600"
-                      />
+                      <Clock size={18} className="text-blue-600" />
                       <span>{booking.booking_time}</span>
                     </div>
 
                     <div className="flex items-center gap-3 text-gray-700">
-                      <MapPin
-                        size={18}
-                        className="text-red-500"
-                      />
+                      <MapPin size={18} className="text-red-500" />
                       <span>{booking.address}</span>
                     </div>
                   </div>

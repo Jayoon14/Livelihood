@@ -52,19 +52,15 @@ export async function getDashboardStats() {
       })
       .eq("role", "customer"),
 
-    supabase
-      .from("bookings")
-      .select("*", {
-        count: "exact",
-        head: true,
-      }),
+    supabase.from("bookings").select("*", {
+      count: "exact",
+      head: true,
+    }),
 
-    supabase
-      .from("reviews")
-      .select("*", {
-        count: "exact",
-        head: true,
-      }),
+    supabase.from("reviews").select("*", {
+      count: "exact",
+      head: true,
+    }),
   ]);
 
   return {
@@ -79,9 +75,7 @@ export async function getDashboardStats() {
 // MONTHLY BOOKINGS (FOR CHART)
 // =========================
 export async function getMonthlyBookings() {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("created_at");
+  const { data, error } = await supabase.from("bookings").select("created_at");
 
   if (error) throw error;
 
@@ -117,9 +111,7 @@ export async function getMonthlyBookings() {
 // BOOKING STATUS SUMMARY
 // =========================
 export async function getBookingStatusSummary() {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("status");
+  const { data, error } = await supabase.from("bookings").select("status");
 
   if (error) throw error;
 
@@ -130,9 +122,7 @@ export async function getBookingStatusSummary() {
 // TOP WORKERS
 // =========================
 export async function getTopWorkers() {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(`
+  const { data, error } = await supabase.from("reviews").select(`
       rating,
       worker:profiles!worker_id(
         first_name,
@@ -151,7 +141,8 @@ export async function getTopWorkers() {
 export async function getRecentBookings() {
   const { data, error } = await supabase
     .from("bookings")
-    .select(`
+    .select(
+      `
       *,
       customer:profiles!customer_id(
         first_name,
@@ -161,7 +152,8 @@ export async function getRecentBookings() {
         first_name,
         last_name
       )
-    `)
+    `,
+    )
     .order("created_at", {
       ascending: false,
     })

@@ -17,9 +17,7 @@ export default function Input({
 }: Props) {
   return (
     <div>
-      <label className="text-sm font-medium text-gray-700">
-        {label}
-      </label>
+      <label className="text-sm font-medium text-gray-700">{label}</label>
 
       <input
         type={type}

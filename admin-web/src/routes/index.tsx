@@ -1,26 +1,21 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-
 // ================= AUTH =================
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import RegisterChoice from "../pages/auth/RegisterChoice";
 
-
 // ================= CUSTOMER AUTH =================
 import CustomerLogin from "../pages/auth/customer/Login";
 import CustomerRegister from "../pages/auth/customer/Register";
 
-
 // ================= WORKER AUTH =================
 import WorkerRegister from "../pages/auth/worker/Register";
-
 
 // ================= ADMIN =================
 import Dashboard from "../pages/admin/dashboard/Dashboard";
 import AdminBookings from "../pages/admin/bookings/Bookings";
 import BookingHistory from "../pages/admin/bookings/BookingHistory";
-
 
 // ================= CUSTOMER =================
 import CustomerDashboard from "../pages/customer/dashboard/CustomerDashboard";
@@ -32,7 +27,6 @@ import Profile from "../pages/customer/profile/Profile";
 import Notifications from "../pages/customer/notifications/Notifications";
 import CustomerWorkerProfile from "../pages/customer/workers/WorkerProfile";
 
-
 // ================= WORKER =================
 import WorkerDashboard from "../pages/worker/dashboard/Dashboard";
 import WorkerBookings from "../pages/worker/bookings/Bookings";
@@ -41,7 +35,6 @@ import WorkerProfile from "../pages/worker/profile/Profile";
 import WorkerSchedule from "../pages/worker/schedule/Schedule";
 import Services from "../pages/worker/Services/services";
 
-
 // ================= ADMIN PAGES =================
 import Workers from "../pages/admin/workers/Workers";
 import WorkerDetails from "../pages/admin/workers/WorkerDetails";
@@ -49,19 +42,15 @@ import WorkerDetails from "../pages/admin/workers/WorkerDetails";
 import Customers from "../pages/admin/customers/Customers";
 import CustomerDetails from "../pages/admin/customers/CustomerDetails";
 
-
 // ================= CHAT =================
 import ChatRoom from "../pages/chat/ChatRoom";
-
 
 // ================= OTHER =================
 import Reports from "../pages/admin/reports/Reports";
 import CustomerSettings from "../pages/customer/profile/Settings";
 
-
 // ================= PROTECTED =================
 import ProtectedRoute from "./ProtectedRoute";
-
 
 // ================= PAYMENT =================
 import Payment from "../pages/customer/payments/Payment";
@@ -88,50 +77,27 @@ import CompletionProof from "../pages/customer/bookings/CompletionProof";
 import PaymentInformation from "../pages/worker/payment/PaymentInformation";
 import PaymentRequests from "../pages/worker/payment/PaymentRequests";
 import WorkerNotifications from "../pages/worker/notifications/Notifications";
+import AdminNotifications from "../pages/admin/notifications/Notifications";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
-
       <Routes>
-
-
         {/* ================= AUTH ================= */}
 
-        <Route
-          path="/"
-          element={<Login />}
-        />
-       
+        <Route path="/" element={<Login />} />
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
+        <Route path="/register" element={<Register />} />
 
-        <Route
-          path="/register-choice"
-          element={<RegisterChoice />}
-        />
+        <Route path="/register-choice" element={<RegisterChoice />} />
 
-        <Route
-          path="/register/customer"
-          element={<CustomerRegister />}
-        />
+        <Route path="/register/customer" element={<CustomerRegister />} />
 
-        <Route
-          path="/register/worker"
-          element={<WorkerRegister />}
-        />
-
+        <Route path="/register/worker" element={<WorkerRegister />} />
 
         {/* ================= CUSTOMER AUTH ================= */}
 
-        <Route
-          path="/customer/login"
-          element={<CustomerLogin />}
-        />
-
+        <Route path="/customer/login" element={<CustomerLogin />} />
 
         {/* ================= CUSTOMER ================= */}
 
@@ -144,16 +110,9 @@ export default function AppRoutes() {
           }
         />
 
-        <Route
-          path="/customer/receipt/:id"
-          element={<CustomerReceipt />}
-      />
+        <Route path="/customer/receipt/:id" element={<CustomerReceipt />} />
 
-        <Route
-          path="/customer/payments"
-          element={<PaymentHistory />}
-        />
-
+        <Route path="/customer/payments" element={<PaymentHistory />} />
 
         <Route
           path="/customer/workers"
@@ -163,20 +122,16 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/customer/favorites" element={<Favorites />} />
+
         <Route
-          path="/customer/favorites"
-          element={<Favorites />}
+          path="/customer/booking-confirmation"
+          element={
+            <ProtectedRoute>
+              <BookingConfirmation />
+            </ProtectedRoute>
+          }
         />
-
-        <Route
-        path="/customer/booking-confirmation"
-        element={
-          <ProtectedRoute>
-            <BookingConfirmation />
-          </ProtectedRoute>
-        }
-      />
-
 
         <Route
           path="/customer/book/:workerId"
@@ -187,7 +142,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/customer/bookings"
           element={
@@ -196,7 +150,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
 
         <Route
           path="/customer/bookings/:id"
@@ -207,16 +160,14 @@ export default function AppRoutes() {
           }
         />
 
-
-      <Route
-        path="/customer/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-
+        <Route
+          path="/customer/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/customer/notifications"
@@ -228,52 +179,48 @@ export default function AppRoutes() {
         />
 
         <Route
-        path="/customer/workers/:id"
-        element={
-          <ProtectedRoute>
-            <CustomerWorkerProfile />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/customer/review/:bookingId"
-        element={
-          <ProtectedRoute>
-            <LeaveReview />
-          </ProtectedRoute>
-        }
-      />
+          path="/customer/workers/:id"
+          element={
+            <ProtectedRoute>
+              <CustomerWorkerProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customer/review/:bookingId"
+          element={
+            <ProtectedRoute>
+              <LeaveReview />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/chat"
-        element={
-          <ProtectedRoute>
-            <ChatList />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/customer/categories"
-        element={
-          <ProtectedRoute>
-            <Categories />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/customer/categories/:category"
-        element={
-          <ProtectedRoute>
-            <WorkersByCategory />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/chat"
+          element={
+            <ProtectedRoute>
+              <ChatList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customer/categories"
+          element={
+            <ProtectedRoute>
+              <Categories />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customer/categories/:category"
+          element={
+            <ProtectedRoute>
+              <WorkersByCategory />
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-      path="/customer/compare"
-      element={<CompareWorkers />}
-    />
-
+        <Route path="/customer/compare" element={<CompareWorkers />} />
 
         {/* ================= WORKER ================= */}
 
@@ -285,7 +232,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
 
         <Route
           path="/worker/bookings"
@@ -305,10 +251,7 @@ export default function AppRoutes() {
           element={<CompletionProof />}
         />
 
-        <Route
-        path="/worker/notifications"
-        element={<WorkerNotifications />}
-      />
+        <Route path="/worker/notifications" element={<WorkerNotifications />} />
 
         <Route
           path="/worker/payment-information"
@@ -319,7 +262,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/worker/reviews"
           element={
@@ -329,7 +271,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/worker/profile"
           element={
@@ -338,7 +279,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
 
         <Route
           path="/worker/schedule"
@@ -350,23 +290,21 @@ export default function AppRoutes() {
         />
 
         <Route
-        path="/worker/services"
-        element={
-          <ProtectedRoute>
-            <Services />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/worker/payments"
-        element={
-          <ProtectedRoute>
-            <PaymentRequests />
-          </ProtectedRoute>
-        }
-/>
-
-
+          path="/worker/services"
+          element={
+            <ProtectedRoute>
+              <Services />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/worker/payments"
+          element={
+            <ProtectedRoute>
+              <PaymentRequests />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ================= ADMIN ================= */}
 
@@ -379,7 +317,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/workers"
           element={
@@ -388,7 +325,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
 
         <Route
           path="/workers/:id"
@@ -399,7 +335,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/customers"
           element={
@@ -409,7 +344,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/customers/:id"
           element={
@@ -418,8 +352,7 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
-
+        <Route path="/admin/notifications" element={<AdminNotifications />} />
 
         {/* ================= ADMIN BOOKINGS ================= */}
 
@@ -432,7 +365,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/bookings/history"
           element={
@@ -441,8 +373,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
-
 
         {/* ================= CHAT ================= */}
 
@@ -455,8 +385,6 @@ export default function AppRoutes() {
           }
         />
 
-
-
         {/* ================= REPORTS ================= */}
 
         <Route
@@ -468,18 +396,16 @@ export default function AppRoutes() {
           }
         />
 
-
         {/* ================= SETTINGS ================= */}
 
-      <Route
-        path="/customer/settings"
-        element={
-          <ProtectedRoute>
-            <CustomerSettings />
-          </ProtectedRoute>
-        }
-      />
-
+        <Route
+          path="/customer/settings"
+          element={
+            <ProtectedRoute>
+              <CustomerSettings />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/customer/payment/:id"
@@ -490,7 +416,6 @@ export default function AppRoutes() {
           }
         />
 
-
         <Route
           path="/payments"
           element={
@@ -499,7 +424,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
 
         <Route
           path="/activity-logs"
@@ -510,21 +434,10 @@ export default function AppRoutes() {
           }
         />
 
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-
-        <Route
-          path="/reset-password"
-          element={<ResetPassword />}
-        />
-
-
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
-
     </BrowserRouter>
   );
 }

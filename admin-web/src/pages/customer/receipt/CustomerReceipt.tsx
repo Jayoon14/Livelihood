@@ -13,31 +13,30 @@ export default function CustomerReceipt() {
     loadReceipt();
   }, []);
 
-async function loadReceipt() {
-  if (!id) return;
+  async function loadReceipt() {
+    if (!id) return;
 
-  const bookingId = Number(id);
+    const bookingId = Number(id);
 
-  console.log("Receipt URL ID:", bookingId);
+    console.log("Receipt URL ID:", bookingId);
 
-  try {
-    const data = await getReceipt(bookingId);
+    try {
+      const data = await getReceipt(bookingId);
 
-    console.log("Receipt Data:", data);
+      console.log("Receipt Data:", data);
 
-    setReceipt(data);
-
-  } catch (error) {
-    console.error("Receipt loading error:", error);
+      setReceipt(data);
+    } catch (error) {
+      console.error("Receipt loading error:", error);
+    }
   }
-}
   function printReceipt() {
     window.print();
   }
 
   function downloadPDF() {
     if (!receipt) return;
-    
+
     const doc = new jsPDF();
 
     doc.setFontSize(20);
@@ -48,20 +47,15 @@ async function loadReceipt() {
 
     autoTable(doc, {
       startY: 38,
-      head: [
-        ["Field", "Value"]
-      ],
+      head: [["Field", "Value"]],
       body: [
         ["Receipt ID", receipt.id],
         ["Booking ID", receipt.booking.id],
         [
           "Customer",
-          `${receipt.customer.first_name} ${receipt.customer.last_name}`
+          `${receipt.customer.first_name} ${receipt.customer.last_name}`,
         ],
-        [
-          "Worker",
-          `${receipt.worker.first_name} ${receipt.worker.last_name}`
-        ],
+        ["Worker", `${receipt.worker.first_name} ${receipt.worker.last_name}`],
         ["Service", receipt.booking.service_name],
         ["Category", receipt.booking.category],
         ["Booking Date", receipt.booking.booking_date],
@@ -78,9 +72,7 @@ async function loadReceipt() {
   if (!receipt) {
     return (
       <CustomerLayout>
-        <div className="p-10">
-          Loading receipt...
-        </div>
+        <div className="p-10">Loading receipt...</div>
       </CustomerLayout>
     );
   }
@@ -88,7 +80,6 @@ async function loadReceipt() {
   return (
     <CustomerLayout>
       <div className="max-w-3xl mx-auto bg-white shadow rounded-3xl p-10">
-
         <h1 className="text-4xl font-bold text-center mb-10">
           Payment Receipt
         </h1>
@@ -128,28 +119,17 @@ async function loadReceipt() {
             📄 Download PDF
           </button>
         </div>
-
       </div>
     </CustomerLayout>
   );
 }
 
-function Row({
-  label,
-  value,
-}: {
-  label: string;
-  value: any;
-}) {
+function Row({ label, value }: { label: string; value: any }) {
   return (
     <div className="flex justify-between border-b pb-3">
-      <span className="font-semibold">
-        {label}
-      </span>
+      <span className="font-semibold">{label}</span>
 
-      <span>
-        {value}
-      </span>
+      <span>{value}</span>
     </div>
   );
 }

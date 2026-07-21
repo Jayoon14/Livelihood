@@ -47,12 +47,8 @@ export default function ActivityLogs() {
   return (
     <AdminLayout>
       <div className="p-8">
-
         <div className="flex justify-between items-center mb-8">
-
-          <h1 className="text-3xl font-bold">
-            Activity Logs
-          </h1>
+          <h1 className="text-3xl font-bold">Activity Logs</h1>
 
           <input
             type="text"
@@ -61,15 +57,11 @@ export default function ActivityLogs() {
             onChange={(e) => setSearch(e.target.value)}
             className="border rounded-lg px-4 py-2 w-80"
           />
-
         </div>
 
         <div className="bg-white rounded-xl shadow overflow-hidden">
-
           <table className="w-full">
-
             <thead className="bg-gray-100">
-
               <tr>
                 <th className="text-left p-4">User</th>
                 <th className="text-left p-4">Module</th>
@@ -77,69 +69,47 @@ export default function ActivityLogs() {
                 <th className="text-left p-4">Description</th>
                 <th className="text-left p-4">Time</th>
               </tr>
-
             </thead>
 
             <tbody>
-
               {filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
-
-                  <tr
-                    key={log.id}
-                    className="border-t hover:bg-gray-50"
-                  >
-
+                  <tr key={log.id} className="border-t hover:bg-gray-50">
                     <td className="p-4">
                       {log.user
                         ? `${log.user.first_name} ${log.user.last_name}`
                         : "Unknown"}
                     </td>
 
-                    <td className="p-4">
-                      {log.module}
-                    </td>
+                    <td className="p-4">{log.module}</td>
 
                     <td className="p-4">
-
                       <span
                         className={`px-3 py-1 rounded-full text-white text-sm ${badgeColor(
-                          log.action
+                          log.action,
                         )}`}
                       >
                         {log.action}
                       </span>
-
                     </td>
 
-                    <td className="p-4">
-                      {log.description}
-                    </td>
+                    <td className="p-4">{log.description}</td>
 
                     <td className="p-4">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
-
                   </tr>
-
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="text-center p-8 text-gray-500"
-                  >
+                  <td colSpan={5} className="text-center p-8 text-gray-500">
                     No activity found.
                   </td>
                 </tr>
               )}
-
             </tbody>
-
           </table>
-
         </div>
-
       </div>
     </AdminLayout>
   );

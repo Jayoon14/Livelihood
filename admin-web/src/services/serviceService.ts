@@ -25,18 +25,16 @@ export async function createService(
     service_name: string;
     description: string;
     price: number;
-  }
+  },
 ) {
-  const { error } = await supabase
-    .from("services")
-    .insert({
-      worker_id: workerId,
-      category: service.category,
-      service_name: service.service_name,
-      description: service.description,
-      price: service.price,
-      status: "Approved",
-    });
+  const { error } = await supabase.from("services").insert({
+    worker_id: workerId,
+    category: service.category,
+    service_name: service.service_name,
+    description: service.description,
+    price: service.price,
+    status: "Approved",
+  });
 
   if (error) throw error;
 }
@@ -51,7 +49,7 @@ export async function updateService(
     service_name: string;
     description: string;
     price: number;
-  }
+  },
 ) {
   const { error } = await supabase
     .from("services")
@@ -70,23 +68,22 @@ export async function updateService(
 // DELETE SERVICE
 // =============================
 export async function deleteService(id: number) {
-  const { error } = await supabase
-    .from("services")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("services").delete().eq("id", id);
 
   if (error) throw error;
 }
 export async function getPendingServices() {
   const { data, error } = await supabase
     .from("services")
-    .select(`
+    .select(
+      `
       *,
       worker:profiles!worker_id(
         first_name,
         last_name
       )
-    `)
+    `,
+    )
     .eq("status", "Pending");
 
   if (error) throw error;
@@ -123,11 +120,10 @@ export async function getApprovedServices(workerId: string) {
     .eq("status", "Approved")
     .order("service_name");
 
-
-     console.log("WORKER ID:", workerId);
-    console.log("SERVICES:", data);
-    console.log("ERROR:", error);
-    console.log(data);
+  console.log("WORKER ID:", workerId);
+  console.log("SERVICES:", data);
+  console.log("ERROR:", error);
+  console.log(data);
 
   if (error) {
     throw error;
@@ -148,9 +144,7 @@ export async function getCategories() {
   if (error) throw error;
 
   const categories = Array.from(
-    new Set(
-      (data ?? []).map((item) => item.category)
-    )
+    new Set((data ?? []).map((item) => item.category)),
   );
 
   return categories;
@@ -162,18 +156,17 @@ export async function getCategories() {
 export async function getCategoriesWithCount() {
   const { data, error } = await supabase
     .from("services")
-    .select(`
+    .select(
+      `
       category,
       worker_id
-    `)
+    `,
+    )
     .eq("status", "Approved");
 
   if (error) throw error;
 
-  const grouped = new Map<
-    string,
-    Set<string>
-  >();
+  const grouped = new Map<string, Set<string>>();
 
   data?.forEach((item) => {
     if (!grouped.has(item.category)) {
@@ -183,12 +176,10 @@ export async function getCategoriesWithCount() {
     grouped.get(item.category)?.add(item.worker_id);
   });
 
-  return Array.from(grouped.entries()).map(
-    ([category, workers]) => ({
-      category,
-      totalWorkers: workers.size,
-    })
-  );
+  return Array.from(grouped.entries()).map(([category, workers]) => ({
+    category,
+    totalWorkers: workers.size,
+  }));
 }
 // =====================
 // GET CATEGORY PREVIEW
@@ -197,7 +188,8 @@ export async function getCategoriesWithCount() {
 export async function getCategoryPreview() {
   const { data, error } = await supabase
     .from("services")
-    .select(`
+    .select(
+      `
       category,
       worker_id,
       worker:profiles!worker_id(
@@ -205,7 +197,8 @@ export async function getCategoryPreview() {
         first_name,
         last_name
       )
-    `)
+    `,
+    )
     .eq("status", "Approved");
 
   if (error) throw error;
@@ -219,20 +212,14 @@ export async function getCategoryPreview() {
 
     const workers = grouped.get(item.category);
 
-    if (
-      !workers.find(
-        (w: any) => w.id === item.worker.id
-      )
-    ) {
+    if (!workers.find((w: any) => w.id === item.worker.id)) {
       workers.push(item.worker);
     }
   });
 
-  return Array.from(grouped.entries()).map(
-    ([category, workers]) => ({
-      category,
-      workers,
-      totalWorkers: workers.length,
-    })
-  );
+  return Array.from(grouped.entries()).map(([category, workers]) => ({
+    category,
+    workers,
+    totalWorkers: workers.length,
+  }));
 }

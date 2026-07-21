@@ -27,13 +27,7 @@ export default function Workers() {
 
   useEffect(() => {
     loadWorkers();
-  }, [
-    search,
-    category,
-    priceRange,
-    rating,
-    availability,
-  ]);
+  }, [search, category, priceRange, rating, availability]);
 
   async function loadCategories() {
     try {
@@ -72,21 +66,14 @@ export default function Workers() {
           break;
       }
 
-      const data = await searchDashboard(
-        search,
-        category,
-        min,
-        max
-      );
+      const data = await searchDashboard(search, category, min, max);
 
       let filtered = data;
 
       // Rating Filter
       if (rating) {
         filtered = filtered.filter((worker: any) => {
-          const average = Number(
-            worker.average_rating ?? 0
-          );
+          const average = Number(worker.average_rating ?? 0);
 
           return average >= Number(rating);
         });
@@ -97,9 +84,7 @@ export default function Workers() {
         const availableWorkers = [];
 
         for (const worker of filtered) {
-          const available = await isWorkerAvailable(
-            worker.id
-          );
+          const available = await isWorkerAvailable(worker.id);
 
           if (available) {
             availableWorkers.push(worker);
@@ -119,14 +104,10 @@ export default function Workers() {
   return (
     <CustomerLayout>
       <div className="p-8">
-
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">
-            Find Skilled Workers
-          </h1>
+          <h1 className="text-3xl font-bold">Find Skilled Workers</h1>
 
           <div className="flex flex-wrap gap-3">
-
             <input
               type="text"
               placeholder="Search worker..."
@@ -140,15 +121,10 @@ export default function Workers() {
               onChange={(e) => setCategory(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">
-                All Categories
-              </option>
+              <option value="">All Categories</option>
 
               {categories.map((cat) => (
-                <option
-                  key={cat}
-                  value={cat}
-                >
+                <option key={cat} value={cat}>
                   {cat}
                 </option>
               ))}
@@ -159,25 +135,15 @@ export default function Workers() {
               onChange={(e) => setPriceRange(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">
-                All Prices
-              </option>
+              <option value="">All Prices</option>
 
-              <option value="100-300">
-                ₱100-₱300
-              </option>
+              <option value="100-300">₱100-₱300</option>
 
-              <option value="300-500">
-                ₱300-₱500
-              </option>
+              <option value="300-500">₱300-₱500</option>
 
-              <option value="500-1000">
-                ₱500-₱1000
-              </option>
+              <option value="500-1000">₱500-₱1000</option>
 
-              <option value="1000+">
-                ₱1000+
-              </option>
+              <option value="1000+">₱1000+</option>
             </select>
 
             <select
@@ -185,29 +151,17 @@ export default function Workers() {
               onChange={(e) => setRating(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">
-                All Ratings
-              </option>
+              <option value="">All Ratings</option>
 
-              <option value="5">
-                ★★★★★
-              </option>
+              <option value="5">★★★★★</option>
 
-              <option value="4">
-                ★★★★☆ &amp; up
-              </option>
+              <option value="4">★★★★☆ &amp; up</option>
 
-              <option value="3">
-                ★★★☆☆ &amp; up
-              </option>
+              <option value="3">★★★☆☆ &amp; up</option>
 
-              <option value="2">
-                ★★☆☆☆ &amp; up
-              </option>
+              <option value="2">★★☆☆☆ &amp; up</option>
 
-              <option value="1">
-                ★☆☆☆☆ &amp; up
-              </option>
+              <option value="1">★☆☆☆☆ &amp; up</option>
             </select>
 
             <select
@@ -215,42 +169,26 @@ export default function Workers() {
               onChange={(e) => setAvailability(e.target.value)}
               className="border rounded-xl px-4"
             >
-              <option value="">
-                All Availability
-              </option>
+              <option value="">All Availability</option>
 
-              <option value="today">
-                Available Today
-              </option>
+              <option value="today">Available Today</option>
             </select>
-
           </div>
         </div>
 
-
         {loading ? (
-
-          <div className="text-center py-20">
-            Loading...
-          </div>
-
+          <div className="text-center py-20">Loading...</div>
         ) : workers.length === 0 ? (
-
           <div className="text-center py-20 text-gray-500">
             No workers found.
           </div>
-
         ) : (
-
           <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
-
             {workers.map((worker) => (
-
               <div
                 key={worker.id}
                 className="bg-white rounded-2xl shadow overflow-hidden"
               >
-
                 <img
                   src={
                     worker.profile_picture ||
@@ -261,25 +199,19 @@ export default function Workers() {
                 />
 
                 <div className="p-6">
-
                   <h2 className="text-xl font-bold">
                     {worker.first_name} {worker.last_name}
                   </h2>
 
-                  <p className="text-blue-600 mt-1">
-                    {worker.category}
-                  </p>
+                  <p className="text-blue-600 mt-1">{worker.category}</p>
 
-                  <p className="text-gray-500 mt-2">
-                    {worker.service_name}
-                  </p>
+                  <p className="text-gray-500 mt-2">{worker.service_name}</p>
 
                   <p className="text-sm text-gray-400 mt-2 line-clamp-3">
                     {worker.description}
                   </p>
 
                   <div className="flex justify-between items-center mt-5">
-
                     <span className="text-green-600 font-bold text-lg">
                       ₱{worker.price}
                     </span>
@@ -287,7 +219,6 @@ export default function Workers() {
                     <span className="flex items-center gap-1 text-yellow-500 font-semibold">
                       ⭐ {Number(worker.average_rating ?? 0).toFixed(1)}
                     </span>
-
                   </div>
                   <Link
                     to={`/customer/workers/${worker.id}`}
@@ -304,17 +235,11 @@ export default function Workers() {
                   >
                     Compare
                   </button>
-
                 </div>
-
               </div>
-
             ))}
-
           </div>
-
         )}
-
       </div>
     </CustomerLayout>
   );
