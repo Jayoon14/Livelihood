@@ -122,7 +122,7 @@ export default function Schedule() {
       >
         <div
           className="
-          max-w-7xl
+          max-w-[1800px]
           mx-auto
         "
         >

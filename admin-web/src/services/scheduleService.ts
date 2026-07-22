@@ -277,7 +277,7 @@ export async function createSchedule(schedule: {
   status: string;
 }) {
   const { data, error } = await supabase
-    .from("schedules")
+    .from("worker_schedules")
     .insert(schedule)
     .select()
     .single();

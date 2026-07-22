@@ -141,7 +141,7 @@ export default function Services() {
 
   return (
     <WorkerLayout>
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="w-full max-w-[1800px] mx-auto px-6 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-gray-800">My Services</h1>

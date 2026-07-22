@@ -3,151 +3,266 @@ import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 
 import {
-  getWorkerPaymentRequests,
-  approvePayment,
-  rejectPayment,
+  getWorkerPaymentTransactions,
+  approvePaymentTransaction,
+  rejectPaymentTransaction,
 } from "../../../services/paymentService";
 
+type PaymentTransaction = {
+  id: number;
+  payment_id: number;
+  booking_id: number;
+  amount: number | string;
+  payment_method: string | null;
+  reference_number: string | null;
+  proof_of_payment: string | null;
+  transaction_status: string;
+
+  payment?: {
+    id: number;
+    customer_id: string;
+    worker_id: string;
+    booking_id: number;
+
+    customer?: {
+      first_name?: string | null;
+      last_name?: string | null;
+    } | null;
+
+    booking?: {
+      id?: number;
+      booking_date?: string | null;
+      booking_time?: string | null;
+      address?: string | null;
+    } | null;
+  } | null;
+};
+
 export default function PaymentRequests() {
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
   useEffect(() => {
-    loadPayments();
+    void loadPayments();
   }, []);
 
   async function loadPayments() {
     try {
+      setLoading(true);
+
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      console.log("Logged in Worker:", user);
+      if (userError) {
+        throw userError;
+      }
 
-      if (!user) return;
+      if (!user) {
+        setPayments([]);
+        return;
+      }
 
-      const data = await getWorkerPaymentRequests(user.id);
+      const data = await getWorkerPaymentTransactions(user.id);
 
-      console.log("Payments:", data);
-      console.log("First Payment:", data?.[0]);
+      console.log("Worker payment transactions:", data);
 
-      setPayments(data);
-    } catch (err) {
-      console.error(err);
+      setPayments((data ?? []) as PaymentTransaction[]);
+    } catch (error) {
+      console.error("Load payment requests error:", error);
+      setPayments([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleApprove(payment: any) {
-    const confirmApprove = confirm("Approve this payment?");
+  async function handleApprove(payment: PaymentTransaction) {
+    const confirmApprove = window.confirm(
+      `Approve the ₱${formatCurrency(payment.amount)} payment?`,
+    );
 
-    if (!confirmApprove) return;
+    if (!confirmApprove) {
+      return;
+    }
 
-    await approvePayment(payment.id, payment.booking_id);
+    try {
+      setProcessingId(payment.id);
 
-    loadPayments();
+      await approvePaymentTransaction(payment.id);
+
+      await loadPayments();
+
+      alert("Payment transaction approved successfully.");
+    } catch (error) {
+      console.error("Approve payment error:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Failed to approve payment.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
   }
 
-  async function handleReject(payment: any) {
-    const confirmReject = confirm("Reject this payment?");
+  async function handleReject(payment: PaymentTransaction) {
+    const confirmReject = window.confirm(
+      `Reject the ₱${formatCurrency(payment.amount)} payment?`,
+    );
 
-    if (!confirmReject) return;
+    if (!confirmReject) {
+      return;
+    }
 
-    await rejectPayment(payment.id, payment.booking_id);
+    const reason = window.prompt("Reason for rejection?")?.trim() ?? "";
 
-    loadPayments();
+    try {
+      setProcessingId(payment.id);
+
+      await rejectPaymentTransaction(payment.id, reason);
+
+      await loadPayments();
+
+      alert("Payment transaction rejected.");
+    } catch (error) {
+      console.error("Reject payment error:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Failed to reject payment.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  function formatCurrency(amount: number | string) {
+    return new Intl.NumberFormat("en-PH", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(amount) || 0);
+  }
+
+  function getCustomerName(payment: PaymentTransaction) {
+    const firstName = payment.payment?.customer?.first_name?.trim() ?? "";
+
+    const lastName = payment.payment?.customer?.last_name?.trim() ?? "";
+
+    return `${firstName} ${lastName}`.trim() || "Customer unavailable";
   }
 
   return (
     <WorkerLayout>
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow p-8 mb-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 rounded-2xl bg-white p-8 shadow">
           <h1 className="text-3xl font-bold">Payment Requests</h1>
 
-          <p className="text-gray-500 mt-2">
-            Verify online payments submitted by customers.
+          <p className="mt-2 text-gray-500">
+            Verify payments submitted by customers.
           </p>
         </div>
 
         {loading ? (
-          <div className="text-center p-10">Loading...</div>
+          <div className="p-10 text-center">Loading...</div>
         ) : payments.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-10 text-center text-gray-500">
-            No payment requests.
+          <div className="rounded-xl bg-white p-10 text-center text-gray-500 shadow">
+            No pending payment requests.
           </div>
         ) : (
           <div className="space-y-5">
             {payments.map((payment) => {
-              console.log(payment.customer);
-              console.log(payment.booking);
-              console.log(payment.proof_of_payment);
+              const isProcessing = processingId === payment.id;
 
               return (
                 <div
                   key={payment.id}
-                  className="bg-white rounded-2xl shadow p-6"
+                  className="rounded-2xl bg-white p-6 shadow"
                 >
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {/* Customer Information */}
+
                     <div>
-                      <h2 className="font-bold text-xl mb-4">
+                      <h2 className="mb-4 text-xl font-bold">
                         Customer Information
                       </h2>
 
-                      <p>
-                        <strong>Name:</strong> {payment.customer?.first_name}{" "}
-                        {payment.customer?.last_name}
-                      </p>
+                      <div className="space-y-1">
+                        <p>
+                          <strong>Name:</strong> {getCustomerName(payment)}
+                        </p>
 
-                      <p>
-                        <strong>Payment Method:</strong>{" "}
-                        {payment.payment_method}
-                      </p>
+                        <p>
+                          <strong>Payment Method:</strong>{" "}
+                          {payment.payment_method || "-"}
+                        </p>
 
-                      <p>
-                        <strong>Amount:</strong>₱{payment.amount}
-                      </p>
+                        <p>
+                          <strong>Amount:</strong> ₱
+                          {formatCurrency(payment.amount)}
+                        </p>
 
-                      <p>
-                        <strong>Reference:</strong>{" "}
-                        {payment.reference_number || "-"}
-                      </p>
+                        <p>
+                          <strong>Reference:</strong>{" "}
+                          {payment.reference_number || "-"}
+                        </p>
 
-                      <p>
-                        <strong>Status:</strong> {payment.payment_status}
-                      </p>
+                        <p>
+                          <strong>Status:</strong> {payment.transaction_status}
+                        </p>
+                      </div>
                     </div>
 
+                    {/* Proof of Payment */}
+
                     <div>
-                      <h2 className="font-bold text-xl mb-4">
+                      <h2 className="mb-4 text-xl font-bold">
                         Proof of Payment
                       </h2>
 
                       {payment.proof_of_payment ? (
-                        <img
-                          src={payment.proof_of_payment}
-                          alt="Proof"
-                          className="rounded-xl border w-full max-w-sm"
-                        />
+                        <a
+                          href={payment.proof_of_payment}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <img
+                            src={payment.proof_of_payment}
+                            alt="Proof of Payment"
+                            className="w-full max-w-sm rounded-xl border object-contain"
+                          />
+                        </a>
+                      ) : payment.payment_method === "Cash" ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                          Cash payment has no uploaded proof. Confirm that the
+                          payment was received before approving it.
+                        </div>
                       ) : (
                         <div className="text-gray-400">No proof uploaded.</div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex gap-4 justify-end mt-8">
+                  <div className="mt-8 flex justify-end gap-4">
                     <button
-                      onClick={() => handleReject(payment)}
-                      className="px-6 py-3 rounded-xl bg-red-500 text-white hover:bg-red-600"
+                      type="button"
+                      onClick={() => {
+                        void handleReject(payment);
+                      }}
+                      disabled={isProcessing}
+                      className="rounded-xl bg-red-500 px-6 py-3 text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Reject
+                      {isProcessing ? "Processing..." : "Reject"}
                     </button>
 
                     <button
-                      onClick={() => handleApprove(payment)}
-                      className="px-6 py-3 rounded-xl bg-green-600 text-white hover:bg-green-700"
+                      type="button"
+                      onClick={() => {
+                        void handleApprove(payment);
+                      }}
+                      disabled={isProcessing}
+                      className="rounded-xl bg-green-600 px-6 py-3 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Approve
+                      {isProcessing ? "Processing..." : "Approve"}
                     </button>
                   </div>
                 </div>

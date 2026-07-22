@@ -15,6 +15,7 @@ export interface PaymentForm {
   bank_name: string;
   account_name: string;
   account_number: string;
+  card_expiration: string;
   bank_qr: string;
 }
 
@@ -35,5 +36,6 @@ export const defaultPaymentForm: PaymentForm = {
   bank_name: "",
   account_name: "",
   account_number: "",
+  card_expiration: "",
   bank_qr: "",
 };

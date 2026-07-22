@@ -124,14 +124,17 @@ export default function Bookings() {
       .from("bookings")
       .select(
         `
-            *,
-            worker:profiles!bookings_worker_id_fkey(
+          *,
+          worker:profiles!bookings_worker_id_fkey(
             first_name,
             middle_name,
             last_name,
             profile_picture
+          ),
+          services(
+            service_name
           )
-        `,
+      `,
       )
       .eq("customer_id", user.id)
       .order("created_at", {
@@ -340,7 +343,7 @@ export default function Bookings() {
                         </button>
 
                         <p className="text-gray-500 mt-1">
-                          {booking.service_name || "Service"}
+                          {booking.services?.service_name || "Service"}
                         </p>
                       </div>
                     </div>
@@ -583,7 +586,8 @@ export default function Bookings() {
                     </h2>
 
                     <p className="text-blue-100 text-lg mt-1">
-                      {selectedBooking.service_name}
+                      {selectedBooking.services?.service_name ??
+                        "Service unavailable"}
                     </p>
 
                     <span
@@ -701,7 +705,8 @@ export default function Bookings() {
                   <p className="text-gray-500">Service</p>
 
                   <h3 className="font-bold text-xl">
-                    {receiptBooking.service_name}
+                    {receiptBooking.services?.service_name ??
+                      "Service unavailable"}
                   </h3>
                 </div>
 
@@ -799,7 +804,8 @@ export default function Bookings() {
                     </h3>
 
                     <p className="text-gray-500 text-sm">
-                      {chatBooking.service_name}
+                      {chatBooking.services?.service_name ??
+                        "Service unavailable"}
                     </p>
 
                     <p className="text-green-600 text-xs mt-1">
@@ -909,7 +915,10 @@ export default function Bookings() {
               <div className="bg-gray-50 rounded-2xl border p-5">
                 <h3 className="font-semibold mb-2">Previous Service</h3>
 
-                <p>{rebookBooking.service_name}</p>
+                <p>
+                  {rebookBooking.services?.service_name ??
+                    "Service unavailable"}
+                </p>
 
                 <p className="text-blue-600 font-bold mt-2">
                   ₱{rebookBooking.price}
