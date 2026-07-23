@@ -316,10 +316,15 @@ export async function getCustomerPayments(customerId: string) {
 
       return {
         ...payment,
+
         total_amount: Number(payment.amount ?? 0),
+
         amount_paid: approvedAmount,
+
         pending_amount: pendingAmount,
+
         submitted_amount: submittedAmount,
+
         display_balance: Math.max(
           Number(payment.amount ?? 0) - submittedAmount,
           0,

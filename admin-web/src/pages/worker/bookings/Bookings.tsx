@@ -155,7 +155,29 @@ export default function Bookings() {
     },
     {},
   );
+  async function handleDelete(id: number) {
+    const confirmDelete = window.confirm("Delete this booking from your list?");
 
+    if (!confirmDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          worker_deleted: true,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      alert("Booking deleted successfully.");
+
+      loadBookings();
+    } catch (error) {
+      console.error(error);
+      alert("Unable to delete booking.");
+    }
+  }
   return (
     <WorkerLayout>
       <div className="p-8 space-y-6">
@@ -486,6 +508,12 @@ export default function Bookings() {
                               className="rounded-xl bg-gray-800 hover:bg-gray-900 text-white py-3 font-semibold shadow hover:scale-105 transition"
                             >
                               View Details
+                            </button>
+                            <button
+                              onClick={() => handleDelete(booking.id)}
+                              className="rounded-xl bg-red-600 hover:bg-red-700 text-white py-3 font-semibold shadow hover:scale-105 transition"
+                            >
+                              Delete
                             </button>
 
                             {booking.status === "Pending" && (

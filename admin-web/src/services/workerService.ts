@@ -373,32 +373,47 @@ export async function searchDashboard(
 
   // Calculate Rating
 
-  const workersWithRating = await Promise.all(
-    workers.map(async (worker: any) => {
-      const { data: reviews } = await supabase
-        .from("reviews")
-        .select("rating")
-        .eq("worker_id", worker.id);
+const workersWithRating = await Promise.all(
+  workers.map(async (worker: any) => {
+    // Reviews
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select("rating")
+      .eq("worker_id", worker.id);
 
-      let average = 0;
+    // Completed Jobs
+    const { count: completedJobs } = await supabase
+      .from("bookings")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("worker_id", worker.id)
+      .eq("status", "Completed");
 
-      if (reviews && reviews.length > 0) {
-        const total = reviews.reduce(
-          (sum: number, review: any) => sum + Number(review.rating),
-          0,
-        );
+    let average = 0;
 
-        average = Number((total / reviews.length).toFixed(1));
-      }
+    if (reviews && reviews.length > 0) {
+      const total = reviews.reduce(
+        (sum: number, review: any) =>
+          sum + Number(review.rating),
+        0,
+      );
 
-      return {
-        ...worker,
-        average_rating: average,
-      };
-    }),
-  );
+      average = Number(
+        (total / reviews.length).toFixed(1),
+      );
+    }
 
-  return workersWithRating;
+    return {
+      ...worker,
+      average_rating: average,
+      completed_jobs: completedJobs ?? 0,
+    };
+  }),
+);
+
+return workersWithRating;
 }
 
 // =============================

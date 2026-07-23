@@ -5,12 +5,16 @@ import {
   Star,
   Briefcase,
   CreditCard,
+  Wallet,
 } from "lucide-react";
-
 import { NavLink } from "react-router-dom";
-import { Wallet } from "lucide-react";
 
-export default function WorkerSidebar() {
+interface WorkerSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
   const menus = [
     {
       name: "Dashboard",
@@ -50,16 +54,22 @@ export default function WorkerSidebar() {
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-blue-700 text-white flex flex-col">
+    <aside
+      className={`
+        fixed inset-y-0 left-0 z-50 w-72 min-h-screen bg-blue-700 text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        lg:static lg:z-auto lg:translate-x-0
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+      `}
+    >
       {/* LOGO */}
-      <div className="p-6 border-b border-blue-600">
+      <div className="border-b border-blue-600 p-6">
         <h1 className="text-2xl font-bold">LivelihoodGo</h1>
-
-        <p className="text-blue-200 text-sm">Worker Portal</p>
+        <p className="text-sm text-blue-200">Worker Portal</p>
       </div>
 
       {/* MENU */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 space-y-2 p-4">
         {menus.map((menu) => {
           const Icon = menu.icon;
 
@@ -67,10 +77,11 @@ export default function WorkerSidebar() {
             <NavLink
               key={menu.name}
               to={menu.path}
+              onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+                `flex items-center gap-3 rounded-xl px-4 py-3 transition ${
                   isActive
-                    ? "bg-white text-blue-700 font-semibold"
+                    ? "bg-white font-semibold text-blue-700"
                     : "hover:bg-blue-600"
                 }`
               }

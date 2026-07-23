@@ -28,6 +28,7 @@ export async function getWorkerBookings(workerId: string) {
     `,
     )
     .eq("worker_id", workerId)
+    .eq("worker_deleted", false)
     .order("created_at", {
       ascending: false,
     });

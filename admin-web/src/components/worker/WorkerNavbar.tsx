@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { UserCircle, ChevronDown, User, Pencil, LogOut } from "lucide-react";
+import {
+  UserCircle,
+  ChevronDown,
+  User,
+  Pencil,
+  LogOut,
+  Menu,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import NotificationDropdown from "../notifications/NotificationDropdown";
@@ -7,7 +14,11 @@ import NotificationDropdown from "../notifications/NotificationDropdown";
 import { logout } from "../../services/authService";
 import { useProfile } from "../../context/ProfileContext";
 
-export default function WorkerNavbar() {
+interface WorkerNavbarProps {
+  onMenuClick: () => void;
+}
+
+export default function WorkerNavbar({ onMenuClick }: WorkerNavbarProps) {
   const navigate = useNavigate();
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,53 +58,53 @@ export default function WorkerNavbar() {
   const avatar = profile?.profile_picture || "";
 
   return (
-    <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
+    <header className="flex h-20 items-center justify-between border-b bg-white px-4 shadow-sm sm:px-6 lg:px-8">
       {/* LEFT */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Worker Dashboard</h1>
+      <div className="flex items-center gap-4">
+        {/* Mobile Hamburger */}
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open sidebar"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 lg:hidden"
+        >
+          <Menu size={24} />
+        </button>
 
-        <p className="text-gray-500">Welcome back, {fullName}</p>
+        <div>
+          <h1 className="text-xl font-bold text-gray-800 sm:text-2xl">
+            Worker Dashboard
+          </h1>
+
+          <p className="hidden text-gray-500 sm:block">
+            Welcome back, {fullName}
+          </p>
+        </div>
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-6">
-        {/* NOTIFICATIONS */}
+      <div className="flex items-center gap-4 sm:gap-6">
+        {/* Notifications */}
         <NotificationDropdown role="worker" />
 
-        {/* USER MENU */}
+        {/* User Menu */}
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
-            className="
-              flex
-              items-center
-              gap-3
-              hover:bg-gray-100
-              rounded-xl
-              px-3
-              py-2
-              transition
-            "
+            className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-gray-100 sm:px-3"
           >
             {avatar ? (
               <img
                 src={avatar}
                 alt={`${fullName} profile`}
-                className="
-                  w-11
-                  h-11
-                  rounded-full
-                  object-cover
-                  border-2
-                  border-green-600
-                "
+                className="h-11 w-11 rounded-full border-2 border-green-600 object-cover"
               />
             ) : (
               <UserCircle size={42} className="text-green-600" />
             )}
 
-            <div className="text-left">
+            <div className="hidden text-left md:block">
               <p className="font-semibold text-gray-800">{fullName}</p>
 
               <p className="text-sm text-gray-500">{email}</p>
@@ -104,37 +115,16 @@ export default function WorkerNavbar() {
               className={`transition-transform ${open ? "rotate-180" : ""}`}
             />
           </button>
+
           {open && (
-            <div
-              className="
-                absolute
-                right-0
-                mt-3
-                w-64
-                bg-white
-                rounded-xl
-                shadow-xl
-                border
-                overflow-hidden
-                z-50
-              "
-            >
+            <div className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border bg-white shadow-xl">
               <button
                 type="button"
                 onClick={() => {
                   setOpen(false);
                   navigate("/worker/profile");
                 }}
-                className="
-                  w-full
-                  flex
-                  items-center
-                  gap-3
-                  px-5
-                  py-3
-                  text-left
-                  hover:bg-gray-100
-                "
+                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
               >
                 <User size={20} />
                 <span>My Profile</span>
@@ -146,16 +136,7 @@ export default function WorkerNavbar() {
                   setOpen(false);
                   navigate("/worker/profile/edit");
                 }}
-                className="
-                  w-full
-                  flex
-                  items-center
-                  gap-3
-                  px-5
-                  py-3
-                  text-left
-                  hover:bg-gray-100
-                "
+                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
               >
                 <Pencil size={20} />
                 <span>Edit Profile</span>
@@ -166,17 +147,7 @@ export default function WorkerNavbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="
-                  w-full
-                  flex
-                  items-center
-                  gap-3
-                  px-5
-                  py-3
-                  text-left
-                  text-red-600
-                  hover:bg-red-50
-                "
+                className="flex w-full items-center gap-3 px-5 py-3 text-left text-red-600 hover:bg-red-50"
               >
                 <LogOut size={20} />
                 <span>Logout</span>

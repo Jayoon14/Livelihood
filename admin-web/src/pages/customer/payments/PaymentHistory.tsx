@@ -290,29 +290,39 @@ export default function PaymentHistory() {
      STATUS STYLES
   ========================== */
 
-      function getStatusStyle(payment: PaymentItem) {
-  if ((payment.display_balance ?? payment.balance ?? 0) === 0) {
-    return {
-      icon: CheckCircle2,
-      label: "Paid",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    };
-  }
+  function getStatusStyle(payment: PaymentItem) {
+    const status = payment.payment_status?.toLowerCase();
 
-  if ((payment.amount_paid ?? 0) > 0) {
+    if (status === "paid") {
+      return {
+        icon: CheckCircle2,
+        label: "Paid",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      };
+    }
+
+    if (status === "pending") {
+      return {
+        icon: Clock3,
+        label: "Pending Approval",
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+      };
+    }
+
+    if (status === "rejected") {
+      return {
+        icon: XCircle,
+        label: "Rejected",
+        className: "border-red-200 bg-red-50 text-red-700",
+      };
+    }
+
     return {
       icon: Clock3,
-      label: "Partially Paid",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
+      label: "Pending",
+      className: "border-gray-200 bg-gray-50 text-gray-700",
     };
   }
-
-  return {
-    icon: Clock3,
-    label: "Pending",
-    className: "border-red-200 bg-red-50 text-red-700",
-  };
-}
 
   /* ==========================
      RECEIPT NAVIGATION
@@ -658,28 +668,38 @@ export default function PaymentHistory() {
                             </td>
 
                             <td className="px-5 py-4">
-                                <p className="font-bold">
-                                    {formatCurrency(payment.total_amount ?? payment.amount)}
-                                </p>
+                              <p className="font-bold">
+                                {formatCurrency(
+                                  payment.total_amount ?? payment.amount,
+                                )}
+                              </p>
                             </td>
-                          <td className="px-5 py-4">
-                            <p className="font-semibold text-emerald-600">
-                              {formatCurrency(
-                                payment.submitted_amount ?? payment.amount_paid ?? 0,
-                              )}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p
-                              className={
-                                (payment.display_balance ?? payment.balance ?? 0) > 0
-                                  ? "font-bold text-red-600"
-                                  : "font-bold text-emerald-600"
-                              }
-                            >
-                              {formatCurrency(payment.display_balance ?? payment.balance ?? 0)}
-                            </p>
-                          </td>
+                            <td className="px-5 py-4">
+                              <p className="font-semibold text-emerald-600">
+                                {formatCurrency(
+                                  payment.submitted_amount ??
+                                    payment.amount_paid ??
+                                    0,
+                                )}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4">
+                              <p
+                                className={
+                                  (payment.display_balance ??
+                                    payment.balance ??
+                                    0) > 0
+                                    ? "font-bold text-red-600"
+                                    : "font-bold text-emerald-600"
+                                }
+                              >
+                                {formatCurrency(
+                                  payment.display_balance ??
+                                    payment.balance ??
+                                    0,
+                                )}
+                              </p>
+                            </td>
 
                             <td className="px-5 py-4">
                               <span
@@ -702,61 +722,66 @@ export default function PaymentHistory() {
                               </span>
                             </td>
 
-                          <td className="px-5 py-4 text-right">
-                            {(payment.display_balance ?? payment.balance ?? 0) > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/customer/payment/${payment.booking_id}`)}
-                                className="
-                                  inline-flex
-                                  items-center
-                                  justify-center
-                                  gap-2
-                                  rounded-xl
-                                  bg-blue-600
-                                  px-4
-                                  py-2
-                                  text-sm
-                                  font-medium
-                                  text-white
-                                  shadow-sm
-                                  transition-all
-                                  hover:-translate-y-0.5
-                                  hover:bg-blue-700
-                                  hover:shadow
-                                "
-                              >
-                                <CreditCard size={16} />
-                                Continue Payment
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleViewReceipt(payment)}
-                                className="
-                                  inline-flex
-                                  items-center
-                                  justify-center
-                                  gap-2
-                                  rounded-xl
-                                  bg-emerald-600
-                                  px-4
-                                  py-2
-                                  text-sm
-                                  font-medium
-                                  text-white
-                                  shadow-sm
-                                  transition-all
-                                  hover:-translate-y-0.5
-                                  hover:bg-emerald-700
-                                  hover:shadow
-                                "
-                              >
-                                <FileText size={16} />
-                                Receipt
-                              </button>
-                            )}
-                          </td>
+                            <td className="px-5 py-4 text-right">
+                              {normalizeStatus(payment.payment_status) ===
+                              "paid" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewReceipt(payment)}
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-xl
+                                    bg-emerald-600
+                                    px-4
+                                    py-2
+                                    text-sm
+                                    font-medium
+                                    text-white
+                                    shadow-sm
+                                    transition-all
+                                    hover:-translate-y-0.5
+                                    hover:bg-emerald-700
+                                    hover:shadow
+                                  "
+                                >
+                                  <FileText size={16} />
+                                  Receipt
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(
+                                      `/customer/payment/${payment.booking_id}`,
+                                    )
+                                  }
+                                  className="
+                                    inline-flex
+                                    items-center
+                                    justify-center
+                                    gap-2
+                                    rounded-xl
+                                    bg-blue-600
+                                    px-4
+                                    py-2
+                                    text-sm
+                                    font-medium
+                                    text-white
+                                    shadow-sm
+                                    transition-all
+                                    hover:-translate-y-0.5
+                                    hover:bg-blue-700
+                                    hover:shadow
+                                  "
+                                >
+                                  <CreditCard size={16} />
+                                  Continue Payment
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}

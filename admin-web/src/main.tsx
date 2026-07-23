@@ -8,5 +8,5 @@ import { ProfileProvider } from "./context/ProfileContext";
 createRoot(document.getElementById("root")!).render(
   <ProfileProvider>
     <App />
-  </ProfileProvider>
+  </ProfileProvider>,
 );

@@ -169,6 +169,12 @@ export async function createBooking(data: {
 
   address: string;
 
+  customer_address: string;
+
+  customer_latitude: number;
+
+  customer_longitude: number;
+
   notes: string;
 }) {
   // GET SERVICE DETAILS

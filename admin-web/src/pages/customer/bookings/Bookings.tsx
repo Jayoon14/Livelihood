@@ -137,6 +137,7 @@ export default function Bookings() {
       `,
       )
       .eq("customer_id", user.id)
+      .eq("customer_deleted", false)
       .order("created_at", {
         ascending: false,
       });
@@ -218,29 +219,75 @@ export default function Bookings() {
     }
   }
 
-  async function handleDelete(id: number) {
-    const confirmDelete = window.confirm(
-      "Delete this booking from your history?",
+async function handleDelete(id: number) {
+  console.log("Delete button clicked:", id);
+
+  const confirmDelete = window.confirm(
+    "Delete this booking from your history?",
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Auth error:", userError);
+      alert(userError.message);
+      return;
+    }
+
+    if (!user) {
+      alert("Please log in first.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .update({
+        customer_deleted: true,
+      })
+      .eq("id", id)
+      .eq("customer_id", user.id)
+      .select("id, customer_id, customer_deleted");
+
+    console.log("Delete result:", {
+      data,
+      error,
+      bookingId: id,
+      userId: user.id,
+    });
+
+    if (error) {
+      console.error("Delete error:", error);
+      alert(`Unable to delete: ${error.message}`);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      alert(
+        "Booking was not updated. The database policy may be blocking the request.",
+      );
+      return;
+    }
+
+    setBookings((currentBookings) =>
+      currentBookings.filter((booking) => booking.id !== id),
     );
 
-    if (!confirmDelete) return;
+    alert("Booking removed from your list.");
+  } catch (error) {
+    console.error("Unexpected delete error:", error);
 
-    try {
-      const { error } = await supabase.from("bookings").delete().eq("id", id);
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred.";
 
-      if (error) {
-        throw error;
-      }
-
-      alert("Booking deleted successfully.");
-
-      await loadBookings();
-    } catch (error) {
-      console.error(error);
-
-      alert("Unable to delete booking.");
-    }
+    alert(`Unable to delete booking: ${message}`);
   }
+}
 
   return (
     <CustomerLayout>

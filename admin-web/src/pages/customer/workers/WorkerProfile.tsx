@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+
 import { saveRecentlyViewed } from "../../../services/recentlyViewedService";
 
 import {
@@ -26,6 +27,8 @@ import { getWorkerAverageRating } from "../../../services/reviewService";
 
 import { getApprovedServices } from "../../../services/serviceService";
 
+import LocationPicker from "../../../components/maps/LocationPicker";
+
 import {
   getWorkerSchedule,
   getUnavailableDates,
@@ -43,13 +46,27 @@ export default function CustomerWorkerProfile() {
   const [rating, setRating] = useState(0);
 
   const [schedule, setSchedule] = useState<any[]>([]);
+
   const [unavailableDates, setUnavailableDates] = useState<any[]>([]);
 
   const [selectedService, setSelectedService] = useState<any>(null);
+
   const [bookingDate, setBookingDate] = useState("");
+
   const [bookingTime, setBookingTime] = useState("");
 
+  // NEW LOCATION STATES
+  const [address, setAddress] = useState("");
+
+  const [latitude, setLatitude] = useState<number | null>(null);
+
+  const [longitude, setLongitude] = useState<number | null>(null);
+
+  // JOB DESCRIPTION
+  const [notes, setNotes] = useState("");
+
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+
   const [availabilityMessage, setAvailabilityMessage] = useState("");
 
   useEffect(() => {
@@ -67,25 +84,31 @@ export default function CustomerWorkerProfile() {
       });
     } else {
       navigator.clipboard.writeText(url);
+
       alert("Profile link copied!");
     }
   }
 
   function copyLink() {
     navigator.clipboard.writeText(window.location.href);
+
     alert("Profile link copied!");
   }
 
   function shareFacebook() {
     window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`,
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+        window.location.href,
+      )}`,
       "_blank",
     );
   }
 
   function shareMessenger() {
     window.open(
-      `https://www.facebook.com/dialog/send?link=${encodeURIComponent(window.location.href)}`,
+      `https://www.facebook.com/dialog/send?link=${encodeURIComponent(
+        window.location.href,
+      )}`,
       "_blank",
     );
   }
@@ -93,30 +116,39 @@ export default function CustomerWorkerProfile() {
   async function loadWorker() {
     if (!id) return;
 
-    const data = await getCustomerWorkerProfile(id);
+    try {
+      const data = await getCustomerWorkerProfile(id);
 
-    console.log("FULL DATA:", data);
-    console.log("PROFILE:", data.profile);
-    console.log("PROFILE IMAGE:", data.profile.profile_picture);
+      console.log("FULL DATA:", data);
 
-    const services = await getApprovedServices(id);
+      console.log("PROFILE:", data.profile);
 
-    data.services = services;
+      console.log("PROFILE IMAGE:", data.profile.profile_picture);
 
-    setSelectedService(null);
+      const services = await getApprovedServices(id);
 
-    setWorker(data);
+      data.services = services;
 
-    await saveRecentlyViewed(id);
+      setSelectedService(null);
 
-    const avg = await getWorkerAverageRating(id);
-    setRating(avg);
+      setWorker(data);
 
-    const weeklySchedule = await getWorkerSchedule(id);
-    setSchedule(weeklySchedule);
+      await saveRecentlyViewed(id);
 
-    const dates = await getUnavailableDates(id);
-    setUnavailableDates(dates);
+      const avg = await getWorkerAverageRating(id);
+
+      setRating(avg);
+
+      const weeklySchedule = await getWorkerSchedule(id);
+
+      setSchedule(weeklySchedule);
+
+      const dates = await getUnavailableDates(id);
+
+      setUnavailableDates(dates);
+    } catch (error) {
+      console.error("Failed loading worker:", error);
+    }
   }
 
   if (!worker) {
@@ -126,18 +158,17 @@ export default function CustomerWorkerProfile() {
       </CustomerLayout>
     );
   }
-
   return (
     <CustomerLayout>
-      <div className="max-w-7xl mx-auto p-8">
+      <div className="mx-auto max-w-7xl p-8">
         {/* HEADER */}
 
-        <div className="bg-white rounded-3xl shadow p-8 flex gap-8">
+        <div className="flex gap-8 rounded-3xl bg-white p-8 shadow">
           <img
             src={
               worker.profile.profile_picture || "https://placehold.co/250x250"
             }
-            className="w-52 h-52 rounded-2xl object-cover"
+            className="h-52 w-52 rounded-2xl object-cover"
             alt="Worker"
           />
 
@@ -147,13 +178,13 @@ export default function CustomerWorkerProfile() {
               {worker.profile.last_name}
             </h1>
 
-            <div className="flex items-center gap-2 mt-4">
-              <Star className="text-yellow-500 fill-yellow-500" />
+            <div className="mt-4 flex items-center gap-2">
+              <Star className="fill-yellow-500 text-yellow-500" />
 
               <span className="font-semibold">{rating}</span>
             </div>
 
-            <div className="space-y-3 mt-6">
+            <div className="mt-6 space-y-3">
               <p className="flex items-center gap-3">
                 <Mail size={18} />
                 {worker.profile.email}
@@ -169,11 +200,12 @@ export default function CustomerWorkerProfile() {
                 {worker.profile.address}
               </p>
             </div>
+
             {/* WORKER LOCATION */}
 
             {worker.profile.latitude && worker.profile.longitude && (
               <div className="mt-6">
-                <h3 className="font-bold mb-3">📍 Worker Location</h3>
+                <h3 className="mb-3 font-bold">📍 Worker Location</h3>
 
                 <iframe
                   width="100%"
@@ -188,14 +220,17 @@ export default function CustomerWorkerProfile() {
                   href={`https://www.google.com/maps/dir/?api=1&destination=${worker.profile.latitude},${worker.profile.longitude}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg"
+                  className="mt-4 inline-block rounded-lg bg-green-600 px-5 py-2 text-white hover:bg-green-700"
                 >
                   Get Directions
                 </a>
               </div>
             )}
+
+            {/* SERVICE SELECT */}
+
             <div className="mt-6">
-              <label className="block font-semibold mb-2">Select Service</label>
+              <label className="mb-2 block font-semibold">Select Service</label>
 
               <select
                 value={selectedService?.id || ""}
@@ -206,19 +241,24 @@ export default function CustomerWorkerProfile() {
 
                   setSelectedService(service);
                 }}
-                className="border rounded-lg px-3 py-2 w-full"
+                className="w-full rounded-lg border px-3 py-2"
               >
                 <option value="">-- Select Service --</option>
 
                 {worker.services.map((service: any) => (
                   <option key={service.id} value={service.id}>
-                    {service.service_name} - ₱{service.price}
+                    {service.service_name}
+                    {" - ₱"}
+                    {service.price}
                   </option>
                 ))}
               </select>
             </div>
+
+            {/* BOOKING DATE */}
+
             <div className="mt-6">
-              <label className="block font-semibold mb-2">Booking Date</label>
+              <label className="mb-2 block font-semibold">Booking Date</label>
 
               <input
                 type="date"
@@ -229,7 +269,9 @@ export default function CustomerWorkerProfile() {
                   setBookingDate(date);
 
                   setBookingTime("");
+
                   setAvailableSlots([]);
+
                   setAvailabilityMessage("");
 
                   if (!date) return;
@@ -252,17 +294,19 @@ export default function CustomerWorkerProfile() {
 
                   setAvailableSlots(slots);
                 }}
-                className="border rounded-lg px-3 py-2 w-full"
+                className="w-full rounded-lg border px-3 py-2"
               />
             </div>
 
+            {/* BOOKING TIME */}
+
             <div className="mt-4">
-              <label className="block font-semibold mb-2">Booking Time</label>
+              <label className="mb-2 block font-semibold">Booking Time</label>
 
               <select
                 value={bookingTime}
                 onChange={(e) => setBookingTime(e.target.value)}
-                className="border rounded-lg px-3 py-2 w-full"
+                className="w-full rounded-lg border px-3 py-2"
               >
                 <option value="">Select Available Time</option>
 
@@ -272,8 +316,41 @@ export default function CustomerWorkerProfile() {
                   </option>
                 ))}
               </select>
+
+              {/* SERVICE LOCATION */}
+
+                <div className="mt-6">
+                  <label className="mb-3 block text-sm font-semibold text-slate-800">
+                    Service Location
+                  </label>
+
+                  <LocationPicker
+                    onLocationSelect={(lat, lng, selectedAddress) => {
+                      setLatitude(lat);
+                      setLongitude(lng);
+                      setAddress(selectedAddress);
+                    }}
+                  />
+                </div>
+
+
+              {/* JOB DESCRIPTION */}
+
+              <div className="mt-6">
+                <label className="mb-2 block font-semibold">
+                  Job Description
+                </label>
+
+                <textarea
+                  rows={4}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Describe the work needed..."
+                  className="w-full rounded-lg border p-3"
+                />
+              </div>
               {availabilityMessage && (
-                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-red-600">
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-600">
                   {availabilityMessage}
                 </div>
               )}
@@ -281,11 +358,13 @@ export default function CustomerWorkerProfile() {
               {bookingDate &&
                 availableSlots.length === 0 &&
                 !availabilityMessage && (
-                  <div className="mt-3 rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-yellow-700">
+                  <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-yellow-700">
                     No available time slots for this date.
                   </div>
                 )}
             </div>
+
+            {/* BOOK BUTTON */}
 
             <button
               onClick={async () => {
@@ -303,6 +382,17 @@ export default function CustomerWorkerProfile() {
                   alert("Please select booking time.");
                   return;
                 }
+
+                if (latitude === null || longitude === null) {
+                  alert("Please select your service location.");
+                  return;
+                }
+
+                if (!notes.trim()) {
+                  alert("Please enter a job description.");
+                  return;
+                }
+
                 const availability = await checkWorkerAvailability(
                   worker.profile.id,
                   bookingDate,
@@ -326,36 +416,54 @@ export default function CustomerWorkerProfile() {
 
                   return;
                 }
+
                 const {
                   data: { user },
                 } = await supabase.auth.getUser();
 
                 if (!user) {
                   alert("Please login first.");
+
                   return;
                 }
 
                 navigate("/customer/booking-confirmation", {
                   state: {
                     workerId: worker.profile.id,
+
                     workerName: `${worker.profile.first_name} ${worker.profile.last_name}`,
+
                     service: selectedService.service_name,
+
                     serviceId: selectedService.id,
+
                     date: bookingDate,
+
                     time: bookingTime,
+
                     price: selectedService.price,
-                    address: worker.profile.address ?? "",
+
+                    address,
+
+                    latitude,
+
+                    longitude,
+
+                    notes,
                   },
                 });
               }}
-              className="mt-8 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl"
+              className="mt-8 rounded-xl bg-blue-600 px-8 py-4 text-white hover:bg-blue-700"
             >
               Book Now
             </button>
+
+            {/* SHARE BUTTONS */}
+
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 onClick={shareProfile}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 <Share2 size={18} />
                 Share
@@ -363,7 +471,7 @@ export default function CustomerWorkerProfile() {
 
               <button
                 onClick={copyLink}
-                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100"
               >
                 <Copy size={18} />
                 Copy Link
@@ -371,7 +479,7 @@ export default function CustomerWorkerProfile() {
 
               <button
                 onClick={shareFacebook}
-                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100"
               >
                 <FaFacebook size={18} />
                 Facebook
@@ -379,7 +487,7 @@ export default function CustomerWorkerProfile() {
 
               <button
                 onClick={shareMessenger}
-                className="flex items-center gap-2 border px-4 py-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 rounded-lg border px-4 py-2 hover:bg-gray-100"
               >
                 <MessageCircle size={18} />
                 Messenger
@@ -390,23 +498,23 @@ export default function CustomerWorkerProfile() {
 
         {/* SERVICES */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold mb-5 flex items-center gap-3">
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 flex items-center gap-3 text-2xl font-bold">
             <Briefcase />
             Services
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid gap-5 md:grid-cols-2">
             {worker.services.length === 0 ? (
               <p className="text-gray-500">No approved services yet.</p>
             ) : (
               worker.services.map((service: any) => (
-                <div key={service.id} className="border rounded-xl p-5">
-                  <h3 className="font-bold text-xl">{service.service_name}</h3>
+                <div key={service.id} className="rounded-xl border p-5">
+                  <h3 className="text-xl font-bold">{service.service_name}</h3>
 
-                  <p className="text-gray-500 mt-2">{service.category}</p>
+                  <p className="mt-2 text-gray-500">{service.category}</p>
 
-                  <p className="text-blue-700 font-bold mt-3">
+                  <p className="mt-3 font-bold text-blue-700">
                     ₱{service.price}
                   </p>
                 </div>
@@ -417,8 +525,8 @@ export default function CustomerWorkerProfile() {
 
         {/* EDUCATION */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold flex gap-3 mb-5">
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 flex gap-3 text-2xl font-bold">
             <GraduationCap />
             Education
           </h2>
@@ -435,11 +543,10 @@ export default function CustomerWorkerProfile() {
             <p className="text-gray-500">No education information available.</p>
           )}
         </div>
-
         {/* EXPERIENCE */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold mb-5">Work Experience</h2>
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 text-2xl font-bold">Work Experience</h2>
 
           {worker.workExperience?.length ? (
             worker.workExperience.map((job: any) => (
@@ -447,6 +554,10 @@ export default function CustomerWorkerProfile() {
                 <h3 className="font-bold">{job.company}</h3>
 
                 <p>{job.position}</p>
+
+                {job.description && (
+                  <p className="mt-2 text-gray-500">{job.description}</p>
+                )}
               </div>
             ))
           ) : (
@@ -456,8 +567,8 @@ export default function CustomerWorkerProfile() {
 
         {/* SKILLS */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold flex gap-3 mb-5">
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 flex gap-3 text-2xl font-bold">
             <Award />
             Skills
           </h2>
@@ -467,7 +578,7 @@ export default function CustomerWorkerProfile() {
               worker.skills.map((skill: any) => (
                 <span
                   key={skill.id}
-                  className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full"
+                  className="rounded-full bg-blue-100 px-4 py-2 text-blue-700"
                 >
                   {skill.skill_name}
                 </span>
@@ -477,10 +588,11 @@ export default function CustomerWorkerProfile() {
             )}
           </div>
         </div>
+
         {/* WEEKLY AVAILABILITY */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold mb-5">Weekly Availability</h2>
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 text-2xl font-bold">Weekly Availability</h2>
 
           {schedule.length === 0 ? (
             <p className="text-gray-500">No schedule available.</p>
@@ -507,10 +619,11 @@ export default function CustomerWorkerProfile() {
             </div>
           )}
         </div>
+
         {/* UNAVAILABLE DATES */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mt-8">
-          <h2 className="text-2xl font-bold mb-5">Unavailable Dates</h2>
+        <div className="mt-8 rounded-3xl bg-white p-8 shadow">
+          <h2 className="mb-5 text-2xl font-bold">Unavailable Dates</h2>
 
           {unavailableDates.length === 0 ? (
             <p className="text-gray-500">No unavailable dates.</p>
