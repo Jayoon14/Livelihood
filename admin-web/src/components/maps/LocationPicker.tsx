@@ -27,7 +27,7 @@ import { useMarkerHeading } from "./hooks/useMarkerHeading";
 import { useSmoothMarker } from "./hooks/useSmoothMarker";
 import { useLiveRouteRefresh } from "./hooks/useLiveRouteRefresh";
 import { useFollowLocation } from "./hooks/useFollowLocation";
-
+import { useNearbyWorkers } from "./hooks/useNearbyWorkers";
 import { useLiveLocation } from "./hooks/useLiveLocation";
 import { useSearchHistory } from "./hooks/useSearchHistory";
 import { useRouteLayer } from "./hooks/useRouteLayer";
@@ -40,15 +40,31 @@ import { useSearchResultSelect } from "./hooks/useSearchResultSelect";
 import { useLocationPickerState } from "./hooks/useLocationPickerState";
 import { useSearch } from "./hooks/useSearch";
 
+interface InitialLocation {
+  latitude: number;
+  longitude: number;
+  address: string;
+}
 interface Props {
   onLocationSelect: (
     latitude: number,
     longitude: number,
     address: string,
   ) => void;
-}
 
-export default function LocationPicker({ onLocationSelect }: Props) {
+  showNearbyWorkers?: boolean;
+  nearbyWorkerRadiusKilometers?: number;
+
+  initialLocation?: InitialLocation;
+  navigationMode?: boolean;
+}
+export default function LocationPicker({
+  onLocationSelect,
+  showNearbyWorkers = false,
+  nearbyWorkerRadiusKilometers = 20,
+  initialLocation,
+  navigationMode = false,
+}: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -181,7 +197,10 @@ useMarkerHeading({
 useFollowLocation({
   map: mapRef.current,
   coordinates: liveLocation?.coordinates ?? null,
-  enabled: followUser,
+  enabled:
+    followUser &&
+    !showDirections &&
+    !navigationMode,
 });
   useMapInitialization({
     mapContainerRef,
@@ -196,19 +215,94 @@ useFollowLocation({
   });
 
   const getDirections = useDirections({
-    mapRef,
-    currentLocationRef,
-    selectedCoordinatesRef,
-    drawRoute,
-    getCurrentLocation,
-    setRouting,
-    setMessage,
-    setDistance,
-    setDuration,
-    setShowDirections,
+  mapRef,
+  currentLocationRef,
+  selectedCoordinatesRef,
+  drawRoute,
+  getCurrentLocation,
+  setRouting,
+  setMessage,
+  setDistance,
+  setDuration,
+  setShowDirections,
+});
+
+const initialLocationLoadedRef = useRef(false);
+const automaticRouteStartedRef = useRef(false);
+
+useEffect(() => {
+  if (
+    !navigationMode ||
+    !mapReady ||
+    !initialLocation ||
+    initialLocationLoadedRef.current
+  ) {
+    return;
+  }
+
+  const destination = initialLocation;
+
+  initialLocationLoadedRef.current = true;
+
+  // Siguraduhing customer coordinates ang destination.
+  selectedCoordinatesRef.current = [
+    destination.longitude,
+    destination.latitude,
+  ];
+
+  void saveLocation(
+    destination.latitude,
+    destination.longitude,
+    destination.address,
+    true,
+  );
+
+  startTracking();
+}, [
+  initialLocation,
+  mapReady,
+  navigationMode,
+  saveLocation,
+  startTracking,
+]);
+useEffect(() => {
+  if (
+    !navigationMode ||
+    !mapReady ||
+    !initialLocation ||
+    !liveLocation ||
+    automaticRouteStartedRef.current
+  ) {
+    return;
+  }
+
+  // Explicitly set worker GPS as route origin.
+  currentLocationRef.current =
+    liveLocation.coordinates;
+
+  // Explicitly preserve customer location as destination.
+  selectedCoordinatesRef.current = [
+    initialLocation.longitude,
+    initialLocation.latitude,
+  ];
+
+  automaticRouteStartedRef.current = true;
+
+  console.log("Starting navigation route:", {
+    origin: currentLocationRef.current,
+    destination: selectedCoordinatesRef.current,
   });
 
-  useLiveRouteRefresh({
+  void getDirections();
+}, [
+  getDirections,
+  initialLocation,
+  liveLocation,
+  mapReady,
+  navigationMode,
+]);
+
+useLiveRouteRefresh({
   coordinates: liveLocation?.coordinates ?? null,
 
   enabled:
@@ -218,8 +312,8 @@ useFollowLocation({
 
   refreshRoute: getDirections,
 
-  minimumDistanceMeters: 25,
-  minimumIntervalMilliseconds: 10_000,
+  minimumDistanceMeters: 50,
+  minimumIntervalMilliseconds: 30_000,
 });
 
   const handleSearchResultSelect = useSearchResultSelect({
@@ -232,9 +326,16 @@ useFollowLocation({
     currentLocationRef,
   });
 
-  useEffect(() => {
-    getCurrentLocation(true);
-  }, [getCurrentLocation]);
+useEffect(() => {
+  if (navigationMode) {
+    // Kunin lang ang worker GPS.
+    // Huwag gawing destination ang worker location.
+    getCurrentLocation(false);
+    return;
+  }
+
+  getCurrentLocation(true);
+}, [getCurrentLocation, navigationMode]);
 
   useMapStyle({
     mapRef,
@@ -248,6 +349,18 @@ useFollowLocation({
     trafficEnabled,
     tomTomApiKey,
   });
+
+  const {
+  nearbyWorkersCount,
+  loadingWorkers,
+  nearbyWorkersError,
+  refreshNearbyWorkers,
+} = useNearbyWorkers({
+  mapRef,
+  currentLocationRef,
+  enabled: showNearbyWorkers && mapReady,
+  radiusKilometers: nearbyWorkerRadiusKilometers,
+});
 
   const confirmAddress = useConfirmAddress({
     editableAddress,
@@ -269,6 +382,7 @@ const handleCurrentLocation = useCallback(() => {
 
   if (currentLocationRef.current) {
     recenterMap();
+    refreshNearbyWorkers();
     return;
   }
 
@@ -276,6 +390,7 @@ const handleCurrentLocation = useCallback(() => {
 }, [
   getCurrentLocation,
   recenterMap,
+  refreshNearbyWorkers,
   startTracking,
 ]);
   const sidebarProps = useSidebarProps({
@@ -327,6 +442,27 @@ const handleCurrentLocation = useCallback(() => {
         <MapSidebar {...sidebarProps} />
         <div className="relative flex-1">
           <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
+          {showNearbyWorkers && (
+          <div className="pointer-events-none absolute left-4 top-4 z-20">
+            <div className="rounded-2xl border border-white/70 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Nearby Workers
+              </p>
+
+              <p className="mt-1 text-lg font-bold text-slate-900">
+                {loadingWorkers
+                  ? "Loading..."
+                  : `${nearbyWorkersCount} available`}
+              </p>
+
+              {nearbyWorkersError && (
+                <p className="mt-1 max-w-52 text-xs text-red-600">
+                  {nearbyWorkersError}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         </div>
 
         <LoadingOverlay visible={!mapReady} />
@@ -354,14 +490,16 @@ const handleCurrentLocation = useCallback(() => {
         <MessageBanner message={message} />
       </div>
 
-        <LocationConfirmSection
-          editableAddress={editableAddress}
-          selectedAddress={selectedAddress}
-          latitude={latitude}
-          longitude={longitude}
-          onAddressChange={setEditableAddress}
-          onConfirm={confirmAddress}
-        />
+        {!navigationMode && (
+          <LocationConfirmSection
+            editableAddress={editableAddress}
+            selectedAddress={selectedAddress}
+            latitude={latitude}
+            longitude={longitude}
+            onAddressChange={setEditableAddress}
+            onConfirm={confirmAddress}
+          />
+        )}
     </div>
   );
 }

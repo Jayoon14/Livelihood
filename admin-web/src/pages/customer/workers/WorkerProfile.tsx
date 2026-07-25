@@ -330,6 +330,8 @@ export default function CustomerWorkerProfile() {
                       setLongitude(lng);
                       setAddress(selectedAddress);
                     }}
+                    showNearbyWorkers
+                    nearbyWorkerRadiusKilometers={20}
                   />
                 </div>
 

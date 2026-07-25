@@ -61,64 +61,87 @@ export async function updateBookingStatus(
 
 // WORKER ACCEPT BOOKING
 
-export async function acceptBooking(id: number) {
-  const { error } = await supabase
+export async function acceptBooking(
+  id: number,
+  workerId: string,
+) {
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status: "Approved",
+      trip_status: "Accepted",
+      accepted_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("worker_id", workerId)
+    .eq("status", "Pending")
+    .select(
+      `
+        id,
+        customer_id,
+        worker_id,
+        status,
+        trip_status,
+        accepted_at
+      `,
+    )
+    .single();
 
   if (error) {
     throw error;
   }
 
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("id", id)
-    .single();
+  await createNotification(
+    booking.customer_id,
+    booking.id,
+    "Booking Approved",
+    "Your booking request has been accepted by the worker.",
+  );
 
-  if (booking) {
-    await createNotification(
-      booking.customer_id,
-      booking.id,
-      "Booking Approved",
-      "Your booking request has been approved.",
-    );
-  }
+  return booking;
 }
 
 // WORKER REJECT BOOKING
 
-export async function rejectBooking(id: number) {
-  const { error } = await supabase
+export async function rejectBooking(
+  id: number,
+  workerId: string,
+) {
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
       status: "Cancelled",
+      trip_status: "Cancelled",
+      cancel_reason: "Worker rejected the booking request.",
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("worker_id", workerId)
+    .eq("status", "Pending")
+    .select(
+      `
+        id,
+        customer_id,
+        worker_id,
+        status,
+        trip_status,
+        cancel_reason
+      `,
+    )
+    .single();
 
   if (error) {
     throw error;
   }
 
-  const { data: booking } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("id", id)
-    .single();
+  await createNotification(
+    booking.customer_id,
+    booking.id,
+    "Booking Declined",
+    "The worker declined your booking request.",
+  );
 
-  if (booking) {
-    await createNotification(
-      booking.customer_id,
-      booking.id,
-      "Booking Cancelled",
-      "Unfortunately your booking request was declined.",
-    );
-  }
+  return booking;
 }
-
 // WORKER COMPLETE BOOKING
 
 export async function completeBooking(id: number) {

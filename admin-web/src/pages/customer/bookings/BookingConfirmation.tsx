@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
-import { createBooking } from "../../../services/bookingService";
+
+import { createBooking } from "../../../services/customerBookingService";
 
 export default function BookingConfirmation() {
   return (
@@ -15,11 +20,14 @@ export default function BookingConfirmation() {
 function BookingConfirmationContent() {
   const navigate = useNavigate();
   const { state } = useLocation();
+
   const [loading, setLoading] = useState(false);
 
   if (!state) {
     return (
-      <div className="p-10 text-center">Booking information not found.</div>
+      <div className="p-10 text-center">
+        Booking information not found.
+      </div>
     );
   }
 
@@ -37,14 +45,32 @@ function BookingConfirmationContent() {
         return;
       }
 
+      if (
+        !state.address?.trim() ||
+        !Number.isFinite(state.latitude) ||
+        !Number.isFinite(state.longitude)
+      ) {
+        throw new Error(
+          "Service location is missing. Please return and select the location again.",
+        );
+      }
+
+      console.log("Booking confirmation state:", state);
+
       await createBooking({
         customer_id: user.id,
         worker_id: state.workerId,
-        service_id: state.serviceId,
+        service_id: Number(state.serviceId),
+
         booking_date: state.date,
         booking_time: state.time,
+
         address: state.address,
-        notes: state.notes,
+        customer_address: state.address,
+        customer_latitude: Number(state.latitude),
+        customer_longitude: Number(state.longitude),
+
+        notes: state.notes ?? "",
       });
 
       alert(
@@ -55,69 +81,113 @@ function BookingConfirmationContent() {
         replace: true,
       });
     } catch (error) {
-      console.error("BOOKING SUBMISSION ERROR:", error);
+      console.error(
+        "BOOKING SUBMISSION ERROR:",
+        error,
+      );
 
       const message =
-        error instanceof Error ? error.message : "Failed to submit booking.";
+        error instanceof Error
+          ? error.message
+          : "Failed to submit booking.";
 
       alert(message);
     } finally {
       setLoading(false);
     }
   }
+
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-8">Confirm Booking</h1>
+    <div className="mx-auto max-w-4xl">
+      <div className="rounded-2xl bg-white p-8 shadow-lg">
+        <h1 className="mb-8 text-3xl font-bold">
+          Confirm Booking
+        </h1>
 
         <div className="space-y-5">
           <div className="flex justify-between">
-            <span className="font-semibold">Worker</span>
+            <span className="font-semibold">
+              Worker
+            </span>
 
             <span>{state.workerName}</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="font-semibold">Service</span>
+            <span className="font-semibold">
+              Service
+            </span>
 
             <span>{state.service}</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="font-semibold">Booking Date</span>
+            <span className="font-semibold">
+              Booking Date
+            </span>
 
             <span>{state.date}</span>
           </div>
 
           <div className="flex justify-between">
-            <span className="font-semibold">Booking Time</span>
+            <span className="font-semibold">
+              Booking Time
+            </span>
 
             <span>{state.time}</span>
           </div>
 
-          <div className="border-t pt-6 flex justify-between">
-            <span className="text-xl font-bold">Total Amount</span>
+          <div className="flex justify-between">
+            <span className="font-semibold">
+              Service Location
+            </span>
 
-            <span className="text-2xl text-blue-600 font-bold">
+            <span className="max-w-md text-right">
+              {state.address}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="font-semibold">
+              Coordinates
+            </span>
+
+            <span>
+              {Number(state.latitude).toFixed(6)},{" "}
+              {Number(state.longitude).toFixed(6)}
+            </span>
+          </div>
+
+          <div className="flex justify-between border-t pt-6">
+            <span className="text-xl font-bold">
+              Total Amount
+            </span>
+
+            <span className="text-2xl font-bold text-blue-600">
               ₱{state.price}
             </span>
           </div>
         </div>
 
-        <div className="flex justify-end gap-4 mt-10">
+        <div className="mt-10 flex justify-end gap-4">
           <button
+            type="button"
             onClick={() => navigate(-1)}
-            className="px-6 py-3 rounded-xl border"
+            disabled={loading}
+            className="rounded-xl border px-6 py-3 disabled:opacity-50"
           >
             Back
           </button>
 
           <button
+            type="button"
             onClick={handleConfirmBooking}
             disabled={loading}
-            className="px-8 py-3 rounded-xl bg-blue-600 text-white disabled:bg-gray-400"
+            className="rounded-xl bg-blue-600 px-8 py-3 text-white disabled:bg-gray-400"
           >
-            {loading ? "Submitting..." : "Confirm Booking"}
+            {loading
+              ? "Submitting..."
+              : "Confirm Booking"}
           </button>
         </div>
       </div>

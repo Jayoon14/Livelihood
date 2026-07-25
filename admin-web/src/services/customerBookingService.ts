@@ -158,25 +158,29 @@ export async function getCompletedBookings(customerId: string) {
 
 export async function createBooking(data: {
   customer_id: string;
-
   worker_id: string;
-
-  service_id: string;
-
+  service_id: number;
   booking_date: string;
-
   booking_time: string;
-
   address: string;
-
   customer_address: string;
-
   customer_latitude: number;
-
   customer_longitude: number;
-
   notes: string;
 }) {
+  console.log("createBooking received:", data);
+
+  if (
+    !data.customer_address?.trim() ||
+    !Number.isFinite(data.customer_latitude) ||
+    !Number.isFinite(data.customer_longitude)
+  ) {
+    throw new Error(
+      "Booking location is missing before database insert.",
+    );
+  }
+
+  // existing service query...
   // GET SERVICE DETAILS
 
   const { data: service, error: serviceError } = await supabase
@@ -191,57 +195,60 @@ export async function createBooking(data: {
     .eq("id", data.service_id)
     .single();
 
-  if (serviceError) {
-    throw serviceError;
-  }
+ if (serviceError) {
+  throw serviceError;
+}
 
-  // CREATE BOOKING
+// CREATE BOOKING
 
-  const { data: booking, error } = await supabase
-    .from("bookings")
-    .insert({
-      customer_id: data.customer_id,
+const bookingPayload = {
+  customer_id: data.customer_id,
+  worker_id: data.worker_id,
+  service_id: data.service_id,
 
-      worker_id: data.worker_id,
+  service_name: service.service_name,
+  category: service.category,
+  price: service.price,
 
-      service_id: data.service_id,
+  booking_date: data.booking_date,
+  booking_time: data.booking_time,
 
-      service_name: service.service_name,
+  address: data.address,
+  customer_address: data.customer_address,
+  customer_latitude: Number(data.customer_latitude),
+  customer_longitude: Number(data.customer_longitude),
 
-      category: service.category,
+  notes: data.notes || null,
 
-      price: service.price,
+  status: "Pending",
+  trip_status: "Not Started",
+};
 
-      booking_date: data.booking_date,
+console.log("Supabase booking payload:", bookingPayload);
 
-      booking_time: data.booking_time,
+const { data: booking, error } = await supabase
+  .from("bookings")
+  .insert(bookingPayload)
+  .select()
+  .single();
 
-      address: data.address,
+if (error) {
+  console.error("Booking insert error:", error);
+  throw error;
+}
 
-      notes: data.notes,
+console.log("Inserted booking:", booking);
 
-      status: "Pending",
-    })
-    .select()
-    .single();
+// NOTIFY WORKER
 
-  if (error) {
-    throw error;
-  }
+await createNotification(
+  booking.worker_id,
+  booking.id,
+  "New Booking",
+  "You have received a new booking request.",
+);
 
-  // NOTIFY WORKER
-
-  await createNotification(
-    booking.worker_id,
-
-    booking.id,
-
-    "New Booking",
-
-    "You have received a new booking request.",
-  );
-
-  return booking;
+return booking;
 }
 export async function isWorkerAvailable(
   workerId: string,

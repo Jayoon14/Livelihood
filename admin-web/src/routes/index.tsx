@@ -34,6 +34,7 @@ import WorkerReviews from "../pages/worker/reviews/Reviews";
 import WorkerProfile from "../pages/worker/profile/Profile";
 import WorkerSchedule from "../pages/worker/schedule/Schedule";
 import Services from "../pages/worker/Services/services";
+import NavigateToCustomer from "../pages/worker/navigation/NavigateToCustomer";
 
 // ================= ADMIN PAGES =================
 import Workers from "../pages/admin/workers/Workers";
@@ -241,6 +242,14 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+        path="/worker/navigation/:bookingId"
+        element={
+          <ProtectedRoute>
+            <NavigateToCustomer />
+          </ProtectedRoute>
+        }
+      />
         <Route
           path="/worker/bookings/complete/:bookingId"
           element={<CompleteJob />}

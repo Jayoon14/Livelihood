@@ -66,16 +66,17 @@ export default function BookWorker() {
   }
 
   async function handleSubmit() {
-    if (
-      !serviceId ||
-      !scheduleDate ||
-      !scheduleTime ||
-      latitude === null ||
-      longitude === null
-    ) {
-      alert("Please select your location.");
-      return;
-    }
+  if (
+    !serviceId ||
+    !scheduleDate ||
+    !scheduleTime ||
+    !address.trim() ||
+    latitude === null ||
+    longitude === null
+  ) {
+    alert("Please complete the service, schedule, and service location.");
+    return;
+  }
 
     const {
       data: { user },
@@ -103,32 +104,31 @@ export default function BookWorker() {
         return;
       }
 
-      await createBooking({
-        customer_id: user.id,
-        worker_id: worker.profile.id,
-        service_id: serviceId,
-        booking_date: scheduleDate,
-        booking_time: scheduleTime,
+    console.log("Booking payload:", {
+      customer_id: user.id,
+      worker_id: worker.profile.id,
+      service_id: Number(serviceId),
+      booking_date: scheduleDate,
+      booking_time: scheduleTime,
+      address,
+      customer_address: address,
+      customer_latitude: latitude,
+      customer_longitude: longitude,
+      notes,
+    });
 
-        address,
-        customer_address: address,
-        customer_latitude: latitude,
-        customer_longitude: longitude,
-
-        notes,
-      });
-
-      console.log({
-        customer_id: user.id,
-        worker_id: worker.profile.id,
-        service_id: serviceId,
-        booking_date: scheduleDate,
-        booking_time: scheduleTime,
-        customer_address: address,
-        customer_latitude: latitude,
-        customer_longitude: longitude,
-        notes,
-      });
+    await createBooking({
+      customer_id: user.id,
+      worker_id: worker.profile.id,
+      service_id: Number(serviceId),
+      booking_date: scheduleDate,
+      booking_time: scheduleTime,
+      address,
+      customer_address: address,
+      customer_latitude: latitude,
+      customer_longitude: longitude,
+      notes,
+    });
 
       alert("Booking submitted successfully!");
 
@@ -225,6 +225,8 @@ export default function BookWorker() {
                 setLongitude(lng);
                 setAddress(selectedAddress);
               }}
+              showNearbyWorkers
+              nearbyWorkerRadiusKilometers={20}
             />
 
             <textarea

@@ -4,65 +4,164 @@ import { useNavigate } from "react-router-dom";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 
-import { getWorkerBookings } from "../../../services/workerBookingService";
-
-import { acceptBooking, rejectBooking } from "../../../services/bookingService";
+import {
+  acceptBooking,
+  getWorkerBookings,
+  rejectBooking,
+} from "../../../services/workerBookingService";
 import WorkerAnalytics from "../../../components/worker/dashboard/WorkerAnalytics";
+import WorkerLocationStatus from "../../../components/worker/dashboard/WorkerLocationStatus";
 import TodaySchedule from "../../../components/worker/dashboard/TodaySchedule";
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
   const [bookings, setBookings] = useState<any[]>([]);
+  const [workerId, setWorkerId] = useState<string | null>(null);
+  const [processingBookingId, setProcessingBookingId] =
+  useState<number | null>(null);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+useEffect(() => {
+  let channel: ReturnType<typeof supabase.channel> | null =
+    null;
 
-  async function loadDashboard() {
+  async function initializeDashboard() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return;
-
-    try {
-      const data = await getWorkerBookings(user.id);
-
-      setBookings(data);
-    } catch (error) {
-      console.error(error);
+    if (!user) {
+      return;
     }
+
+    setWorkerId(user.id);
+
+    await loadDashboard(user.id);
+
+    channel = supabase
+      .channel(`worker-bookings-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `worker_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log(
+            "Realtime worker booking update:",
+            payload,
+          );
+
+          void loadDashboard(user.id);
+        },
+      )
+      .subscribe((status) => {
+        console.log(
+          "Worker booking realtime status:",
+          status,
+        );
+      });
   }
+
+  void initializeDashboard();
+
+  return () => {
+    if (channel) {
+      void supabase.removeChannel(channel);
+    }
+  };
+}, []);
+ async function loadDashboard(
+  currentWorkerId?: string,
+) {
+  let resolvedWorkerId = currentWorkerId;
+
+  if (!resolvedWorkerId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    resolvedWorkerId = user?.id;
+  }
+
+  if (!resolvedWorkerId) {
+    return;
+  }
+
+  try {
+    const data = await getWorkerBookings(
+      resolvedWorkerId,
+    );
+
+    setBookings(data);
+  } catch (error) {
+    console.error(
+      "Failed to load worker bookings:",
+      error,
+    );
+  }
+}
 
   async function handleAccept(id: number) {
-    try {
-      await acceptBooking(id);
-
-      alert("Booking Approved.");
-
-      loadDashboard();
-    } catch (error) {
-      console.error(error);
-
-      alert("Failed to approve booking.");
-    }
+  if (!workerId || processingBookingId !== null) {
+    return;
   }
 
+  try {
+    setProcessingBookingId(id);
+
+    await acceptBooking(id, workerId);
+
+    alert("Booking accepted successfully.");
+
+    await loadDashboard(workerId);
+  } catch (error) {
+    console.error("Accept booking error:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to accept booking.",
+    );
+  } finally {
+    setProcessingBookingId(null);
+  }
+}
   async function handleReject(id: number) {
-    try {
-      await rejectBooking(id);
-
-      alert("Booking Cancelled.");
-
-      loadDashboard();
-    } catch (error) {
-      console.error(error);
-
-      alert("Failed to cancel booking.");
-    }
+  if (!workerId || processingBookingId !== null) {
+    return;
   }
 
+  const confirmed = window.confirm(
+    "Are you sure you want to reject this booking?",
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    setProcessingBookingId(id);
+
+    await rejectBooking(id, workerId);
+
+    alert("Booking rejected.");
+
+    await loadDashboard(workerId);
+  } catch (error) {
+    console.error("Reject booking error:", error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to reject booking.",
+    );
+  } finally {
+    setProcessingBookingId(null);
+  }
+}
   const pending = bookings.filter((b) => b.status === "Pending").length;
 
   const approved = bookings.filter((b) => b.status === "Approved").length;
@@ -129,6 +228,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        <WorkerLocationStatus />
+        
         {/* Quick Actions */}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -468,44 +570,77 @@ export default function Dashboard() {
 
                       <td className="p-3">
                         {booking.status === "Pending" ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAccept(booking.id)}
-                              className="
-                                  bg-green-600
-                                  hover:bg-green-700
-                                  text-white
-                                  px-4
-                                  py-2
-                                  rounded-xl
-                                  text-sm
-                                  font-semibold
-                                "
-                            >
-                              Accept
-                            </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleAccept(booking.id)}
+                            disabled={processingBookingId !== null}
+                            className="
+                              rounded-xl
+                              bg-green-600
+                              px-4
+                              py-2
+                              text-sm
+                              font-semibold
+                              text-white
+                              hover:bg-green-700
+                              disabled:cursor-not-allowed
+                              disabled:opacity-50
+                            "
+                          >
+                            {processingBookingId === booking.id
+                              ? "Processing..."
+                              : "Accept"}
+                          </button>
 
-                            <button
-                              onClick={() => handleReject(booking.id)}
-                              className="
-                                  bg-red-600
-                                  hover:bg-red-700
-                                  text-white
-                                  px-4
-                                  py-2
-                                  rounded-xl
-                                  text-sm
-                                  font-semibold
-                                "
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">No Action</span>
-                        )}
-                      </td>
-                    </tr>
+                          <button
+                            type="button"
+                            onClick={() => void handleReject(booking.id)}
+                            disabled={processingBookingId !== null}
+                            className="
+                              rounded-xl
+                              bg-red-600
+                              px-4
+                              py-2
+                              text-sm
+                              font-semibold
+                              text-white
+                              hover:bg-red-700
+                              disabled:cursor-not-allowed
+                              disabled:opacity-50
+                            "
+                          >
+                            {processingBookingId === booking.id
+                              ? "Processing..."
+                              : "Reject"}
+                          </button>
+                        </div>
+                      ) : booking.status === "Approved" &&
+                        booking.customer_latitude !== null &&
+                        booking.customer_longitude !== null ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(`/worker/navigation/${booking.id}`)
+                          }
+                          className="
+                            rounded-xl
+                            bg-blue-600
+                            px-4
+                            py-2
+                            text-sm
+                            font-semibold
+                            text-white
+                            hover:bg-blue-700
+                          "
+                        >
+                          Navigate to Customer
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">No Action</span>
+                      )}
+                    </td>
+                                        </tr>
                   ))
                 )}
               </tbody>

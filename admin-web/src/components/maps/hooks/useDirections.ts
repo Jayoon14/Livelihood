@@ -20,7 +20,9 @@ interface UseDirectionsProps {
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   setDistance: React.Dispatch<React.SetStateAction<number | null>>;
   setDuration: React.Dispatch<React.SetStateAction<number | null>>;
-  setShowDirections: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowDirections: React.Dispatch<
+    React.SetStateAction<boolean>
+  >;
 }
 
 export function useDirections({
@@ -38,12 +40,40 @@ export function useDirections({
   return useCallback(async () => {
     if (!currentLocationRef.current) {
       getCurrentLocation(false);
-      setMessage("Allow current location, then press Directions again.");
+
+      setMessage(
+        "Allow current location, then press Directions again.",
+      );
+
       return;
     }
 
     const origin = currentLocationRef.current;
     const destination = selectedCoordinatesRef.current;
+
+    console.log("Directions coordinates:", {
+      origin,
+      destination,
+    });
+
+    const longitudeDifference = Math.abs(
+      origin[0] - destination[0],
+    );
+
+    const latitudeDifference = Math.abs(
+      origin[1] - destination[1],
+    );
+
+    if (
+      longitudeDifference < 0.000001 &&
+      latitudeDifference < 0.000001
+    ) {
+      setMessage(
+        "Worker and customer locations are currently the same.",
+      );
+
+      return;
+    }
 
     setRouting(true);
     setMessage("");
@@ -58,6 +88,9 @@ export function useDirections({
       }
 
       const data = (await response.json()) as RouteResult;
+
+      console.log("OSRM route response:", data);
+
       const route = data.routes?.[0];
 
       if (!route) {
@@ -66,26 +99,54 @@ export function useDirections({
 
       drawRoute(route.geometry.coordinates);
 
-      setDistance(route.distance);
-      setDuration(route.duration);
-      setShowDirections(true);
+setDistance(route.distance);
+setDuration(route.duration);
+setShowDirections(true);
 
-      const bounds = new LngLatBounds(
-        route.geometry.coordinates[0],
-        route.geometry.coordinates[0],
-      );
+const map = mapRef.current;
 
-      route.geometry.coordinates.forEach((point) =>
-        bounds.extend(point),
-      );
+if (!map) {
+  throw new Error("Map is not available.");
+}
 
-      mapRef.current?.fitBounds(bounds, {
-        padding: 90,
-        duration: 1000,
-      });
+const routeCoordinates = route.geometry.coordinates;
+
+const bounds = new LngLatBounds();
+
+routeCoordinates.forEach((point) => {
+  bounds.extend(point);
+});
+
+console.log("Fitting route bounds:", {
+  origin,
+  destination,
+  coordinateCount: routeCoordinates.length,
+  southwest: bounds.getSouthWest(),
+  northeast: bounds.getNorthEast(),
+});
+
+window.setTimeout(() => {
+  map.resize();
+
+  map.fitBounds(bounds, {
+    padding: {
+      top: 100,
+      right: 100,
+      bottom: 100,
+      left: 100,
+    },
+    duration: 1200,
+    maxZoom: 17,
+  });
+}, 100);
     } catch (error) {
-      console.error(error);
-      setMessage("Directions are temporarily unavailable.");
+      console.error("Directions error:", error);
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Directions are temporarily unavailable.",
+      );
     } finally {
       setRouting(false);
     }
