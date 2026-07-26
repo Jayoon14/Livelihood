@@ -1,5 +1,3 @@
-import { supabase } from "../../../lib/supabase";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LoaderCircle,
   LocateFixed,
@@ -9,111 +7,31 @@ import {
   WifiOff,
 } from "lucide-react";
 
-import type { Coordinates } from "../../maps/types";
-import { useLiveLocation } from "../../maps/hooks/useLiveLocation";
-import { useWorkerLocationSync } from "../../maps/hooks/useWorkerLocationSync";
+import { useWorkerLocation } from "../../../context/WorkerLocationProvider";
 
 export default function WorkerLocationStatus() {
-  const currentLocationRef = useRef<Coordinates | null>(null);
+  const {
+    workerLocation,
+    isOnline,
+    isTracking,
+    locating,
+    message,
+    goOnline,
+    goOffline,
+  } = useWorkerLocation();
 
-  const [online, setOnline] = useState(false);
-  const [message, setMessage] = useState("");
-  const [locating, setLocating] = useState(false);
-
-  const { liveLocation, isTracking, startTracking, stopTracking } =
-    useLiveLocation({
-      currentLocationRef,
-      setMessage,
-      setLocating,
-    });
-
-  const { syncing, syncError, setWorkerOffline } = useWorkerLocationSync({
-    location: liveLocation,
-    enabled: online && isTracking,
-    minimumIntervalMilliseconds: 5_000,
-  });
-
-  const handleGoOnline = useCallback(() => {
-    setMessage("");
-    setOnline(true);
-    startTracking();
-  }, [startTracking]);
-
-  const handleGoOffline = useCallback(async () => {
-    setOnline(false);
-    stopTracking();
-
-    await setWorkerOffline();
-
-    setMessage("You are now offline.");
-  }, [setWorkerOffline, stopTracking]);
-
-  const handleToggle = useCallback(async () => {
-    if (online) {
-      await handleGoOffline();
+  async function handleToggle() {
+    if (isOnline) {
+      await goOffline();
       return;
     }
 
-    handleGoOnline();
-  }, [handleGoOffline, handleGoOnline, online]);
+    await goOnline();
+  }
 
-  useEffect(() => {
-    if (!online) {
-      return;
-    }
-
-    if (!isTracking && !locating) {
-      startTracking();
-    }
-  }, [isTracking, locating, online, startTracking]);
-  useEffect(() => {
-    let active = true;
-
-    async function loadWorkerOnlineStatus() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user || !active) {
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("worker_locations")
-        .select("is_online")
-        .eq("worker_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Failed to load worker online status:", error);
-        return;
-      }
-
-      if (!active) {
-        return;
-      }
-
-      const isOnline = data?.is_online === true;
-
-      setOnline(isOnline);
-
-      if (isOnline) {
-        startTracking();
-      }
-    }
-
-    void loadWorkerOnlineStatus();
-
-    return () => {
-      active = false;
-    };
-  }, [startTracking]);
-
-  const latitude = liveLocation?.coordinates[1] ?? null;
-
-  const longitude = liveLocation?.coordinates[0] ?? null;
-
-  const accuracy = liveLocation?.accuracy ?? null;
+  const latitude = workerLocation?.latitude ?? null;
+  const longitude = workerLocation?.longitude ?? null;
+  const accuracy = workerLocation?.accuracy ?? null;
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -121,12 +39,12 @@ export default function WorkerLocationStatus() {
         <div className="flex items-start gap-4">
           <div
             className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
-              online
+              isOnline
                 ? "bg-emerald-100 text-emerald-600"
                 : "bg-slate-100 text-slate-500"
             }`}
           >
-            {online ? (
+            {isOnline ? (
               <Radio className="h-7 w-7" />
             ) : (
               <WifiOff className="h-7 w-7" />
@@ -141,17 +59,17 @@ export default function WorkerLocationStatus() {
 
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  online
+                  isOnline
                     ? "bg-emerald-100 text-emerald-700"
                     : "bg-slate-100 text-slate-600"
                 }`}
               >
-                {online ? "ONLINE" : "OFFLINE"}
+                {isOnline ? "ONLINE" : "OFFLINE"}
               </span>
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
-              {online
+              {isOnline
                 ? "Customers can see your live location and availability."
                 : "Go online to receive nearby booking requests."}
             </p>
@@ -163,7 +81,7 @@ export default function WorkerLocationStatus() {
           onClick={() => void handleToggle()}
           disabled={locating}
           className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
-            online
+            isOnline
               ? "bg-rose-600 hover:bg-rose-700"
               : "bg-emerald-600 hover:bg-emerald-700"
           }`}
@@ -173,7 +91,7 @@ export default function WorkerLocationStatus() {
               <LoaderCircle className="h-5 w-5 animate-spin" />
               Getting Location...
             </>
-          ) : online ? (
+          ) : isOnline ? (
             <>
               <Power className="h-5 w-5" />
               Go Offline
@@ -187,7 +105,7 @@ export default function WorkerLocationStatus() {
         </button>
       </div>
 
-      {online && (
+      {isOnline && (
         <div className="grid gap-4 border-t border-slate-100 bg-slate-50 p-6 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -207,11 +125,7 @@ export default function WorkerLocationStatus() {
             </p>
 
             <p className="mt-2 font-semibold text-slate-800">
-              {syncing
-                ? "Updating..."
-                : liveLocation
-                  ? "Synced"
-                  : "Waiting for location"}
+              {workerLocation ? "Synced" : "Waiting for location"}
             </p>
           </div>
 
@@ -241,15 +155,9 @@ export default function WorkerLocationStatus() {
         </div>
       )}
 
-      {(message || syncError) && (
-        <div
-          className={`border-t px-6 py-4 text-sm ${
-            syncError
-              ? "border-red-100 bg-red-50 text-red-700"
-              : "border-blue-100 bg-blue-50 text-blue-700"
-          }`}
-        >
-          {syncError || message}
+      {message && (
+        <div className="border-t border-blue-100 bg-blue-50 px-6 py-4 text-sm text-blue-700">
+          {message}
         </div>
       )}
     </section>

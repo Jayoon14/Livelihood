@@ -142,34 +142,135 @@ export async function rejectBooking(
 
   return booking;
 }
-// WORKER COMPLETE BOOKING
+// WORKER MARK AS ARRIVED
 
-export async function completeBooking(id: number) {
-  const { error } = await supabase
+export async function markWorkerArrived(
+  id: number,
+  workerId: string,
+) {
+  console.log("Updating booking:", {
+    id,
+    workerId,
+  });
+
+  const { data: booking, error } = await supabase
     .from("bookings")
     .update({
-      status: "Completed",
+      trip_status: "Arrived",
+      arrived_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("worker_id", workerId)
+    .eq("status", "Approved")
+    .eq("trip_status", "Accepted")
+    .select("*")
+    .single();
 
-  if (error) {
-    throw error;
-  }
+  console.log("UPDATE RESULT:", booking);
+  console.log("UPDATE ERROR:", error);
 
-  const { data: booking } = await supabase
+  if (error) throw error;
+
+  const { data: verify } = await supabase
     .from("bookings")
     .select("*")
     .eq("id", id)
     .single();
 
-  if (booking) {
-    await createNotification(
-      booking.customer_id,
-      booking.id,
-      "Booking Completed",
-      "Please leave a review for your completed booking.",
-    );
+  console.log("READ AFTER UPDATE:", verify);
+
+  return booking;
+}
+// WORKER START SERVICE
+
+export async function startTrip(
+  id: number,
+  workerId: string,
+) {
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "On Going",
+      trip_status: "On Trip",
+      trip_started_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("worker_id", workerId)
+    .eq("status", "Approved")
+    .eq("trip_status", "Arrived")
+    .select(
+      `
+        id,
+        customer_id,
+        worker_id,
+        status,
+        trip_status,
+        trip_started_at
+      `,
+    )
+    .single();
+
+  if (error) {
+    throw error;
   }
+
+  await createNotification(
+    booking.customer_id,
+    booking.id,
+    "Service Started",
+    "The worker has started your service.",
+  );
+
+  return booking;
+}
+// WORKER COMPLETE BOOKING
+
+// WORKER COMPLETE SERVICE
+
+export async function completeBooking(
+  id: number,
+  workerId: string,
+) {
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "Completed",
+      trip_status: "Completed",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("worker_id", workerId)
+    .eq("status", "On Going")
+    .eq("trip_status", "On Trip")
+    .select(
+      `
+        id,
+        customer_id,
+        worker_id,
+        status,
+        trip_status,
+        completed_at
+      `,
+    )
+    .single();
+
+  if (error) {
+    console.error(
+      "Complete service error:",
+      error,
+    );
+
+    throw error;
+  }
+
+  await createNotification(
+    booking.customer_id,
+    booking.id,
+    "Service Completed",
+    "The worker marked your service as completed. You may now review the completed work.",
+  );
+
+  return booking;
 }
 
 // GET SINGLE BOOKING

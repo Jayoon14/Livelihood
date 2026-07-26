@@ -18,150 +18,133 @@ export default function Dashboard() {
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [workerId, setWorkerId] = useState<string | null>(null);
-  const [processingBookingId, setProcessingBookingId] =
-  useState<number | null>(null);
+  const [processingBookingId, setProcessingBookingId] = useState<number | null>(
+    null,
+  );
 
-useEffect(() => {
-  let channel: ReturnType<typeof supabase.channel> | null =
-    null;
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-  async function initializeDashboard() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    async function initializeDashboard() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
+      if (!user) {
+        return;
+      }
+
+      setWorkerId(user.id);
+
+      await loadDashboard(user.id);
+
+      channel = supabase
+        .channel(`worker-bookings-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "bookings",
+            filter: `worker_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("Realtime worker booking update:", payload);
+
+            void loadDashboard(user.id);
+          },
+        )
+        .subscribe((status) => {
+          console.log("Worker booking realtime status:", status);
+        });
+    }
+
+    void initializeDashboard();
+
+    return () => {
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+  async function loadDashboard(currentWorkerId?: string) {
+    let resolvedWorkerId = currentWorkerId;
+
+    if (!resolvedWorkerId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      resolvedWorkerId = user?.id;
+    }
+
+    if (!resolvedWorkerId) {
       return;
     }
 
-    setWorkerId(user.id);
+    try {
+      const data = await getWorkerBookings(resolvedWorkerId);
 
-    await loadDashboard(user.id);
-
-    channel = supabase
-      .channel(`worker-bookings-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-          filter: `worker_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log(
-            "Realtime worker booking update:",
-            payload,
-          );
-
-          void loadDashboard(user.id);
-        },
-      )
-      .subscribe((status) => {
-        console.log(
-          "Worker booking realtime status:",
-          status,
-        );
-      });
-  }
-
-  void initializeDashboard();
-
-  return () => {
-    if (channel) {
-      void supabase.removeChannel(channel);
+      setBookings(data);
+    } catch (error) {
+      console.error("Failed to load worker bookings:", error);
     }
-  };
-}, []);
- async function loadDashboard(
-  currentWorkerId?: string,
-) {
-  let resolvedWorkerId = currentWorkerId;
-
-  if (!resolvedWorkerId) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    resolvedWorkerId = user?.id;
   }
-
-  if (!resolvedWorkerId) {
-    return;
-  }
-
-  try {
-    const data = await getWorkerBookings(
-      resolvedWorkerId,
-    );
-
-    setBookings(data);
-  } catch (error) {
-    console.error(
-      "Failed to load worker bookings:",
-      error,
-    );
-  }
-}
 
   async function handleAccept(id: number) {
-  if (!workerId || processingBookingId !== null) {
-    return;
+    if (!workerId || processingBookingId !== null) {
+      return;
+    }
+
+    try {
+      setProcessingBookingId(id);
+
+      await acceptBooking(id, workerId);
+
+      alert("Booking accepted successfully.");
+
+      await loadDashboard(workerId);
+    } catch (error) {
+      console.error("Accept booking error:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Failed to accept booking.",
+      );
+    } finally {
+      setProcessingBookingId(null);
+    }
   }
-
-  try {
-    setProcessingBookingId(id);
-
-    await acceptBooking(id, workerId);
-
-    alert("Booking accepted successfully.");
-
-    await loadDashboard(workerId);
-  } catch (error) {
-    console.error("Accept booking error:", error);
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to accept booking.",
-    );
-  } finally {
-    setProcessingBookingId(null);
-  }
-}
   async function handleReject(id: number) {
-  if (!workerId || processingBookingId !== null) {
-    return;
-  }
+    if (!workerId || processingBookingId !== null) {
+      return;
+    }
 
-  const confirmed = window.confirm(
-    "Are you sure you want to reject this booking?",
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-    setProcessingBookingId(id);
-
-    await rejectBooking(id, workerId);
-
-    alert("Booking rejected.");
-
-    await loadDashboard(workerId);
-  } catch (error) {
-    console.error("Reject booking error:", error);
-
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to reject booking.",
+    const confirmed = window.confirm(
+      "Are you sure you want to reject this booking?",
     );
-  } finally {
-    setProcessingBookingId(null);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingBookingId(id);
+
+      await rejectBooking(id, workerId);
+
+      alert("Booking rejected.");
+
+      await loadDashboard(workerId);
+    } catch (error) {
+      console.error("Reject booking error:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Failed to reject booking.",
+      );
+    } finally {
+      setProcessingBookingId(null);
+    }
   }
-}
   const pending = bookings.filter((b) => b.status === "Pending").length;
 
   const approved = bookings.filter((b) => b.status === "Approved").length;
@@ -230,7 +213,7 @@ useEffect(() => {
         </div>
 
         <WorkerLocationStatus />
-        
+
         {/* Quick Actions */}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -570,12 +553,12 @@ useEffect(() => {
 
                       <td className="p-3">
                         {booking.status === "Pending" ? (
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => void handleAccept(booking.id)}
-                            disabled={processingBookingId !== null}
-                            className="
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void handleAccept(booking.id)}
+                              disabled={processingBookingId !== null}
+                              className="
                               rounded-xl
                               bg-green-600
                               px-4
@@ -587,17 +570,17 @@ useEffect(() => {
                               disabled:cursor-not-allowed
                               disabled:opacity-50
                             "
-                          >
-                            {processingBookingId === booking.id
-                              ? "Processing..."
-                              : "Accept"}
-                          </button>
+                            >
+                              {processingBookingId === booking.id
+                                ? "Processing..."
+                                : "Accept"}
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => void handleReject(booking.id)}
-                            disabled={processingBookingId !== null}
-                            className="
+                            <button
+                              type="button"
+                              onClick={() => void handleReject(booking.id)}
+                              disabled={processingBookingId !== null}
+                              className="
                               rounded-xl
                               bg-red-600
                               px-4
@@ -609,21 +592,21 @@ useEffect(() => {
                               disabled:cursor-not-allowed
                               disabled:opacity-50
                             "
-                          >
-                            {processingBookingId === booking.id
-                              ? "Processing..."
-                              : "Reject"}
-                          </button>
-                        </div>
-                      ) : booking.status === "Approved" &&
-                        booking.customer_latitude !== null &&
-                        booking.customer_longitude !== null ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigate(`/worker/navigation/${booking.id}`)
-                          }
-                          className="
+                            >
+                              {processingBookingId === booking.id
+                                ? "Processing..."
+                                : "Reject"}
+                            </button>
+                          </div>
+                        ) : booking.status === "Approved" &&
+                          booking.customer_latitude !== null &&
+                          booking.customer_longitude !== null ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(`/worker/navigation/${booking.id}`)
+                            }
+                            className="
                             rounded-xl
                             bg-blue-600
                             px-4
@@ -633,14 +616,14 @@ useEffect(() => {
                             text-white
                             hover:bg-blue-700
                           "
-                        >
-                          Navigate to Customer
-                        </button>
-                      ) : (
-                        <span className="text-gray-400">No Action</span>
-                      )}
-                    </td>
-                                        </tr>
+                          >
+                            Navigate to Customer
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">No Action</span>
+                        )}
+                      </td>
+                    </tr>
                   ))
                 )}
               </tbody>

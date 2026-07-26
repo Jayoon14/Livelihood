@@ -5,6 +5,27 @@ export const DEFAULT_CENTER: Coordinates = [121.1251, 14.2786];
 
 export const SEARCH_HISTORY_KEY = "livelihoodgo_search_history";
 
+export const STANDARD_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    openStreetMap: {
+      type: "raster",
+      tiles: [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [
+    {
+      id: "openStreetMap",
+      type: "raster",
+      source: "openStreetMap",
+    },
+  ],
+};
+
 export const SATELLITE_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -39,11 +60,14 @@ export const SATELLITE_STYLE: StyleSpecification = {
   ],
 };
 
-export const STYLES: Record<Exclude<StyleKey, "satellite">, string> = {
-  standard: "https://tiles.openfreemap.org/styles/bright",
-  bright: "https://tiles.openfreemap.org/styles/bright",
-  dark: "https://tiles.openfreemap.org/styles/dark",
-  threeD: "https://tiles.openfreemap.org/styles/bright",
+export const STYLES: Record<
+  Exclude<StyleKey, "satellite">,
+  StyleSpecification
+> = {
+  standard: STANDARD_STYLE,
+  bright: STANDARD_STYLE,
+  dark: STANDARD_STYLE,
+  threeD: STANDARD_STYLE,
 };
 
 export const STYLE_OPTIONS = [

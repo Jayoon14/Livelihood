@@ -35,6 +35,7 @@ interface WorkerMarkerRecord {
 }
 
 const WORKER_MARKER_CLASS = "livelihood-worker-marker";
+const STALE_GPS_THRESHOLD = 2 * 60 * 1000;
 
 function degreesToRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -189,7 +190,15 @@ export function useNearbyWorkers({
     },
     [radiusKilometers],
   );
+  const workerHasFreshGps = useCallback((worker: WorkerLocationRow) => {
+    const lastUpdate = new Date(worker.updated_at).getTime();
 
+    if (!Number.isFinite(lastUpdate)) {
+      return false;
+    }
+
+    return Date.now() - lastUpdate <= STALE_GPS_THRESHOLD;
+  }, []);
   const removeWorkerMarker = useCallback((workerId: string) => {
     const animationFrame = animationFramesRef.current.get(workerId);
 
@@ -298,9 +307,10 @@ export function useNearbyWorkers({
       const distanceMeters = getWorkerDistance(worker);
 
       const shouldDisplay =
-        worker.is_online &&
-        worker.is_available &&
-        workerIsInsideRadius(distanceMeters);
+      worker.is_online &&
+      worker.is_available &&
+      workerHasFreshGps(worker) &&
+      workerIsInsideRadius(distanceMeters);
 
       if (!shouldDisplay) {
         removeWorkerMarker(worker.worker_id);
@@ -416,6 +426,7 @@ export function useNearbyWorkers({
       mapRef,
       removeWorkerMarker,
       updateWorkerHeading,
+      workerHasFreshGps,
       workerIsInsideRadius,
     ],
   );
@@ -511,6 +522,7 @@ export function useNearbyWorkers({
 
       return;
     }
+    
 
     void loadNearbyWorkers();
 
@@ -575,6 +587,20 @@ export function useNearbyWorkers({
     refreshWorkersState,
     removeWorkerMarker,
   ]);
+
+  useEffect(() => {
+  if (!enabled) {
+    return;
+  }
+
+  const timer = window.setInterval(() => {
+    void loadNearbyWorkers();
+  }, 30_000);
+
+  return () => {
+    window.clearInterval(timer);
+  };
+}, [enabled, loadNearbyWorkers]);
 
   const refreshNearbyWorkers = useCallback(() => {
     void loadNearbyWorkers();

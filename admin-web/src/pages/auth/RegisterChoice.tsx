@@ -78,39 +78,50 @@ export default function RegisterChoice() {
   const current = roleData[role];
   const CurrentIcon = current.icon;
   const toggle = (
-    <div className="flex justify-center mb-8">
-      <div className="relative inline-flex bg-slate-100 rounded-full p-1.5 shadow-inner">
-        <div
-          className="absolute top-1.5 bottom-1.5 rounded-full bg-[#0A1930] transition-all duration-300"
-          style={{
-            left: role === "customer" ? "6px" : "50%",
-            width: "calc(50% - 6px)",
-          }}
+    <div className="flex items-center gap-4 mb-8">
+      <div
+        className={`w-16 h-16 shrink-0 rounded-2xl ${current.iconBg} flex items-center justify-center border border-slate-100 shadow-sm`}
+      >
+        <CurrentIcon
+          className={`w-8 h-8 ${current.iconColor}`}
+          strokeWidth={2}
         />
+      </div>
 
-        <button
-          type="button"
-          onClick={() => switchRole("customer")}
-          className={`relative z-10 px-8 py-3 rounded-full font-semibold transition-colors duration-300 ${
-            role === "customer"
-              ? "text-white"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Customer
-        </button>
+      <div className="flex-1 flex justify-center">
+        <div className="relative inline-flex bg-slate-100 rounded-full p-1.5 shadow-inner">
+          <div
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-[#0A1930] transition-all duration-300"
+            style={{
+              left: role === "customer" ? "6px" : "50%",
+              width: "calc(50% - 6px)",
+            }}
+          />
 
-        <button
-          type="button"
-          onClick={() => switchRole("worker")}
-          className={`relative z-10 px-8 py-3 rounded-full font-semibold transition-colors duration-300 ${
-            role === "worker"
-              ? "text-white"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Worker
-        </button>
+          <button
+            type="button"
+            onClick={() => switchRole("customer")}
+            className={`relative z-10 px-8 py-3 rounded-full font-semibold transition-colors duration-300 ${
+              role === "customer"
+                ? "text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Customer
+          </button>
+
+          <button
+            type="button"
+            onClick={() => switchRole("worker")}
+            className={`relative z-10 px-8 py-3 rounded-full font-semibold transition-colors duration-300 ${
+              role === "worker"
+                ? "text-white"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Worker
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -123,22 +134,9 @@ export default function RegisterChoice() {
         transition: "opacity .25s ease, transform .25s ease",
       }}
     >
-      {/* ICON ABOVE TITLE */}
-
-      <div className="flex justify-center">
-        <div
-          className={`w-20 h-20 rounded-3xl ${current.iconBg} flex items-center justify-center border border-slate-100 shadow-sm`}
-        >
-          <CurrentIcon
-            className={`w-10 h-10 ${current.iconColor}`}
-            strokeWidth={2}
-          />
-        </div>
-      </div>
-
       {/* TITLE */}
 
-      <div className="text-center mt-6">
+      <div>
         <h2
           className="text-3xl font-bold text-slate-900"
           style={{
@@ -153,7 +151,7 @@ export default function RegisterChoice() {
 
       {/* ROLE NAME */}
 
-      <div className="mt-10 text-center">
+      <div className="mt-10">
         <h3
           className="text-2xl font-bold text-slate-900"
           style={{
@@ -163,7 +161,7 @@ export default function RegisterChoice() {
           {current.title}
         </h3>
 
-        <p className="text-slate-500 leading-7 mt-3 max-w-md mx-auto">
+        <p className="text-slate-500 leading-7 mt-3 max-w-md">
           {current.description}
         </p>
       </div>

@@ -24,6 +24,8 @@ import {
 export default function Bookings() {
   const [bookings, setBookings] = useState<any[]>([]);
 
+  const [workerId, setWorkerId] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("All");
@@ -61,6 +63,8 @@ export default function Bookings() {
 
       if (!user) return;
 
+      setWorkerId(user.id);
+
       const data = await getWorkerBookings(user.id);
 
       setBookings(data);
@@ -70,8 +74,13 @@ export default function Bookings() {
   }
 
   async function handleApprove(id: number) {
+    if (!workerId) {
+      alert("Worker not authenticated.");
+      return;
+    }
+
     try {
-      await acceptBooking(id);
+      await acceptBooking(id, workerId);
 
       alert("Booking approved successfully.");
 
@@ -84,8 +93,13 @@ export default function Bookings() {
   }
 
   async function handleReject(id: number) {
+    if (!workerId) {
+      alert("Worker not authenticated.");
+      return;
+    }
+
     try {
-      await rejectBooking(id);
+      await rejectBooking(id, workerId);
 
       alert("Booking rejected.");
 
@@ -98,16 +112,23 @@ export default function Bookings() {
   }
 
   async function handleComplete(id: number) {
+    if (!workerId) {
+      alert("Worker not authenticated.");
+      return;
+    }
+
     try {
-      await completeBooking(id);
+      await completeBooking(id, workerId);
 
       alert("Booking completed.");
 
-      loadBookings();
+      await loadBookings();
     } catch (error) {
       console.error(error);
 
-      alert("Unable to complete booking.");
+      alert(
+        error instanceof Error ? error.message : "Unable to complete booking.",
+      );
     }
   }
 
@@ -534,23 +555,47 @@ export default function Bookings() {
                               </>
                             )}
 
-                            {booking.status === "Approved" && (
-                              <>
-                                <button
-                                  onClick={() => handleComplete(booking.id)}
-                                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white py-3 font-semibold shadow hover:scale-105 transition"
-                                >
-                                  Complete
-                                </button>
-
+                            {booking.status === "Approved" &&
+                              booking.customer_latitude !== null &&
+                              booking.customer_longitude !== null && (
                                 <Link
-                                  to={`/chat/${booking.id}`}
-                                  className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-3 text-center font-semibold shadow hover:scale-105 transition"
+                                  to={`/worker/navigation/${booking.id}`}
+                                  className="rounded-xl bg-cyan-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-cyan-700"
                                 >
-                                  Chat
+                                  Navigate / Update Trip
                                 </Link>
-                              </>
+                              )}
+
+                            {booking.status === "Approved" && (
+                              <Link
+                                to={`/chat/${booking.id}`}
+                                className="rounded-xl bg-purple-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-purple-700"
+                              >
+                                Chat
+                              </Link>
                             )}
+
+                            {booking.status === "On Going" &&
+                              booking.trip_status === "On Trip" && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleComplete(booking.id)
+                                    }
+                                    className="rounded-xl bg-blue-600 py-3 font-semibold text-white shadow transition hover:scale-105 hover:bg-blue-700"
+                                  >
+                                    Complete Service
+                                  </button>
+
+                                  <Link
+                                    to={`/chat/${booking.id}`}
+                                    className="rounded-xl bg-purple-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-purple-700"
+                                  >
+                                    Chat
+                                  </Link>
+                                </>
+                              )}
                           </div>
                         </div>
                       </div>
@@ -972,46 +1017,91 @@ export default function Bookings() {
 
                 {selectedBooking.status === "Approved" && (
                   <>
+                    {selectedBooking.customer_latitude !== null &&
+                      selectedBooking.customer_longitude !== null && (
+                        <Link
+                          to={`/worker/navigation/${selectedBooking.id}`}
+                          onClick={() => setSelectedBooking(null)}
+                          className="
+                              rounded-xl
+                              bg-cyan-600
+                              py-3
+                              text-center
+                              font-semibold
+                              text-white
+                              shadow-lg
+                              transition
+                              hover:-translate-y-1
+                              hover:bg-cyan-700
+                            "
+                        >
+                          🧭 Navigate / Update Trip
+                        </Link>
+                      )}
+
                     <Link
                       to={`/chat/${selectedBooking.id}`}
                       className="
-                  rounded-xl
-                  bg-purple-600
-                  hover:bg-purple-700
-                  text-white
-                  py-3
-                  text-center
-                  font-semibold
-                  shadow-lg
-                  hover:-translate-y-1
-                  transition
-                "
+                          rounded-xl
+                          bg-purple-600
+                          py-3
+                          text-center
+                          font-semibold
+                          text-white
+                          shadow-lg
+                          transition
+                          hover:-translate-y-1
+                          hover:bg-purple-700
+                        "
                     >
                       💬 Chat
                     </Link>
-
-                    <button
-                      onClick={() => {
-                        handleComplete(selectedBooking.id);
-
-                        setSelectedBooking(null);
-                      }}
-                      className="
-                  rounded-xl
-                  bg-blue-600
-                  hover:bg-blue-700
-                  text-white
-                  py-3
-                  font-semibold
-                  shadow-lg
-                  hover:-translate-y-1
-                  transition
-                "
-                    >
-                      🏁 Complete
-                    </button>
                   </>
                 )}
+
+                {selectedBooking.status === "On Going" &&
+                  selectedBooking.trip_status === "On Trip" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleComplete(selectedBooking.id);
+                          setSelectedBooking(null);
+                        }}
+                        className="
+                            rounded-xl
+                            bg-blue-600
+                            py-3
+                            font-semibold
+                            text-white
+                            shadow-lg
+                            transition
+                            hover:-translate-y-1
+                            hover:bg-blue-700
+                          "
+                      >
+                        🏁 Complete Service
+                      </button>
+
+                      <Link
+                        to={`/chat/${selectedBooking.id}`}
+                        className="
+                            rounded-xl
+                            bg-purple-600
+                            py-3
+                            text-center
+                            font-semibold
+                            text-white
+                            shadow-lg
+                            transition
+                            hover:-translate-y-1
+                            hover:bg-purple-700
+                          "
+                      >
+                        💬 Chat
+                      </Link>
+                    </>
+                  )}
 
                 {selectedBooking.status === "Completed" && (
                   <div

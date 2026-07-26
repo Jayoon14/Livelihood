@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useRegisterStore } from "../../store/registerStore";
 import { submitWorkerRegistration } from "../../services/registerWorkerService";
+import { Wrench, ArrowLeft, ArrowRight, Check } from "lucide-react";
 
 import StepIndicator from "../../components/StepIndicator";
 
@@ -349,60 +350,57 @@ export default function Register() {
 
   return (
     <div
-      className="
-      min-h-screen
-      bg-slate-100
-      flex
-      justify-center
-      items-center
-      p-8
-    "
+      className="min-h-screen bg-slate-50 flex justify-center items-center p-6 md:p-8"
+      style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      <div
-        className="
-        w-full
-        max-w-7xl
-        bg-white
-        rounded-3xl
-        shadow-xl
-        overflow-hidden
-      "
-      >
+      <div className="w-full max-w-7xl bg-white rounded-3xl border border-slate-200 shadow-[0_20px_70px_rgba(15,23,42,.10)] overflow-hidden">
+        {/* HEADER */}
+
         <div
-          className="
-          bg-blue-600
-          p-8
-        "
+          className="relative px-8 md:px-10 py-9 overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg,#0A1930 0%,#12294D 35%,#1D4ED8 100%)",
+          }}
         >
+          <div
+            className="absolute inset-0 opacity-[0.05]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+              backgroundSize: "38px 38px",
+            }}
+          />
+
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5 text-[#0A1930]" />
+            </div>
+
+            <span
+              className="text-lg font-bold text-white"
+              style={{ fontFamily: "'Sora', sans-serif" }}
+            >
+              Livelihood
+            </span>
+          </div>
+
           <h1
-            className="
-            text-4xl
-            font-bold
-            text-white
-          "
+            className="relative z-10 text-3xl md:text-4xl font-bold text-white mt-7"
+            style={{ fontFamily: "'Sora', sans-serif" }}
           >
             Worker Registration
           </h1>
 
-          <p
-            className="
-            text-blue-100
-            mt-2
-          "
-          >
+          <p className="relative z-10 text-slate-300 mt-2">
             Complete your profile to apply for livelihood services.
           </p>
         </div>
 
-        <div className="p-10">
+        <div className="p-8 md:p-10">
           <StepIndicator currentStep={step} completedSteps={completedSteps} />
 
-          <div
-            className="
-            mt-8
-            min-h-[500px]
-          "
-          >
+          <div className="mt-8 min-h-[500px]">
             {step === 1 && <PersonalInformation />}
 
             {step === 2 && <EducationalBackground />}
@@ -416,42 +414,28 @@ export default function Register() {
             {step === 6 && <Confirmation />}
           </div>
 
-          <div
-            className="
-            flex
-            justify-between
-            mt-8
-          "
-          >
+          <div className="flex justify-between mt-8 pt-8 border-t border-slate-100">
             <button
               type="button"
               disabled={step === 1}
               onClick={prevStep}
-              className="
-                px-8
-                py-3
-                rounded-xl
-                border
-                hover:bg-gray-100
-                disabled:opacity-40
-              "
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl border border-slate-200 font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
             >
+              <ArrowLeft className="w-4.5 h-4.5" />
               Previous
             </button>
 
             <button
               type="button"
               onClick={handleNext}
-              className="
-                bg-blue-600
-                hover:bg-blue-700
-                text-white
-                px-10
-                py-3
-                rounded-xl
-              "
+              className="group inline-flex items-center gap-2 bg-[#0A1930] hover:bg-[#12294D] text-white px-10 py-3.5 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl"
             >
               {step === 6 ? "Submit" : "Next"}
+              {step === 6 ? (
+                <Check className="w-4.5 h-4.5" />
+              ) : (
+                <ArrowRight className="w-4.5 h-4.5 transition-transform group-hover:translate-x-1" />
+              )}
             </button>
           </div>
         </div>

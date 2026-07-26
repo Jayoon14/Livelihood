@@ -23,6 +23,7 @@ import CustomerWorkers from "../pages/customer/workers/Workers";
 import CustomerBookings from "../pages/customer/bookings/Bookings";
 import BookingDetails from "../pages/customer/bookings/BookingDetails";
 import BookWorker from "../pages/customer/bookings/BookWorker";
+import TrackWorker from "../pages/customer/tracking/TrackWorker";
 import Profile from "../pages/customer/profile/Profile";
 import Notifications from "../pages/customer/notifications/Notifications";
 import CustomerWorkerProfile from "../pages/customer/workers/WorkerProfile";
@@ -80,9 +81,12 @@ import PaymentRequests from "../pages/worker/payment/PaymentRequests";
 import WorkerNotifications from "../pages/worker/notifications/Notifications";
 import AdminNotifications from "../pages/admin/notifications/Notifications";
 
+import { WorkerLocationProvider } from "../context/WorkerLocationProvider";
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
+    <WorkerLocationProvider>
       <Routes>
         {/* ================= AUTH ================= */}
 
@@ -151,6 +155,15 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+        path="/customer/tracking/:bookingId"
+        element={
+          <ProtectedRoute>
+            <TrackWorker />
+          </ProtectedRoute>
+        }
+      />
 
         <Route
           path="/customer/bookings/:id"
@@ -447,6 +460,7 @@ export default function AppRoutes() {
 
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
+      </WorkerLocationProvider>
     </BrowserRouter>
   );
 }

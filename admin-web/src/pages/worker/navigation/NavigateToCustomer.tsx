@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
-import {
-  useNavigate,
-  useParams,
-} from "react-router-dom";
-import {
-  ArrowLeft,
-  MapPin,
-  Navigation,
-  Phone,
-  User,
-} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, MapPin, Navigation, Phone, User } from "lucide-react";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
 
-import { getBooking } from "../../../services/workerBookingService";
+import { supabase } from "../../../lib/supabase";
+
+import {
+  completeBooking,
+  getBooking,
+  markWorkerArrived,
+  startTrip,
+} from "../../../services/workerBookingService";
 
 interface BookingData {
   id: number;
@@ -25,6 +23,11 @@ interface BookingData {
 
   status: string;
   trip_status: string;
+
+  accepted_at?: string | null;
+  arrived_at?: string | null;
+  trip_started_at?: string | null;
+  completed_at?: string | null;
 
   customer?: {
     id: string;
@@ -39,12 +42,14 @@ export default function NavigateToCustomer() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
 
-  const [booking, setBooking] =
-    useState<BookingData | null>(null);
+  const [booking, setBooking] = useState<BookingData | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [workerId, setWorkerId] = useState<string | null>(null);
+
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     async function loadBooking() {
@@ -55,19 +60,26 @@ export default function NavigateToCustomer() {
       }
 
       try {
-        const data = await getBooking(
-          Number(bookingId),
-        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new Error("Worker account is not authenticated.");
+        }
+
+        setWorkerId(user.id);
+
+        const data = await getBooking(Number(bookingId));
 
         setBooking(data as BookingData);
       } catch (error) {
-        console.error(
-          "Unable to load navigation booking:",
-          error,
-        );
+        console.error("Unable to load navigation booking:", error);
 
         setErrorMessage(
-          "Unable to load booking location.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load booking location.",
         );
       } finally {
         setLoading(false);
@@ -77,12 +89,128 @@ export default function NavigateToCustomer() {
     void loadBooking();
   }, [bookingId]);
 
+  async function handleArrived() {
+    if (!booking || !workerId || updatingStatus) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Confirm that you have arrived at the customer location?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+
+      const updatedBooking = await markWorkerArrived(booking.id, workerId);
+
+      setBooking((current) =>
+        current
+          ? {
+              ...current,
+              trip_status: updatedBooking.trip_status,
+            }
+          : current,
+      );
+
+      alert("Arrival confirmed.");
+    } catch (error) {
+      console.error("Unable to mark worker as arrived:", error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to update trip status.",
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+  async function handleStartService() {
+    if (!booking || !workerId || updatingStatus) {
+      return;
+    }
+
+    const confirmed = window.confirm("Start the service now?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+
+      const updatedBooking = await startTrip(booking.id, workerId);
+
+      setBooking((current) =>
+        current
+          ? {
+              ...current,
+              status: updatedBooking.status,
+              trip_status: updatedBooking.trip_status,
+              trip_started_at: updatedBooking.trip_started_at,
+            }
+          : current,
+      );
+
+      alert("Service started.");
+    } catch (error) {
+      console.error("Unable to start service:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Unable to start service.",
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+  async function handleCompleteService() {
+    if (!booking || !workerId || updatingStatus) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Confirm that the service has been completed?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+
+      const updatedBooking = await completeBooking(booking.id, workerId);
+
+      setBooking((current) =>
+        current
+          ? {
+              ...current,
+              status: updatedBooking.status,
+              trip_status: updatedBooking.trip_status,
+              completed_at: updatedBooking.completed_at,
+            }
+          : current,
+      );
+
+      alert("Service completed successfully.");
+    } catch (error) {
+      console.error("Unable to complete service:", error);
+
+      alert(
+        error instanceof Error ? error.message : "Unable to complete service.",
+      );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
   if (loading) {
     return (
       <WorkerLayout>
-        <div className="p-10 text-center">
-          Loading customer location...
-        </div>
+        <div className="p-10 text-center">Loading customer location...</div>
       </WorkerLayout>
     );
   }
@@ -97,8 +225,7 @@ export default function NavigateToCustomer() {
       <WorkerLayout>
         <div className="mx-auto max-w-3xl p-8">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-            {errorMessage ||
-              "This booking has no saved customer coordinates."}
+            {errorMessage || "This booking has no saved customer coordinates."}
           </div>
 
           <button
@@ -120,7 +247,6 @@ export default function NavigateToCustomer() {
   ]
     .filter(Boolean)
     .join(" ");
-
   return (
     <WorkerLayout>
       <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
@@ -208,6 +334,59 @@ export default function NavigateToCustomer() {
                     Call Customer
                   </a>
                 )}
+
+                {booking.status === "Approved" &&
+                  booking.trip_status === "Accepted" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleArrived()}
+                      disabled={updatingStatus}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <MapPin className="h-4 w-4" />
+
+                      {updatingStatus ? "Updating..." : "I Have Arrived"}
+                    </button>
+                  )}
+
+                {booking.status === "Approved" &&
+                  booking.trip_status === "Arrived" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleStartService()}
+                      disabled={updatingStatus}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Navigation className="h-4 w-4" />
+
+                      {updatingStatus ? "Starting..." : "Start Service"}
+                    </button>
+                  )}
+                {booking.status === "On Going" &&
+                  booking.trip_status === "On Trip" && (
+                    <button
+                      type="button"
+                      onClick={() => void handleCompleteService()}
+                      disabled={updatingStatus}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <MapPin className="h-4 w-4" />
+
+                      {updatingStatus ? "Completing..." : "Complete Service"}
+                    </button>
+                  )}
+                {booking.status === "Completed" &&
+                  booking.trip_status === "Completed" && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+                      <p className="font-bold text-emerald-700">
+                        Service Completed
+                      </p>
+
+                      <p className="mt-1 text-sm text-emerald-600">
+                        This booking has been completed successfully.
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           </aside>
@@ -221,8 +400,7 @@ export default function NavigateToCustomer() {
                 latitude: booking.customer_latitude,
                 longitude: booking.customer_longitude,
                 address:
-                  booking.customer_address ??
-                  "Customer service location",
+                  booking.customer_address ?? "Customer service location",
               }}
               navigationMode
             />

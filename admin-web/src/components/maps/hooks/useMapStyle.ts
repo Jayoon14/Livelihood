@@ -1,55 +1,51 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import type { Map as MapLibreMap } from "maplibre-gl";
-
-import type { StyleKey } from "../types";
-import {
-  SATELLITE_STYLE,
-  STYLES,
-} from "../mapStyles";
+import type {
+  Map as MapLibreMap,
+  StyleSpecification,
+} from "maplibre-gl";
 
 interface UseMapStyleParams {
   mapRef: MutableRefObject<MapLibreMap | null>;
-  style: StyleKey;
-  setMapReady: (ready: boolean) => void;
+  mapReady: boolean;
+  mapStyle: StyleSpecification;
 }
 
 export function useMapStyle({
   mapRef,
-  style,
-  setMapReady,
+  mapReady,
+  mapStyle,
 }: UseMapStyleParams) {
   useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
+
     const map = mapRef.current;
 
     if (!map) {
       return;
     }
 
-    setMapReady(false);
+    const applyStyle = () => {
+      if (!map.isStyleLoaded()) {
+        return;
+      }
 
-    if (style === "satellite") {
-      map.setStyle(SATELLITE_STYLE);
-
-      map.easeTo({
-        pitch: 0,
-        bearing: 0,
-        duration: 500,
+      map.setStyle(mapStyle, {
+        diff: false,
       });
+    };
 
+    if (map.isStyleLoaded()) {
+      applyStyle();
       return;
     }
 
-    map.setStyle(STYLES[style]);
+    map.once("style.load", applyStyle);
 
-    map.easeTo({
-      pitch: style === "threeD" ? 55 : 0,
-      bearing: style === "threeD" ? -18 : 0,
-      duration: 700,
-    });
-  }, [
-    mapRef,
-    style,
-    setMapReady,
-  ]);
+    return () => {
+      map.off("style.load", applyStyle);
+    };
+  }, [mapRef, mapReady, mapStyle]);
 }

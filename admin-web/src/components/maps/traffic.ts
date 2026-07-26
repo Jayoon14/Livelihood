@@ -1,43 +1,63 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 
+const TRAFFIC_SOURCE_ID = "live-traffic";
+const TRAFFIC_LAYER_ID = "live-traffic-layer";
+
 export function addTrafficLayer(
   map: MapLibreMap,
   tomTomApiKey: string,
 ) {
-  if (!map.isStyleLoaded()) return;
+  if (!map.isStyleLoaded()) {
+    return;
+  }
 
-  if (!map.getSource("live-traffic")) {
-    map.addSource("live-traffic", {
+  if (!tomTomApiKey.trim()) {
+    console.warn("TomTom API key is missing.");
+    return;
+  }
+
+  const encodedApiKey = encodeURIComponent(tomTomApiKey.trim());
+
+  if (!map.getSource(TRAFFIC_SOURCE_ID)) {
+    map.addSource(TRAFFIC_SOURCE_ID, {
       type: "raster",
+
       tiles: [
-        `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${tomTomApiKey}&tileSize=256&thickness=8`,
+        `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodedApiKey}&tileSize=256`,
       ],
+
       tileSize: 256,
+      minzoom: 0,
+      maxzoom: 22,
+
+      attribution: "Traffic © TomTom",
     });
   }
 
-  if (!map.getLayer("live-traffic-layer")) {
+  if (!map.getLayer(TRAFFIC_LAYER_ID)) {
     map.addLayer({
-      id: "live-traffic-layer",
+      id: TRAFFIC_LAYER_ID,
       type: "raster",
-      source: "live-traffic",
+      source: TRAFFIC_SOURCE_ID,
+
       paint: {
-        "raster-opacity": 0.9,
+        "raster-opacity": 0.85,
+        "raster-fade-duration": 0,
       },
     });
   }
 }
 
-export function removeTrafficLayer(
-  map: MapLibreMap,
-) {
-  if (!map.isStyleLoaded()) return;
-
-  if (map.getLayer("live-traffic-layer")) {
-    map.removeLayer("live-traffic-layer");
+export function removeTrafficLayer(map: MapLibreMap) {
+  if (!map.isStyleLoaded()) {
+    return;
   }
 
-  if (map.getSource("live-traffic")) {
-    map.removeSource("live-traffic");
+  if (map.getLayer(TRAFFIC_LAYER_ID)) {
+    map.removeLayer(TRAFFIC_LAYER_ID);
+  }
+
+  if (map.getSource(TRAFFIC_SOURCE_ID)) {
+    map.removeSource(TRAFFIC_SOURCE_ID);
   }
 }

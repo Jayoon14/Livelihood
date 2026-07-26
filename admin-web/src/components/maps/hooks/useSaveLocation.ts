@@ -5,9 +5,9 @@ import type {
   SetStateAction,
 } from "react";
 
-import type {
-  Map as MapLibreMap,
+import {
   Marker,
+  type Map as MapLibreMap,
 } from "maplibre-gl";
 
 import type {
@@ -17,9 +17,63 @@ import type {
 
 import { reverseGeocode } from "../geocode";
 
+function createCustomerMarkerElement() {
+  const markerElement = document.createElement("div");
+
+  markerElement.style.width = "48px";
+  markerElement.style.height = "48px";
+  markerElement.style.display = "flex";
+  markerElement.style.alignItems = "center";
+  markerElement.style.justifyContent = "center";
+
+  markerElement.innerHTML = `
+    <div
+      style="
+        display: flex;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        border: 4px solid white;
+        border-radius: 9999px 9999px 9999px 0;
+        background: #dc2626;
+        box-shadow:
+          0 10px 25px rgba(15, 23, 42, 0.3),
+          0 0 0 5px rgba(220, 38, 38, 0.16);
+        transform: rotate(-45deg);
+      "
+    >
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        style="transform: rotate(45deg);"
+      >
+        <path
+          d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"
+        ></path>
+
+        <circle
+          cx="12"
+          cy="10"
+          r="3"
+        ></circle>
+      </svg>
+    </div>
+  `;
+
+  return markerElement;
+}
+
 interface UseSaveLocationParams {
   mapRef: MutableRefObject<MapLibreMap | null>;
-  markerRef: MutableRefObject<Marker | null>;
+
+  destinationMarkerRef: MutableRefObject<Marker | null>;
 
   selectedCoordinatesRef: MutableRefObject<Coordinates>;
 
@@ -42,7 +96,7 @@ interface UseSaveLocationParams {
 
 export function useSaveLocation({
   mapRef,
-  markerRef,
+  destinationMarkerRef,
   selectedCoordinatesRef,
   callbackRef,
   setLongitude,
@@ -62,7 +116,10 @@ export function useSaveLocation({
     ) => {
       const address =
         suppliedAddress ??
-        (await reverseGeocode(latitude, longitude));
+        (await reverseGeocode(
+          latitude,
+          longitude,
+        ));
 
       selectedCoordinatesRef.current = [
         longitude,
@@ -77,14 +134,33 @@ export function useSaveLocation({
       setResults([]);
       setMessage("");
 
-      markerRef.current?.setLngLat([
-        longitude,
-        latitude,
-      ]);
+      if (
+        !destinationMarkerRef.current &&
+        mapRef.current
+      ) {
+        destinationMarkerRef.current = new Marker({
+          element: createCustomerMarkerElement(),
+          anchor: "bottom",
+          draggable: false,
+        })
+          .setLngLat([
+            longitude,
+            latitude,
+          ])
+          .addTo(mapRef.current);
+      } else {
+        destinationMarkerRef.current?.setLngLat([
+          longitude,
+          latitude,
+        ]);
+      }
 
       if (moveCamera) {
         mapRef.current?.flyTo({
-          center: [longitude, latitude],
+          center: [
+            longitude,
+            latitude,
+          ],
           zoom: 17,
           duration: 1000,
           essential: true,
@@ -99,8 +175,8 @@ export function useSaveLocation({
     },
     [
       callbackRef,
+      destinationMarkerRef,
       mapRef,
-      markerRef,
       selectedCoordinatesRef,
       setEditableAddress,
       setLatitude,

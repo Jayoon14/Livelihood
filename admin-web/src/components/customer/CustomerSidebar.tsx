@@ -5,6 +5,7 @@ import {
   Heart,
   Wallet,
   MessageCircle,
+  Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -65,28 +66,45 @@ export default function CustomerSidebar({
         className={`
           fixed inset-y-0 left-0 z-50
           flex min-h-screen w-64 flex-col
-          bg-blue-700 text-white shadow-xl
+          relative overflow-hidden
+          text-white shadow-xl
           transform transition-transform duration-300
-          ${
-            isOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-          }
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:static
           lg:translate-x-0
         `}
+        style={{
+          background:
+            "linear-gradient(160deg,#2B3BF5 0%,#5B3DF0 35%,#3B7EF0 70%,#17BFE0 100%)",
+          fontFamily: "'Inter', sans-serif",
+        }}
       >
-        {/* Logo */}
-        <div className="border-b border-blue-600 p-8">
-          <h1 className="text-3xl font-bold">LivelihoodGo</h1>
+        {/* Decorative glow */}
+        <div className="pointer-events-none absolute -right-16 top-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -left-10 bottom-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
 
-          <p className="mt-1 text-blue-200">
-            Customer Portal
-          </p>
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3 border-b border-white/10 px-7 py-8">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500">
+            <Wrench className="h-5 w-5 text-[#0A1930]" />
+          </div>
+
+          <div>
+            <h1
+              className="text-xl font-bold leading-tight"
+              style={{ fontFamily: "'Sora', sans-serif" }}
+            >
+              Livelihood
+            </h1>
+
+            <p className="mt-0.5 text-xs font-medium text-slate-400">
+              Customer Portal
+            </p>
+          </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-2 p-5">
+        <nav className="relative z-10 flex-1 space-y-1.5 p-5">
           {menus.map((menu) => {
             const Icon = menu.icon;
 
@@ -96,16 +114,16 @@ export default function CustomerSidebar({
                 to={menu.path}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-4 rounded-xl px-5 py-4 transition ${
+                  `flex items-center gap-3.5 rounded-xl px-4 py-3.5 transition-colors ${
                     isActive
-                      ? "bg-white text-blue-700 font-semibold shadow"
-                      : "hover:bg-blue-600"
+                      ? "bg-white text-[#0A1930] font-semibold shadow-sm"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`
                 }
               >
-                <Icon size={22} />
+                <Icon size={20} strokeWidth={2} />
 
-                <span>{menu.name}</span>
+                <span className="text-sm">{menu.name}</span>
               </NavLink>
             );
           })}

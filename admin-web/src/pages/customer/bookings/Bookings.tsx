@@ -15,6 +15,7 @@ import {
   Receipt,
   RotateCcw,
   Trash2,
+  Navigation,
 } from "lucide-react";
 import {
   checkWorkerAvailability,
@@ -458,15 +459,45 @@ async function handleDelete(id: number) {
                         </>
                       )}
 
-                      {booking.status === "Approved" && (
-                        <button
-                          onClick={() => navigate(`/chat/${booking.id}`)}
-                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
-                        >
-                          <MessageCircle size={18} />
-                          Open Chat
-                        </button>
-                      )}
+                        {booking.status === "Approved" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                navigate(
+                                  `/customer/tracking/${booking.id}`,
+                                )
+                              }
+                              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+                            >
+                              <Navigation size={18} />
+                              Track Worker
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                navigate(`/chat/${booking.id}`)
+                              }
+                              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
+                            >
+                              <MessageCircle size={18} />
+                              Open Chat
+                            </button>
+                          </>
+                        )}
+                        {booking.status === "On Going" &&
+                        booking.trip_status === "On Trip" && (
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/customer/tracking/${booking.id}`,
+                              )
+                            }
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+                          >
+                            <Navigation size={18} />
+                            View Live Location
+                          </button>
+                        )}
 
                       {booking.status === "Waiting Customer Confirmation" && (
                         <button
@@ -1013,30 +1044,30 @@ async function handleDelete(id: number) {
                     setAvailableSlots(slots);
                   }}
                   className="
-    w-full
-    mt-2
-    border
-    border-gray-200
-    rounded-xl
-    px-4
-    py-3
-    focus:ring-2
-    focus:ring-blue-500
-    outline-none
-  "
+                    w-full
+                    mt-2
+                    border
+                    border-gray-200
+                    rounded-xl
+                    px-4
+                    py-3
+                    focus:ring-2
+                    focus:ring-blue-500
+                    outline-none
+                  "
                 />
               </div>
               {availabilityMessage && (
                 <div
                   className="
-  mt-3
-  rounded-xl
-  bg-red-50
-  border
-  border-red-200
-  text-red-600
-  p-4
-  "
+                    mt-3
+                    rounded-xl
+                    bg-red-50
+                    border
+                    border-red-200
+                    text-red-600
+                    p-4
+                    "
                 >
                   {availabilityMessage}
                 </div>
