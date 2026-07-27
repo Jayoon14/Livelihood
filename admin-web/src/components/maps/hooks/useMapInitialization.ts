@@ -183,26 +183,22 @@ export function useMapInitialization({
       },
     });
 
-    const workerMarkerElement =
-      createWorkerMarkerElement();
+let workerMarker: Marker | null = null;
 
-    const marker = new Marker({
-      element: workerMarkerElement,
-      draggable: true,
-      anchor: "center",
-    })
-      .setLngLat(DEFAULT_CENTER)
-      .addTo(map);
-          marker.on("dragend", async () => {
-      const coordinates = marker.getLngLat();
+if (navigationMode) {
+  const workerMarkerElement = createWorkerMarkerElement();
 
-      await saveLocation(
-        coordinates.lat,
-        coordinates.lng,
-        undefined,
-        false,
-      );
-    });
+  // Nakatago muna hanggang confirmed online ang worker.
+  workerMarkerElement.style.display = "none";
+
+  workerMarker = new Marker({
+    element: workerMarkerElement,
+    draggable: false,
+    anchor: "center",
+  })
+    .setLngLat(DEFAULT_CENTER)
+    .addTo(map);
+}
 
     map.on("click", async (event: MapMouseEvent) => {
       setMouseCoordinates([
@@ -215,24 +211,6 @@ export function useMapInitialization({
         event.lngLat.lng,
       );
     });
-
-  map.on("load", () => {
-    setMapReady(true);
-
-    if (navigationMode && initialLocation) {
-      const customerMarker = new Marker({
-        element: createCustomerMarkerElement(),
-        anchor: "bottom",
-      })
-        .setLngLat([
-          initialLocation.longitude,
-          initialLocation.latitude,
-        ])
-        .addTo(map);
-
-      destinationMarkerRef.current = customerMarker;
-    }
-  });
     map.on("rotate", () => {
       setBearing(map.getBearing());
     });
@@ -283,10 +261,10 @@ export function useMapInitialization({
     );
 
     mapRef.current = map;
-    markerRef.current = marker;
+    markerRef.current = workerMarker;
 
     return () => {
-      marker.remove();
+      workerMarker?.remove();
       destinationMarkerRef.current?.remove();
 
       map.remove();

@@ -8,7 +8,7 @@ export function useLocationPickerState() {
   const [style, setStyle] = useState<StyleKey>("standard");
   const [showLayers, setShowLayers] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
-  const [trafficEnabled, setTrafficEnabled] = useState(false);
+
 
   const [longitude, setLongitude] = useState(DEFAULT_CENTER[0]);
   const [latitude, setLatitude] = useState(DEFAULT_CENTER[1]);
@@ -39,9 +39,6 @@ export function useLocationPickerState() {
 
     showDirections,
     setShowDirections,
-
-    trafficEnabled,
-    setTrafficEnabled,
 
     longitude,
     setLongitude,

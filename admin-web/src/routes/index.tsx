@@ -82,10 +82,12 @@ import WorkerNotifications from "../pages/worker/notifications/Notifications";
 import AdminNotifications from "../pages/admin/notifications/Notifications";
 
 import { WorkerLocationProvider } from "../context/WorkerLocationProvider";
+import { RealtimeProvider } from "../providers/RealtimeProvider";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
+     <RealtimeProvider>
     <WorkerLocationProvider>
       <Routes>
         {/* ================= AUTH ================= */}
@@ -461,6 +463,7 @@ export default function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
       </WorkerLocationProvider>
+      </RealtimeProvider>
     </BrowserRouter>
   );
 }

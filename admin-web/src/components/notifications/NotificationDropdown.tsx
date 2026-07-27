@@ -64,49 +64,81 @@ export default function NotificationDropdown({
   // ==========================
 
   useEffect(() => {
-    let channel: any;
+  let isCancelled = false;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    async function initialize() {
+  async function initialize() {
+    try {
       const {
         data: { user },
+        error,
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (error) {
+        throw error;
+      }
+
+      if (!user || isCancelled) {
+        return;
+      }
 
       setUserId(user.id);
 
       await loadNotifications(user.id);
 
-      channel = supabase.channel(`${role}-notification-dropdown`);
-
-      (channel as any)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload: any) => {
-            loadNotifications(user.id);
-
-            if (payload.eventType === "INSERT") {
-              setToastNotification(payload.new);
-            }
-          },
-        )
-        .subscribe();
-    }
-
-    initialize();
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+      // Mahalaga: huwag nang gumawa ng channel kapag na-cleanup na ang effect.
+      if (isCancelled) {
+        return;
       }
-    };
-  }, [role]);
+
+      const channelName = `${role}-notification-dropdown-${user.id}-${crypto.randomUUID()}`;
+
+      const newChannel = supabase.channel(channelName);
+
+      newChannel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          if (isCancelled) {
+            return;
+          }
+
+          void loadNotifications(user.id);
+
+          if (payload.eventType === "INSERT") {
+            setToastNotification(payload.new);
+          }
+        },
+      );
+
+      channel = newChannel;
+
+      channel.subscribe((status) => {
+        console.log(`${role} notification dropdown realtime:`, status);
+      });
+    } catch (error) {
+      if (!isCancelled) {
+        console.error("Initialize notification dropdown error:", error);
+      }
+    }
+  }
+
+  void initialize();
+
+  return () => {
+    isCancelled = true;
+
+    if (channel) {
+      void supabase.removeChannel(channel);
+      channel = null;
+    }
+  };
+}, [role]);
 
   // ==========================
   // CLOSE DROPDOWN

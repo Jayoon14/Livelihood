@@ -72,19 +72,34 @@ export default function Bookings() {
   }
 
   useEffect(() => {
-    let channel: any;
+  let isCancelled = false;
+  let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    async function initialize() {
+  async function initialize() {
+    try {
       const {
         data: { user },
+        error,
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (error) {
+        throw error;
+      }
+
+      if (!user || isCancelled) {
+        return;
+      }
 
       await loadBookings();
 
-      channel = supabase
-        .channel("customer-bookings")
+      if (isCancelled) {
+        return;
+      }
+
+      const newChannel = supabase
+        .channel(
+          `customer-bookings-${user.id}-${crypto.randomUUID()}`,
+        )
         .on(
           "postgres_changes",
           {
@@ -94,21 +109,35 @@ export default function Bookings() {
             filter: `customer_id=eq.${user.id}`,
           },
           () => {
-            loadBookings();
+            if (!isCancelled) {
+              void loadBookings();
+            }
           },
-        )
-        .subscribe();
-    }
+        );
 
-    initialize();
+      channel = newChannel;
 
-    return () => {
-      if (channel) {
-        channel.unsubscribe();
-        supabase.removeChannel(channel);
+      channel.subscribe((status) => {
+        console.log("Customer bookings realtime status:", status);
+      });
+    } catch (error) {
+      if (!isCancelled) {
+        console.error("Initialize customer bookings realtime error:", error);
       }
-    };
-  }, []);
+    }
+  }
+
+  void initialize();
+
+  return () => {
+    isCancelled = true;
+
+    if (channel) {
+      void supabase.removeChannel(channel);
+      channel = null;
+    }
+  };
+}, []);
 
   async function loadBookings() {
     setLoading(true);

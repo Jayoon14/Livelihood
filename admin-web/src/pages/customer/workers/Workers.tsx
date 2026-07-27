@@ -3,13 +3,22 @@ import { Link, useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 
-import { Search, Users, Star, Filter, BadgeCheck, HardHat } from "lucide-react";
+import {
+  Search,
+  Users,
+  Star,
+  Filter,
+  BadgeCheck,
+  HardHat,
+  MapPinned,
+} from "lucide-react";
 
 import {
   searchDashboard,
   getCategories,
   isWorkerAvailable,
 } from "../../../services/workerService";
+import NearbyWorkersModal from "./components/NearbyWorkersModal";
 
 const heading = { fontFamily: "'Sora', sans-serif" };
 const inter = { fontFamily: "'Inter', sans-serif" };
@@ -28,6 +37,8 @@ export default function Workers() {
   const [availability, setAvailability] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -134,7 +145,10 @@ export default function Workers() {
 
           <div className="relative z-10 px-10 py-12 flex flex-col lg:flex-row justify-between items-center gap-10">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white" style={heading}>
+              <h1
+                className="text-4xl md:text-5xl font-bold text-white"
+                style={heading}
+              >
                 Find Trusted Workers
               </h1>
 
@@ -179,36 +193,69 @@ export default function Workers() {
             </div>
 
             <div className="hidden lg:flex items-center justify-center w-64 h-64 rounded-full bg-white/10 border border-white/10 backdrop-blur shrink-0">
-              <HardHat size={110} className="text-amber-400" strokeWidth={1.5} />
+              <HardHat
+                size={110}
+                className="text-amber-400"
+                strokeWidth={1.5}
+              />
             </div>
           </div>
         </div>
 
         {/* FILTERS */}
 
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-slate-100">
-              <Search className="text-blue-600 w-5 h-5" />
+        <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-blue-50">
+                <Search className="h-5 w-5 text-blue-600" />
+              </div>
+
+              <div>
+                <h2
+                  className="text-xl font-bold text-slate-900"
+                  style={heading}
+                >
+                  Search &amp; Filters
+                </h2>
+
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Search the worker list or view available workers on the map.
+                </p>
+              </div>
             </div>
 
-            <h2 className="text-xl font-bold text-slate-900" style={heading}>
-              Search &amp; Filters
-            </h2>
+            <button
+              type="button"
+              onClick={() => setShowNearbyWorkersModal(true)}
+              className="
+        inline-flex items-center justify-center gap-2
+        rounded-2xl bg-blue-600 px-5 py-3
+        text-sm font-semibold text-white
+        shadow-lg shadow-blue-600/20
+        transition
+        hover:-translate-y-0.5 hover:bg-blue-700
+        focus:outline-none focus:ring-2
+        focus:ring-blue-500 focus:ring-offset-2
+      "
+            >
+              <MapPinned size={18} />
+              View Nearby Workers
+            </button>
           </div>
 
-          <div className="grid xl:grid-cols-5 md:grid-cols-2 gap-5">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
             <input
               type="text"
               placeholder="Search worker..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               className={selectClass}
             />
 
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(event) => setCategory(event.target.value)}
               className={selectClass}
             >
               <option value="">All Categories</option>
@@ -222,45 +269,35 @@ export default function Workers() {
 
             <select
               value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value)}
+              onChange={(event) => setPriceRange(event.target.value)}
               className={selectClass}
             >
               <option value="">All Prices</option>
-
               <option value="100-300">₱100 - ₱300</option>
-
               <option value="300-500">₱300 - ₱500</option>
-
               <option value="500-1000">₱500 - ₱1000</option>
-
               <option value="1000+">₱1000+</option>
             </select>
 
             <select
               value={rating}
-              onChange={(e) => setRating(e.target.value)}
+              onChange={(event) => setRating(event.target.value)}
               className={selectClass}
             >
               <option value="">All Ratings</option>
-
               <option value="5">★★★★★</option>
-
               <option value="4">★★★★☆ &amp; up</option>
-
               <option value="3">★★★☆☆ &amp; up</option>
-
               <option value="2">★★☆☆☆ &amp; up</option>
-
               <option value="1">★☆☆☆☆ &amp; up</option>
             </select>
 
             <select
               value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
+              onChange={(event) => setAvailability(event.target.value)}
               className={selectClass}
             >
               <option value="">All Availability</option>
-
               <option value="today">Available Today</option>
             </select>
           </div>
@@ -312,7 +349,10 @@ export default function Workers() {
               <Search size={38} className="text-blue-600" />
             </div>
 
-            <h2 className="text-2xl font-bold mt-6 text-slate-900" style={heading}>
+            <h2
+              className="text-2xl font-bold mt-6 text-slate-900"
+              style={heading}
+            >
               No workers found
             </h2>
 
@@ -387,7 +427,10 @@ export default function Workers() {
                     </div>
 
                     <div className="absolute bottom-5 left-5 right-5">
-                      <h2 className="text-xl font-bold text-white" style={heading}>
+                      <h2
+                        className="text-xl font-bold text-white"
+                        style={heading}
+                      >
                         {worker.first_name} {worker.last_name}
                       </h2>
 
@@ -431,7 +474,10 @@ export default function Workers() {
                           Completed Jobs
                         </p>
 
-                        <p className="text-2xl font-bold text-emerald-700 mt-1" style={heading}>
+                        <p
+                          className="text-2xl font-bold text-emerald-700 mt-1"
+                          style={heading}
+                        >
                           {worker.completed_jobs ?? 0}
                         </p>
                       </div>
@@ -448,7 +494,10 @@ export default function Workers() {
                             fill="currentColor"
                           />
 
-                          <p className="text-2xl font-bold text-amber-700" style={heading}>
+                          <p
+                            className="text-2xl font-bold text-amber-700"
+                            style={heading}
+                          >
                             {averageRating}
                           </p>
                         </div>
@@ -503,6 +552,10 @@ export default function Workers() {
             })}
           </div>
         )}
+        <NearbyWorkersModal
+          open={showNearbyWorkersModal}
+          onClose={() => setShowNearbyWorkersModal(false)}
+        />
       </div>
     </CustomerLayout>
   );

@@ -30,13 +30,18 @@ import { useMarkerHeading } from "./hooks/useMarkerHeading";
 import { useSmoothMarker } from "./hooks/useSmoothMarker";
 import { useLiveRouteRefresh } from "./hooks/useLiveRouteRefresh";
 import { useFollowLocation } from "./hooks/useFollowLocation";
-import { useNearbyWorkers } from "./hooks/useNearbyWorkers";
+import {
+  useNearbyWorkers,
+} from "./hooks/useNearbyWorkers";
+
+import type {
+  NearbyWorker,
+} from "./hooks/useNearbyWorkers";
 
 import { useWorkerLocation } from "../../context/WorkerLocationProvider";
 
 import { useSearchHistory } from "./hooks/useSearchHistory";
 import { useRouteLayer } from "./hooks/useRouteLayer";
-import { useTrafficLayer } from "./hooks/useTrafficLayer";
 import { useClearSearch } from "./hooks/useClearSearch";
 import { useSidebarProps } from "./hooks/useSidebarProps";
 import { useLayersModalProps } from "./hooks/useLayersModalProps";
@@ -60,6 +65,10 @@ interface Props {
   showNearbyWorkers?: boolean;
   nearbyWorkerRadiusKilometers?: number;
 
+  onNearbyWorkerSelect?: (
+    worker: NearbyWorker,
+  ) => void;
+
   initialLocation?: InitialLocation;
   navigationMode?: boolean;
 }
@@ -67,6 +76,7 @@ export default function LocationPicker({
   onLocationSelect,
   showNearbyWorkers = false,
   nearbyWorkerRadiusKilometers = 20,
+  onNearbyWorkerSelect,
   initialLocation,
   navigationMode = false,
 }: Props) {
@@ -81,10 +91,6 @@ export default function LocationPicker({
   const selectedCoordinatesRef = useRef<Coordinates>(DEFAULT_CENTER);
   const currentLocationRef = useRef<Coordinates | null>(null);
   const routeCoordinatesRef = useRef<[number, number][]>([]);
-
-  const tomTomApiKey = import.meta.env.VITE_TOMTOM_API_KEY as
-    | string
-    | undefined;
 
   const {
     searchText,
@@ -107,9 +113,6 @@ export default function LocationPicker({
 
     showDirections,
     setShowDirections,
-
-    trafficEnabled,
-    setTrafficEnabled,
 
     longitude,
     setLongitude,
@@ -181,26 +184,43 @@ export default function LocationPicker({
 
 const {
   workerLocation,
+  isOnline,
   isTracking,
   goOnline,
 } = useWorkerLocation();
 
-const liveLocation = workerLocation
-  ? {
-      coordinates: [
-        workerLocation.longitude,
-        workerLocation.latitude,
-      ] as Coordinates,
-      heading: workerLocation.heading,
-    }
-  : null;
-  useEffect(() => {
-  if (!liveLocation) {
+const liveLocation =
+  isOnline && workerLocation
+    ? {
+        coordinates: [
+          workerLocation.longitude,
+          workerLocation.latitude,
+        ] as Coordinates,
+        heading: workerLocation.heading,
+      }
+    : null;
+useEffect(() => {
+  // Worker navigation: use the worker's live GPS.
+  if (navigationMode && isOnline && liveLocation) {
+    currentLocationRef.current = liveLocation.coordinates;
+  }
+}, [navigationMode, isOnline, liveLocation]);
+
+useEffect(() => {
+  if (!mapReady) {
     return;
   }
 
-  currentLocationRef.current = liveLocation.coordinates;
-}, [liveLocation]);
+  const marker = markerRef.current;
+
+  if (!marker) {
+    return;
+  }
+
+  marker.getElement().style.display =
+    isOnline && liveLocation ? "flex" : "none";
+}, [isOnline, liveLocation, mapReady]);
+
   useSmoothMarker({
     marker: markerRef.current,
     coordinates: liveLocation?.coordinates ?? null,
@@ -214,7 +234,11 @@ const liveLocation = workerLocation
   useFollowLocation({
     map: mapRef.current,
     coordinates: liveLocation?.coordinates ?? null,
-    enabled: followUser && !showDirections && !navigationMode,
+    enabled:
+    isOnline &&
+    followUser &&
+    !showDirections &&
+    navigationMode,
   });
 
   useMapInitialization({
@@ -346,26 +370,19 @@ useMapStyle({
   mapStyle: selectedMapStyle,
 });
 
-  
 
-  useTrafficLayer({
-    mapRef,
-    mapReady,
-    trafficEnabled,
-    tomTomApiKey,
-  });
-
-  const {
-    nearbyWorkersCount,
-    loadingWorkers,
-    nearbyWorkersError,
-    refreshNearbyWorkers,
-  } = useNearbyWorkers({
-    mapRef,
-    currentLocationRef,
-    enabled: showNearbyWorkers && mapReady,
-    radiusKilometers: nearbyWorkerRadiusKilometers,
-  });
+const {
+  nearbyWorkersCount,
+  loadingWorkers,
+  nearbyWorkersError,
+  refreshNearbyWorkers,
+} = useNearbyWorkers({
+  mapRef,
+  currentLocationRef,
+  enabled: showNearbyWorkers && mapReady,
+  radiusKilometers: nearbyWorkerRadiusKilometers,
+  onWorkerSelect: onNearbyWorkerSelect,
+});
 
   const confirmAddress = useConfirmAddress({
     editableAddress,
@@ -440,15 +457,12 @@ const handleCurrentLocation = useCallback(() => {
     handleSearchResultSelect,
   });
 
-  const layersModalProps = useLayersModalProps({
-    showLayers,
-    style,
-    trafficEnabled,
-    tomTomApiKey,
-    setShowLayers,
-    setStyle,
-    setTrafficEnabled,
-  });
+const layersModalProps = useLayersModalProps({
+  showLayers,
+  style,
+  setShowLayers,
+  setStyle,
+});
 
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.15)]">
