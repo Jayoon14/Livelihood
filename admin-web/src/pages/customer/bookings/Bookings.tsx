@@ -503,9 +503,8 @@ async function handleDelete(id: number) {
                             </button>
 
                             <button
-                              onClick={() =>
-                                navigate(`/chat/${booking.id}`)
-                              }
+                              type="button"
+                              onClick={() => setChatBooking(booking)}
                               className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
                             >
                               <MessageCircle size={18} />
@@ -615,18 +614,6 @@ async function handleDelete(id: number) {
                       >
                         <Eye size={18} />
                         View Details
-                      </button>
-                    </div>
-                    <div className="border-t mt-6 pt-4 flex gap-3">
-                      <button
-                        onClick={() => {
-                          setSelectedBooking(booking);
-                          setChatBooking(true);
-                        }}
-                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl"
-                      >
-                        <MessageCircle size={18} />
-                        Message Worker
                       </button>
                     </div>
 
@@ -879,108 +866,61 @@ async function handleDelete(id: number) {
           </div>
         </div>
       )}
-      {chatBooking && selectedBooking && (
-        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[700px] flex overflow-hidden">
-            {/* LEFT */}
+      {chatBooking && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setChatBooking(null);
+            }
+          }}
+        >
+          <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[94vh] sm:rounded-[28px] sm:border sm:border-white/20">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <img
+                  src={
+                    chatBooking.worker?.profile_picture ||
+                    "https://placehold.co/80x80?text=Worker"
+                  }
+                  alt="Worker"
+                  className="h-11 w-11 rounded-full border border-slate-200 object-cover"
+                />
 
-            <div className="w-80 border-r bg-gray-50">
-              <div className="p-6 border-b">
-                <h2 className="text-2xl font-bold">Messages</h2>
-              </div>
+                <div className="min-w-0">
+                  <h2 className="truncate font-bold text-slate-900">
+                    {[
+                      chatBooking.worker?.first_name,
+                      chatBooking.worker?.middle_name,
+                      chatBooking.worker?.last_name,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || "Worker"}
+                  </h2>
 
-              <div className="p-5">
-                <div className="flex items-center gap-4 p-4 rounded-2xl bg-blue-50">
-                  <img
-                    src={
-                      selectedBooking.worker?.profile_picture ||
-                      "https://placehold.co/70x70"
-                    }
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-
-                  <div>
-                    <h3 className="font-bold">
-                      {[
-                        selectedBooking.worker?.first_name,
-                        selectedBooking.worker?.middle_name,
-                        selectedBooking.worker?.last_name,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    </h3>
-
-                    <p className="text-gray-500 text-sm">
-                      {chatBooking.services?.service_name ??
-                        "Service unavailable"}
-                    </p>
-
-                    <p className="text-green-600 text-xs mt-1">
-                      Booking Active
-                    </p>
-                  </div>
+                  <p className="truncate text-xs text-slate-500">
+                    Booking #{chatBooking.id} · {chatBooking.services?.service_name || "Service"}
+                  </p>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setChatBooking(null)}
+                aria-label="Close chat"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xl leading-none text-slate-600 transition hover:bg-red-50 hover:text-red-600"
+              >
+                ×
+              </button>
             </div>
 
-            {/* RIGHT */}
-
-            <div className="flex-1 flex flex-col">
-              <div className="border-b p-6 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={
-                      selectedBooking.worker?.profile_picture ||
-                      "https://placehold.co/70x70"
-                    }
-                    className="w-14 h-14 rounded-full"
-                  />
-
-                  <div>
-                    <h2 className="text-xl font-bold">
-                      {[
-                        chatBooking.worker?.first_name,
-                        chatBooking.worker?.middle_name,
-                        chatBooking.worker?.last_name,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    </h2>
-
-                    <p className="text-gray-500">{chatBooking.service_name}</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setChatBooking(false)}
-                  className="text-3xl hover:text-red-500"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="flex-1 flex flex-col items-center justify-center px-10">
-                <MessageCircle size={90} className="text-purple-500" />
-
-                <h2 className="text-3xl font-bold mt-6">
-                  Continue your conversation
-                </h2>
-
-                <p className="text-gray-500 mt-3 text-center max-w-lg">
-                  Chat directly with your worker regarding your booking,
-                  schedule updates, arrival time, or any additional requests.
-                </p>
-
-                <button
-                  onClick={() => {
-                    setChatBooking(false);
-                    navigate(`/chat/${chatBooking.id}`);
-                  }}
-                  className="mt-8 bg-purple-600 hover:bg-purple-700 text-white px-10 py-4 rounded-2xl font-semibold text-lg"
-                >
-                  Open Messenger
-                </button>
-              </div>
+            <div className="min-h-0 flex-1 bg-slate-100">
+              <iframe
+                src={`/chat/${chatBooking.id}`}
+                title={`Chat for booking ${chatBooking.id}`}
+                className="h-full w-full border-0"
+                allow="clipboard-read; clipboard-write"
+              />
             </div>
           </div>
         </div>

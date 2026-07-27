@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import WorkerSidebar from "../components/worker/WorkerSidebar";
 import WorkerNavbar from "../components/worker/WorkerNavbar";
 import Footer from "../components/common/Footer";
-
+import FloatingChatWidget from "../components/chat/FloatingChatWidget";
 import { ProfileProvider } from "../context/ProfileContext";
 
 interface WorkerLayoutProps {
@@ -24,13 +24,8 @@ export default function WorkerLayout({ children }: WorkerLayoutProps) {
   return (
     <ProfileProvider>
       <div className="flex min-h-screen bg-slate-100">
-        {/* Desktop and mobile sidebar */}
-        <WorkerSidebar
-          isOpen={sidebarOpen}
-          onClose={closeSidebar}
-        />
+        <WorkerSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
-        {/* Dark background overlay on mobile */}
         {sidebarOpen && (
           <button
             type="button"
@@ -49,6 +44,8 @@ export default function WorkerLayout({ children }: WorkerLayoutProps) {
 
           <Footer />
         </div>
+
+        <FloatingChatWidget />
       </div>
     </ProfileProvider>
   );

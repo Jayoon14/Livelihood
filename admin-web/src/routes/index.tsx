@@ -87,382 +87,406 @@ import { RealtimeProvider } from "../providers/RealtimeProvider";
 export default function AppRoutes() {
   return (
     <BrowserRouter>
-     <RealtimeProvider>
-    <WorkerLocationProvider>
-      <Routes>
-        {/* ================= AUTH ================= */}
+      <RealtimeProvider>
+        <WorkerLocationProvider>
+          <Routes>
+            {/* ================= AUTH ================= */}
 
-        <Route path="/" element={<Login />} />
+            <Route path="/" element={<Login />} />
 
-        <Route path="/register" element={<Register />} />
+            <Route path="/register" element={<Register />} />
 
-        <Route path="/register-choice" element={<RegisterChoice />} />
+            <Route path="/register-choice" element={<RegisterChoice />} />
 
-        <Route path="/register/customer" element={<CustomerRegister />} />
+            <Route path="/register/customer" element={<CustomerRegister />} />
 
-        <Route path="/register/worker" element={<WorkerRegister />} />
+            <Route path="/register/worker" element={<WorkerRegister />} />
 
-        {/* ================= CUSTOMER AUTH ================= */}
+            {/* ================= CUSTOMER AUTH ================= */}
 
-        <Route path="/customer/login" element={<CustomerLogin />} />
+            <Route path="/customer/login" element={<CustomerLogin />} />
 
-        {/* ================= CUSTOMER ================= */}
+            {/* ================= CUSTOMER ================= */}
 
-        <Route
-          path="/customer/dashboard"
-          element={
-            <ProtectedRoute>
-              <CustomerDashboard />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/dashboard"
+              element={
+                <ProtectedRoute>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/customer/receipt/:id" element={<CustomerReceipt />} />
+            <Route path="/customer/receipt/:id" element={<CustomerReceipt />} />
 
-        <Route path="/customer/payments" element={<PaymentHistory />} />
+            <Route path="/customer/payments" element={<PaymentHistory />} />
 
-        <Route
-          path="/customer/workers"
-          element={
-            <ProtectedRoute>
-              <CustomerWorkers />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/customer/favorites" element={<Favorites />} />
+            <Route
+              path="/customer/workers"
+              element={
+                <ProtectedRoute>
+                  <CustomerWorkers />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/customer/favorites" element={<Favorites />} />
 
-        <Route
-          path="/customer/booking-confirmation"
-          element={
-            <ProtectedRoute>
-              <BookingConfirmation />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/booking-confirmation"
+              element={
+                <ProtectedRoute>
+                  <BookingConfirmation />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/book/:workerId"
-          element={
-            <ProtectedRoute>
-              <BookWorker />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/book/:workerId"
+              element={
+                <ProtectedRoute>
+                  <BookWorker />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/bookings"
-          element={
-            <ProtectedRoute>
-              <CustomerBookings />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/bookings"
+              element={
+                <ProtectedRoute>
+                  <CustomerBookings />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-        path="/customer/tracking/:bookingId"
-        element={
-          <ProtectedRoute>
-            <TrackWorker />
-          </ProtectedRoute>
-        }
-      />
+            <Route
+              path="/customer/tracking/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <TrackWorker />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/bookings/:id"
-          element={
-            <ProtectedRoute>
-              <BookingDetails />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/bookings/:id"
+              element={
+                <ProtectedRoute>
+                  <BookingDetails />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/notifications"
-          element={
-            <ProtectedRoute>
-              <Notifications />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/workers/:id"
-          element={
-            <ProtectedRoute>
-              <CustomerWorkerProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/customer/review/:bookingId"
-          element={
-            <ProtectedRoute>
-              <LeaveReview />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/workers/:id"
+              element={
+                <ProtectedRoute>
+                  <CustomerWorkerProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/review/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <LeaveReview />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute>
-              <ChatList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/customer/categories"
-          element={
-            <ProtectedRoute>
-              <Categories />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/customer/categories/:category"
-          element={
-            <ProtectedRoute>
-              <WorkersByCategory />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <ChatList />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/customer/compare" element={<CompareWorkers />} />
+            <Route
+              path="/customer/messages"
+              element={
+                <ProtectedRoute>
+                  <ChatList />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* ================= WORKER ================= */}
+            <Route
+              path="/worker/messages"
+              element={
+                <ProtectedRoute>
+                  <ChatList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/categories"
+              element={
+                <ProtectedRoute>
+                  <Categories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/categories/:category"
+              element={
+                <ProtectedRoute>
+                  <WorkersByCategory />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/worker/dashboard"
-          element={
-            <ProtectedRoute>
-              <WorkerDashboard />
-            </ProtectedRoute>
-          }
-        />
+            <Route path="/customer/compare" element={<CompareWorkers />} />
 
-        <Route
-          path="/worker/bookings"
-          element={
-            <ProtectedRoute>
-              <WorkerBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-        path="/worker/navigation/:bookingId"
-        element={
-          <ProtectedRoute>
-            <NavigateToCustomer />
-          </ProtectedRoute>
-        }
-      />
-        <Route
-          path="/worker/bookings/complete/:bookingId"
-          element={<CompleteJob />}
-        />
+            {/* ================= WORKER ================= */}
 
-        <Route
-          path="/customer/completion-proof/:bookingId"
-          element={<CompletionProof />}
-        />
+            <Route
+              path="/worker/dashboard"
+              element={
+                <ProtectedRoute>
+                  <WorkerDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/worker/notifications" element={<WorkerNotifications />} />
+            <Route
+              path="/worker/bookings"
+              element={
+                <ProtectedRoute>
+                  <WorkerBookings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/worker/navigation/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <NavigateToCustomer />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/worker/bookings/complete/:bookingId"
+              element={<CompleteJob />}
+            />
 
-        <Route
-          path="/worker/payment-information"
-          element={
-            <ProtectedRoute>
-              <PaymentInformation />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/completion-proof/:bookingId"
+              element={<CompletionProof />}
+            />
 
-        <Route
-          path="/worker/reviews"
-          element={
-            <ProtectedRoute>
-              <WorkerReviews />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/worker/notifications"
+              element={<WorkerNotifications />}
+            />
 
-        <Route
-          path="/worker/profile"
-          element={
-            <ProtectedRoute>
-              <WorkerProfile />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/worker/payment-information"
+              element={
+                <ProtectedRoute>
+                  <PaymentInformation />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/worker/schedule"
-          element={
-            <ProtectedRoute>
-              <WorkerSchedule />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/worker/reviews"
+              element={
+                <ProtectedRoute>
+                  <WorkerReviews />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/worker/services"
-          element={
-            <ProtectedRoute>
-              <Services />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/worker/payments"
-          element={
-            <ProtectedRoute>
-              <PaymentRequests />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/worker/profile"
+              element={
+                <ProtectedRoute>
+                  <WorkerProfile />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* ================= ADMIN ================= */}
+            <Route
+              path="/worker/schedule"
+              element={
+                <ProtectedRoute>
+                  <WorkerSchedule />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/worker/services"
+              element={
+                <ProtectedRoute>
+                  <Services />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/worker/payments"
+              element={
+                <ProtectedRoute>
+                  <PaymentRequests />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/workers"
-          element={
-            <ProtectedRoute>
-              <Workers />
-            </ProtectedRoute>
-          }
-        />
+            {/* ================= ADMIN ================= */}
 
-        <Route
-          path="/workers/:id"
-          element={
-            <ProtectedRoute>
-              <WorkerDetails />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customers"
-          element={
-            <ProtectedRoute>
-              <Customers />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/workers"
+              element={
+                <ProtectedRoute>
+                  <Workers />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customers/:id"
-          element={
-            <ProtectedRoute>
-              <CustomerDetails />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route
+              path="/workers/:id"
+              element={
+                <ProtectedRoute>
+                  <WorkerDetails />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* ================= ADMIN BOOKINGS ================= */}
+            <Route
+              path="/customers"
+              element={
+                <ProtectedRoute>
+                  <Customers />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/bookings"
-          element={
-            <ProtectedRoute>
-              <AdminBookings />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customers/:id"
+              element={
+                <ProtectedRoute>
+                  <CustomerDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={<AdminNotifications />}
+            />
 
-        <Route
-          path="/bookings/history"
-          element={
-            <ProtectedRoute>
-              <BookingHistory />
-            </ProtectedRoute>
-          }
-        />
+            {/* ================= ADMIN BOOKINGS ================= */}
 
-        {/* ================= CHAT ================= */}
+            <Route
+              path="/bookings"
+              element={
+                <ProtectedRoute>
+                  <AdminBookings />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/chat/:bookingId"
-          element={
-            <ProtectedRoute>
-              <ChatRoom />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/bookings/history"
+              element={
+                <ProtectedRoute>
+                  <BookingHistory />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* ================= REPORTS ================= */}
+            {/* ================= CHAT ================= */}
 
-        <Route
-          path="/admin/reports"
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/chat/:bookingId"
+              element={
+                <ProtectedRoute>
+                  <ChatRoom />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* ================= SETTINGS ================= */}
+            {/* ================= REPORTS ================= */}
 
-        <Route
-          path="/customer/settings"
-          element={
-            <ProtectedRoute>
-              <CustomerSettings />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute>
+                  <Reports />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/customer/payment/:id"
-          element={
-            <ProtectedRoute>
-              <Payment />
-            </ProtectedRoute>
-          }
-        />
+            {/* ================= SETTINGS ================= */}
 
-        <Route
-          path="/payments"
-          element={
-            <ProtectedRoute>
-              <Payments />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/settings"
+              element={
+                <ProtectedRoute>
+                  <CustomerSettings />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route
-          path="/activity-logs"
-          element={
-            <ProtectedRoute>
-              <ActivityLogs />
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/customer/payment/:id"
+              element={
+                <ProtectedRoute>
+                  <Payment />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route
+              path="/payments"
+              element={
+                <ProtectedRoute>
+                  <Payments />
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/reset-password" element={<ResetPassword />} />
-      </Routes>
-      </WorkerLocationProvider>
+            <Route
+              path="/activity-logs"
+              element={
+                <ProtectedRoute>
+                  <ActivityLogs />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            <Route path="/reset-password" element={<ResetPassword />} />
+          </Routes>
+        </WorkerLocationProvider>
       </RealtimeProvider>
     </BrowserRouter>
   );

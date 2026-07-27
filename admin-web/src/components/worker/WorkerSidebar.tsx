@@ -6,9 +6,11 @@ import {
   Briefcase,
   CreditCard,
   Wallet,
+  MessageCircle,
   Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useChatUnreadCount } from "../../hooks/useChatUnreadCount";
 
 interface WorkerSidebarProps {
   isOpen: boolean;
@@ -16,6 +18,8 @@ interface WorkerSidebarProps {
 }
 
 export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
+  const { count: unreadMessages } = useChatUnreadCount();
+
   const menus = [
     {
       name: "Dashboard",
@@ -51,6 +55,11 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
       name: "Payment Requests",
       icon: Wallet,
       path: "/worker/payments",
+    },
+    {
+      name: "Messages",
+      icon: MessageCircle,
+      path: "/chat",
     },
   ];
 
@@ -113,6 +122,11 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
             >
               <Icon size={20} strokeWidth={2} />
               <span className="text-sm">{menu.name}</span>
+              {menu.name === "Messages" && unreadMessages > 0 && (
+                <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              )}
             </NavLink>
           );
         })}

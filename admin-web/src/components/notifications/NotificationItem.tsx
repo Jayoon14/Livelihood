@@ -66,7 +66,7 @@ export default function NotificationItem({
       );
     }
 
-    if (text.includes("chat")) {
+    if (text.includes("chat") || text.includes("message")) {
       return (
         <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center">
           <MessageCircle className="text-indigo-600" size={22} />

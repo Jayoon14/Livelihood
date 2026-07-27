@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { MessageCircle } from "lucide-react";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import BookingTimeline from "../../../components/customer/BookingTimeline";
@@ -198,6 +199,16 @@ export default function BookingDetails() {
         {/* ACTIONS */}
 
         <div className="flex flex-wrap gap-4">
+          {["Approved", "On Going", "Completed"].includes(booking.status) && (
+            <Link
+              to={`/chat/${booking.id}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Chat with Worker
+            </Link>
+          )}
+
           {booking.status === "Pending" && (
             <button
               onClick={handleCancel}

@@ -19,6 +19,7 @@ import {
   CircleX,
   WalletCards,
   Search,
+  X,
 } from "lucide-react";
 
 export default function Bookings() {
@@ -31,6 +32,19 @@ export default function Bookings() {
   const [statusFilter, setStatusFilter] = useState("All");
 
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+
+  const [chatBookingId, setChatBookingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (chatBookingId === null) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [chatBookingId]);
 
   useEffect(() => {
     loadBookings();
@@ -201,17 +215,17 @@ export default function Bookings() {
   }
   return (
     <WorkerLayout>
-      <div className="p-8 space-y-6">
+      <div className="space-y-5 p-3 sm:space-y-6 sm:p-5 lg:p-8">
         {/* Header */}
 
-        <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 rounded-3xl p-8 shadow-xl text-white">
-          <div className="flex justify-between items-center">
+        <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="uppercase tracking-[5px] text-blue-100 text-sm">
+              <p className="text-xs uppercase tracking-[3px] text-blue-100 sm:text-sm sm:tracking-[5px]">
                 Worker Dashboard
               </p>
 
-              <h1 className="text-4xl font-extrabold mt-2">My Bookings</h1>
+              <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">My Bookings</h1>
 
               <p className="text-blue-100 mt-3 max-w-2xl">
                 View customer requests, approve bookings, communicate with
@@ -227,7 +241,7 @@ export default function Bookings() {
 
         {/* Search & Filter */}
 
-        <div className="bg-white rounded-3xl shadow-lg border p-6">
+        <div className="rounded-2xl border bg-white p-4 shadow-lg sm:rounded-3xl sm:p-6">
           <div className="flex flex-col lg:flex-row gap-5 items-center justify-between">
             {/* Search */}
 
@@ -251,7 +265,7 @@ export default function Bookings() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 min-w-[220px] focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500 lg:w-auto lg:min-w-[220px]"
             >
               <option value="All">📋 All Bookings</option>
 
@@ -268,7 +282,7 @@ export default function Bookings() {
 
         {/* Premium Statistics */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-5">
           {/* Total */}
           <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl text-white p-6 shadow-xl">
             <div className="absolute -right-5 -top-5 opacity-10">
@@ -285,7 +299,7 @@ export default function Bookings() {
           {/* Pending */}
 
           <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-gray-500">Pending</p>
 
@@ -314,7 +328,7 @@ export default function Bookings() {
           {/* Approved */}
 
           <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-gray-500">Approved</p>
 
@@ -343,7 +357,7 @@ export default function Bookings() {
           {/* Completed */}
 
           <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-gray-500">Completed</p>
 
@@ -372,7 +386,7 @@ export default function Bookings() {
           {/* Cancelled */}
 
           <div className="bg-white rounded-3xl border shadow-lg p-6 hover:shadow-xl transition">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-gray-500">Cancelled</p>
 
@@ -424,14 +438,14 @@ export default function Bookings() {
                     </span>
                   </h2>
 
-                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
                     {statusBookings.map((booking: any) => (
                       <div
                         key={booking.id}
-                        className="group bg-white rounded-3xl border border-gray-200 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl sm:rounded-3xl"
                       >
                         {/* Hero Header */}
-                        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+                        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white sm:p-6">
                           <div className="absolute top-5 right-5">
                             <span
                               className={`px-4 py-2 rounded-full text-xs font-bold ${
@@ -481,7 +495,7 @@ export default function Bookings() {
                           </div>
 
                           {/* Booking Information */}
-                          <div className="grid grid-cols-2 gap-4 mt-6">
+                          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                             <div className="bg-gray-50 rounded-xl p-4">
                               <p className="text-xs text-gray-400">
                                 Booking Date
@@ -500,7 +514,7 @@ export default function Bookings() {
                               </h3>
                             </div>
 
-                            <div className="col-span-2 bg-gray-50 rounded-xl p-4">
+                            <div className="bg-gray-50 rounded-xl p-4 sm:col-span-2">
                               <p className="text-xs text-gray-400">Address</p>
 
                               <h3 className="font-semibold">
@@ -523,7 +537,7 @@ export default function Bookings() {
                           </div>
 
                           {/* Buttons */}
-                          <div className="grid grid-cols-2 gap-3 mt-8">
+                          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <button
                               onClick={() => setSelectedBooking(booking)}
                               className="rounded-xl bg-gray-800 hover:bg-gray-900 text-white py-3 font-semibold shadow hover:scale-105 transition"
@@ -536,6 +550,16 @@ export default function Bookings() {
                             >
                               Delete
                             </button>
+
+                            {booking.status === "Completed" && (
+                              <button
+                                type="button"
+                                onClick={() => setChatBookingId(booking.id)}
+                                className="rounded-xl bg-purple-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-purple-700"
+                              >
+                                Chat
+                              </button>
+                            )}
 
                             {booking.status === "Pending" && (
                               <>
@@ -567,12 +591,13 @@ export default function Bookings() {
                               )}
 
                             {booking.status === "Approved" && (
-                              <Link
-                                to={`/chat/${booking.id}`}
+                              <button
+                                type="button"
+                                onClick={() => setChatBookingId(booking.id)}
                                 className="rounded-xl bg-purple-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-purple-700"
                               >
                                 Chat
-                              </Link>
+                              </button>
                             )}
 
                             {booking.status === "On Going" &&
@@ -588,12 +613,13 @@ export default function Bookings() {
                                     Complete Service
                                   </button>
 
-                                  <Link
-                                    to={`/chat/${booking.id}`}
+                                  <button
+                                    type="button"
+                                    onClick={() => setChatBookingId(booking.id)}
                                     className="rounded-xl bg-purple-600 py-3 text-center font-semibold text-white shadow transition hover:scale-105 hover:bg-purple-700"
                                   >
                                     Chat
-                                  </Link>
+                                  </button>
                                 </>
                               )}
                           </div>
@@ -621,25 +647,30 @@ export default function Bookings() {
       flex
       items-center
       justify-center
-      p-6
+      p-0
+      sm:p-6
       animate-fadeIn
     "
         >
           <div
             className="
         bg-white
-        rounded-[30px]
+        rounded-none
+        sm:rounded-[30px]
         shadow-2xl
         w-full
         max-w-5xl
-        max-h-[90vh]
+        h-full
+        sm:h-auto
+        max-h-screen
+        sm:max-h-[90vh]
         overflow-y-auto
         animate-scaleIn
       "
           >
             {/* Header */}
 
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white sm:p-8">
               <div className="flex justify-between items-start">
                 <div>
                   <h1 className="text-3xl font-bold">Booking Details</h1>
@@ -665,10 +696,10 @@ export default function Bookings() {
 
             {/* Content */}
 
-            <div className="p-8 space-y-8">
+            <div className="space-y-6 p-4 sm:space-y-8 sm:p-8">
               {/* Customer Profile */}
 
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
                 <img
                   src={
                     selectedBooking.customer?.profile_picture ||
@@ -676,8 +707,10 @@ export default function Bookings() {
                   }
                   alt="Customer"
                   className="
-              w-28
-              h-28
+              w-20
+              h-20
+              sm:w-28
+              sm:h-28
               rounded-3xl
               object-cover
               shadow-xl
@@ -687,7 +720,7 @@ export default function Bookings() {
                 />
 
                 <div>
-                  <h2 className="text-3xl font-bold">
+                  <h2 className="text-2xl font-bold sm:text-3xl">
                     {selectedBooking.customer?.first_name}{" "}
                     {selectedBooking.customer?.last_name}
                   </h2>
@@ -717,11 +750,11 @@ export default function Bookings() {
               >
                 <p className="text-gray-500">Booked Service</p>
 
-                <h1 className="text-4xl font-bold text-blue-700 mt-2">
+                <h1 className="mt-2 text-2xl font-bold text-blue-700 sm:text-4xl">
                   {selectedBooking.service?.service_name ?? "General Service"}
                 </h1>
 
-                <h2 className="text-3xl font-bold mt-4">
+                <h2 className="mt-4 text-2xl font-bold sm:text-3xl">
                   ₱{Number(selectedBooking.price ?? 0).toLocaleString()}
                 </h2>
               </div>
@@ -812,7 +845,8 @@ export default function Bookings() {
               >
                 <h2 className="text-2xl font-bold mb-8">Booking Progress</h2>
 
-                <div className="relative">
+                <div className="overflow-x-auto pb-2">
+                  <div className="relative min-w-[650px]">
                   {/* Connecting Line */}
 
                   <div
@@ -949,6 +983,7 @@ export default function Bookings() {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
 
               {/* Existing Timeline Components */}
@@ -964,7 +999,8 @@ export default function Bookings() {
             border-t
             pt-6
             grid
-            grid-cols-2
+            grid-cols-1
+            sm:grid-cols-2
             md:grid-cols-5
             gap-4
           "
@@ -1039,8 +1075,12 @@ export default function Bookings() {
                         </Link>
                       )}
 
-                    <Link
-                      to={`/chat/${selectedBooking.id}`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBooking(null);
+                        setChatBookingId(selectedBooking.id);
+                      }}
                       className="
                           rounded-xl
                           bg-purple-600
@@ -1055,7 +1095,7 @@ export default function Bookings() {
                         "
                     >
                       💬 Chat
-                    </Link>
+                    </button>
                   </>
                 )}
 
@@ -1083,9 +1123,13 @@ export default function Bookings() {
                         🏁 Complete Service
                       </button>
 
-                      <Link
-                        to={`/chat/${selectedBooking.id}`}
-                        className="
+                      <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedBooking(null);
+                        setChatBookingId(selectedBooking.id);
+                      }}
+                      className="
                             rounded-xl
                             bg-purple-600
                             py-3
@@ -1097,11 +1141,24 @@ export default function Bookings() {
                             hover:-translate-y-1
                             hover:bg-purple-700
                           "
-                      >
-                        💬 Chat
-                      </Link>
+                    >
+                      💬 Chat
+                    </button>
                     </>
                   )}
+
+                {selectedBooking.status === "Completed" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBooking(null);
+                      setChatBookingId(selectedBooking.id);
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white shadow transition hover:bg-purple-700"
+                  >
+                    💬 Open Chat
+                  </button>
+                )}
 
                 {selectedBooking.status === "Completed" && (
                   <div
@@ -1137,6 +1194,39 @@ export default function Bookings() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {chatBookingId !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Booking chat"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setChatBookingId(null);
+            }
+          }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4 lg:p-6"
+        >
+          <div className="relative h-[100dvh] w-full overflow-hidden bg-white shadow-2xl sm:h-[92dvh] sm:max-w-6xl sm:rounded-3xl sm:border sm:border-white/20">
+            <button
+              type="button"
+              onClick={() => setChatBookingId(null)}
+              aria-label="Close chat"
+              className="absolute right-3 top-3 z-[110] flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg backdrop-blur transition hover:bg-red-600 sm:right-4 sm:top-4"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <iframe
+              key={chatBookingId}
+              title={`Chat for booking ${chatBookingId}`}
+              src={`/chat/${chatBookingId}`}
+              className="h-full w-full border-0"
+              allow="camera; microphone; clipboard-read; clipboard-write"
+            />
           </div>
         </div>
       )}

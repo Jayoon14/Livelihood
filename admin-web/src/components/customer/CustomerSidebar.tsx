@@ -8,6 +8,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useChatUnreadCount } from "../../hooks/useChatUnreadCount";
 
 interface CustomerSidebarProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export default function CustomerSidebar({
   isOpen,
   onClose,
 }: CustomerSidebarProps) {
+  const { count: unreadMessages } = useChatUnreadCount();
+
   const menus = [
     {
       name: "Dashboard",
@@ -124,6 +127,11 @@ export default function CustomerSidebar({
                 <Icon size={20} strokeWidth={2} />
 
                 <span className="text-sm">{menu.name}</span>
+                {menu.name === "Messages" && unreadMessages > 0 && (
+                  <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
               </NavLink>
             );
           })}

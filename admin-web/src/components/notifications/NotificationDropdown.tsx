@@ -215,35 +215,25 @@ export default function NotificationDropdown({
 
     await loadNotifications();
 
+    const title = String(notification.title ?? "").toLowerCase();
+    const bookingId = notification.booking_id;
+
+    if ((title.includes("chat") || title.includes("message")) && bookingId) {
+      navigate(`/chat/${bookingId}`);
+      setOpen(false);
+      return;
+    }
+
     if (role === "worker") {
-      switch (notification.title) {
-        case "New Booking Request":
-          navigate("/worker/bookings");
-          break;
-
-        case "New Payment Request":
-          navigate("/worker/payment-requests");
-          break;
-
-        default:
-          navigate("/worker/bookings");
-          break;
+      if (notification.title === "New Payment Request") {
+        navigate("/worker/payment-requests");
+      } else {
+        navigate("/worker/bookings");
       }
     }
 
     if (role === "customer") {
-      switch (notification.title) {
-        case "Booking Accepted":
-        case "Booking Rejected":
-        case "Payment Verified":
-        case "Booking Completed":
-          navigate("/customer/bookings");
-          break;
-
-        default:
-          navigate("/customer/bookings");
-          break;
-      }
+      navigate("/customer/bookings");
     }
 
     setOpen(false);
