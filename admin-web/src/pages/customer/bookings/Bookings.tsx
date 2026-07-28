@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -239,13 +240,13 @@ export default function Bookings() {
     try {
       await cancelBooking(id);
 
-      alert("Booking cancelled successfully.");
+     toast.success("Booking cancelled successfully.");
 
       loadBookings();
     } catch (error) {
       console.error(error);
 
-      alert("Unable to cancel booking.");
+      toast.error("Unable to cancel booking.");
     }
   }
 
@@ -266,12 +267,12 @@ async function handleDelete(id: number) {
 
     if (userError) {
       console.error("Auth error:", userError);
-      alert(userError.message);
+      toast.error(userError.message);
       return;
     }
 
     if (!user) {
-      alert("Please log in first.");
+      toast.warning("Please log in first.");
       return;
     }
 
@@ -293,12 +294,12 @@ async function handleDelete(id: number) {
 
     if (error) {
       console.error("Delete error:", error);
-      alert(`Unable to delete: ${error.message}`);
+      toast.error(`Unable to delete: ${error.message}`);
       return;
     }
 
     if (!data || data.length === 0) {
-      alert(
+      toast.error(
         "Booking was not updated. The database policy may be blocking the request.",
       );
       return;
@@ -308,14 +309,14 @@ async function handleDelete(id: number) {
       currentBookings.filter((booking) => booking.id !== id),
     );
 
-    alert("Booking removed from your list.");
+    toast.success("Booking removed from your list.");
   } catch (error) {
     console.error("Unexpected delete error:", error);
 
     const message =
       error instanceof Error ? error.message : "Unknown error occurred.";
 
-    alert(`Unable to delete booking: ${message}`);
+    toast.error(`Unable to delete booking: ${message}`);
   }
 }
 
@@ -406,7 +407,7 @@ async function handleDelete(id: number) {
                       <div>
                         <button
                           onClick={() =>
-                            navigate(`/customer/worker/${booking.worker_id}`)
+                            navigate(`/customer/workers/${booking.worker_id}`)
                           }
                           className="text-xl font-bold hover:text-blue-600"
                         >
@@ -504,7 +505,7 @@ async function handleDelete(id: number) {
 
                             <button
                               type="button"
-                              onClick={() => setChatBooking(booking)}
+                              onClick={() => navigate(`/chat/${booking.id}`)}
                               className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
                             >
                               <MessageCircle size={18} />
@@ -1241,7 +1242,7 @@ ${
                       } = await supabase.auth.getUser();
 
                       if (!user) {
-                        alert("Please login.");
+                        toast.warning("Please login.");
                         return;
                       }
 
@@ -1257,14 +1258,14 @@ ${
 
                         reviewComment,
                       );
-                      alert("Review submitted successfully!");
+                      toast.success("Review submitted successfully!");
 
                       setReviewBooking(null);
 
                       await loadBookings();
                     } catch (error) {
                       console.error(error);
-                      alert("Unable to submit review.");
+                      toast.error("Unable to submit review.");
                     }
                   }}
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl"

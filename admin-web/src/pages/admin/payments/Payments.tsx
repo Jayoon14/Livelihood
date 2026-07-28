@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import AdminLayout from "../../../layouts/AdminLayout";
 import {
@@ -24,7 +25,7 @@ export default function Payments() {
 
     await completePayment(payment.id, payment.booking_id);
 
-    alert("Payment updated.");
+    toast.success("Payment updated.");
 
     loadPayments();
   }

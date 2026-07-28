@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, Wrench, Zap, Hammer, PaintRoller, ShieldCheck } from "lucide-react";
-
+import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 
 import { login, logout } from "../../services/authService";
@@ -30,7 +30,7 @@ export default function Login() {
 
   async function handleLogin() {
     if (!email || !password) {
-      alert("Please enter your email and password.");
+      toast.warning("Please enter your email and password.");
       return;
     }
 
@@ -40,7 +40,7 @@ export default function Login() {
 
     if (error) {
       setLoading(false);
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
 
@@ -51,11 +51,10 @@ export default function Login() {
     if (!user) {
       setLoading(false);
 
-      alert("Unable to retrieve user.");
+      toast.error("Unable to retrieve user.");
 
       return;
     }
-
     // =========================
     // LOG LOGIN ACTIVITY
     // =========================
@@ -86,7 +85,7 @@ export default function Login() {
 
     if (profile.role === "worker") {
       if (profile.status !== "Approved") {
-        alert("Your account is waiting for admin approval.");
+        toast.warning("Your account is waiting for admin approval.");
 
         await logout();
 
@@ -106,7 +105,7 @@ export default function Login() {
       return;
     }
 
-    alert("Unknown account role.");
+    toast.error("Unknown account role.");
 
     await logout();
   }
@@ -114,7 +113,7 @@ export default function Login() {
   const emailField = (
     <div className="mb-5">
       <label className="text-sm font-medium text-slate-700">Email address</label>
-      <div className="mt-1.5 flex items-center border border-slate-200 rounded-xl px-3.5 bg-white focus-within:ring-2 focus-within:ring-blue-600/30 focus-within:border-blue-600 transition">
+      <div className="mt-1.5 flex items-center border border-slate-200 rounded-xl px-3.5 bg-white focus-within:ring-2 focus-within:ring-indigo-500/30 focus-within:border-indigo-500 transition">
         <Mail className="w-4.5 h-4.5 text-slate-400 shrink-0" />
         <input
           type="email"
@@ -130,7 +129,7 @@ export default function Login() {
   const passwordField = (
     <div>
       <label className="text-sm font-medium text-slate-700">Password</label>
-      <div className="mt-1.5 flex items-center border border-slate-200 rounded-xl px-3.5 bg-white focus-within:ring-2 focus-within:ring-blue-600/30 focus-within:border-blue-600 transition">
+      <div className="mt-1.5 flex items-center border border-slate-200 rounded-xl px-3.5 bg-white focus-within:ring-2 focus-within:ring-indigo-500/30 focus-within:border-indigo-500 transition">
         <Lock className="w-4.5 h-4.5 text-slate-400 shrink-0" />
         <input
           type={showPassword ? "text" : "password"}
@@ -156,7 +155,7 @@ export default function Login() {
         <input type="checkbox" className="rounded border-slate-300" />
         Remember me
       </label>
-      <Link to="/forgot-password" className="text-blue-600 font-medium hover:underline">
+      <Link to="/forgot-password" className="text-indigo-600 font-medium hover:underline">
         Forgot password?
       </Link>
     </div>
@@ -166,7 +165,7 @@ export default function Login() {
     <button
       onClick={handleLogin}
       disabled={loading}
-      className="mt-7 w-full bg-[#0A1930] hover:bg-[#12294D] disabled:bg-slate-300 text-white py-3.5 rounded-xl font-semibold text-sm transition shadow-lg shadow-navy-900/10"
+      className="mt-7 w-full bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-3.5 rounded-xl font-semibold text-sm transition shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
     >
       {loading ? "Logging in..." : "Log in"}
     </button>
@@ -175,7 +174,7 @@ export default function Login() {
   const registerRow = (
     <p className="text-center mt-7 text-sm text-slate-500">
       Don't have an account?{" "}
-      <Link to="/register-choice" className="text-blue-600 font-semibold hover:underline">
+      <Link to="/register-choice" className="text-indigo-600 font-semibold hover:underline">
         Register
       </Link>
     </p>
@@ -200,13 +199,13 @@ export default function Login() {
         <div
           className="relative flex flex-col px-6 pt-10 pb-24 shrink-0"
           style={{
-            background: "linear-gradient(160deg, #12294D 0%, #0A1930 100%)",
+            background: "linear-gradient(160deg, #2937f0 0%, #5b3df1 55%, #3292ec 100%)",
             opacity: mounted ? 1 : 0,
             transition: "opacity 0.6s ease-out",
           }}
         >
           <div
-            className="absolute inset-0 opacity-[0.07]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
@@ -216,7 +215,7 @@ export default function Login() {
 
           <div className="relative z-10 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-[#0A1930]" strokeWidth={2.5} />
+              <Wrench className="w-5 h-5 text-slate-900" strokeWidth={2.5} />
             </div>
             <span className="text-white text-lg font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
               Livelihood
@@ -232,7 +231,7 @@ export default function Login() {
               <br />
               trusted work.
             </h1>
-            <p className="text-slate-300 text-sm">
+            <p className="text-blue-100 text-sm">
               Sign in to book verified local workers or manage your jobs.
             </p>
 
@@ -247,8 +246,8 @@ export default function Login() {
                   key={label}
                   className="flex items-center gap-1.5 bg-white/10 border border-white/10 rounded-full px-3 py-1.5"
                 >
-                  <Icon className="w-3 h-3 text-amber-400" />
-                  <span className="text-[11px] text-slate-200 font-medium">{label}</span>
+                  <Icon className="w-3 h-3 text-amber-300" />
+                  <span className="text-[11px] text-blue-50 font-medium">{label}</span>
                 </div>
               ))}
             </div>
@@ -257,7 +256,7 @@ export default function Login() {
 
         {/* SLIDE-UP SHEET */}
         <div
-          className="relative flex-1 bg-white rounded-t-3xl -mt-10 px-6 pt-8 pb-10 z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
+          className="relative flex-1 bg-white rounded-t-3xl -mt-10 px-6 pt-8 pb-10 z-10 shadow-[0_-8px_30px_rgba(59,63,246,0.12)]"
           style={{
             transform: mounted ? "translateY(0)" : "translateY(24px)",
             opacity: mounted ? 1 : 0,
@@ -290,12 +289,12 @@ export default function Login() {
         <div
           className="lg:w-[46%] relative flex flex-col justify-between p-12 xl:p-16 overflow-hidden"
           style={{
-            background: "linear-gradient(160deg, #12294D 0%, #0A1930 100%)",
+            background: "linear-gradient(160deg, #2937f0 0%, #5b3df1 55%, #3292ec 100%)",
             clipPath: "polygon(0 0, 100% 0, 88% 100%, 0% 100%)",
           }}
         >
           <div
-            className="absolute inset-0 opacity-[0.07]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
@@ -303,9 +302,12 @@ export default function Login() {
             }}
           />
 
+          <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 right-0 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl" />
+
           <div className="relative z-10 flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
-              <Wrench className="w-6 h-6 text-[#0A1930]" strokeWidth={2.5} />
+              <Wrench className="w-6 h-6 text-slate-900" strokeWidth={2.5} />
             </div>
             <span className="text-white text-lg font-semibold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
               Livelihood
@@ -321,7 +323,7 @@ export default function Login() {
               <br />
               trusted work.
             </h1>
-            <p className="text-slate-300 text-base xl:text-lg max-w-md">
+            <p className="text-blue-100 text-base xl:text-lg max-w-md">
               Sign in to book verified local workers or manage your jobs — all in one place.
             </p>
 
@@ -336,29 +338,29 @@ export default function Login() {
                   key={label}
                   className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-3.5 py-2"
                 >
-                  <Icon className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-xs text-slate-200 font-medium">{label}</span>
+                  <Icon className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="text-xs text-blue-50 font-medium">{label}</span>
                 </div>
               ))}
             </div>
 
             <div className="flex items-center gap-3 mt-10 pt-8 border-t border-white/10">
-              <ShieldCheck className="w-8 h-8 text-amber-400 shrink-0" />
-              <p className="text-slate-300 text-sm">
+              <ShieldCheck className="w-8 h-8 text-amber-300 shrink-0" />
+              <p className="text-blue-100 text-sm">
                 <span className="text-white font-semibold">10,000+ jobs completed</span> by
                 background-checked professionals near you.
               </p>
             </div>
           </div>
 
-          <p className="relative z-10 text-slate-400 text-xs">
+          <p className="relative z-10 text-blue-100/70 text-xs">
             © {new Date().getFullYear()} Livelihood Services Platform
           </p>
         </div>
 
         <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
           <div
-            className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60 p-8 sm:p-10"
+            className="w-full max-w-xl bg-white/95 backdrop-blur-xl rounded-2xl border border-white/80 shadow-[0_24px_70px_rgba(59,63,246,0.15)] p-8 sm:p-10"
             style={{
               transform: mounted ? "translateY(0)" : "translateY(16px)",
               opacity: mounted ? 1 : 0,

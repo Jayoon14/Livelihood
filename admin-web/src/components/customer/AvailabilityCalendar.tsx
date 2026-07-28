@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import Calendar from "react-calendar";
+import { toast } from "sonner";
+
 import "react-calendar/dist/Calendar.css";
 import "./AvailabilityCalendar.css";
 
@@ -44,7 +46,7 @@ export default function AvailabilityCalendar({
           const date = (selectedDate as Date).toISOString().split("T")[0];
 
           if (dates.includes(date)) {
-            alert("Worker is unavailable on this date.");
+            toast.warning("Worker is unavailable on this date.");
 
             return;
           }
@@ -64,13 +66,13 @@ export default function AvailabilityCalendar({
 
       <div className="flex gap-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+          <div className="w-4 h-4 bg-green-500 rounded-full" />
 
           <span>Available</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded-full"></div>
+          <div className="w-4 h-4 bg-red-500 rounded-full" />
 
           <span>Unavailable</span>
         </div>

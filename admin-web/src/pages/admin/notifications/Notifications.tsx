@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -137,7 +138,7 @@ export default function Notifications() {
       );
     } catch (error) {
       console.error("Mark notification as read error:", error);
-      alert("Unable to mark the notification as read.");
+      toast.error("Unable to mark the notification as read.");
     }
   }
 
@@ -168,7 +169,7 @@ export default function Notifications() {
       );
     } catch (error) {
       console.error("Mark all notifications as read error:", error);
-      alert("Unable to mark all notifications as read.");
+      toast.error("Unable to mark all notifications as read.");
     } finally {
       setMarkingAll(false);
     }

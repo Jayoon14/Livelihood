@@ -91,7 +91,7 @@ export default function RegisterChoice() {
       <div className="flex-1 flex justify-center">
         <div className="relative inline-flex bg-slate-100 rounded-full p-1.5 shadow-inner">
           <div
-            className="absolute top-1.5 bottom-1.5 rounded-full bg-[#0A1930] transition-all duration-300"
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] transition-all duration-300"
             style={{
               left: role === "customer" ? "6px" : "50%",
               width: "calc(50% - 6px)",
@@ -169,7 +169,7 @@ export default function RegisterChoice() {
 
       <Link
         to={current.link}
-        className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0A1930] hover:bg-[#12294D] text-white py-4 font-semibold transition-all duration-300 hover:shadow-xl"
+        className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white py-4 font-semibold transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40"
       >
         {current.button}
 
@@ -180,7 +180,7 @@ export default function RegisterChoice() {
 
       <p className="text-center mt-7 text-slate-500">
         Already have an account?{" "}
-        <Link to="/" className="text-blue-600 font-semibold hover:underline">
+        <Link to="/" className="text-indigo-600 font-semibold hover:underline">
           Back to Login
         </Link>
       </p>
@@ -195,13 +195,13 @@ export default function RegisterChoice() {
           className="relative flex flex-col px-6 pt-10 pb-24"
           style={{
             background:
-              "linear-gradient(135deg,#0A1930 0%,#12294D 35%,#1D4ED8 100%)",
+              "linear-gradient(160deg,#2937f0 0%,#5b3df1 55%,#3292ec 100%)",
             opacity: mounted ? 1 : 0,
             transition: "opacity .6s ease",
           }}
         >
           <div
-            className="absolute inset-0 opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
@@ -211,7 +211,7 @@ export default function RegisterChoice() {
 
           <div className="relative z-10 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-[#0A1930]" />
+              <Wrench className="w-5 h-5 text-slate-900" />
             </div>
 
             <span
@@ -234,7 +234,7 @@ export default function RegisterChoice() {
               Network
             </h1>
 
-            <p className="text-slate-300 mt-4 leading-7">
+            <p className="text-blue-100 mt-4 leading-7">
               Whether you're hiring or offering services, your account is only a
               few steps away.
             </p>
@@ -242,7 +242,7 @@ export default function RegisterChoice() {
         </div>
 
         <div
-          className="relative -mt-10 bg-white rounded-t-[32px] px-6 pt-8 pb-10 shadow-2xl"
+          className="relative -mt-10 bg-white rounded-t-[32px] px-6 pt-8 pb-10 shadow-[0_-8px_30px_rgba(59,63,246,0.12)]"
           style={{
             transform: mounted ? "translateY(0)" : "translateY(20px)",
             opacity: mounted ? 1 : 0,
@@ -264,12 +264,12 @@ export default function RegisterChoice() {
           className="w-[46%] relative flex flex-col justify-between p-14 overflow-hidden"
           style={{
             background:
-              "linear-gradient(135deg,#0A1930 0%,#12294D 35%,#1D4ED8 100%)",
+              "linear-gradient(160deg,#2937f0 0%,#5b3df1 55%,#3292ec 100%)",
             clipPath: "polygon(0 0,100% 0,88% 100%,0 100%)",
           }}
         >
           <div
-            className="absolute inset-0 opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
@@ -277,9 +277,12 @@ export default function RegisterChoice() {
             }}
           />
 
+          <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 right-0 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl" />
+
           <div className="relative z-10 flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center">
-              <Wrench className="w-6 h-6 text-[#0A1930]" />
+              <Wrench className="w-6 h-6 text-slate-900" />
             </div>
 
             <span
@@ -302,21 +305,21 @@ export default function RegisterChoice() {
               Network.
             </h1>
 
-            <p className="text-slate-300 text-lg leading-8 mt-7">
+            <p className="text-blue-100 text-lg leading-8 mt-7">
               Whether you're hiring trusted professionals or offering your
               services, create your account and get started in minutes.
             </p>
 
             <div className="mt-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 p-6">
               <div className="flex gap-4">
-                <ShieldCheck className="w-8 h-8 text-amber-400 shrink-0" />
+                <ShieldCheck className="w-8 h-8 text-amber-300 shrink-0" />
 
                 <div>
                   <h3 className="text-white font-semibold">
                     Safe & Trusted Community
                   </h3>
 
-                  <p className="text-slate-300 text-sm mt-2">
+                  <p className="text-blue-100 text-sm mt-2">
                     Every worker profile is verified before accepting jobs.
                   </p>
                 </div>
@@ -324,7 +327,7 @@ export default function RegisterChoice() {
             </div>
           </div>
 
-          <p className="relative z-10 text-slate-400 text-sm">
+          <p className="relative z-10 text-blue-100/70 text-sm">
             © {new Date().getFullYear()} Livelihood Services Platform
           </p>
         </div>
@@ -333,7 +336,7 @@ export default function RegisterChoice() {
 
         <div className="flex-1 flex items-center justify-center bg-slate-50 p-10">
           <div
-            className="w-full max-w-xl bg-white rounded-3xl border border-slate-200 shadow-[0_20px_70px_rgba(15,23,42,.12)] p-10"
+            className="w-full max-w-xl bg-white/95 backdrop-blur-xl rounded-3xl border border-white/80 shadow-[0_24px_70px_rgba(59,63,246,0.15)] p-10"
             style={{
               transform: mounted ? "translateY(0)" : "translateY(16px)",
 

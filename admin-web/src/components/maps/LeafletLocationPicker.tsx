@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import {
   LayersControl,
@@ -250,19 +251,19 @@ export default function LocationPicker({
     }, 500);
   }
 
-  function saveEditedAddress() {
-    const value = editableAddress.trim();
+function saveEditedAddress() {
+  const value = editableAddress.trim();
 
-    if (!value) {
-      alert("Please enter a valid selected address.");
-      return;
-    }
-
-    setSelectedAddress(value);
-    setSearchText(value);
-
-    onLocationSelect(position[0], position[1], value);
+  if (!value) {
+    toast.warning("Please enter a valid selected address.");
+    return;
   }
+
+  setSelectedAddress(value);
+  setSearchText(value);
+
+  onLocationSelect(position[0], position[1], value);
+}
 
   return (
     <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">

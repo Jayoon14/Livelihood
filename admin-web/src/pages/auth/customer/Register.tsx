@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 
 import {
@@ -18,12 +19,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../../services/authService";
 
 const inputWrap =
-  "flex items-center gap-3 border border-slate-200 rounded-2xl px-4 bg-white transition-colors focus-within:border-[#0A1930] focus-within:ring-2 focus-within:ring-[#0A1930]/10";
+  "flex items-center gap-3 border border-slate-200 rounded-2xl px-4 bg-white transition-colors focus-within:border-[#2937f0] focus-within:ring-2 focus-within:ring-[#2937f0]/10";
 
 const inputBase = "w-full py-3.5 outline-none text-slate-900 placeholder:text-slate-400 bg-transparent";
 
 const selectBase =
-  "w-full border border-slate-200 rounded-2xl px-4 py-3.5 mt-2 outline-none text-slate-900 bg-white transition-colors focus:border-[#0A1930] focus:ring-2 focus:ring-[#0A1930]/10";
+  "w-full border border-slate-200 rounded-2xl px-4 py-3.5 mt-2 outline-none text-slate-900 bg-white transition-colors focus:border-[#2937f0] focus:ring-2 focus:ring-[#2937f0]/10";
 
 const label = "text-sm font-semibold text-slate-700";
 
@@ -89,17 +90,17 @@ export default function CustomerRegister() {
       !password ||
       !confirmPassword
     ) {
-      alert("Please complete required fields.");
+      toast.warning("Please complete required fields.");
       return;
     }
 
     if (password !== confirmPassword) {
-      alert("Passwords do not match.");
+      toast.warning("Passwords do not match.");
       return;
     }
 
     if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
+      toast.warning("Password must be at least 6 characters.");
       return;
     }
 
@@ -128,31 +129,31 @@ export default function CustomerRegister() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
 
-    alert("Registration successful!");
+    toast.success("Registration successful!");
     navigate("/");
   }
 
   return (
     <div
-      className="min-h-screen bg-slate-50 flex items-center justify-center p-6"
+      className="min-h-screen bg-slate-50 flex items-center justify-center p-3 sm:p-6"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      <div className="w-full max-w-6xl bg-white rounded-3xl border border-slate-200 shadow-[0_20px_70px_rgba(15,23,42,.10)] overflow-hidden">
+      <div className="w-full max-w-6xl bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-[0_20px_70px_rgba(15,23,42,.10)] overflow-hidden">
         {/* HEADER */}
 
         <div
-          className="relative px-10 py-10 overflow-hidden"
+          className="relative px-5 sm:px-8 md:px-10 py-6 sm:py-10 overflow-hidden"
           style={{
             background:
-              "linear-gradient(135deg,#0A1930 0%,#12294D 35%,#1D4ED8 100%)",
+              "linear-gradient(135deg,#2937f0 0%,#5b3df1 55%,#3292ec 100%)",
           }}
         >
           <div
-            className="absolute inset-0 opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
@@ -160,45 +161,48 @@ export default function CustomerRegister() {
             }}
           />
 
+          <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 right-0 h-64 w-64 rounded-full bg-amber-300/20 blur-3xl" />
+
           <div className="relative z-10 flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5 text-[#0A1930]" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5 text-slate-900" />
             </div>
 
             <span
-              className="text-lg font-bold text-white"
+              className="text-base sm:text-lg font-bold text-white"
               style={{ fontFamily: "'Sora', sans-serif" }}
             >
               Livelihood
             </span>
           </div>
 
-          <div className="relative z-10 mt-8">
+          <div className="relative z-10 mt-6 sm:mt-8">
             <h1
-              className="text-3xl md:text-4xl font-bold text-white"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
               style={{ fontFamily: "'Sora', sans-serif" }}
             >
               Customer Registration
             </h1>
 
-            <p className="text-slate-300 mt-2">
+            <p className="text-blue-100 mt-2 text-sm sm:text-base">
               Create your customer account to start hiring trusted professionals.
             </p>
           </div>
         </div>
 
-        <div className="p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-10">
+        <div className="p-4 sm:p-6 md:p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-8 sm:gap-y-10">
             {/* LEFT SIDE — PERSONAL INFO */}
 
             <div>
-              <div className="flex items-center gap-3 mb-7">
+              <div className="flex items-center gap-3 mb-6 sm:mb-7">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-slate-100">
                   <User className="w-5 h-5 text-blue-600" strokeWidth={2} />
                 </div>
 
                 <h2
-                  className="text-xl font-bold text-slate-900"
+                  className="text-lg sm:text-xl font-bold text-slate-900"
                   style={{ fontFamily: "'Sora', sans-serif" }}
                 >
                   Personal Information
@@ -261,7 +265,7 @@ export default function CustomerRegister() {
 
               {/* Gender + Civil Status */}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="mb-5">
                   <label className={label}>Gender</label>
 
@@ -288,7 +292,7 @@ export default function CustomerRegister() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="mb-5">
                   <label className={label}>Civil Status</label>
 
@@ -358,20 +362,20 @@ export default function CustomerRegister() {
             {/* RIGHT SIDE — ADDRESS + PROFILE */}
 
             <div>
-              <div className="flex items-center gap-3 mb-7">
+              <div className="flex items-center gap-3 mb-6 sm:mb-7">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-slate-100">
                   <MapPin className="w-5 h-5 text-amber-600" strokeWidth={2} />
                 </div>
 
                 <h2
-                  className="text-xl font-bold text-slate-900"
+                  className="text-lg sm:text-xl font-bold text-slate-900"
                   style={{ fontFamily: "'Sora', sans-serif" }}
                 >
                   Address Information
                 </h2>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="mb-4">
                   <label className={label}>House No.</label>
 
@@ -409,7 +413,7 @@ export default function CustomerRegister() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="mb-4">
                   <label className={label}>Municipality</label>
 
@@ -437,21 +441,21 @@ export default function CustomerRegister() {
 
               {/* PROFILE PICTURE */}
 
-              <div className="mt-9">
+              <div className="mt-8 sm:mt-9">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-slate-100">
                     <Camera className="w-5 h-5 text-blue-600" strokeWidth={2} />
                   </div>
 
                   <h2
-                    className="text-xl font-bold text-slate-900"
+                    className="text-lg sm:text-xl font-bold text-slate-900"
                     style={{ fontFamily: "'Sora', sans-serif" }}
                   >
                     Profile Picture
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-5 bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5">
                   {profilePicture ? (
                     <img
                       src={URL.createObjectURL(profilePicture)}
@@ -464,10 +468,10 @@ export default function CustomerRegister() {
                     </div>
                   )}
 
-                  <div className="flex-1">
+                  <div className="flex-1 text-center sm:text-left">
                     <label
                       htmlFor="profile-upload"
-                      className="inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-[#0A1930] bg-white border border-slate-200 rounded-xl px-4 py-2.5 hover:border-[#0A1930] transition-colors"
+                      className="inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-[#2937f0] bg-white border border-slate-200 rounded-xl px-4 py-2.5 hover:border-[#2937f0] transition-colors"
                     >
                       <Camera className="w-4 h-4" />
                       Choose photo
@@ -494,14 +498,14 @@ export default function CustomerRegister() {
 
           {/* PASSWORD */}
 
-          <div className="mt-10 pt-10 border-t border-slate-100">
-            <div className="flex items-center gap-3 mb-7">
+          <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-slate-100">
+            <div className="flex items-center gap-3 mb-6 sm:mb-7">
               <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-slate-100">
                 <Lock className="w-5 h-5 text-amber-600" strokeWidth={2} />
               </div>
 
               <h2
-                className="text-xl font-bold text-slate-900"
+                className="text-lg sm:text-xl font-bold text-slate-900"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
                 Set Your Password
@@ -564,7 +568,7 @@ export default function CustomerRegister() {
             <button
               onClick={handleRegister}
               disabled={loading}
-              className="w-full mt-8 bg-[#0A1930] hover:bg-[#12294D] disabled:bg-slate-300 text-white py-4 rounded-2xl font-semibold text-base transition-all duration-300 hover:shadow-xl"
+              className="w-full mt-8 bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-4 rounded-2xl font-semibold text-base transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
@@ -575,7 +579,7 @@ export default function CustomerRegister() {
               Already have an account?{" "}
               <Link
                 to="/"
-                className="text-blue-600 font-semibold hover:underline"
+                className="text-indigo-600 font-semibold hover:underline"
               >
                 Back to Login
               </Link>

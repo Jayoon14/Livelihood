@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -56,30 +57,24 @@ export default function QRUploader({
   }, [viewerOpen]);
 
   async function upload(file: File) {
-    const allowedTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "image/webp",
-    ];
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
     if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PNG, JPG, JPEG, or WEBP image.");
+      toast.warning("Please upload a PNG, JPG, JPEG, or WEBP image.");
       return;
     }
 
     const maximumFileSize = 5 * 1024 * 1024;
 
     if (file.size > maximumFileSize) {
-      alert("The QR image must not exceed 5 MB.");
+      toast.warning("The QR image must not exceed 5 MB.");
       return;
     }
 
     try {
       setUploading(true);
 
-      const extension =
-        file.name.split(".").pop()?.toLowerCase() || "png";
+      const extension = file.name.split(".").pop()?.toLowerCase() || "png";
 
       const safeFolder = folder
         .trim()
@@ -112,10 +107,8 @@ export default function QRUploader({
     } catch (error) {
       console.error("QR upload error:", error);
 
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to upload QR image.",
+      toast.error(
+        error instanceof Error ? error.message : "Unable to upload QR image.",
       );
     } finally {
       setUploading(false);
@@ -227,29 +220,20 @@ export default function QRUploader({
                 >
                   {uploading ? (
                     <>
-                      <LoaderCircle
-                        size={17}
-                        className="animate-spin"
-                      />
+                      <LoaderCircle size={17} className="animate-spin" />
                       Uploading...
                     </>
                   ) : (
                     <>
                       <ImagePlus size={17} />
                       Replace QR Code
-                      
                     </>
-                    
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    if (
-                      confirm(
-                        "Remove the uploaded QR Code?"
-                      )
-                    ) {
+                    if (confirm("Remove the uploaded QR Code?")) {
                       onRemove?.();
                     }
                   }}
@@ -261,16 +245,13 @@ export default function QRUploader({
               </div>
             </div>
           </div>
-          
         ) : (
           <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/40">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
               <ImagePlus size={26} />
             </div>
 
-            <p className="mt-4 font-bold text-gray-900">
-              Upload your QR code
-            </p>
+            <p className="mt-4 font-bold text-gray-900">Upload your QR code</p>
 
             <p className="mt-1 text-sm text-gray-500">
               PNG, JPG, JPEG, or WEBP up to 5 MB.
@@ -284,10 +265,7 @@ export default function QRUploader({
             >
               {uploading ? (
                 <>
-                  <LoaderCircle
-                    size={17}
-                    className="animate-spin"
-                  />
+                  <LoaderCircle size={17} className="animate-spin" />
                   Uploading...
                 </>
               ) : (

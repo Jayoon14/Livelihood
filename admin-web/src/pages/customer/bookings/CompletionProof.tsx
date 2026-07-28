@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -46,7 +47,7 @@ export default function CompletionProof() {
       })
       .eq("id", bookingId);
 
-    alert("Job accepted.");
+    toast.success("Job accepted.");
 
     navigate("/customer/bookings");
   }
@@ -59,7 +60,7 @@ export default function CompletionProof() {
       })
       .eq("id", bookingId);
 
-    alert("Revision requested.");
+    toast.success("Revision requested.");
 
     navigate("/customer/bookings");
   }

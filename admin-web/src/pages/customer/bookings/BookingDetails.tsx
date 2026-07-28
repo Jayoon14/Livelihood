@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
@@ -77,13 +78,13 @@ export default function BookingDetails() {
     try {
       await cancelBooking(Number(id));
 
-      alert("Booking cancelled.");
+      toast.success("Booking cancelled.");
 
       loadBooking();
     } catch (error) {
       console.error(error);
 
-      alert("Unable to cancel booking.");
+      toast.error("Unable to cancel booking.");
     }
   }
 

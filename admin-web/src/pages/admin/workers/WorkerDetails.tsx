@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -58,12 +59,12 @@ export default function WorkerDetails() {
     try {
       await approveWorker(id);
 
-      alert("Worker Approved!");
+      toast.success("Worker approved!");
 
       navigate("/workers");
     } catch (error) {
       console.error(error);
-      alert("Failed to approve worker.");
+      toast.error("Failed to approve worker.");
     }
   }
 
@@ -73,12 +74,12 @@ export default function WorkerDetails() {
     try {
       await rejectWorker(id);
 
-      alert("Worker Rejected!");
+      toast.success("Worker rejected!");
 
       navigate("/workers");
     } catch (error) {
       console.error(error);
-      alert("Failed to reject worker.");
+      toast.error("Failed to reject worker.");
     }
   }
 

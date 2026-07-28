@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -256,7 +257,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Mark notification read error:", error);
 
-      alert("Unable to mark notification as read.");
+      toast.error("Unable to mark notification as read.");
     }
   }
 
@@ -292,7 +293,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Mark all read error:", error);
 
-      alert("Unable to mark all notifications as read.");
+      toast.error("Unable to mark all notifications as read.");
     } finally {
       setMarkingAll(false);
     }
@@ -306,7 +307,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Delete notification error:", error);
 
-      alert("Unable to delete notification.");
+      toast.error("Unable to delete notification.");
     }
   }
 
@@ -343,7 +344,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Delete read notifications error:", error);
 
-      alert("Unable to delete read notifications.");
+      toast.error("Unable to delete read notifications.");
     } finally {
       setDeletingRead(false);
     }

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,24 +17,23 @@ export default function CustomerLogin() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    if (!email || !password) {
-      alert("Please fill all fields.");
-      return;
-    }
-
-    setLoading(true);
+  if (!email || !password) {
+    toast.warning("Please fill all fields.");
+    return;
+  }
+      setLoading(true);
 
     const { data, error } = await login(email, password);
 
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
 
     if (!data.user) {
-      alert("Login failed.");
+      toast.error("Login failed.");
       return;
     }
 

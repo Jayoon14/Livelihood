@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import {
   useLocation,
@@ -40,7 +41,7 @@ function BookingConfirmationContent() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        alert("Please login first.");
+        toast.warning("Please login first.");
         navigate("/");
         return;
       }
@@ -73,7 +74,7 @@ function BookingConfirmationContent() {
         notes: state.notes ?? "",
       });
 
-      alert(
+      toast.success(
         "Booking submitted successfully. Please wait for the worker's approval.",
       );
 
@@ -91,7 +92,7 @@ function BookingConfirmationContent() {
           ? error.message
           : "Failed to submit booking.";
 
-      alert(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
