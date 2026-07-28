@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 // ================= AUTH =================
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import RegisterChoice from "../pages/auth/RegisterChoice";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 // ================= CUSTOMER AUTH =================
 import CustomerLogin from "../pages/auth/customer/Login";
@@ -16,6 +18,14 @@ import WorkerRegister from "../pages/auth/worker/Register";
 import Dashboard from "../pages/admin/dashboard/Dashboard";
 import AdminBookings from "../pages/admin/bookings/Bookings";
 import BookingHistory from "../pages/admin/bookings/BookingHistory";
+import Workers from "../pages/admin/workers/Workers";
+import WorkerDetails from "../pages/admin/workers/WorkerDetails";
+import Customers from "../pages/admin/customers/Customers";
+import CustomerDetails from "../pages/admin/customers/CustomerDetails";
+import Reports from "../pages/admin/reports/Reports";
+import Payments from "../pages/admin/payments/Payments";
+import ActivityLogs from "../pages/admin/activity/ActivityLogs";
+import AdminNotifications from "../pages/admin/notifications/Notifications";
 
 // ================= CUSTOMER =================
 import CustomerDashboard from "../pages/customer/dashboard/CustomerDashboard";
@@ -25,8 +35,19 @@ import BookingDetails from "../pages/customer/bookings/BookingDetails";
 import BookWorker from "../pages/customer/bookings/BookWorker";
 import TrackWorker from "../pages/customer/tracking/TrackWorker";
 import Profile from "../pages/customer/profile/Profile";
+import CustomerSettings from "../pages/customer/profile/Settings";
 import Notifications from "../pages/customer/notifications/Notifications";
 import CustomerWorkerProfile from "../pages/customer/workers/WorkerProfile";
+import Categories from "../pages/customer/categories/Categories";
+import WorkersByCategory from "../pages/customer/categories/WorkersByCategory";
+import Favorites from "../pages/customer/favorites/Favorites";
+import BookingConfirmation from "../pages/customer/bookings/BookingConfirmation";
+import CustomerReceipt from "../pages/customer/receipt/CustomerReceipt";
+import PaymentHistory from "../pages/customer/payments/PaymentHistory";
+import CompareWorkers from "../pages/customer/workers/CompareWorkers";
+import CompletionProof from "../pages/customer/bookings/CompletionProof";
+import LeaveReview from "../pages/customer/reviews/LeaveReview";
+import Payment from "../pages/customer/payments/Payment";
 
 // ================= WORKER =================
 import WorkerDashboard from "../pages/worker/dashboard/Dashboard";
@@ -36,53 +57,105 @@ import WorkerProfile from "../pages/worker/profile/Profile";
 import WorkerSchedule from "../pages/worker/schedule/Schedule";
 import Services from "../pages/worker/Services/services";
 import NavigateToCustomer from "../pages/worker/navigation/NavigateToCustomer";
-
-// ================= ADMIN PAGES =================
-import Workers from "../pages/admin/workers/Workers";
-import WorkerDetails from "../pages/admin/workers/WorkerDetails";
-
-import Customers from "../pages/admin/customers/Customers";
-import CustomerDetails from "../pages/admin/customers/CustomerDetails";
-
-// ================= CHAT =================
-import ChatRoom from "../pages/chat/ChatRoom";
-
-// ================= OTHER =================
-import Reports from "../pages/admin/reports/Reports";
-import CustomerSettings from "../pages/customer/profile/Settings";
-
-// ================= PROTECTED =================
-import ProtectedRoute from "./ProtectedRoute";
-
-// ================= PAYMENT =================
-import Payment from "../pages/customer/payments/Payment";
-import Payments from "../pages/admin/payments/Payments";
-
-import ActivityLogs from "../pages/admin/activity/ActivityLogs";
-
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import ResetPassword from "../pages/auth/ResetPassword";
-import LeaveReview from "../pages/customer/reviews/LeaveReview";
-
-import ChatList from "../pages/chat/ChatList";
-
-import Categories from "../pages/customer/categories/Categories";
-import WorkersByCategory from "../pages/customer/categories/WorkersByCategory";
-import Favorites from "../pages/customer/favorites/Favorites";
-
-import BookingConfirmation from "../pages/customer/bookings/BookingConfirmation";
-import CustomerReceipt from "../pages/customer/receipt/CustomerReceipt";
-import PaymentHistory from "../pages/customer/payments/PaymentHistory";
-import CompareWorkers from "../pages/customer/workers/CompareWorkers";
 import CompleteJob from "../pages/worker/bookings/CompleteJob";
-import CompletionProof from "../pages/customer/bookings/CompletionProof";
 import PaymentInformation from "../pages/worker/payment/PaymentInformation";
 import PaymentRequests from "../pages/worker/payment/PaymentRequests";
 import WorkerNotifications from "../pages/worker/notifications/Notifications";
-import AdminNotifications from "../pages/admin/notifications/Notifications";
 
+// ================= CHAT =================
+import ChatRoom from "../pages/chat/ChatRoom";
+import ChatList from "../pages/chat/ChatList";
+
+// ================= SECURITY =================
+import ProtectedRoute from "./ProtectedRoute";
+
+// ================= PROVIDERS =================
 import { WorkerLocationProvider } from "../context/WorkerLocationProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
+
+function UnauthorizedPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">
+          !
+        </div>
+
+        <h1 className="mt-5 text-3xl font-black text-slate-900">
+          Access denied
+        </h1>
+
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Your account does not have permission to open this page.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          className="mt-7 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700"
+        >
+          Go back
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function AccountPendingPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">
+          ⏳
+        </div>
+
+        <h1 className="mt-5 text-3xl font-black text-slate-900">
+          Account pending
+        </h1>
+
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Your worker account must be approved by an administrator before you
+          can access worker features.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => window.location.assign("/")}
+          className="mt-7 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"
+        >
+          Return to login
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <p className="text-7xl font-black text-emerald-600">404</p>
+
+        <h1 className="mt-4 text-3xl font-black text-slate-900">
+          Page not found
+        </h1>
+
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          The page may have been moved, deleted, or the address may be
+          incorrect.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => window.location.assign("/")}
+          className="mt-7 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700"
+        >
+          Return to login
+        </button>
+      </section>
+    </main>
+  );
+}
 
 export default function AppRoutes() {
   return (
@@ -90,51 +163,73 @@ export default function AppRoutes() {
       <RealtimeProvider>
         <WorkerLocationProvider>
           <Routes>
-            {/* ================= AUTH ================= */}
+            {/* ================= PUBLIC AUTH ROUTES ================= */}
 
             <Route path="/" element={<Login />} />
-
             <Route path="/register" element={<Register />} />
-
             <Route path="/register-choice" element={<RegisterChoice />} />
-
             <Route path="/register/customer" element={<CustomerRegister />} />
-
             <Route path="/register/worker" element={<WorkerRegister />} />
-
-            {/* ================= CUSTOMER AUTH ================= */}
-
             <Route path="/customer/login" element={<CustomerLogin />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* ================= CUSTOMER ================= */}
+            {/* Temporary security/status pages. These can be moved into
+                separate page files later without changing the route paths. */}
+            <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route path="/account-pending" element={<AccountPendingPage />} />
+
+            {/* ================= CUSTOMER-ONLY ROUTES ================= */}
 
             <Route
               path="/customer/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <CustomerDashboard />
                 </ProtectedRoute>
               }
             />
 
-            <Route path="/customer/receipt/:id" element={<CustomerReceipt />} />
+            <Route
+              path="/customer/receipt/:id"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <CustomerReceipt />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/customer/payments" element={<PaymentHistory />} />
+            <Route
+              path="/customer/payments"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <PaymentHistory />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/customer/workers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <CustomerWorkers />
                 </ProtectedRoute>
               }
             />
-            <Route path="/customer/favorites" element={<Favorites />} />
+
+            <Route
+              path="/customer/favorites"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <Favorites />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/customer/booking-confirmation"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <BookingConfirmation />
                 </ProtectedRoute>
               }
@@ -143,7 +238,7 @@ export default function AppRoutes() {
             <Route
               path="/customer/book/:workerId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <BookWorker />
                 </ProtectedRoute>
               }
@@ -152,7 +247,7 @@ export default function AppRoutes() {
             <Route
               path="/customer/bookings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <CustomerBookings />
                 </ProtectedRoute>
               }
@@ -161,7 +256,7 @@ export default function AppRoutes() {
             <Route
               path="/customer/tracking/:bookingId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <TrackWorker />
                 </ProtectedRoute>
               }
@@ -170,7 +265,7 @@ export default function AppRoutes() {
             <Route
               path="/customer/bookings/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <BookingDetails />
                 </ProtectedRoute>
               }
@@ -179,8 +274,17 @@ export default function AppRoutes() {
             <Route
               path="/customer/profile"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/customer/settings"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <CustomerSettings />
                 </ProtectedRoute>
               }
             />
@@ -188,7 +292,7 @@ export default function AppRoutes() {
             <Route
               path="/customer/notifications"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <Notifications />
                 </ProtectedRoute>
               }
@@ -197,25 +301,17 @@ export default function AppRoutes() {
             <Route
               path="/customer/workers/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <CustomerWorkerProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/customer/review/:bookingId"
-              element={
-                <ProtectedRoute>
-                  <LeaveReview />
                 </ProtectedRoute>
               }
             />
 
             <Route
-              path="/chat"
+              path="/customer/review/:bookingId"
               element={
-                <ProtectedRoute>
-                  <ChatList />
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <LeaveReview />
                 </ProtectedRoute>
               }
             />
@@ -223,45 +319,63 @@ export default function AppRoutes() {
             <Route
               path="/customer/messages"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <ChatList />
                 </ProtectedRoute>
               }
             />
 
             <Route
-              path="/worker/messages"
-              element={
-                <ProtectedRoute>
-                  <ChatList />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/customer/categories"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <Categories />
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/customer/categories/:category"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["customer"]}>
                   <WorkersByCategory />
                 </ProtectedRoute>
               }
             />
 
-            <Route path="/customer/compare" element={<CompareWorkers />} />
+            <Route
+              path="/customer/compare"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <CompareWorkers />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* ================= WORKER ================= */}
+            <Route
+              path="/customer/completion-proof/:bookingId"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <CompletionProof />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/customer/payment/:id"
+              element={
+                <ProtectedRoute allowedRoles={["customer"]}>
+                  <Payment />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= WORKER-ONLY ROUTES ================= */}
 
             <Route
               path="/worker/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <WorkerDashboard />
                 </ProtectedRoute>
               }
@@ -270,38 +384,43 @@ export default function AppRoutes() {
             <Route
               path="/worker/bookings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <WorkerBookings />
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/worker/navigation/:bookingId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <NavigateToCustomer />
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/worker/bookings/complete/:bookingId"
-              element={<CompleteJob />}
-            />
 
             <Route
-              path="/customer/completion-proof/:bookingId"
-              element={<CompletionProof />}
+              path="/worker/bookings/complete/:bookingId"
+              element={
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                  <CompleteJob />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/worker/notifications"
-              element={<WorkerNotifications />}
+              element={
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                  <WorkerNotifications />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/worker/payment-information"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <PaymentInformation />
                 </ProtectedRoute>
               }
@@ -310,7 +429,7 @@ export default function AppRoutes() {
             <Route
               path="/worker/reviews"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <WorkerReviews />
                 </ProtectedRoute>
               }
@@ -319,7 +438,7 @@ export default function AppRoutes() {
             <Route
               path="/worker/profile"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <WorkerProfile />
                 </ProtectedRoute>
               }
@@ -328,7 +447,7 @@ export default function AppRoutes() {
             <Route
               path="/worker/schedule"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <WorkerSchedule />
                 </ProtectedRoute>
               }
@@ -337,26 +456,56 @@ export default function AppRoutes() {
             <Route
               path="/worker/services"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <Services />
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/worker/payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                   <PaymentRequests />
                 </ProtectedRoute>
               }
             />
 
-            {/* ================= ADMIN ================= */}
+            <Route
+              path="/worker/messages"
+              element={
+                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                  <ChatList />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= SHARED CUSTOMER/WORKER CHAT ================= */}
+
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute allowedRoles={["customer", "worker"]}>
+                  <ChatList />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/chat/:bookingId"
+              element={
+                <ProtectedRoute allowedRoles={["customer", "worker"]}>
+                  <ChatRoom />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= ADMIN-ONLY ROUTES ================= */}
 
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -365,7 +514,7 @@ export default function AppRoutes() {
             <Route
               path="/workers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Workers />
                 </ProtectedRoute>
               }
@@ -374,7 +523,7 @@ export default function AppRoutes() {
             <Route
               path="/workers/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <WorkerDetails />
                 </ProtectedRoute>
               }
@@ -383,7 +532,7 @@ export default function AppRoutes() {
             <Route
               path="/customers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Customers />
                 </ProtectedRoute>
               }
@@ -392,22 +541,25 @@ export default function AppRoutes() {
             <Route
               path="/customers/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <CustomerDetails />
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/admin/notifications"
-              element={<AdminNotifications />}
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminNotifications />
+                </ProtectedRoute>
+              }
             />
-
-            {/* ================= ADMIN BOOKINGS ================= */}
 
             <Route
               path="/bookings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <AdminBookings />
                 </ProtectedRoute>
               }
@@ -416,50 +568,17 @@ export default function AppRoutes() {
             <Route
               path="/bookings/history"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <BookingHistory />
                 </ProtectedRoute>
               }
             />
 
-            {/* ================= CHAT ================= */}
-
-            <Route
-              path="/chat/:bookingId"
-              element={
-                <ProtectedRoute>
-                  <ChatRoom />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* ================= REPORTS ================= */}
-
             <Route
               path="/admin/reports"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Reports />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* ================= SETTINGS ================= */}
-
-            <Route
-              path="/customer/settings"
-              element={
-                <ProtectedRoute>
-                  <CustomerSettings />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/customer/payment/:id"
-              element={
-                <ProtectedRoute>
-                  <Payment />
                 </ProtectedRoute>
               }
             />
@@ -467,7 +586,7 @@ export default function AppRoutes() {
             <Route
               path="/payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <Payments />
                 </ProtectedRoute>
               }
@@ -476,15 +595,16 @@ export default function AppRoutes() {
             <Route
               path="/activity-logs"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <ActivityLogs />
                 </ProtectedRoute>
               }
             />
 
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            {/* ================= FALLBACK ================= */}
 
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/home" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </WorkerLocationProvider>
       </RealtimeProvider>

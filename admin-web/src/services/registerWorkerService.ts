@@ -1,74 +1,64 @@
 import { supabase } from "../lib/supabase";
 import type { RegisterData } from "../store/registerStore";
 
-// =========================
-// UPLOAD DOCUMENT
-// =========================
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function wrapError(error: unknown, fallback: string): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === "object" && error && "message" in error) {
+    return new Error(String((error as { message: unknown }).message));
+  }
+  return new Error(fallback);
+}
+
+function requireText(value: string, field: string): string {
+  const v = value.trim();
+  if (!v) throw new Error(`${field} is required.`);
+  return v;
+}
 
 async function uploadDocument(
   file: File | null | undefined,
   folder: string,
   userId: string,
-) {
+): Promise<string | null> {
   if (!file) return null;
-
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  if (!extension) {
-    throw new Error("Invalid file format.");
-  }
-
-  const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-
-  if (!allowedTypes.includes(file.type)) {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (!ext) throw new Error("Invalid file format.");
+  if (!ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
     throw new Error("Only JPG, PNG, and PDF files are allowed.");
   }
-
-  const fileName = `${userId}/${folder}-${Date.now()}.${extension}`;
-
+  if (file.size > MAX_FILE_SIZE) throw new Error("Maximum file size is 10 MB.");
+  const path = `${userId}/${folder}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage
     .from("worker-documents")
-    .upload(fileName, file, {
+    .upload(path, file, {
       cacheControl: "3600",
       upsert: false,
       contentType: file.type,
     });
-
-  if (error) {
-    throw error;
-  }
-
-  const { data } = supabase.storage
-    .from("worker-documents")
-    .getPublicUrl(fileName);
-
-  return data.publicUrl;
+  if (error) throw wrapError(error, "Document upload failed.");
+  return supabase.storage.from("worker-documents").getPublicUrl(path).data
+    .publicUrl;
 }
 
-export async function submitWorkerRegistration(data: RegisterData) {
-  // =========================
-  // 1. CREATE AUTH USER
-  // =========================
+export async function submitWorkerRegistration(
+  data: RegisterData,
+): Promise<{ userId: string; message: string }> {
+  requireText(data.email, "Email");
+  requireText(data.password, "Password");
+  requireText(data.firstName, "First name");
+  requireText(data.lastName, "Last name");
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: data.email,
-
+  const { data: auth, error: authError } = await supabase.auth.signUp({
+    email: data.email.trim(),
     password: data.password,
   });
+  if (authError) throw wrapError(authError, "Unable to create account.");
+  if (!auth.user) throw new Error("Unable to create account.");
 
-  if (authError) {
-    throw authError;
-  }
-
-  if (!authData.user) {
-    throw new Error("Unable to create account.");
-  }
-
-  const userId = authData.user.id;
-
-  // =========================
-  // UPLOAD PROFILE PICTURE
-  // =========================
+  const userId = auth.user.id;
 
   const profilePicture = await uploadDocument(
     data.profilePicture,
@@ -76,181 +66,98 @@ export async function submitWorkerRegistration(data: RegisterData) {
     userId,
   );
 
-  // =========================
-  // 2. SAVE PROFILE
-  // =========================
-
   const { error: profileError } = await supabase.from("profiles").insert({
     id: userId,
-
     role: "worker",
-
-    email: data.email,
-
-    first_name: data.firstName,
-    middle_name: data.middleName,
-    last_name: data.lastName,
-    suffix: data.suffix,
-
+    email: data.email.trim(),
+    first_name: data.firstName.trim(),
+    middle_name: data.middleName?.trim() || "",
+    last_name: data.lastName.trim(),
+    suffix: data.suffix?.trim() || "",
     birth_date: data.birthDate,
-
     gender: data.gender,
     civil_status: data.civilStatus,
     religion: data.religion,
-
-    phone: data.phone,
-
-    address: `${data.houseNo} ${data.street}`,
-
+    phone: data.phone?.trim() || "",
+    address: `${data.houseNo} ${data.street}`.trim(),
     barangay: data.barangay,
     municipality: data.municipality,
     province: data.province,
-
     status: "Pending",
-
     profile_picture: profilePicture,
   });
+  if (profileError) throw wrapError(profileError, "Unable to save profile.");
 
-  if (profileError) {
-    throw profileError;
-  }
-
-  // =========================
-  // 3. SAVE EDUCATION
-  // =========================
-
-  const { error: educationError } = await supabase.from("education").insert({
+  const { error: eduError } = await supabase.from("education").insert({
     profile_id: userId,
-
     highest_attainment: data.highestEducation,
-
     elementary: data.elementary,
-
     secondary: data.secondary,
-
     senior_high: data.seniorHigh,
-
     college: data.college,
-
     course: data.course,
-
     year_graduated: data.yearGraduated,
-
     tesda: data.tesda,
-
     prc: data.prc,
-
     trainings: data.trainings,
   });
-
-  if (educationError) {
-    throw educationError;
-  }
-  // =========================
-  // 4. SAVE WORK EXPERIENCE
-  // =========================
+  if (eduError) throw wrapError(eduError, "Unable to save education.");
 
   if (!data.noWorkExperience) {
-    const { error: workError } = await supabase.from("work_experience").insert({
+    const { error } = await supabase.from("work_experience").insert({
       profile_id: userId,
-
       company: data.company,
-
       position: data.position,
-
       employment_status: data.employmentStatus,
-
       start_date: data.startDate,
-
       end_date: data.endDate,
-
       description: data.description,
     });
-
-    if (workError) {
-      throw workError;
-    }
+    if (error) throw wrapError(error, "Unable to save work experience.");
   }
 
-  // =========================
-  // 5. SAVE SKILLS
-  // =========================
-
-  if (data.skills && data.skills.length > 0) {
-    const skills = data.skills.map((skill) => ({
-      profile_id: userId,
-
-      skill_name: skill,
-    }));
-
-    const { error: skillError } = await supabase
+  if (data.skills?.length) {
+    const { error } = await supabase
       .from("worker_skills")
-      .insert(skills);
-
-    if (skillError) {
-      throw skillError;
-    }
+      .insert(
+        data.skills.map((skill) => ({
+          profile_id: userId,
+          skill_name: skill.trim(),
+        })),
+      );
+    if (error) throw wrapError(error, "Unable to save skills.");
   }
 
-  // =========================
-  // 6. UPLOAD DOCUMENTS
-  // =========================
-
-  const validId = await uploadDocument(data.validId, "valid-id", userId);
-
-  const resume = await uploadDocument(data.resume, "resume", userId);
-
-  const tesda = await uploadDocument(
-    data.tesdaCertificate,
-    "tesda-certificate",
-    userId,
-  );
-
-  const barangay = await uploadDocument(
-    data.barangayClearance,
-    "barangay-clearance",
-    userId,
-  );
-
-  const police = await uploadDocument(
-    data.policeClearance,
-    "police-clearance",
-    userId,
-  );
-
-  const nbi = await uploadDocument(data.nbiClearance, "nbi-clearance", userId);
-
-  // =========================
-  // 7. SAVE DOCUMENT URLS
-  // =========================
-
-  const { error: documentError } = await supabase.from("documents").insert({
-    profile_id: userId,
-
-    valid_id: validId,
-
-    resume: resume,
-
-    tesda_certificate: tesda,
-
-    barangay_clearance: barangay,
-
-    police_clearance: police,
-
-    nbi_clearance: nbi,
-  });
-
-  if (documentError) {
-    throw documentError;
-  }
-
-  // =========================
-  // 8. RETURN RESULT
-  // =========================
-
-  return {
-    userId,
-
-    message: "Registration successful.",
+  const docs = {
+    valid_id: await uploadDocument(data.validId, "valid-id", userId),
+    resume: await uploadDocument(data.resume, "resume", userId),
+    tesda_certificate: await uploadDocument(
+      data.tesdaCertificate,
+      "tesda-certificate",
+      userId,
+    ),
+    barangay_clearance: await uploadDocument(
+      data.barangayClearance,
+      "barangay-clearance",
+      userId,
+    ),
+    police_clearance: await uploadDocument(
+      data.policeClearance,
+      "police-clearance",
+      userId,
+    ),
+    nbi_clearance: await uploadDocument(
+      data.nbiClearance,
+      "nbi-clearance",
+      userId,
+    ),
   };
+
+  const { error: docError } = await supabase.from("documents").insert({
+    profile_id: userId,
+    ...docs,
+  });
+  if (docError) throw wrapError(docError, "Unable to save documents.");
+
+  return { userId, message: "Registration successful." };
 }

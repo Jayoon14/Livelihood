@@ -1,118 +1,123 @@
 import { supabase } from "../lib/supabase";
 
-// =============================
-// GET MY SERVICES
-// =============================
-export async function getMyServices(workerId: string) {
+export type ServiceStatus = "Approved" | "Pending" | "Rejected";
+
+export interface WorkerService {
+  id: number;
+  worker_id: string;
+  category: string;
+  service_name: string;
+  description: string;
+  price: number;
+  status: ServiceStatus;
+}
+
+export interface ServicePayload {
+  category: string;
+  service_name: string;
+  description: string;
+  price: number;
+}
+
+export interface WorkerName {
+  id?: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface PendingService extends WorkerService {
+  worker: WorkerName | null;
+}
+
+export interface CategoryWorkerCount {
+  category: string;
+  totalWorkers: number;
+}
+
+export interface CategoryPreview {
+  category: string;
+  workers: WorkerName[];
+  totalWorkers: number;
+}
+
+function wrap(error: unknown, fallback: string): Error {
+  return error instanceof Error && error.message
+    ? new Error(error.message)
+    : new Error(fallback);
+}
+
+async function updateStatus(id: number, status: ServiceStatus): Promise<void> {
+  const { error } = await supabase
+    .from("services")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw wrap(error, `Unable to update service status to ${status}.`);
+}
+
+export async function getMyServices(
+  workerId: string,
+): Promise<WorkerService[]> {
   const { data, error } = await supabase
     .from("services")
     .select("*")
     .eq("worker_id", workerId)
     .order("id", { ascending: false });
 
-  if (error) throw error;
-
-  return data ?? [];
+  if (error) throw wrap(error, "Unable to load services.");
+  return (data ?? []) as WorkerService[];
 }
 
-// =============================
-// ADD SERVICE
-// =============================
 export async function createService(
   workerId: string,
-  service: {
-    category: string;
-    service_name: string;
-    description: string;
-    price: number;
-  },
-) {
-  const { error } = await supabase.from("services").insert({
-    worker_id: workerId,
-    category: service.category,
-    service_name: service.service_name,
-    description: service.description,
-    price: service.price,
-    status: "Approved",
-  });
-
-  if (error) throw error;
-}
-
-// =============================
-// UPDATE SERVICE
-// =============================
-export async function updateService(
-  id: number,
-  service: {
-    category: string;
-    service_name: string;
-    description: string;
-    price: number;
-  },
-) {
-  const { error } = await supabase
-    .from("services")
-    .update({
-      category: service.category,
-      service_name: service.service_name,
-      description: service.description,
-      price: service.price,
-    })
-    .eq("id", id);
-
-  if (error) throw error;
-}
-
-// =============================
-// DELETE SERVICE
-// =============================
-export async function deleteService(id: number) {
-  const { error } = await supabase.from("services").delete().eq("id", id);
-
-  if (error) throw error;
-}
-export async function getPendingServices() {
+  service: ServicePayload,
+): Promise<WorkerService> {
   const { data, error } = await supabase
     .from("services")
-    .select(
-      `
-      *,
-      worker:profiles!worker_id(
-        first_name,
-        last_name
-      )
-    `,
-    )
+    .insert({ worker_id: workerId, ...service, status: "Approved" })
+    .select()
+    .single();
+
+  if (error) throw wrap(error, "Unable to create service.");
+  return data as WorkerService;
+}
+
+export async function updateService(
+  id: number,
+  service: ServicePayload,
+): Promise<WorkerService> {
+  const { data, error } = await supabase
+    .from("services")
+    .update(service)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw wrap(error, "Unable to update service.");
+  return data as WorkerService;
+}
+
+export async function deleteService(id: number): Promise<void> {
+  const { error } = await supabase.from("services").delete().eq("id", id);
+  if (error) throw wrap(error, "Unable to delete service.");
+}
+
+export async function getPendingServices(): Promise<PendingService[]> {
+  const { data, error } = await supabase
+    .from("services")
+    .select(`*,worker:profiles!worker_id(id,first_name,last_name)`)
     .eq("status", "Pending");
 
-  if (error) throw error;
-
-  return data ?? [];
+  if (error) throw wrap(error, "Unable to load pending services.");
+  return (data ?? []) as PendingService[];
 }
 
-export async function approveService(id: number) {
-  const { error } = await supabase
-    .from("services")
-    .update({
-      status: "Approved",
-    })
-    .eq("id", id);
+export const approveService = (id: number) => updateStatus(id, "Approved");
+export const rejectService = (id: number) => updateStatus(id, "Rejected");
 
-  if (error) throw error;
-}
-
-export async function rejectService(id: number) {
-  const { error } = await supabase
-    .from("services")
-    .update({
-      status: "Rejected",
-    })
-    .eq("id", id);
-
-  if (error) throw error;
-}
-export async function getApprovedServices(workerId: string) {
+export async function getApprovedServices(
+  workerId: string,
+): Promise<WorkerService[]> {
   const { data, error } = await supabase
     .from("services")
     .select("*")
@@ -120,70 +125,43 @@ export async function getApprovedServices(workerId: string) {
     .eq("status", "Approved")
     .order("service_name");
 
-  console.log("WORKER ID:", workerId);
-  console.log("SERVICES:", data);
-  console.log("ERROR:", error);
-  console.log(data);
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
+  if (error) throw wrap(error, "Unable to load approved services.");
+  return (data ?? []) as WorkerService[];
 }
-// =====================
-// GET ALL CATEGORIES
-// =====================
 
-export async function getCategories() {
+export async function getCategories(): Promise<string[]> {
   const { data, error } = await supabase
     .from("services")
     .select("category")
     .eq("status", "Approved");
 
-  if (error) throw error;
+  if (error) throw wrap(error, "Unable to load categories.");
 
-  const categories = Array.from(
-    new Set((data ?? []).map((item) => item.category)),
-  );
-
-  return categories;
+  return [
+    ...new Set((data ?? []).map((i: { category: string }) => i.category)),
+  ];
 }
-// =====================
-// GET CATEGORIES WITH WORKER COUNT
-// =====================
 
-export async function getCategoriesWithCount() {
+export async function getCategoriesWithCount(): Promise<CategoryWorkerCount[]> {
   const { data, error } = await supabase
     .from("services")
-    .select(
-      `
-      category,
-      worker_id
-    `,
-    )
+    .select("category,worker_id")
     .eq("status", "Approved");
 
-  if (error) throw error;
+  if (error) throw wrap(error, "Unable to load category counts.");
 
   const grouped = new Map<string, Set<string>>();
 
-  data?.forEach((item) => {
-    if (!grouped.has(item.category)) {
-      grouped.set(item.category, new Set());
-    }
-
-    grouped.get(item.category)?.add(item.worker_id);
+  (data ?? []).forEach((item: { category: string; worker_id: string }) => {
+    if (!grouped.has(item.category)) grouped.set(item.category, new Set());
+    grouped.get(item.category)!.add(item.worker_id);
   });
 
-  return Array.from(grouped.entries()).map(([category, workers]) => ({
+  return [...grouped.entries()].map(([category, workers]) => ({
     category,
     totalWorkers: workers.size,
   }));
 }
-// =====================
-// GET CATEGORY PREVIEW
-// =====================
 
 export async function getCategoryPreview() {
   const { data, error } = await supabase
@@ -203,17 +181,28 @@ export async function getCategoryPreview() {
 
   if (error) throw error;
 
-  const grouped = new Map();
+  const grouped = new Map<
+    string,
+    {
+      id: string;
+      first_name: string;
+      last_name: string;
+    }[]
+  >();
 
-  data?.forEach((item: any) => {
+  data?.forEach((item) => {
     if (!grouped.has(item.category)) {
       grouped.set(item.category, []);
     }
 
-    const workers = grouped.get(item.category);
+    const workers = grouped.get(item.category)!;
 
-    if (!workers.find((w: any) => w.id === item.worker.id)) {
-      workers.push(item.worker);
+    const worker = Array.isArray(item.worker) ? item.worker[0] : item.worker;
+
+    if (!worker) return;
+
+    if (!workers.some((w) => w.id === worker.id)) {
+      workers.push(worker);
     }
   });
 

@@ -1,9 +1,38 @@
 import { supabase } from "../lib/supabase";
 
-// =========================
-// GET PROFILE
-// =========================
-export async function getProfile(id: string) {
+export interface WorkerProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  profile_picture: string | null;
+}
+
+export interface UpdateProfileRequest {
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  profile_picture?: string;
+}
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+function message(error: unknown, fallback: string): Error {
+  if (error instanceof Error && error.message.trim()) {
+    return new Error(error.message);
+  }
+  return new Error(fallback);
+}
+
+export async function getProfile(id: string): Promise<WorkerProfile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
@@ -11,82 +40,71 @@ export async function getProfile(id: string) {
     .maybeSingle();
 
   if (error) {
-    console.error("GET PROFILE ERROR:", error);
-
-    throw error;
+    throw message(error, "Unable to load profile.");
   }
 
-  console.log("PROFILE DATA:", data);
-
-  return data;
+  return data as WorkerProfile | null;
 }
 
-// =========================
-// UPDATE PROFILE
-// =========================
-export async function updateProfile(id: string, updates: any) {
-  const { error } = await supabase
+export async function updateProfile(
+  id: string,
+  updates: UpdateProfileRequest,
+): Promise<WorkerProfile> {
+  const { data, error } = await supabase
     .from("profiles")
     .update(updates)
-    .eq("id", id);
+    .eq("id", id)
+    .select()
+    .single();
 
   if (error) {
-    console.error("UPDATE PROFILE ERROR:", error);
-
-    throw error;
+    throw message(error, "Unable to update profile.");
   }
+
+  return data as WorkerProfile;
 }
 
-// =========================
-// UPLOAD PROFILE PHOTO
-// =========================
-export async function uploadAvatar(userId: string, file: File) {
-  const fileExt = file.name.split(".").pop();
+export async function uploadAvatar(
+  userId: string,
+  file: File,
+): Promise<string> {
+  if (!ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Only JPG, PNG, and WEBP images are allowed.");
+  }
 
-  const fileName = `${userId}-${Date.now()}.${fileExt}`;
+  if (file.size > MAX_AVATAR_SIZE) {
+    throw new Error("Image must be 5 MB or smaller.");
+  }
 
-  // Upload to Storage
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (!extension) {
+    throw new Error("Invalid image filename.");
+  }
+
+  const fileName = `${userId}-${Date.now()}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")
-    .upload(fileName, file, {
-      upsert: true,
-    });
+    .upload(fileName, file, { upsert: true });
 
   if (uploadError) {
-    console.error("UPLOAD ERROR:", uploadError);
-
-    throw uploadError;
+    throw message(uploadError, "Unable to upload image.");
   }
 
-  // Get public URL
-
-  const { data: urlData } = supabase.storage
+  const { data } = supabase.storage
     .from("avatars")
     .getPublicUrl(fileName);
 
-  const publicUrl = urlData.publicUrl;
+  const publicUrl = data.publicUrl;
 
-  console.log("IMAGE URL:", publicUrl);
-
-  // Save image URL
-
-  const { data: updatedProfile, error: updateError } = await supabase
-    .from("profiles")
-    .update({
-      profile_picture: publicUrl,
-    })
-    .eq("id", userId)
-    .select()
-    .maybeSingle();
-
-  if (updateError) {
-    console.error("SAVE IMAGE ERROR:", updateError);
-
-    throw updateError;
+  if (!publicUrl) {
+    throw new Error("Unable to generate public image URL.");
   }
 
-  console.log("UPDATED PROFILE:", updatedProfile);
+  await updateProfile(userId, {
+    profile_picture: publicUrl,
+  });
 
   return publicUrl;
 }

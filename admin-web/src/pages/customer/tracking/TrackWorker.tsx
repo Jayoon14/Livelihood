@@ -11,13 +11,13 @@ import {
   WifiOff,
 } from "lucide-react";
 import {
+  GeoJSONSource,
   LngLatBounds,
   Map as MapLibreMap,
   Marker,
   NavigationControl,
   Popup,
 } from "maplibre-gl";
-
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -418,9 +418,7 @@ export default function TrackWorker() {
     };
 
     const existingSource = map.getSource(ROUTE_SOURCE_ID) as
-      | {
-          setData: (data: typeof routeGeoJson) => void;
-        }
+      | GeoJSONSource
       | undefined;
 
     if (existingSource) {
@@ -1057,7 +1055,6 @@ export default function TrackWorker() {
                         )}
                   </p>
                 </div>
-                
 
                 <div className="rounded-2xl bg-violet-50 p-4">
                   <Clock3 className="h-5 w-5 text-violet-600" />
@@ -1092,7 +1089,7 @@ export default function TrackWorker() {
                         : "Calculating..."}
                   </p>
                 </div>
-                        
+
                 <div
                   className={`rounded-2xl p-4 ${
                     trafficStatus?.className ?? "bg-slate-100 text-slate-600"
@@ -1117,21 +1114,25 @@ export default function TrackWorker() {
                   </p>
                 </div>
               </div>
-                {trafficStatus && !trackingFinished && (
-                    <div className={`mt-4 rounded-2xl p-4 ${trafficStatus.className}`}>
-                        <p className="text-sm font-medium">
-                        {trafficStatus.description}
-                        </p>
+              {trafficStatus && !trackingFinished && (
+                <div
+                  className={`mt-4 rounded-2xl p-4 ${trafficStatus.className}`}
+                >
+                  <p className="text-sm font-medium">
+                    {trafficStatus.description}
+                  </p>
 
-                        {routeInformation && (
-                        <p className="mt-1 text-xs opacity-80">
-                            Estimated travel without traffic:{" "}
-                            {formatDuration(routeInformation.noTrafficDurationSeconds)}
-                        </p>
-                        )}
-                    </div>
-                    )}        
-                        
+                  {routeInformation && (
+                    <p className="mt-1 text-xs opacity-80">
+                      Estimated travel without traffic:{" "}
+                      {formatDuration(
+                        routeInformation.noTrafficDurationSeconds,
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 rounded-2xl border border-slate-200 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Service Address

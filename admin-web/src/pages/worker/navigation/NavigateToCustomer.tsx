@@ -13,6 +13,10 @@ import {
   markWorkerArrived,
   startTrip,
 } from "../../../services/workerBookingService";
+import type {
+  WorkerBookingStatus,
+  WorkerTripStatus,
+} from "../../../services/workerBookingService";
 
 interface BookingData {
   id: number;
@@ -21,8 +25,8 @@ interface BookingData {
   customer_latitude: number | null;
   customer_longitude: number | null;
 
-  status: string;
-  trip_status: string;
+  status: WorkerBookingStatus;
+  trip_status: WorkerTripStatus | null;
 
   accepted_at?: string | null;
   arrived_at?: string | null;

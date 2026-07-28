@@ -1,79 +1,191 @@
 import { supabase } from "../lib/supabase";
 
-// =========================
-// LOG ACTIVITY
-// =========================
-export async function logActivity(
-  userId: string,
-  action: string,
-  module: string,
-  description: string,
-) {
-  // Check authenticated user
+export interface ActivityUser {
+  id?: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+export interface ActivityLog {
+  id: number;
+  user_id: string;
+  action: string;
+  module: string;
+  description: string;
+  created_at: string;
+}
+
+export interface ActivityLogWithUser extends ActivityLog {
+  user: ActivityUser | null;
+}
+
+export interface LogActivityPayload {
+  userId: string;
+  action: string;
+  module: string;
+  description: string;
+}
+
+interface ProfileRecord {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+const ACTIVITY_LIMITS = {
+  action: 100,
+  module: 100,
+  description: 1_000,
+} as const;
+
+function wrapError(error: unknown, fallbackMessage: string): Error {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return new Error(error.message);
+  }
+
+  return new Error(fallbackMessage);
+}
+
+function validateRequiredText(
+  value: string,
+  fieldName: string,
+  maximumLength?: number,
+): string {
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be a string.`);
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw new Error(`${fieldName} is required.`);
+  }
+
+  if (maximumLength && normalized.length > maximumLength) {
+    throw new Error(
+      `${fieldName} must not exceed ${maximumLength} characters.`,
+    );
+  }
+
+  return normalized;
+}
+
+function validateUserId(userId: string): string {
+  return validateRequiredText(userId, "User ID", 100);
+}
+
+function normalizeRelatedUser(
+  user: ActivityUser | ActivityUser[] | null | undefined,
+): ActivityUser | null {
+  if (Array.isArray(user)) {
+    return user[0] ?? null;
+  }
+
+  return user ?? null;
+}
+
+async function requireAuthenticatedUser(): Promise<string> {
   const {
     data: { user },
-    error: authError,
+    error,
   } = await supabase.auth.getUser();
 
-  console.log("========== ACTIVITY LOG ==========");
-  console.log("Authenticated User:", user);
-  console.log("Auth Error:", authError);
+  if (error) {
+    throw wrapError(error, "Unable to verify the authenticated user.");
+  }
 
-  console.log("Passed User ID:", userId);
-  console.log("Action:", action);
-  console.log("Module:", module);
-  console.log("Description:", description);
+  if (!user) {
+    throw new Error("You must be signed in to record an activity.");
+  }
 
-  // Check if profile exists
-  const { data: profile } = await supabase
+  return user.id;
+}
+
+async function requireProfile(userId: string): Promise<ProfileRecord> {
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, first_name, last_name")
     .eq("id", userId)
     .maybeSingle();
 
-  console.log("Profile Found:", profile);
+  if (error) {
+    throw wrapError(error, "Unable to verify the user profile.");
+  }
 
-  // Insert log
+  if (!data) {
+    throw new Error("The selected user profile does not exist.");
+  }
+
+  return data as ProfileRecord;
+}
+
+/**
+ * Records a system activity for an existing user.
+ *
+ * The function verifies that there is an authenticated session and that the
+ * supplied user ID belongs to an existing profile before inserting the log.
+ */
+export async function logActivity(
+  userId: string,
+  action: string,
+  module: string,
+  description: string,
+): Promise<ActivityLog> {
+  const payload: LogActivityPayload = {
+    userId: validateUserId(userId),
+    action: validateRequiredText(action, "Action", ACTIVITY_LIMITS.action),
+    module: validateRequiredText(module, "Module", ACTIVITY_LIMITS.module),
+    description: validateRequiredText(
+      description,
+      "Description",
+      ACTIVITY_LIMITS.description,
+    ),
+  };
+
+  await Promise.all([
+    requireAuthenticatedUser(),
+    requireProfile(payload.userId),
+  ]);
+
   const { data, error } = await supabase
     .from("activity_logs")
     .insert({
-      user_id: userId,
-      action,
-      module,
-      description,
+      user_id: payload.userId,
+      action: payload.action,
+      module: payload.module,
+      description: payload.description,
     })
-    .select();
-
-  console.log("Inserted Data:", data);
+    .select("*")
+    .single();
 
   if (error) {
-    console.log("========== DATABASE ERROR ==========");
-    console.log("Code:", error.code);
-    console.log("Message:", error.message);
-    console.log("Details:", error.details);
-    console.log("Hint:", error.hint);
-    console.log("Full Error:", error);
-    console.log("===================================");
-
-    throw error;
+    throw wrapError(error, "Unable to save the activity log.");
   }
 
-  console.log("Activity successfully saved.");
-  console.log("===================================");
+  if (!data) {
+    throw new Error("The activity log was not returned after saving.");
+  }
 
-  return data;
+  return data as ActivityLog;
 }
 
-// =========================
-// GET ACTIVITY LOGS
-// =========================
-export async function getActivityLogs() {
+/**
+ * Returns all activity logs ordered from newest to oldest.
+ */
+export async function getActivityLogs(): Promise<ActivityLogWithUser[]> {
   const { data, error } = await supabase
     .from("activity_logs")
     .select(
       `
       *,
       user:profiles(
+        id,
         first_name,
         last_name
       )
@@ -84,11 +196,22 @@ export async function getActivityLogs() {
     });
 
   if (error) {
-    console.log("GET LOGS ERROR:", error);
-    throw error;
+    throw wrapError(error, "Unable to load activity logs.");
   }
 
-  console.log("Activity Logs:", data);
+  return (data ?? []).map((record) => {
+    const typedRecord = record as ActivityLog & {
+      user?: ActivityUser | ActivityUser[] | null;
+    };
 
-  return data ?? [];
+    return {
+      id: typedRecord.id,
+      user_id: typedRecord.user_id,
+      action: typedRecord.action,
+      module: typedRecord.module,
+      description: typedRecord.description,
+      created_at: typedRecord.created_at,
+      user: normalizeRelatedUser(typedRecord.user),
+    };
+  });
 }

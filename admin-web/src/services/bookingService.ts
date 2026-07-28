@@ -2,23 +2,267 @@ import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
 import { createSchedule } from "./scheduleService";
 
-// =========================
-// CREATE BOOKING
-// =========================
+export const BOOKING_STATUS = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const;
 
-export async function createBooking(booking: {
+export const PAYMENT_STATUS = {
+  UNPAID: "Unpaid",
+} as const;
+
+export const SCHEDULE_STATUS = {
+  PENDING: "Pending",
+  SCHEDULED: "Scheduled",
+} as const;
+
+export const COMPLETION_STATUS = {
+  NOT_STARTED: "Not Started",
+  COMPLETED: "Completed",
+} as const;
+
+export type BookingStatus =
+  (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
+
+export interface CreateBookingRequest {
   customer_id: string;
   worker_id: string;
   service_id: string;
   booking_date: string;
   booking_time: string;
   address: string;
-  notes: string;
-}) {
+  notes?: string;
+}
+
+export interface BookingProfile {
+  id: string;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  profile_picture?: string | null;
+}
+
+export interface BookingRecord {
+  id: number;
+  customer_id: string;
+  worker_id: string;
+  service_id: string;
+  booking_date: string;
+  booking_time: string;
+  address: string;
+  notes: string | null;
+  price: number;
+  status: BookingStatus;
+  payment_status: string;
+  schedule_status: string;
+  completion_status: string;
+  created_at?: string;
+  customer?: BookingProfile | BookingProfile[] | null;
+  worker?: BookingProfile | BookingProfile[] | null;
+  [key: string]: unknown;
+}
+
+export interface BookingTimelineItem {
+  title: string;
+  done: boolean;
+}
+
+interface AdminProfile {
+  id: string;
+}
+
+interface ServicePrice {
+  price: number | string | null;
+}
+
+const BOOKING_DETAILS_SELECT = `
+  *,
+  customer:profiles!customer_id(
+    id,
+    first_name,
+    middle_name,
+    last_name,
+    email,
+    phone
+  ),
+  worker:profiles!worker_id(
+    id,
+    first_name,
+    middle_name,
+    last_name,
+    email,
+    phone
+  )
+`;
+
+const CUSTOMER_BOOKINGS_SELECT = `
+  *,
+  worker:profiles!bookings_worker_id_fkey(
+    id,
+    first_name,
+    middle_name,
+    last_name,
+    profile_picture,
+    phone,
+    email
+  )
+`;
+
+function validateRequiredText(value: string, fieldName: string): string {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    throw new Error(`${fieldName} is required.`);
+  }
+
+  return normalized;
+}
+
+function validateBookingId(id: number): number {
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error("Invalid booking ID.");
+  }
+
+  return id;
+}
+
+function validateBookingLookupId(id: string | number): string | number {
+  if (typeof id === "number") {
+    return validateBookingId(id);
+  }
+
+  const normalized = id.trim();
+
+  if (!normalized) {
+    throw new Error("Booking ID is required.");
+  }
+
+  return normalized;
+}
+
+function validateBookingStatus(status: string): BookingStatus {
+  const validStatuses = Object.values(BOOKING_STATUS) as string[];
+
+  if (!validStatuses.includes(status)) {
+    throw new Error("Invalid booking status.");
+  }
+
+  return status as BookingStatus;
+}
+
+function normalizeBookingInput(
+  booking: CreateBookingRequest,
+): CreateBookingRequest {
+  return {
+    customer_id: validateRequiredText(
+      booking.customer_id,
+      "Customer ID",
+    ),
+    worker_id: validateRequiredText(booking.worker_id, "Worker ID"),
+    service_id: validateRequiredText(booking.service_id, "Service ID"),
+    booking_date: validateRequiredText(
+      booking.booking_date,
+      "Booking date",
+    ),
+    booking_time: validateRequiredText(
+      booking.booking_time,
+      "Booking time",
+    ),
+    address: validateRequiredText(booking.address, "Address"),
+    notes: booking.notes?.trim() ?? "",
+  };
+}
+
+function normalizePrice(price: ServicePrice["price"]): number {
+  const numericPrice =
+    typeof price === "number" ? price : Number.parseFloat(price ?? "");
+
+  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+    throw new Error("The selected service has an invalid price.");
+  }
+
+  return numericPrice;
+}
+
+async function getAdminIds(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("role", "admin");
+
+  if (error) {
+    console.error("Unable to load administrator accounts:", error);
+    return [];
+  }
+
+  return ((data ?? []) as AdminProfile[])
+    .map((admin) => admin.id)
+    .filter((id) => Boolean(id));
+}
+
+async function notifyUserSafely(
+  userId: string,
+  bookingId: number,
+  title: string,
+  message: string,
+): Promise<void> {
+  try {
+    await createNotification(
+      userId,
+      bookingId,
+      title,
+      message,
+    );
+  } catch (error) {
+    console.error("Unable to create notification:", error);
+  }
+}
+
+async function notifyAdminsSafely(
+  bookingId: number,
+  title: string,
+  message: string,
+): Promise<void> {
+  const adminIds = await getAdminIds();
+
+  await Promise.allSettled(
+    adminIds.map((adminId) =>
+      createNotification(adminId, bookingId, title, message),
+    ),
+  );
+}
+
+async function rollbackAcceptedBooking(bookingId: number): Promise<void> {
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      status: BOOKING_STATUS.PENDING,
+      schedule_status: SCHEDULE_STATUS.PENDING,
+    })
+    .eq("id", bookingId);
+
+  if (error) {
+    console.error("Unable to roll back booking approval:", error);
+  }
+}
+
+// =========================
+// CREATE BOOKING
+// =========================
+
+export async function createBooking(
+  booking: CreateBookingRequest,
+): Promise<BookingRecord> {
+  const normalizedBooking = normalizeBookingInput(booking);
+
   const available = await isWorkerAvailable(
-    booking.worker_id,
-    booking.booking_date,
-    booking.booking_time,
+    normalizedBooking.worker_id,
+    normalizedBooking.booking_date,
+    normalizedBooking.booking_time,
   );
 
   if (!available) {
@@ -27,108 +271,78 @@ export async function createBooking(booking: {
     );
   }
 
-  // Kunin ang presyo ng service
-
   const { data: service, error: serviceError } = await supabase
     .from("services")
     .select("price")
-    .eq("id", booking.service_id)
+    .eq("id", normalizedBooking.service_id)
     .single();
 
-  if (serviceError) throw serviceError;
+  if (serviceError) {
+    throw serviceError;
+  }
+
+  if (!service) {
+    throw new Error("The selected service was not found.");
+  }
+
+  const price = normalizePrice((service as ServicePrice).price);
 
   const { data, error } = await supabase
     .from("bookings")
     .insert({
-      ...booking,
-
-      price: service.price,
-
-      status: "Pending",
-
-      payment_status: "Unpaid",
-
-      schedule_status: "Pending",
-
-      completion_status: "Not Started",
+      ...normalizedBooking,
+      price,
+      status: BOOKING_STATUS.PENDING,
+      payment_status: PAYMENT_STATUS.UNPAID,
+      schedule_status: SCHEDULE_STATUS.PENDING,
+      completion_status: COMPLETION_STATUS.NOT_STARTED,
     })
     .select()
     .single();
 
-  if (error) throw error;
-
-  // =========================
-  // NOTIFY WORKER
-  // =========================
-
-  await createNotification(
-    booking.worker_id,
-    data.id,
-    "New Booking Request",
-    "A customer has sent you a booking request.",
-  );
-
-  // =========================
-  // NOTIFY ADMINS
-  // =========================
-
-  const { data: admins, error: adminError } = await supabase
-    .from("profiles")
-    .select("id")
-    .ilike("role", "admin");
-
-  if (adminError) {
-    console.error(adminError);
+  if (error) {
+    throw error;
   }
 
-  if (admins) {
-    for (const admin of admins) {
-      await createNotification(
-        admin.id,
-        data.id,
-        "New Booking Created",
-        "A new booking has been created.",
-      );
-    }
+  if (!data) {
+    throw new Error("Booking creation failed.");
   }
 
-  return data;
+  const createdBooking = data as BookingRecord;
+
+  await Promise.all([
+    notifyUserSafely(
+      normalizedBooking.worker_id,
+      createdBooking.id,
+      "New Booking Request",
+      "A customer has sent you a booking request.",
+    ),
+    notifyAdminsSafely(
+      createdBooking.id,
+      "New Booking Created",
+      "A new booking has been created.",
+    ),
+  ]);
+
+  return createdBooking;
 }
 
 // =========================
 // GET BOOKINGS
 // =========================
 
-export async function getBookings(status = "All") {
+export async function getBookings(
+  status: BookingStatus | "All" = "All",
+): Promise<BookingRecord[]> {
   let query = supabase
     .from("bookings")
-    .select(
-      `
-      *,
-      customer:profiles!customer_id(
-        id,
-        first_name,
-        middle_name,
-        last_name,
-        email,
-        phone
-      ),
-      worker:profiles!worker_id(
-        id,
-        first_name,
-        middle_name,
-        last_name,
-        email,
-        phone
-      )
-    `,
-    )
+    .select(BOOKING_DETAILS_SELECT)
     .order("created_at", {
       ascending: false,
     });
 
   if (status !== "All") {
-    query = query.eq("status", status);
+    query = query.eq("status", validateBookingStatus(status));
   }
 
   const { data, error } = await query;
@@ -137,45 +351,31 @@ export async function getBookings(status = "All") {
     throw error;
   }
 
-  return data ?? [];
+  return (data ?? []) as BookingRecord[];
 }
 
 // =========================
 // GET SINGLE BOOKING
 // =========================
 
-export async function getBooking(id: string) {
+export async function getBooking(
+  id: string | number,
+): Promise<BookingRecord> {
   const { data, error } = await supabase
     .from("bookings")
-    .select(
-      `
-      *,
-      customer:profiles!customer_id(
-        id,
-        first_name,
-        middle_name,
-        last_name,
-        email,
-        phone
-      ),
-      worker:profiles!worker_id(
-        id,
-        first_name,
-        middle_name,
-        last_name,
-        email,
-        phone
-      )
-    `,
-    )
-    .eq("id", id)
+    .select(BOOKING_DETAILS_SELECT)
+    .eq("id", validateBookingLookupId(id))
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  if (!data) {
+    throw new Error("Booking not found.");
+  }
+
+  return data as BookingRecord;
 }
 
 // =========================
@@ -184,23 +384,26 @@ export async function getBooking(id: string) {
 
 export async function updateBookingStatus(
   bookingId: number,
-  status: "Pending" | "Approved" | "Completed" | "Cancelled",
-) {
+  status: BookingStatus,
+): Promise<BookingRecord> {
+  const validBookingId = validateBookingId(bookingId);
+  const validStatus = validateBookingStatus(status);
+
   const updateData: {
-    status: typeof status;
-    completion_status?: "Completed";
+    status: BookingStatus;
+    completion_status?: typeof COMPLETION_STATUS.COMPLETED;
   } = {
-    status,
+    status: validStatus,
   };
 
-  if (status === "Completed") {
-    updateData.completion_status = "Completed";
+  if (validStatus === BOOKING_STATUS.COMPLETED) {
+    updateData.completion_status = COMPLETION_STATUS.COMPLETED;
   }
 
-  const { data: booking, error } = await supabase
+  const { data, error } = await supabase
     .from("bookings")
     .update(updateData)
-    .eq("id", bookingId)
+    .eq("id", validBookingId)
     .select()
     .single();
 
@@ -208,53 +411,48 @@ export async function updateBookingStatus(
     throw error;
   }
 
-  if (status === "Completed") {
-    await createNotification(
-      booking.customer_id,
-      booking.id,
-      "Job Completed",
-      "Your booking has been completed. You may now leave a review.",
-    );
+  if (!data) {
+    throw new Error("Booking status update failed.");
+  }
 
-    // =========================
-    // NOTIFY ADMINS
-    // =========================
+  const booking = data as BookingRecord;
 
-    const { data: admins, error: adminError } = await supabase
-      .from("profiles")
-      .select("id")
-      .ilike("role", "admin");
-
-    if (adminError) {
-      console.error(adminError);
-    }
-
-    if (admins) {
-      for (const admin of admins) {
-        await createNotification(
-          admin.id,
-          booking.id,
-          "Booking Completed",
-          "A booking has been completed.",
-        );
-      }
-    }
+  if (validStatus === BOOKING_STATUS.COMPLETED) {
+    await Promise.all([
+      notifyUserSafely(
+        booking.customer_id,
+        booking.id,
+        "Job Completed",
+        "Your booking has been completed. You may now leave a review.",
+      ),
+      notifyAdminsSafely(
+        booking.id,
+        "Booking Completed",
+        "A booking has been completed.",
+      ),
+    ]);
   }
 
   return booking;
 }
+
 // =========================
 // WORKER ACCEPT BOOKING
 // =========================
 
-export async function acceptBooking(id: number) {
-  const { data: booking, error } = await supabase
+export async function acceptBooking(
+  id: number,
+): Promise<BookingRecord> {
+  const bookingId = validateBookingId(id);
+
+  const { data, error } = await supabase
     .from("bookings")
     .update({
-      status: "Approved",
-      schedule_status: "Pending",
+      status: BOOKING_STATUS.APPROVED,
+      schedule_status: SCHEDULE_STATUS.PENDING,
     })
-    .eq("id", id)
+    .eq("id", bookingId)
+    .eq("status", BOOKING_STATUS.PENDING)
     .select()
     .single();
 
@@ -262,54 +460,42 @@ export async function acceptBooking(id: number) {
     throw error;
   }
 
-  // Notify Customer
-
-  await createNotification(
-    booking.customer_id,
-    booking.id,
-    "Booking Approved",
-    "Your booking has been approved by the worker.",
-  );
-
-  // =========================
-  // NOTIFY ADMINS
-  // =========================
-
-  const { data: admins, error: adminError } = await supabase
-    .from("profiles")
-    .select("id")
-    .ilike("role", "admin");
-
-  if (adminError) {
-    console.error(adminError);
+  if (!data) {
+    throw new Error(
+      "Booking approval failed. The booking may no longer be pending.",
+    );
   }
 
-  if (admins) {
-    for (const admin of admins) {
-      await createNotification(
-        admin.id,
-        booking.id,
-        "Booking Approved",
-        "A worker approved a booking.",
-      );
-    }
+  const booking = data as BookingRecord;
+
+  try {
+    await createSchedule({
+      booking_id: booking.id,
+      worker_id: booking.worker_id,
+      customer_id: booking.customer_id,
+      schedule_date: booking.booking_date,
+      schedule_time: booking.booking_time,
+      address: booking.address,
+      status: SCHEDULE_STATUS.SCHEDULED,
+    });
+  } catch (error) {
+    await rollbackAcceptedBooking(booking.id);
+    throw error;
   }
 
-  await createSchedule({
-    booking_id: booking.id,
-
-    worker_id: booking.worker_id,
-
-    customer_id: booking.customer_id,
-
-    schedule_date: booking.booking_date,
-
-    schedule_time: booking.booking_time,
-
-    address: booking.address,
-
-    status: "Scheduled",
-  });
+  await Promise.all([
+    notifyUserSafely(
+      booking.customer_id,
+      booking.id,
+      "Booking Approved",
+      "Your booking has been approved by the worker.",
+    ),
+    notifyAdminsSafely(
+      booking.id,
+      "Booking Approved",
+      "A worker approved a booking.",
+    ),
+  ]);
 
   return booking;
 }
@@ -318,13 +504,18 @@ export async function acceptBooking(id: number) {
 // WORKER REJECT BOOKING
 // =========================
 
-export async function rejectBooking(id: number) {
-  const { data: booking, error } = await supabase
+export async function rejectBooking(
+  id: number,
+): Promise<BookingRecord> {
+  const bookingId = validateBookingId(id);
+
+  const { data, error } = await supabase
     .from("bookings")
     .update({
-      status: "Cancelled",
+      status: BOOKING_STATUS.CANCELLED,
     })
-    .eq("id", id)
+    .eq("id", bookingId)
+    .eq("status", BOOKING_STATUS.PENDING)
     .select()
     .single();
 
@@ -332,38 +523,27 @@ export async function rejectBooking(id: number) {
     throw error;
   }
 
-  // Notify Customer
-
-  await createNotification(
-    booking.customer_id,
-    booking.id,
-    "Booking Cancelled",
-    "Unfortunately, the worker cancelled your booking.",
-  );
-
-  // =========================
-  // NOTIFY ADMINS
-  // =========================
-
-  const { data: admins, error: adminError } = await supabase
-    .from("profiles")
-    .select("id")
-    .ilike("role", "admin");
-
-  if (adminError) {
-    console.error(adminError);
+  if (!data) {
+    throw new Error(
+      "Booking rejection failed. The booking may no longer be pending.",
+    );
   }
 
-  if (admins) {
-    for (const admin of admins) {
-      await createNotification(
-        admin.id,
-        booking.id,
-        "Booking Cancelled",
-        "A worker rejected a booking.",
-      );
-    }
-  }
+  const booking = data as BookingRecord;
+
+  await Promise.all([
+    notifyUserSafely(
+      booking.customer_id,
+      booking.id,
+      "Booking Cancelled",
+      "Unfortunately, the worker cancelled your booking.",
+    ),
+    notifyAdminsSafely(
+      booking.id,
+      "Booking Cancelled",
+      "A worker rejected a booking.",
+    ),
+  ]);
 
   return booking;
 }
@@ -372,38 +552,10 @@ export async function rejectBooking(id: number) {
 // GET BOOKING BY ID
 // =========================
 
-export async function getBookingById(id: number) {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select(
-      `
-        *,
-        customer:profiles!customer_id(
-          id,
-          first_name,
-          middle_name,
-          last_name,
-          email,
-          phone
-        ),
-        worker:profiles!worker_id(
-          id,
-          first_name,
-          middle_name,
-          last_name,
-          email,
-          phone
-        )
-      `,
-    )
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+export async function getBookingById(
+  id: number,
+): Promise<BookingRecord> {
+  return getBooking(validateBookingId(id));
 }
 
 // =========================
@@ -414,62 +566,64 @@ export async function isWorkerAvailable(
   workerId: string,
   bookingDate: string,
   bookingTime: string,
-) {
+): Promise<boolean> {
+  const validWorkerId = validateRequiredText(workerId, "Worker ID");
+  const validBookingDate = validateRequiredText(
+    bookingDate,
+    "Booking date",
+  );
+  const validBookingTime = validateRequiredText(
+    bookingTime,
+    "Booking time",
+  );
+
   const { data: booked, error: bookingError } = await supabase
     .from("bookings")
     .select("id")
-    .eq("worker_id", workerId)
-    .eq("booking_date", bookingDate)
-    .eq("booking_time", bookingTime)
-    .neq("status", "Cancelled");
+    .eq("worker_id", validWorkerId)
+    .eq("booking_date", validBookingDate)
+    .eq("booking_time", validBookingTime)
+    .neq("status", BOOKING_STATUS.CANCELLED)
+    .limit(1);
 
   if (bookingError) {
     throw bookingError;
   }
 
-  if (booked && booked.length > 0) {
+  if ((booked?.length ?? 0) > 0) {
     return false;
   }
 
   const { data: unavailable, error: unavailableError } = await supabase
     .from("unavailable_dates")
     .select("id")
-    .eq("worker_id", workerId)
-    .eq("unavailable_date", bookingDate);
+    .eq("worker_id", validWorkerId)
+    .eq("unavailable_date", validBookingDate)
+    .limit(1);
 
   if (unavailableError) {
     throw unavailableError;
   }
 
-  if (unavailable && unavailable.length > 0) {
-    return false;
-  }
-
-  return true;
+  return (unavailable?.length ?? 0) === 0;
 }
 
 // ===========================
 // CUSTOMER BOOKINGS
 // ===========================
 
-export async function getCustomerBookings(customerId: string) {
+export async function getCustomerBookings(
+  customerId: string,
+): Promise<BookingRecord[]> {
+  const validCustomerId = validateRequiredText(
+    customerId,
+    "Customer ID",
+  );
+
   const { data, error } = await supabase
     .from("bookings")
-    .select(
-      `
-        *,
-        worker:profiles!bookings_worker_id_fkey(
-          id,
-          first_name,
-          middle_name,
-          last_name,
-          profile_picture,
-          phone,
-          email
-        )
-      `,
-    )
-    .eq("customer_id", customerId)
+    .select(CUSTOMER_BOOKINGS_SELECT)
+    .eq("customer_id", validCustomerId)
     .order("created_at", {
       ascending: false,
     });
@@ -478,23 +632,34 @@ export async function getCustomerBookings(customerId: string) {
     throw error;
   }
 
-  return data ?? [];
+  return (data ?? []) as BookingRecord[];
 }
 
 // ===========================
 // CANCEL BOOKING
 // ===========================
 
-export async function cancelBooking(id: number) {
-  const { error } = await supabase
+export async function cancelBooking(id: number): Promise<void> {
+  const bookingId = validateBookingId(id);
+
+  const { data, error } = await supabase
     .from("bookings")
     .update({
-      status: "Cancelled",
+      status: BOOKING_STATUS.CANCELLED,
     })
-    .eq("id", id);
+    .eq("id", bookingId)
+    .neq("status", BOOKING_STATUS.COMPLETED)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     throw error;
+  }
+
+  if (!data) {
+    throw new Error(
+      "Booking cancellation failed. Completed or missing bookings cannot be cancelled.",
+    );
   }
 }
 
@@ -502,26 +667,27 @@ export async function cancelBooking(id: number) {
 // BOOKING TIMELINE
 // ===========================
 
-export function getBookingTimeline(status: string) {
+export function getBookingTimeline(
+  status: string,
+): BookingTimelineItem[] {
   return [
     {
       title: "Booking Submitted",
       done: true,
     },
-
     {
       title: "Worker Approved",
-      done: status !== "Pending",
+      done: status !== BOOKING_STATUS.PENDING,
     },
-
     {
       title: "Work In Progress",
-      done: status === "Completed" || status === "Approved",
+      done:
+        status === BOOKING_STATUS.APPROVED ||
+        status === BOOKING_STATUS.COMPLETED,
     },
-
     {
       title: "Completed",
-      done: status === "Completed",
+      done: status === BOOKING_STATUS.COMPLETED,
     },
   ];
 }

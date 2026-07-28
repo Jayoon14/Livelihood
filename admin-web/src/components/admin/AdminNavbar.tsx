@@ -1,22 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
-  UserCircle,
   ChevronDown,
-  User,
-  Pencil,
   LogOut,
+  Pencil,
+  User,
+  UserCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { useProfile } from "../../context/ProfileContext";
+import { useRealtimeTableVersion } from "../../providers/RealtimeProvider";
 import { supabase } from "../../lib/supabase";
 import { logout } from "../../services/authService";
 import { getUnreadCount } from "../../services/notificationService";
-import { useProfile } from "../../context/ProfileContext";
 
 export default function AdminNavbar() {
   const navigate = useNavigate();
-
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
@@ -24,58 +24,46 @@ export default function AdminNavbar() {
 
   const { profile } = useProfile();
 
-  async function loadUnread() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  /*
+   * Tumataas ang value na ito kapag may INSERT, UPDATE,
+   * o DELETE sa notifications table.
+   */
+  const notificationsVersion =
+    useRealtimeTableVersion("notifications");
 
-    if (!user) return;
-
+  const loadUnread = useCallback(async () => {
     try {
-      const count = await getUnreadCount(user.id);
-      setUnreadCount(count);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | undefined;
-
-    async function initialize() {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      if (!user) return;
-
-      await loadUnread();
-
-      channel = supabase
-        .channel("admin-navbar")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            loadUnread();
-          },
-        )
-        .subscribe();
-    }
-
-    initialize();
-
-    return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (userError) {
+        throw userError;
       }
-    };
+
+      if (!user) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const count = await getUnreadCount(user.id);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error(
+        "Unable to load admin notification count:",
+        error,
+      );
+    }
   }, []);
+
+  /*
+   * Initial load at automatic reload kapag may pagbabago
+   * sa notifications table mula sa RealtimeProvider.
+   */
+  useEffect(() => {
+    void loadUnread();
+  }, [loadUnread, notificationsVersion]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -90,114 +78,130 @@ export default function AdminNavbar() {
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
     };
   }, []);
 
   async function handleLogout() {
-    await logout();
-    navigate("/");
+    try {
+      await logout();
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Admin logout failed:", error);
+    }
   }
 
   const fullName = profile
-    ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim()
+    ? `${profile.first_name ?? ""} ${
+        profile.last_name ?? ""
+      }`.trim() || "Administrator"
     : "Administrator";
 
   const email = profile?.email ?? "";
-
-  const avatar = profile?.profile_picture || "";
+  const avatar = profile?.profile_picture ?? "";
 
   return (
-    <header className="bg-white shadow-sm border-b h-20 flex items-center justify-between px-8">
-      {/* LEFT */}
-
+    <header className="flex h-20 items-center justify-between border-b bg-white px-8 shadow-sm">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">
           Administrator Dashboard
         </h1>
 
-        <p className="text-gray-500">Welcome back, {fullName}</p>
+        <p className="text-gray-500">
+          Welcome back, {fullName}
+        </p>
       </div>
 
-      {/* RIGHT */}
-
       <div className="flex items-center gap-6">
-        {/* Notifications */}
-
         <button
+          type="button"
           onClick={() => navigate("/admin/notifications")}
-          className="relative"
+          className="relative rounded-lg p-2 transition hover:bg-gray-100"
+          aria-label={`Notifications${
+            unreadCount > 0
+              ? `, ${unreadCount} unread`
+              : ""
+          }`}
         >
           <Bell size={24} className="text-gray-700" />
 
           {unreadCount > 0 && (
-            <span
-              className="
-                absolute
-                -top-2
-                -right-2
-                bg-red-600
-                text-white
-                rounded-full
-                min-w-[20px]
-                h-5
-                px-1
-                flex
-                items-center
-                justify-center
-                text-xs
-              "
-            >
-              {unreadCount}
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </button>
 
-        {/* Profile */}
-
         <div className="relative" ref={dropdownRef}>
           <button
-            onClick={() => setOpen(!open)}
-            className="flex items-center gap-3 hover:bg-gray-100 rounded-xl px-3 py-2 transition"
+            type="button"
+            onClick={() => {
+              setOpen((currentOpen) => !currentOpen);
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-gray-100"
+            aria-expanded={open}
+            aria-haspopup="menu"
           >
             {avatar ? (
               <img
                 src={avatar}
-                alt="Profile"
-                className="w-11 h-11 rounded-full object-cover border-2 border-red-600"
+                alt={`${fullName} profile`}
+                className="h-11 w-11 rounded-full border-2 border-red-600 object-cover"
               />
             ) : (
-              <UserCircle size={42} className="text-red-600" />
+              <UserCircle
+                size={42}
+                className="text-red-600"
+              />
             )}
 
             <div className="text-left">
               <p className="font-semibold">{fullName}</p>
 
-              <p className="text-sm text-gray-500">{email}</p>
+              {email && (
+                <p className="text-sm text-gray-500">
+                  {email}
+                </p>
+              )}
             </div>
 
-            <ChevronDown size={18} />
+            <ChevronDown
+              size={18}
+              className={`transition-transform ${
+                open ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
           {open && (
-            <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-50">
+            <div
+              role="menu"
+              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border bg-white shadow-xl"
+            >
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => {
                   setOpen(false);
                   navigate("/admin/profile");
                 }}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
+                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
               >
                 <User size={20} />
                 My Profile
               </button>
 
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => {
                   setOpen(false);
                   navigate("/admin/profile/edit");
                 }}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-100"
+                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
               >
                 <Pencil size={20} />
                 Edit Profile
@@ -206,8 +210,12 @@ export default function AdminNavbar() {
               <hr />
 
               <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-5 py-3 text-red-600 hover:bg-red-50"
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  void handleLogout();
+                }}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left text-red-600 hover:bg-red-50"
               >
                 <LogOut size={20} />
                 Logout

@@ -1,36 +1,81 @@
 import { supabase } from "../lib/supabase";
 
-export async function getDashboardStats() {
-  // Total Workers
-  const workers = await supabase
-    .from("profiles")
+export interface DashboardStats {
+  workers: number;
+  customers: number;
+  pending: number;
+  bookings: number;
+}
+
+export interface BookingStatusCounts {
+  Pending: number;
+  Approved: number;
+  Completed: number;
+  Cancelled: number;
+}
+
+export interface MonthlyBookingData {
+  month: string;
+  bookings: number;
+}
+
+export interface TopWorker {
+  worker: string;
+  rating: number;
+  reviews: number;
+}
+
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+const wrap = (e: unknown, msg: string) =>
+  e instanceof Error ? e : new Error(msg);
+
+async function countRows(
+  table: string,
+  column: string,
+  value: string,
+  extra?: { column: string; value: string },
+) {
+  let q = supabase
+    .from(table)
     .select("*", { count: "exact", head: true })
-    .eq("role", "worker");
+    .eq(column, value);
+  if (extra) q = q.eq(extra.column, extra.value);
+  const { count, error } = await q;
+  if (error) throw wrap(error, "Unable to count rows.");
+  return count ?? 0;
+}
 
-  // Total Customers (UPDATED)
-  const customers = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "customer");
-
-  // Pending Workers
-  const pending = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "worker")
-    .eq("status", "Pending");
-
-  // Total Bookings
-  const bookings = await supabase
-    .from("bookings")
-    .select("*", { count: "exact", head: true });
-
-  return {
-    workers: workers.count ?? 0,
-    customers: customers.count ?? 0,
-    pending: pending.count ?? 0,
-    bookings: bookings.count ?? 0,
-  };
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const [workers, customers, pending, bookings] = await Promise.all([
+    countRows("profiles", "role", "worker"),
+    countRows("profiles", "role", "customer"),
+    countRows("profiles", "role", "worker", {
+      column: "status",
+      value: "Pending",
+    }),
+    (async () => {
+      const { count, error } = await supabase
+        .from("bookings")
+        .select("*", { count: "exact", head: true });
+      if (error) throw wrap(error, "Unable to count bookings.");
+      return count ?? 0;
+    })(),
+  ]);
+  return { workers, customers, pending, bookings };
 }
 
 export async function getRecentWorkers() {
@@ -40,10 +85,8 @@ export async function getRecentWorkers() {
     .eq("role", "worker")
     .order("created_at", { ascending: false })
     .limit(10);
-
-  if (error) throw error;
-
-  return data;
+  if (error) throw wrap(error, "Unable to load workers.");
+  return data ?? [];
 }
 
 export async function getPendingWorkers() {
@@ -54,168 +97,75 @@ export async function getPendingWorkers() {
     .eq("status", "Pending")
     .order("created_at", { ascending: false })
     .limit(5);
-
-  if (error) throw error;
-
-  return data;
+  if (error) throw wrap(error, "Unable to load pending workers.");
+  return data ?? [];
 }
-// ======================================
-// BOOKINGS PER STATUS
-// ======================================
 
-export async function getBookingStatusCounts() {
+export async function getBookingStatusCounts(): Promise<BookingStatusCounts> {
   const { data, error } = await supabase.from("bookings").select("status");
-
-  if (error) throw error;
-
-  const counts = {
-    Pending: 0,
-    Approved: 0,
-    Completed: 0,
-    Cancelled: 0,
-  };
-
-  data?.forEach((item) => {
-    if (item.status === "Pending") counts.Pending++;
-    if (item.status === "Approved") counts.Approved++;
-    if (item.status === "Completed") counts.Completed++;
-    if (item.status === "Cancelled") counts.Cancelled++;
+  if (error) throw wrap(error, "Unable to load booking status.");
+  const c = { Pending: 0, Approved: 0, Completed: 0, Cancelled: 0 };
+  (data ?? []).forEach((b: { status: string }) => {
+    if (b.status in c) (c as any)[b.status]++;
   });
-
-  return counts;
+  return c;
 }
 
-// ======================================
-// MONTHLY BOOKINGS
-// ======================================
-
-export async function getMonthlyBookings() {
+export async function getMonthlyBookings(): Promise<MonthlyBookingData[]> {
   const { data, error } = await supabase.from("bookings").select("created_at");
-
-  if (error) throw error;
-
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const result = months.map((month) => ({
-    month,
-    bookings: 0,
-  }));
-
-  data?.forEach((item) => {
-    const date = new Date(item.created_at);
-    const index = date.getMonth();
-
-    result[index].bookings++;
-  });
-
-  return result;
+  if (error) throw wrap(error, "Unable to load monthly bookings.");
+  const r = MONTHS.map((m) => ({ month: m, bookings: 0 }));
+  (data ?? []).forEach(
+    (b: { created_at: string }) =>
+      r[new Date(b.created_at).getMonth()].bookings++,
+  );
+  return r;
 }
-
-// ======================================
-// RECENT BOOKINGS
-// ======================================
 
 export async function getRecentBookings() {
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      `
-      *,
-      worker:profiles!worker_id(
-        first_name,
-        last_name
-      ),
-      customer:profiles!customer_id(
-        first_name,
-        last_name
-      )
-    `,
+      `*,worker:profiles!worker_id(first_name,last_name),customer:profiles!customer_id(first_name,last_name)`,
     )
-    .order("created_at", {
-      ascending: false,
-    })
+    .order("created_at", { ascending: false })
     .limit(10);
-
-  if (error) throw error;
-
-  return data;
+  if (error) throw wrap(error, "Unable to load recent bookings.");
+  return data ?? [];
 }
-
-// ======================================
-// RECENT ACTIVITIES
-// ======================================
 
 export async function getRecentActivities() {
   const { data, error } = await supabase
     .from("activities")
     .select("*")
-    .order("created_at", {
-      ascending: false,
-    })
+    .order("created_at", { ascending: false })
     .limit(10);
-
   if (error) return [];
-
-  return data;
+  return data ?? [];
 }
-// ======================================
-// TOP RATED WORKERS
-// ======================================
 
-export async function getTopWorkers() {
-  const { data, error } = await supabase.from("reviews").select(`
-      rating,
-      worker:profiles!reviews_worker_id_fkey(
-        first_name,
-        last_name
-      )
-    `);
-
-  if (error) throw error;
-
-  const workers: Record<
-    string,
-    {
-      worker: string;
-      totalRating: number;
-      totalReviews: number;
-    }
-  > = {};
-
-  data?.forEach((item: any) => {
-    const workerName =
-      `${item.worker?.first_name ?? ""} ${item.worker?.last_name ?? ""}`.trim();
-
-    if (!workers[workerName]) {
-      workers[workerName] = {
-        worker: workerName,
-        totalRating: 0,
-        totalReviews: 0,
-      };
-    }
-
-    workers[workerName].totalRating += item.rating;
-    workers[workerName].totalReviews++;
+export async function getTopWorkers(): Promise<TopWorker[]> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
+      `rating,worker:profiles!reviews_worker_id_fkey(first_name,last_name)`,
+    );
+  if (error) throw wrap(error, "Unable to load top workers.");
+  const map = new Map<string, { total: number; reviews: number }>();
+  (data ?? []).forEach((i: any) => {
+    const n =
+      `${i.worker?.first_name ?? ""} ${i.worker?.last_name ?? ""}`.trim() ||
+      "Unknown";
+    const e = map.get(n) ?? { total: 0, reviews: 0 };
+    e.total += Number(i.rating ?? 0);
+    e.reviews++;
+    map.set(n, e);
   });
-
-  return Object.values(workers)
-    .map((worker) => ({
-      worker: worker.worker,
-      rating: Number((worker.totalRating / worker.totalReviews).toFixed(1)),
-      reviews: worker.totalReviews,
+  return [...map.entries()]
+    .map(([worker, v]) => ({
+      worker,
+      rating: Number((v.total / v.reviews).toFixed(1)),
+      reviews: v.reviews,
     }))
     .sort((a, b) => b.rating - a.rating);
 }

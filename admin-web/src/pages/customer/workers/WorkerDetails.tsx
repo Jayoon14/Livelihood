@@ -61,7 +61,7 @@ export default function WorkerDetails() {
       // Default selected service
       if (data.services?.length > 0) {
         setService(data.services[0].service_name ?? "");
-        setEstimatedPrice(data.services[0].price ?? 0);
+        setEstimatedPrice(Number(data.services[0].price ?? 0));
       }
 
       const edu = await getEducation(id!);

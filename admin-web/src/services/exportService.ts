@@ -3,7 +3,32 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-export function exportToPDF(summary: any) {
+export interface ReportSummary {
+  workers: number;
+  customers: number;
+  bookings: number;
+  completed: number;
+}
+
+function validateSummary(summary: ReportSummary): void {
+  const fields: (keyof ReportSummary)[] = [
+    "workers",
+    "customers",
+    "bookings",
+    "completed",
+  ];
+
+  for (const field of fields) {
+    const value = summary[field];
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Invalid value for ${field}.`);
+    }
+  }
+}
+
+export function exportToPDF(summary: ReportSummary): void {
+  validateSummary(summary);
+
   const doc = new jsPDF();
 
   doc.setFontSize(20);
@@ -23,29 +48,30 @@ export function exportToPDF(summary: any) {
   doc.save("LivelihoodGo-Report.pdf");
 }
 
-export function exportToExcel(summary: any) {
-  const data = [
+export function exportToExcel(summary: ReportSummary): void {
+  validateSummary(summary);
+
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet([
     {
       Workers: summary.workers,
       Customers: summary.customers,
       Bookings: summary.bookings,
       Completed: summary.completed,
     },
-  ];
+  ]);
 
-  const sheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
 
-  XLSX.utils.book_append_sheet(workbook, sheet, "Reports");
-
-  const excelBuffer = XLSX.write(workbook, {
+  const buffer = XLSX.write(workbook, {
     bookType: "xlsx",
     type: "array",
   });
 
-  const file = new Blob([excelBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  saveAs(file, "LivelihoodGo-Report.xlsx");
+  saveAs(
+    new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    "LivelihoodGo-Report.xlsx",
+  );
 }

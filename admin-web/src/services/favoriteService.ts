@@ -1,59 +1,92 @@
 import { supabase } from "../lib/supabase";
 
-// =============================
-// ADD FAVORITE
-// =============================
-
-export async function addFavorite(customerId: string, workerId: string) {
-  const { error } = await supabase.from("favorites").insert({
-    customer_id: customerId,
-    worker_id: workerId,
-  });
-
-  if (error) throw error;
+export interface FavoriteWorker {
+  id: string;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  profile_picture: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
-// =============================
-// REMOVE FAVORITE
-// =============================
+type WorkerRelation = FavoriteWorker | FavoriteWorker[] | null;
 
-export async function removeFavorite(customerId: string, workerId: string) {
+function requireId(value: string, field: string): string {
+  const id = value.trim();
+  if (!id) throw new Error(`${field} is required.`);
+  return id;
+}
+
+function wrapError(error: unknown, fallback: string): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === "object" && error && "message" in error) {
+    return new Error(String((error as { message: unknown }).message));
+  }
+  return new Error(fallback);
+}
+
+function normalizeWorker(worker: WorkerRelation): FavoriteWorker | null {
+  return Array.isArray(worker) ? (worker[0] ?? null) : (worker ?? null);
+}
+
+export async function addFavorite(
+  customerId: string,
+  workerId: string,
+): Promise<void> {
+  const customer = requireId(customerId, "Customer ID");
+  const worker = requireId(workerId, "Worker ID");
+
+  const { error } = await supabase
+    .from("favorites")
+    .upsert(
+      { customer_id: customer, worker_id: worker },
+      { onConflict: "customer_id,worker_id" },
+    );
+
+  if (error) throw wrapError(error, "Unable to add favorite worker.");
+}
+
+export async function removeFavorite(
+  customerId: string,
+  workerId: string,
+): Promise<void> {
+  const customer = requireId(customerId, "Customer ID");
+  const worker = requireId(workerId, "Worker ID");
+
   const { error } = await supabase
     .from("favorites")
     .delete()
-    .eq("customer_id", customerId)
-    .eq("worker_id", workerId);
+    .eq("customer_id", customer)
+    .eq("worker_id", worker);
 
-  if (error) throw error;
+  if (error) throw wrapError(error, "Unable to remove favorite worker.");
 }
-
-// =============================
-// CHECK FAVORITE
-// =============================
 
 export async function isFavorite(
   customerId: string,
   workerId: string,
 ): Promise<boolean> {
+  const customer = requireId(customerId, "Customer ID");
+  const worker = requireId(workerId, "Worker ID");
+
   const { data, error } = await supabase
     .from("favorites")
     .select("id")
-    .eq("customer_id", customerId)
-    .eq("worker_id", workerId)
+    .eq("customer_id", customer)
+    .eq("worker_id", worker)
     .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw wrapError(error, "Unable to check favorite worker.");
 
-  return Boolean(data);
+  return data !== null;
 }
 
-// =============================
-// GET FAVORITES
-// =============================
+export async function getFavoriteWorkers(
+  customerId: string,
+): Promise<FavoriteWorker[]> {
+  const customer = requireId(customerId, "Customer ID");
 
-export async function getFavoriteWorkers(customerId: string) {
   const { data, error } = await supabase
     .from("favorites")
     .select(
@@ -69,11 +102,11 @@ export async function getFavoriteWorkers(customerId: string) {
       )
     `,
     )
-    .eq("customer_id", customerId);
+    .eq("customer_id", customer);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw wrapError(error, "Unable to load favorite workers.");
 
-  return (data ?? []).map((item: any) => item.worker);
+  return (data ?? [])
+    .map((item) => normalizeWorker((item as { worker: WorkerRelation }).worker))
+    .filter((worker): worker is FavoriteWorker => worker !== null);
 }

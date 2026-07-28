@@ -1,38 +1,117 @@
-import { Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { Navigate, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
 
-type Props = {
-  children: React.ReactNode;
+import { useAuth, type UserRole } from "../context/AuthContext";
+
+type ProtectedRouteProps = {
+  children: ReactNode;
+  allowedRoles?: UserRole[];
+  requireApproved?: boolean;
 };
 
-export default function ProtectedRoute({ children }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+function isApproved(status: string | null) {
+  return status?.trim().toLowerCase() === "approved";
+}
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+function getDashboardByRole(role: UserRole | null) {
+  switch (role) {
+    case "admin":
+      return "/dashboard";
 
-  async function checkUser() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    case "worker":
+      return "/worker/dashboard";
 
-    setAuthenticated(!!session);
-    setLoading(false);
+    case "customer":
+      return "/customer/dashboard";
+
+    default:
+      return "/";
   }
+}
+
+export default function ProtectedRoute({
+  children,
+  allowedRoles,
+  requireApproved = false,
+}: ProtectedRouteProps) {
+  const location = useLocation();
+
+  const {
+    loading,
+    user,
+    profile,
+    role,
+    status,
+  } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        Loading...
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-11 w-11 animate-spin rounded-full border-4 border-slate-200 border-t-emerald-600" />
+          <p className="font-semibold text-slate-700">
+            Checking your account...
+          </p>
+        </div>
       </div>
     );
   }
 
-  if (!authenticated) {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          from: location.pathname,
+          message: "Please log in to continue.",
+        }}
+      />
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Navigate
+        to="/unauthorized"
+        replace
+        state={{
+          message: "Your account profile could not be verified.",
+        }}
+      />
+    );
+  }
+
+  if (
+    allowedRoles &&
+    allowedRoles.length > 0 &&
+    role &&
+    !allowedRoles.includes(role)
+  ) {
+    return (
+      <Navigate
+        to={getDashboardByRole(role)}
+        replace
+        state={{
+          message:
+            "You do not have permission to access that page.",
+        }}
+      />
+    );
+  }
+
+  if (requireApproved && !isApproved(status)) {
+    return (
+      <Navigate
+        to="/account-pending"
+        replace
+        state={{
+          status,
+          message:
+            "Your account must be approved before accessing this page.",
+        }}
+      />
+    );
   }
 
   return <>{children}</>;
