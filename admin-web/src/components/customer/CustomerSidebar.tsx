@@ -67,15 +67,14 @@ export default function CustomerSidebar({
       {/* Sidebar */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50
-          flex min-h-screen w-64 flex-col
-          relative overflow-hidden
-          text-white shadow-xl
-          transform transition-transform duration-300
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:static
-          lg:translate-x-0
-        `}
+    fixed inset-y-0 left-0 z-50
+    flex h-screen w-64 flex-col
+    overflow-hidden text-white shadow-xl
+    transform transition-transform duration-300 ease-in-out
+    ${isOpen ? "translate-x-0" : "-translate-x-full"}
+    lg:static lg:h-auto lg:min-h-screen
+    lg:translate-x-0 lg:shrink-0
+  `}
         style={{
           background:
             "linear-gradient(160deg,#2B3BF5 0%,#5B3DF0 35%,#3B7EF0 70%,#17BFE0 100%)",

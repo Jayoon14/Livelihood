@@ -1,77 +1,142 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-// ================= AUTH =================
-import Login from "../pages/auth/Login";
-import Register from "../pages/auth/Register";
-import RegisterChoice from "../pages/auth/RegisterChoice";
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import ResetPassword from "../pages/auth/ResetPassword";
-
-// ================= CUSTOMER AUTH =================
-import CustomerLogin from "../pages/auth/customer/Login";
-import CustomerRegister from "../pages/auth/customer/Register";
-
-// ================= WORKER AUTH =================
-import WorkerRegister from "../pages/auth/worker/Register";
-
-// ================= ADMIN =================
-import Dashboard from "../pages/admin/dashboard/Dashboard";
-import AdminBookings from "../pages/admin/bookings/Bookings";
-import BookingHistory from "../pages/admin/bookings/BookingHistory";
-import Workers from "../pages/admin/workers/Workers";
-import WorkerDetails from "../pages/admin/workers/WorkerDetails";
-import Customers from "../pages/admin/customers/Customers";
-import CustomerDetails from "../pages/admin/customers/CustomerDetails";
-import Reports from "../pages/admin/reports/Reports";
-import Payments from "../pages/admin/payments/Payments";
-import ActivityLogs from "../pages/admin/activity/ActivityLogs";
-import AdminNotifications from "../pages/admin/notifications/Notifications";
-
-// ================= CUSTOMER =================
-import CustomerDashboard from "../pages/customer/dashboard/CustomerDashboard";
-import CustomerWorkers from "../pages/customer/workers/Workers";
-import CustomerBookings from "../pages/customer/bookings/Bookings";
-import BookingDetails from "../pages/customer/bookings/BookingDetails";
-import BookWorker from "../pages/customer/bookings/BookWorker";
-import TrackWorker from "../pages/customer/tracking/TrackWorker";
-import Profile from "../pages/customer/profile/Profile";
-import CustomerSettings from "../pages/customer/profile/Settings";
-import Notifications from "../pages/customer/notifications/Notifications";
-import CustomerWorkerProfile from "../pages/customer/workers/WorkerProfile";
-import Categories from "../pages/customer/categories/Categories";
-import WorkersByCategory from "../pages/customer/categories/WorkersByCategory";
-import Favorites from "../pages/customer/favorites/Favorites";
-import BookingConfirmation from "../pages/customer/bookings/BookingConfirmation";
-import CustomerReceipt from "../pages/customer/receipt/CustomerReceipt";
-import PaymentHistory from "../pages/customer/payments/PaymentHistory";
-import CompareWorkers from "../pages/customer/workers/CompareWorkers";
-import CompletionProof from "../pages/customer/bookings/CompletionProof";
-import LeaveReview from "../pages/customer/reviews/LeaveReview";
-import Payment from "../pages/customer/payments/Payment";
-
-// ================= WORKER =================
-import WorkerDashboard from "../pages/worker/dashboard/Dashboard";
-import WorkerBookings from "../pages/worker/bookings/Bookings";
-import WorkerReviews from "../pages/worker/reviews/Reviews";
-import WorkerProfile from "../pages/worker/profile/Profile";
-import WorkerSchedule from "../pages/worker/schedule/Schedule";
-import Services from "../pages/worker/Services/services";
-import NavigateToCustomer from "../pages/worker/navigation/NavigateToCustomer";
-import CompleteJob from "../pages/worker/bookings/CompleteJob";
-import PaymentInformation from "../pages/worker/payment/PaymentInformation";
-import PaymentRequests from "../pages/worker/payment/PaymentRequests";
-import WorkerNotifications from "../pages/worker/notifications/Notifications";
-
-// ================= CHAT =================
-import ChatRoom from "../pages/chat/ChatRoom";
-import ChatList from "../pages/chat/ChatList";
-
-// ================= SECURITY =================
+import PageLoader from "../components/common/PageLoader";
 import ProtectedRoute from "./ProtectedRoute";
-
-// ================= PROVIDERS =================
 import { WorkerLocationProvider } from "../context/WorkerLocationProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
+
+// ================= AUTH =================
+const Login = lazy(() => import("../pages/auth/Login"));
+const Register = lazy(() => import("../pages/auth/Register"));
+const RegisterChoice = lazy(() => import("../pages/auth/RegisterChoice"));
+const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("../pages/auth/ResetPassword"));
+
+// ================= CUSTOMER AUTH =================
+const CustomerLogin = lazy(() => import("../pages/auth/customer/Login"));
+const CustomerRegister = lazy(() => import("../pages/auth/customer/Register"));
+
+// ================= WORKER AUTH =================
+const WorkerRegister = lazy(() => import("../pages/auth/worker/Register"));
+
+// ================= ADMIN =================
+const Dashboard = lazy(() => import("../pages/admin/dashboard/Dashboard"));
+const AdminBookings = lazy(() => import("../pages/admin/bookings/Bookings"));
+const BookingHistory = lazy(
+  () => import("../pages/admin/bookings/BookingHistory"),
+);
+const Workers = lazy(() => import("../pages/admin/workers/Workers"));
+const WorkerDetails = lazy(
+  () => import("../pages/admin/workers/WorkerDetails"),
+);
+const Customers = lazy(() => import("../pages/admin/customers/Customers"));
+const CustomerDetails = lazy(
+  () => import("../pages/admin/customers/CustomerDetails"),
+);
+const Reports = lazy(() => import("../pages/admin/reports/Reports"));
+const Payments = lazy(() => import("../pages/admin/payments/Payments"));
+const ActivityLogs = lazy(
+  () => import("../pages/admin/activity/ActivityLogs"),
+);
+const AdminNotifications = lazy(
+  () => import("../pages/admin/notifications/Notifications"),
+);
+
+// ================= CUSTOMER =================
+const CustomerDashboard = lazy(
+  () => import("../pages/customer/dashboard/CustomerDashboard"),
+);
+const CustomerWorkers = lazy(
+  () => import("../pages/customer/workers/Workers"),
+);
+const CustomerBookings = lazy(
+  () => import("../pages/customer/bookings/Bookings"),
+);
+const BookingDetails = lazy(
+  () => import("../pages/customer/bookings/BookingDetails"),
+);
+const BookWorker = lazy(
+  () => import("../pages/customer/bookings/BookWorker"),
+);
+const TrackWorker = lazy(
+  () => import("../pages/customer/tracking/TrackWorker"),
+);
+const Profile = lazy(() => import("../pages/customer/profile/Profile"));
+const CustomerSettings = lazy(
+  () => import("../pages/customer/profile/Settings"),
+);
+const Notifications = lazy(
+  () => import("../pages/customer/notifications/Notifications"),
+);
+const CustomerWorkerProfile = lazy(
+  () => import("../pages/customer/workers/WorkerProfile"),
+);
+const Categories = lazy(
+  () => import("../pages/customer/categories/Categories"),
+);
+const WorkersByCategory = lazy(
+  () => import("../pages/customer/categories/WorkersByCategory"),
+);
+const Favorites = lazy(
+  () => import("../pages/customer/favorites/Favorites"),
+);
+const BookingConfirmation = lazy(
+  () => import("../pages/customer/bookings/BookingConfirmation"),
+);
+const CustomerReceipt = lazy(
+  () => import("../pages/customer/receipt/CustomerReceipt"),
+);
+const PaymentHistory = lazy(
+  () => import("../pages/customer/payments/PaymentHistory"),
+);
+const CompareWorkers = lazy(
+  () => import("../pages/customer/workers/CompareWorkers"),
+);
+const CompletionProof = lazy(
+  () => import("../pages/customer/bookings/CompletionProof"),
+);
+const LeaveReview = lazy(
+  () => import("../pages/customer/reviews/LeaveReview"),
+);
+const Payment = lazy(() => import("../pages/customer/payments/Payment"));
+
+// ================= WORKER =================
+const WorkerDashboard = lazy(
+  () => import("../pages/worker/dashboard/Dashboard"),
+);
+const WorkerBookings = lazy(
+  () => import("../pages/worker/bookings/Bookings"),
+);
+const WorkerReviews = lazy(
+  () => import("../pages/worker/reviews/Reviews"),
+);
+const WorkerProfile = lazy(
+  () => import("../pages/worker/profile/Profile"),
+);
+const WorkerSchedule = lazy(
+  () => import("../pages/worker/schedule/Schedule"),
+);
+const Services = lazy(() => import("../pages/worker/Services/services"));
+const NavigateToCustomer = lazy(
+  () => import("../pages/worker/navigation/NavigateToCustomer"),
+);
+const CompleteJob = lazy(
+  () => import("../pages/worker/bookings/CompleteJob"),
+);
+const PaymentInformation = lazy(
+  () => import("../pages/worker/payment/PaymentInformation"),
+);
+const PaymentRequests = lazy(
+  () => import("../pages/worker/payment/PaymentRequests"),
+);
+const WorkerNotifications = lazy(
+  () => import("../pages/worker/notifications/Notifications"),
+);
+
+// ================= CHAT =================
+const ChatRoom = lazy(() => import("../pages/chat/ChatRoom"));
+const ChatList = lazy(() => import("../pages/chat/ChatList"));
 
 function UnauthorizedPage() {
   return (
@@ -162,450 +227,452 @@ export default function AppRoutes() {
     <BrowserRouter>
       <RealtimeProvider>
         <WorkerLocationProvider>
-          <Routes>
-            {/* ================= PUBLIC AUTH ROUTES ================= */}
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* ================= PUBLIC AUTH ROUTES ================= */}
 
-            <Route path="/" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/register-choice" element={<RegisterChoice />} />
-            <Route path="/register/customer" element={<CustomerRegister />} />
-            <Route path="/register/worker" element={<WorkerRegister />} />
-            <Route path="/customer/login" element={<CustomerLogin />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/register-choice" element={<RegisterChoice />} />
+              <Route path="/register/customer" element={<CustomerRegister />} />
+              <Route path="/register/worker" element={<WorkerRegister />} />
+              <Route path="/customer/login" element={<CustomerLogin />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Temporary security/status pages. These can be moved into
-                separate page files later without changing the route paths. */}
-            <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            <Route path="/account-pending" element={<AccountPendingPage />} />
+              {/* Temporary security/status pages. These can be moved into
+                  separate page files later without changing the route paths. */}
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              <Route path="/account-pending" element={<AccountPendingPage />} />
 
-            {/* ================= CUSTOMER-ONLY ROUTES ================= */}
+              {/* ================= CUSTOMER-ONLY ROUTES ================= */}
 
-            <Route
-              path="/customer/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerDashboard />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/receipt/:id"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerReceipt />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/receipt/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerReceipt />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/payments"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <PaymentHistory />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/payments"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <PaymentHistory />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/workers"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerWorkers />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/workers"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerWorkers />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/favorites"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <Favorites />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/favorites"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <Favorites />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/booking-confirmation"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <BookingConfirmation />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/booking-confirmation"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <BookingConfirmation />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/book/:workerId"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <BookWorker />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/book/:workerId"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <BookWorker />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/bookings"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerBookings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/bookings"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerBookings />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/tracking/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <TrackWorker />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/tracking/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <TrackWorker />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/bookings/:id"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <BookingDetails />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/bookings/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <BookingDetails />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/profile"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/profile"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/settings"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerSettings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/settings"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerSettings />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <Notifications />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <Notifications />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/workers/:id"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CustomerWorkerProfile />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/workers/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CustomerWorkerProfile />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/review/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <LeaveReview />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/review/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <LeaveReview />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/messages"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <ChatList />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/messages"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <ChatList />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/categories"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <Categories />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/categories"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <Categories />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/categories/:category"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <WorkersByCategory />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/categories/:category"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <WorkersByCategory />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/compare"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CompareWorkers />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/compare"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CompareWorkers />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/completion-proof/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <CompletionProof />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/completion-proof/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <CompletionProof />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customer/payment/:id"
-              element={
-                <ProtectedRoute allowedRoles={["customer"]}>
-                  <Payment />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customer/payment/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <Payment />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ================= WORKER-ONLY ROUTES ================= */}
+              {/* ================= WORKER-ONLY ROUTES ================= */}
 
-            <Route
-              path="/worker/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerDashboard />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/bookings"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerBookings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/bookings"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerBookings />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/navigation/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <NavigateToCustomer />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/navigation/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <NavigateToCustomer />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/bookings/complete/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <CompleteJob />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/bookings/complete/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <CompleteJob />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerNotifications />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerNotifications />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/payment-information"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <PaymentInformation />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/payment-information"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <PaymentInformation />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/reviews"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerReviews />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/reviews"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerReviews />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/profile"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerProfile />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/profile"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerProfile />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/schedule"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <WorkerSchedule />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/schedule"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <WorkerSchedule />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/services"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <Services />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/services"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <Services />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/payments"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <PaymentRequests />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/payments"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <PaymentRequests />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/worker/messages"
-              element={
-                <ProtectedRoute allowedRoles={["worker"]} requireApproved>
-                  <ChatList />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/worker/messages"
+                element={
+                  <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                    <ChatList />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ================= SHARED CUSTOMER/WORKER CHAT ================= */}
+              {/* ================= SHARED CUSTOMER/WORKER CHAT ================= */}
 
-            <Route
-              path="/chat"
-              element={
-                <ProtectedRoute allowedRoles={["customer", "worker"]}>
-                  <ChatList />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/chat"
+                element={
+                  <ProtectedRoute allowedRoles={["customer", "worker"]}>
+                    <ChatList />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/chat/:bookingId"
-              element={
-                <ProtectedRoute allowedRoles={["customer", "worker"]}>
-                  <ChatRoom />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/chat/:bookingId"
+                element={
+                  <ProtectedRoute allowedRoles={["customer", "worker"]}>
+                    <ChatRoom />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ================= ADMIN-ONLY ROUTES ================= */}
+              {/* ================= ADMIN-ONLY ROUTES ================= */}
 
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/workers"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <Workers />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/workers"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <Workers />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/workers/:id"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <WorkerDetails />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/workers/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <WorkerDetails />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customers"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <Customers />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customers"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <Customers />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/customers/:id"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <CustomerDetails />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/customers/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <CustomerDetails />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/admin/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <AdminNotifications />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminNotifications />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/bookings"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <AdminBookings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/bookings"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminBookings />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/bookings/history"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <BookingHistory />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/bookings/history"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <BookingHistory />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/admin/reports"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <Reports />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/reports"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/payments"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <Payments />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/payments"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <Payments />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/activity-logs"
-              element={
-                <ProtectedRoute allowedRoles={["admin"]}>
-                  <ActivityLogs />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/activity-logs"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <ActivityLogs />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ================= FALLBACK ================= */}
+              {/* ================= FALLBACK ================= */}
 
-            <Route path="/home" element={<Navigate to="/" replace />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+              <Route path="/home" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
         </WorkerLocationProvider>
       </RealtimeProvider>
     </BrowserRouter>

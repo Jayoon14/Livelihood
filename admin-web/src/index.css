@@ -39,3 +39,133 @@
     opacity: 1;
   }
 }
+
+.radar-loader {
+  isolation: isolate;
+}
+
+.radar-pulse {
+  position: absolute;
+  width: 8rem;
+  height: 8rem;
+  border: 2px solid rgba(59, 130, 246, 0.48);
+  border-radius: 9999px;
+  opacity: 0;
+  animation: radar-pulse 2.4s ease-out infinite;
+}
+
+.radar-pulse-two {
+  animation-delay: 0.8s;
+}
+
+.radar-pulse-three {
+  animation-delay: 1.6s;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.radar-sweep {
+  overflow: hidden;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 280deg,
+    rgba(59, 130, 246, 0.04) 300deg,
+    rgba(59, 130, 246, 0.28) 350deg,
+    rgba(37, 99, 235, 0.5) 360deg
+  );
+  animation: radar-sweep 2.2s linear infinite;
+  mask-image: radial-gradient(
+    circle,
+    transparent 0%,
+    transparent 24%,
+    black 26%,
+    black 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle,
+    transparent 0%,
+    transparent 24%,
+    black 26%,
+    black 100%
+  );
+}
+
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-center-glow {
+  animation: radar-center-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes radar-center-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.8;
+    box-shadow: 0 0 38px rgba(59, 130, 246, 0.45);
+  }
+}
+
+.loading-dot {
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: #2937f0;
+  animation: loading-dot 1.2s ease-in-out infinite;
+}
+
+.loading-dot-two {
+  animation-delay: 0.15s;
+}
+
+.loading-dot-three {
+  animation-delay: 0.3s;
+}
+
+@keyframes loading-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  40% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-pulse,
+  .radar-sweep,
+  .radar-center-glow,
+  .loading-dot {
+    animation: none;
+  }
+}

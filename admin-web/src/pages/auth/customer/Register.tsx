@@ -214,7 +214,7 @@ export default function CustomerRegister() {
               <div className="mb-5">
                 <label className={label}>First Name</label>
 
-                <div className={`${inputWrap} mt-2`}>
+                <div className={`${inputWrap} mt-2`}> 
                   <User className="w-4.5 h-4.5 text-slate-400 shrink-0" />
 
                   <input

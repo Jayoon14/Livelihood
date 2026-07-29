@@ -64,20 +64,21 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
   ];
 
   return (
-    <aside
-      className={`
-        fixed inset-y-0 left-0 z-50 w-72 min-h-screen relative overflow-hidden flex flex-col
-        text-white shadow-xl
-        transform transition-transform duration-300 ease-in-out
-        lg:static lg:z-auto lg:translate-x-0
-        ${isOpen ? "translate-x-0" : "-translate-x-full"}
-      `}
-      style={{
-        background:
-          "linear-gradient(160deg,#2B3BF5 0%,#5B3DF0 35%,#3B7EF0 70%,#17BFE0 100%)",
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
+  <aside
+    className={`
+      fixed inset-y-0 left-0 z-50
+      flex h-screen w-72 shrink-0 flex-col
+      overflow-hidden text-white shadow-xl
+      transform transition-transform duration-300 ease-in-out
+      ${isOpen ? "translate-x-0" : "-translate-x-full"}
+      lg:static lg:z-auto lg:h-auto lg:min-h-screen lg:translate-x-0
+    `}
+    style={{
+      background:
+        "linear-gradient(160deg,#2B3BF5 0%,#5B3DF0 35%,#3B7EF0 70%,#17BFE0 100%)",
+      fontFamily: "'Inter', sans-serif",
+    }}
+  >
       {/* Decorative glow */}
       <div className="pointer-events-none absolute -right-16 top-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
       <div className="pointer-events-none absolute -left-10 bottom-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
