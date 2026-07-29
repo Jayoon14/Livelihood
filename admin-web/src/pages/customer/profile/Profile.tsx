@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -42,13 +43,13 @@ function ProfileContent() {
         ...updates,
       });
 
-      alert("Profile updated successfully.");
+      toast.success("Profile updated successfully.");
 
       setEditing(false);
     } catch (error) {
       console.error(error);
 
-      alert("Unable to update profile.");
+      toast.error("Unable to update profile.");
     }
   }
 
@@ -67,11 +68,11 @@ function ProfileContent() {
         profile_picture: url,
       });
 
-      alert("Profile picture updated.");
+      toast.success("Profile picture updated.");
     } catch (error) {
       console.error(error);
 
-      alert("Unable to upload profile picture.");
+      toast.error("Unable to upload profile picture.");
     } finally {
       setUploading(false);
     }

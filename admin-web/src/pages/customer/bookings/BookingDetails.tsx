@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -71,7 +72,7 @@ export default function BookingDetails() {
   }
 
   async function handleCancel() {
-    const confirmed = window.confirm("Cancel this booking?");
+    const confirmed = await confirmAction("Cancel this booking?");
 
     if (!confirmed) return;
 

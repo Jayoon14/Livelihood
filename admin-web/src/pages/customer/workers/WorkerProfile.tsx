@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -263,27 +264,27 @@ export default function CustomerWorkerProfile() {
     if (!worker) return;
 
     if (!selectedService) {
-      alert("Please select a service.");
+      toast.warning("Please select a service.");
       return;
     }
 
     if (!bookingDate) {
-      alert("Please select a booking date.");
+      toast.warning("Please select a booking date.");
       return;
     }
 
     if (!bookingTime) {
-      alert("Please select an available time.");
+      toast.warning("Please select an available time.");
       return;
     }
 
     if (latitude === null || longitude === null || !address.trim()) {
-      alert("Please select and confirm the service location.");
+      toast.warning("Please select and confirm the service location.");
       return;
     }
 
     if (!notes.trim()) {
-      alert("Please enter a job description.");
+      toast.warning("Please enter a job description.");
       return;
     }
 
@@ -296,7 +297,7 @@ export default function CustomerWorkerProfile() {
       );
 
       if (!availability.available) {
-        alert(availability.reason || "The worker is unavailable on this date.");
+        toast.warning(availability.reason || "The worker is unavailable on this date.");
         return;
       }
 
@@ -306,7 +307,7 @@ export default function CustomerWorkerProfile() {
       );
 
       if (!latestSlots.includes(bookingTime)) {
-        alert(
+        toast.warning(
           "This time slot has already been booked. Please choose another time.",
         );
         setBookingTime("");
@@ -319,7 +320,7 @@ export default function CustomerWorkerProfile() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        alert("Please log in first.");
+        toast.warning("Please log in first.");
         return;
       }
 
@@ -340,7 +341,7 @@ export default function CustomerWorkerProfile() {
       });
     } catch (error) {
       console.error("Failed continuing booking:", error);
-      alert("Unable to continue your booking. Please try again.");
+      toast.warning("Unable to continue your booking. Please try again.");
     } finally {
       setContinuing(false);
     }
@@ -362,7 +363,7 @@ export default function CustomerWorkerProfile() {
       }
 
       await navigator.clipboard.writeText(url);
-      alert("Profile link copied.");
+      toast.success("Profile link copied.");
     } catch (error) {
       console.error("Unable to share profile:", error);
     }
@@ -371,10 +372,10 @@ export default function CustomerWorkerProfile() {
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert("Profile link copied.");
+      toast.success("Profile link copied.");
     } catch (error) {
       console.error("Unable to copy profile link:", error);
-      alert("Unable to copy the profile link.");
+      toast.error("Unable to copy the profile link.");
     }
   }
 
@@ -396,7 +397,7 @@ export default function CustomerWorkerProfile() {
         "_blank",
         "noopener,noreferrer",
       );
-      alert("Profile link copied. Paste it into your Instagram post or message.");
+      toast.success("Profile link copied. Paste it into your Instagram post or message.");
     } catch (error) {
       console.error("Unable to prepare Instagram sharing:", error);
     }

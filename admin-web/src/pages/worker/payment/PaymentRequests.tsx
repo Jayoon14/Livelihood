@@ -1,3 +1,5 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import {
   Search,
@@ -109,7 +111,7 @@ export default function PaymentRequests() {
   ====================== */
 
   async function handleApprove(payment: PaymentTransaction) {
-    if (!confirm(`Approve ₱${formatCurrency(payment.amount)}?`)) {
+    if (!await confirmAction(`Approve ₱${formatCurrency(payment.amount)}?`)) {
       return;
     }
 
@@ -120,11 +122,11 @@ export default function PaymentRequests() {
 
       await loadPayments();
 
-      alert("Payment approved successfully.");
+      toast.success("Payment approved successfully.");
     } catch (error) {
       console.error(error);
 
-      alert("Unable to approve payment.");
+      toast.error("Unable to approve payment.");
     } finally {
       setProcessingId(null);
     }
@@ -135,7 +137,7 @@ export default function PaymentRequests() {
   ====================== */
 
   async function handleReject(payment: PaymentTransaction) {
-    if (!confirm(`Reject ₱${formatCurrency(payment.amount)}?`)) {
+    if (!await confirmAction(`Reject ₱${formatCurrency(payment.amount)}?`)) {
       return;
     }
 
@@ -148,11 +150,11 @@ export default function PaymentRequests() {
 
       await loadPayments();
 
-      alert("Payment rejected successfully.");
+      toast.success("Payment rejected successfully.");
     } catch (error) {
       console.error(error);
 
-      alert("Unable to reject payment.");
+      toast.error("Unable to reject payment.");
     } finally {
       setProcessingId(null);
     }
@@ -177,7 +179,7 @@ export default function PaymentRequests() {
   function copyReference(reference: string) {
     navigator.clipboard.writeText(reference);
 
-    alert("Reference copied.");
+    toast.success("Reference copied.");
   }
 
   /* =====================

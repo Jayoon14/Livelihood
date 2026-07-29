@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import {
   useCallback,
   useEffect,
@@ -325,7 +326,7 @@ export default function Services() {
         return;
       }
 
-      const confirmed = window.confirm(
+      const confirmed = await confirmAction(
         "Are you sure you want to delete this service?",
       );
 

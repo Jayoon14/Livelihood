@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -231,7 +232,7 @@ export default function Bookings() {
       }
     });
   async function handleCancel(id: number) {
-    const confirmCancel = window.confirm(
+    const confirmCancel = await confirmAction(
       "Are you sure you want to cancel this booking?",
     );
 
@@ -253,7 +254,7 @@ export default function Bookings() {
 async function handleDelete(id: number) {
   console.log("Delete button clicked:", id);
 
-  const confirmDelete = window.confirm(
+  const confirmDelete = await confirmAction(
     "Delete this booking from your history?",
   );
 

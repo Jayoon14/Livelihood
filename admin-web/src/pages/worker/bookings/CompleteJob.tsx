@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
@@ -35,17 +36,17 @@ export default function CompleteJob() {
 
   async function submitProof() {
     if (!summary.trim()) {
-      alert("Please enter work summary.");
+      toast.warning("Please enter work summary.");
       return;
     }
 
     if (!hoursWorked) {
-      alert("Please enter hours worked.");
+      toast.warning("Please enter hours worked.");
       return;
     }
 
     if (images.length === 0) {
-      alert("Please upload at least one proof image.");
+      toast.warning("Please upload at least one proof image.");
       return;
     }
 
@@ -98,13 +99,13 @@ export default function CompleteJob() {
         })
         .eq("id", bookingId);
 
-      alert("Proof submitted successfully.");
+      toast.success("Proof submitted successfully.");
 
       navigate("/worker/bookings");
     } catch (err) {
       console.error(err);
 
-      alert("Unable to submit proof.");
+      toast.error("Unable to submit proof.");
     }
 
     setLoading(false);

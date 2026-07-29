@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -87,7 +88,7 @@ export default function PaymentInformation() {
     } catch (error) {
       console.error("Payment information loading error:", error);
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Unable to load payment information.",
@@ -149,12 +150,12 @@ export default function PaymentInformation() {
     const validationMessage = validateForm();
 
     if (validationMessage) {
-      alert(validationMessage);
+      toast.info(validationMessage);
       return;
     }
 
     if (!workerId) {
-      alert("Worker account is unavailable.");
+      toast.warning("Worker account is unavailable.");
       return;
     }
 
@@ -163,11 +164,11 @@ export default function PaymentInformation() {
 
       await saveWorkerPaymentInformation(workerId, form);
 
-      alert("Payment information saved successfully.");
+      toast.success("Payment information saved successfully.");
     } catch (error) {
       console.error("Payment information saving error:", error);
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Unable to save payment information.",

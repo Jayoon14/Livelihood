@@ -4,9 +4,11 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { login } from "../../../services/authService";
+import { useLoading } from "../../../context/LoadingContext";
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useLoading();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -21,18 +23,21 @@ export default function CustomerLogin() {
     toast.warning("Please fill all fields.");
     return;
   }
-      setLoading(true);
+    setLoading(true);
+    showLoading(700);
 
     const { data, error } = await login(email, password);
 
     setLoading(false);
 
     if (error) {
+      hideLoading();
       toast.error(error.message);
       return;
     }
 
     if (!data.user) {
+      hideLoading();
       toast.error("Login failed.");
       return;
     }

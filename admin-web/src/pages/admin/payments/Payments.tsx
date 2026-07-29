@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import AdminLayout from "../../../layouts/AdminLayout";
@@ -19,7 +20,7 @@ export default function Payments() {
   }
 
   async function handlePaid(payment: any) {
-    if (!window.confirm("Mark this payment as Paid?")) {
+    if (!await confirmAction("Mark this payment as Paid?")) {
       return;
     }
 

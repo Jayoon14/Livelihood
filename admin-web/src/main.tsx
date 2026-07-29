@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { ProfileProvider } from "./context/ProfileContext";
+import { LoadingProvider } from "./context/LoadingContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 import "./index.css";
 
@@ -15,10 +17,14 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <AuthProvider>
+    <ThemeProvider>
+      <LoadingProvider>
+      <AuthProvider>
       <ProfileProvider>
         <App />
       </ProfileProvider>
-    </AuthProvider>
+      </AuthProvider>
+      </LoadingProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

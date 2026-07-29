@@ -4,9 +4,9 @@ export default function PageLoader() {
       role="status"
       aria-live="polite"
       aria-label="Loading"
-      className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
+      className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center overflow-hidden bg-slate-950/45 backdrop-blur-[2px]"
     >
-      <div className="pointer-events-none absolute h-[430px] w-[430px] rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute h-[430px] w-[430px] rounded-full bg-blue-500/20 blur-[110px]" />
 
       <div className="relative flex flex-col items-center">
         <div className="radar-loader relative flex h-64 w-64 items-center justify-center">
@@ -34,11 +34,11 @@ export default function PageLoader() {
           <div className="radar-center-glow pointer-events-none absolute z-10 h-36 w-36 rounded-full border border-blue-400/40" />
         </div>
 
-        <h2 className="-mt-1 text-lg font-extrabold text-slate-800 sm:text-xl">
+        <h2 className="-mt-1 text-lg font-extrabold text-white drop-shadow-md sm:text-xl">
           Preparing your workspace
         </h2>
 
-        <p className="mt-2 text-sm font-medium text-slate-500">
+        <p className="mt-2 text-sm font-medium text-white/80 drop-shadow-sm">
           Please wait while we load your page
         </p>
 

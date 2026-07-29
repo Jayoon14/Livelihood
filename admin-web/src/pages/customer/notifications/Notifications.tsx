@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -316,7 +317,7 @@ export default function Notifications() {
       return;
     }
 
-    const confirmed = window.confirm("Delete all read notifications?");
+    const confirmed = await confirmAction("Delete all read notifications?");
 
     if (!confirmed) {
       return;

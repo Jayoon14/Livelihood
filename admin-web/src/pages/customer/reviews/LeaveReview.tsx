@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -38,7 +39,7 @@ export default function LeaveReview() {
       console.log("User:", user);
 
       if (!user) {
-        alert("Please login.");
+        toast.warning("Please login.");
         return;
       }
 
@@ -66,16 +67,16 @@ export default function LeaveReview() {
 
       console.log("Review created:", result);
 
-      alert("Review submitted successfully!");
+      toast.success("Review submitted successfully!");
 
       navigate(`/customer/bookings/${bookingId}`);
     } catch (error) {
       console.error("Review Error:", error);
 
       if (error instanceof Error) {
-        alert(error.message);
+        toast.error(error.message);
       } else {
-        alert(JSON.stringify(error));
+        toast.error(JSON.stringify(error));
       }
     } finally {
       setLoading(false);

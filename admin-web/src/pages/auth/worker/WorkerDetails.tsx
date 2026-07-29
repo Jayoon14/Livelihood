@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -61,7 +62,7 @@ export default function WorkerDetails() {
   async function handleApprove() {
     if (!worker) return;
 
-    if (!window.confirm("Approve this worker?")) return;
+    if (!await confirmAction("Approve this worker?")) return;
 
     try {
       await approveWorker(worker.id);
@@ -78,7 +79,7 @@ export default function WorkerDetails() {
   async function handleReject() {
     if (!worker) return;
 
-    if (!window.confirm("Reject this worker?")) return;
+    if (!await confirmAction("Reject this worker?")) return;
 
     try {
       await rejectWorker(worker.id);

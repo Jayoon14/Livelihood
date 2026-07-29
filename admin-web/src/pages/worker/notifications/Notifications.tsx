@@ -1,3 +1,5 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
+import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -360,7 +362,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Mark notification as read error:", error);
 
-      alert("Unable to mark the notification as read.");
+      toast.error("Unable to mark the notification as read.");
     }
   }
 
@@ -376,7 +378,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Delete notification error:", error);
 
-      alert("Unable to delete the notification.");
+      toast.error("Unable to delete the notification.");
     }
   }
 
@@ -416,7 +418,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Mark all notifications error:", error);
 
-      alert("Unable to mark all notifications as read.");
+      toast.error("Unable to mark all notifications as read.");
     } finally {
       setMarkingAll(false);
     }
@@ -431,7 +433,7 @@ export default function Notifications() {
       return;
     }
 
-    const confirmed = window.confirm("Delete all read notifications?");
+    const confirmed = await confirmAction("Delete all read notifications?");
 
     if (!confirmed) {
       return;
@@ -459,7 +461,7 @@ export default function Notifications() {
     } catch (error) {
       console.error("Delete read notifications error:", error);
 
-      alert("Unable to delete read notifications.");
+      toast.error("Unable to delete read notifications.");
     } finally {
       setDeletingRead(false);
     }

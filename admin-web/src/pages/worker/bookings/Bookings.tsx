@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import {
   useCallback,
   useEffect,
@@ -443,7 +444,7 @@ export default function Bookings() {
         return;
       }
 
-      if (!window.confirm("Reject this booking request?")) return;
+      if (!await confirmAction("Reject this booking request?")) return;
 
       await runAction(
         id,
@@ -463,7 +464,7 @@ export default function Bookings() {
         return;
       }
 
-      if (!window.confirm("Mark this service as completed?")) return;
+      if (!await confirmAction("Mark this service as completed?")) return;
 
       await runAction(
         id,
@@ -478,7 +479,7 @@ export default function Bookings() {
 
   const handleDelete = useCallback(
     async (id: number) => {
-      if (!window.confirm("Delete this booking from your list?")) return;
+      if (!await confirmAction("Delete this booking from your list?")) return;
 
       await runAction(
         id,

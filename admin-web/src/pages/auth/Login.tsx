@@ -8,9 +8,11 @@ import { login, logout } from "../../services/authService";
 import { logActivity } from "../../services/activityService";
 
 import { supabase } from "../../lib/supabase";
+import { useLoading } from "../../context/LoadingContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { showLoading, hideLoading } = useLoading();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -35,11 +37,13 @@ export default function Login() {
     }
 
     setLoading(true);
+    showLoading(700);
 
     const { error } = await login(email, password);
 
     if (error) {
       setLoading(false);
+      hideLoading();
       toast.error(error.message);
       return;
     }
@@ -50,6 +54,7 @@ export default function Login() {
 
     if (!user) {
       setLoading(false);
+      hideLoading();
 
       toast.error("Unable to retrieve user.");
 
@@ -88,6 +93,7 @@ export default function Login() {
         toast.warning("Your account is waiting for admin approval.");
 
         await logout();
+        hideLoading();
 
         return;
       }
@@ -108,6 +114,7 @@ export default function Login() {
     toast.error("Unknown account role.");
 
     await logout();
+    hideLoading();
   }
 
   const emailField = (

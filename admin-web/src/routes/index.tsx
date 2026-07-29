@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import PageLoader from "../components/common/PageLoader";
+import NavigationLoadingHandler from "../components/common/NavigationLoadingHandler";
 import ProtectedRoute from "./ProtectedRoute";
 import { WorkerLocationProvider } from "../context/WorkerLocationProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
@@ -227,6 +228,7 @@ export default function AppRoutes() {
     <BrowserRouter>
       <RealtimeProvider>
         <WorkerLocationProvider>
+          <NavigationLoadingHandler />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* ================= PUBLIC AUTH ROUTES ================= */}

@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -35,7 +36,7 @@ export default function Workers() {
   }
 
   async function handleApprove(id: string) {
-    if (!window.confirm("Approve this worker?")) return;
+    if (!await confirmAction("Approve this worker?")) return;
 
     await approveWorker(id);
 
@@ -43,7 +44,7 @@ export default function Workers() {
   }
 
   async function handleReject(id: string) {
-    if (!window.confirm("Reject this worker?")) return;
+    if (!await confirmAction("Reject this worker?")) return;
 
     await rejectWorker(id);
 

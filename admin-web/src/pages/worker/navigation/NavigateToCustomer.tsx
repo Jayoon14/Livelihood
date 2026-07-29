@@ -1,3 +1,5 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MapPin, Navigation, Phone, User } from "lucide-react";
@@ -98,7 +100,7 @@ export default function NavigateToCustomer() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Confirm that you have arrived at the customer location?",
     );
 
@@ -120,11 +122,11 @@ export default function NavigateToCustomer() {
           : current,
       );
 
-      alert("Arrival confirmed.");
+      toast.success("Arrival confirmed.");
     } catch (error) {
       console.error("Unable to mark worker as arrived:", error);
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Unable to update trip status.",
@@ -138,7 +140,7 @@ export default function NavigateToCustomer() {
       return;
     }
 
-    const confirmed = window.confirm("Start the service now?");
+    const confirmed = await confirmAction("Start the service now?");
 
     if (!confirmed) {
       return;
@@ -160,11 +162,11 @@ export default function NavigateToCustomer() {
           : current,
       );
 
-      alert("Service started.");
+      toast.success("Service started.");
     } catch (error) {
       console.error("Unable to start service:", error);
 
-      alert(
+      toast.error(
         error instanceof Error ? error.message : "Unable to start service.",
       );
     } finally {
@@ -176,7 +178,7 @@ export default function NavigateToCustomer() {
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       "Confirm that the service has been completed?",
     );
 
@@ -200,11 +202,11 @@ export default function NavigateToCustomer() {
           : current,
       );
 
-      alert("Service completed successfully.");
+      toast.success("Service completed successfully.");
     } catch (error) {
       console.error("Unable to complete service:", error);
 
-      alert(
+      toast.error(
         error instanceof Error ? error.message : "Unable to complete service.",
       );
     } finally {

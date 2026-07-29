@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 
 export default function LanguageSettings() {
@@ -10,7 +11,7 @@ export default function LanguageSettings() {
 
     localStorage.setItem("language", value);
 
-    alert("Language saved.");
+    toast.success("Language saved.");
   }
 
   return (

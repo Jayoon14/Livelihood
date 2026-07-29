@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { logout } from "../../services/authService";
 import { useProfile } from "../../context/ProfileContext";
 import NotificationDropdown from "../notifications/NotificationDropdown";
+import ThemeDropdown from "../common/ThemeDropdown";
 
 interface CustomerNavbarProps {
   onMenuClick: () => void;
@@ -58,7 +59,7 @@ export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
 
   return (
     <header
-      className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 shadow-sm sm:px-6 lg:px-8"
+      className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 sm:px-6 lg:px-8"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* LEFT */}
@@ -89,6 +90,9 @@ export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
 
       {/* RIGHT */}
       <div className="flex items-center gap-3">
+        {/* Theme */}
+        <ThemeDropdown />
+
         {/* Notifications */}
         <NotificationDropdown role="customer" />
 
@@ -126,7 +130,7 @@ export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
           </button>
 
           {open && (
-            <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,.12)]">
+            <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,.12)] dark:border-slate-700 dark:bg-slate-900">
               <button
                 type="button"
                 onClick={() => {

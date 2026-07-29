@@ -14,6 +14,7 @@ import { useRealtimeTableVersion } from "../../providers/RealtimeProvider";
 import { supabase } from "../../lib/supabase";
 import { logout } from "../../services/authService";
 import { getUnreadCount } from "../../services/notificationService";
+import ThemeDropdown from "../common/ThemeDropdown";
 
 export default function AdminNavbar() {
   const navigate = useNavigate();
@@ -104,7 +105,7 @@ export default function AdminNavbar() {
   const avatar = profile?.profile_picture ?? "";
 
   return (
-    <header className="flex h-20 items-center justify-between border-b bg-white px-8 shadow-sm">
+    <header className="flex h-20 items-center justify-between border-b bg-white px-8 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">
           Administrator Dashboard
@@ -116,6 +117,7 @@ export default function AdminNavbar() {
       </div>
 
       <div className="flex items-center gap-6">
+        <ThemeDropdown />
         <button
           type="button"
           onClick={() => navigate("/admin/notifications")}
@@ -179,7 +181,7 @@ export default function AdminNavbar() {
           {open && (
             <div
               role="menu"
-              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border bg-white shadow-xl"
+              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
             >
               <button
                 type="button"

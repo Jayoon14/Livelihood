@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import AdminLayout from "../../layouts/AdminLayout";
 
@@ -17,16 +18,16 @@ export default function Settings() {
   }
 
   function handleSave() {
-    alert("Settings saved successfully.");
+    toast.success("Settings saved successfully.");
   }
 
   function handlePassword() {
     if (form.password !== form.confirmPassword) {
-      alert("Passwords do not match.");
+      toast.warning("Passwords do not match.");
       return;
     }
 
-    alert("Password updated.");
+    toast.success("Password updated.");
   }
 
   return (

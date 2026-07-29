@@ -1,3 +1,4 @@
+import { confirmAction } from "../ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 
@@ -232,8 +233,8 @@ export default function QRUploader({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm("Remove the uploaded QR Code?")) {
+                  onClick={async () => {
+                    if (await confirmAction("Remove the uploaded QR Code?")) {
                       onRemove?.();
                     }
                   }}

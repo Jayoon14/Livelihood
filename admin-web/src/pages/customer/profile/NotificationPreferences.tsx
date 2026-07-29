@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
@@ -39,7 +40,7 @@ export default function NotificationPreferences() {
 
     await saveNotificationPreference(user.id, settings);
 
-    alert("Notification preferences updated.");
+    toast.success("Notification preferences updated.");
   }
 
   return (

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
@@ -75,7 +76,7 @@ export default function Schedule() {
       if (!day.is_available) continue;
 
       if (day.start_time >= day.end_time) {
-        alert(`${day.day_of_week}: End time must be later than Start time.`);
+        toast.warning(`${day.day_of_week}: End time must be later than Start time.`);
 
         return;
       }
@@ -83,12 +84,12 @@ export default function Schedule() {
 
     await saveWorkerSchedule(workerId, schedule);
 
-    alert("Schedule saved successfully.");
+    toast.success("Schedule saved successfully.");
   }
 
   async function handleAddDate() {
     if (!newDate) {
-      alert("Choose a date.");
+      toast.warning("Choose a date.");
 
       return;
     }

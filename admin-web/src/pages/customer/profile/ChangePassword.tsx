@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { supabase } from "../../../lib/supabase";
 
@@ -8,12 +9,12 @@ export default function ChangePassword() {
 
   async function handleSave() {
     if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
+      toast.warning("Password must be at least 6 characters.");
       return;
     }
 
     if (password !== confirm) {
-      alert("Passwords do not match.");
+      toast.warning("Passwords do not match.");
       return;
     }
 
@@ -26,13 +27,13 @@ export default function ChangePassword() {
 
       if (error) throw error;
 
-      alert("Password updated successfully.");
+      toast.success("Password updated successfully.");
 
       setPassword("");
       setConfirm("");
     } catch (err) {
       console.error(err);
-      alert("Unable to update password.");
+      toast.error("Unable to update password.");
     } finally {
       setLoading(false);
     }

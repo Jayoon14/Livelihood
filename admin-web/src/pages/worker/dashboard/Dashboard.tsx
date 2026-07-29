@@ -1,3 +1,4 @@
+import { confirmAction } from "../../../components/ui/confirmAction";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -409,7 +410,7 @@ export default function Dashboard() {
         return;
       }
 
-      const confirmed = window.confirm(
+      const confirmed = await confirmAction(
         "Are you sure you want to reject this booking?",
       );
 

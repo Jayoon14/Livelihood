@@ -169,3 +169,131 @@
     animation: none;
   }
 }
+/* ========================================
+   GLOBAL LIGHT / DARK / AUTO THEME
+======================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  background: #f8fafc;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+html.dark {
+  background: #020617;
+}
+
+html.dark body,
+html.dark #root {
+  background-color: #020617;
+  color: #e2e8f0;
+}
+
+/* These compatibility rules theme existing pages even before every component
+   has dedicated dark: utility classes. */
+html.dark .bg-white {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-b {
+  border-color: #334155 !important;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b;
+}
+
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: #1e293b !important;
+}
+
+.theme-menu-enter {
+  transform-origin: top right;
+  animation: theme-menu-in 180ms ease-out;
+}
+
+.theme-option-icon {
+  transition: transform 260ms ease;
+}
+
+.theme-check-enter {
+  animation: theme-check-in 180ms ease-out;
+}
+
+@keyframes theme-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes theme-check-in {
+  from {
+    opacity: 0;
+    transform: scale(.55) rotate(-20deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-menu-enter,
+  .theme-check-enter,
+  .theme-option-icon,
+  .theme-settings-button {
+    animation: none !important;
+    transition: none !important;
+  }
+}
