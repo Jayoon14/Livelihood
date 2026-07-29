@@ -842,23 +842,28 @@ export async function createPaymentTransaction(
     paymentId,
     "Payment ID",
   );
+
   const validBookingId = validatePositiveInteger(
     bookingId,
     "Booking ID",
   );
+
   const validAmount = validatePositiveAmount(amount, "Amount");
+
   const validMethod = validateRequiredText(
     paymentMethod,
     "Payment method",
   );
-  const validReference = validateRequiredText(
-    referenceNumber,
-    "Reference number",
-  );
-  const validProof = validateRequiredText(
-    proofOfPayment,
-    "Proof of payment",
-  );
+
+  const validReference =
+    validMethod === "Cash"
+      ? referenceNumber.trim()
+      : validateRequiredText(referenceNumber, "Reference number");
+
+  const validProof =
+    validMethod === "Cash"
+      ? proofOfPayment.trim()
+      : validateRequiredText(proofOfPayment, "Proof of payment");
 
   const summary = await getPaymentTransactionSummary(validPaymentId);
 
