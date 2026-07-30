@@ -172,7 +172,7 @@ export default function Login() {
     <button
       onClick={handleLogin}
       disabled={loading}
-      className="mt-7 w-full bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-3.5 rounded-xl font-semibold text-sm transition shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
+      className="mt-7 w-full bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-3.5 rounded-xl font-semibold text-sm transition shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
     >
       {loading ? "Logging in..." : "Log in"}
     </button>

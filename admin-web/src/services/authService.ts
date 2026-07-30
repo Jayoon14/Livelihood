@@ -1,6 +1,5 @@
 import type {
   AuthError,
-  AuthResponse,
   Session,
   User,
 } from "@supabase/supabase-js";
@@ -32,6 +31,15 @@ export interface RegisterData {
 
   profilePicture?: File | null;
   role: UserRole;
+}
+
+
+export interface AuthResult {
+  data: {
+    user: User | null;
+    session: Session | null;
+  };
+  error: AuthError | null;
 }
 
 export interface CurrentUserResult {
@@ -222,7 +230,7 @@ async function logActivitySafely(
 export async function login(
   email: string,
   password: string,
-): Promise<AuthResponse> {
+): Promise<AuthResult> {
   try {
     const normalizedEmail = normalizeEmail(email);
     const normalizedPassword = validatePassword(password);
@@ -259,7 +267,7 @@ export async function login(
 
 export async function registerUser(
   userData: RegisterData,
-): Promise<AuthResponse> {
+): Promise<AuthResult> {
   let uploadedFilePath: string | null = null;
 
   try {

@@ -98,7 +98,7 @@ export default function BookingTimeline({ status }: Props) {
 
       {/* ETA Card */}
       {(status === "Approved" || status === "On Going") && (
-        <div className="mt-10 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+        <div className="mt-10 rounded-3xl border border-blue-100 bg-linear-to-r from-blue-50 to-indigo-50 p-6">
           <p className="text-sm text-gray-500">Estimated Completion</p>
 
           <h3 className="mt-2 text-3xl font-bold text-blue-700">Today</h3>
@@ -109,7 +109,7 @@ export default function BookingTimeline({ status }: Props) {
 
       {/* Success Card */}
       {status === "Completed" && (
-        <div className="mt-10 rounded-3xl border border-green-100 bg-gradient-to-r from-green-50 to-emerald-50 p-6">
+        <div className="mt-10 rounded-3xl border border-green-100 bg-linear-to-r from-green-50 to-emerald-50 p-6">
           <p className="text-sm text-gray-500">Service Status</p>
 
           <h3 className="mt-2 text-2xl font-bold text-green-700">

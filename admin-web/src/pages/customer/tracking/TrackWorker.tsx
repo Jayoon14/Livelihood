@@ -460,31 +460,99 @@ export default function TrackWorker() {
       try {
         setRouteLoading(true);
 
-        if (!tomTomApiKey) {
-          throw new Error("TomTom API key is missing.");
+        const apiKey = tomTomApiKey?.trim();
+
+        if (!apiKey) {
+          throw new Error(
+            "TomTom API key is missing. Add VITE_TOMTOM_API_KEY to your environment file.",
+          );
         }
 
         const [workerLongitude, workerLatitude] = workerCoordinates;
         const [customerLongitude, customerLatitude] = destinationCoordinates;
 
-        const routeUrl =
-          `https://api.tomtom.com/routing/1/calculateRoute/` +
-          `${workerLatitude},${workerLongitude}:` +
-          `${customerLatitude},${customerLongitude}/json` +
-          `?key=${encodeURIComponent(tomTomApiKey)}` +
-          `&traffic=true` +
-          `&travelMode=car` +
-          `&routeType=fastest` +
-          `&instructionsType=none` +
-          `&computeTravelTimeFor=all`;
+        const coordinatesAreValid =
+          Number.isFinite(workerLatitude) &&
+          Number.isFinite(workerLongitude) &&
+          Number.isFinite(customerLatitude) &&
+          Number.isFinite(customerLongitude) &&
+          workerLatitude >= -90 &&
+          workerLatitude <= 90 &&
+          customerLatitude >= -90 &&
+          customerLatitude <= 90 &&
+          workerLongitude >= -180 &&
+          workerLongitude <= 180 &&
+          customerLongitude >= -180 &&
+          customerLongitude <= 180;
 
-        const response = await fetch(routeUrl);
-
-        if (!response.ok) {
-          throw new Error("Unable to calculate TomTom route.");
+        if (!coordinatesAreValid) {
+          throw new Error("Worker or customer coordinates are invalid.");
         }
 
-        const routeData = await response.json();
+        const routePoints =
+          `${workerLatitude},${workerLongitude}:` +
+          `${customerLatitude},${customerLongitude}`;
+
+        const query = new URLSearchParams({
+          key: apiKey,
+          traffic: "true",
+          travelMode: "car",
+          routeType: "fastest",
+          computeTravelTimeFor: "all",
+        });
+
+        const routeUrl =
+          `https://api.tomtom.com/routing/1/calculateRoute/` +
+          `${routePoints}/json?${query.toString()}`;
+
+        const response = await fetch(routeUrl, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          const responseBody = await response.text();
+
+          console.error("TomTom route request failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            responseBody,
+            worker: {
+              latitude: workerLatitude,
+              longitude: workerLongitude,
+            },
+            customer: {
+              latitude: customerLatitude,
+              longitude: customerLongitude,
+            },
+          });
+
+          throw new Error(
+            responseBody
+              ? `Unable to calculate route (${response.status}): ${responseBody}`
+              : `Unable to calculate route (${response.status} ${response.statusText}).`,
+          );
+        }
+
+        const routeData = (await response.json()) as {
+          routes?: Array<{
+            summary?: {
+              lengthInMeters?: number;
+              travelTimeInSeconds?: number;
+              trafficDelayInSeconds?: number;
+              noTrafficTravelTimeInSeconds?: number;
+              trafficLengthInMeters?: number;
+            };
+            legs?: Array<{
+              points?: Array<{
+                latitude: number;
+                longitude: number;
+              }>;
+            }>;
+          }>;
+        };
 
         if (currentRequestNumber !== routeRequestNumberRef.current) {
           return;
@@ -493,32 +561,54 @@ export default function TrackWorker() {
         const route = routeData.routes?.[0];
 
         if (!route) {
-          throw new Error("No route found.");
+          throw new Error("TomTom did not return a route.");
         }
 
         const coordinates: [number, number][] = [];
 
         for (const leg of route.legs ?? []) {
           for (const point of leg.points ?? []) {
-            coordinates.push([point.longitude, point.latitude]);
+            if (
+              Number.isFinite(point.longitude) &&
+              Number.isFinite(point.latitude)
+            ) {
+              coordinates.push([point.longitude, point.latitude]);
+            }
           }
         }
 
-        if (coordinates.length === 0) {
-          throw new Error("Route contains no coordinates.");
+        if (coordinates.length < 2) {
+          throw new Error("TomTom returned an empty route geometry.");
         }
 
         drawRoute(coordinates);
 
         const summary = route.summary;
 
+        if (!summary) {
+          throw new Error("TomTom returned a route without summary data.");
+        }
+
+        const distanceMeters = Number(summary.lengthInMeters ?? 0);
+        const durationSeconds = Number(summary.travelTimeInSeconds ?? 0);
+        const trafficDelaySeconds = Math.max(
+          0,
+          Number(summary.trafficDelayInSeconds ?? 0),
+        );
+        const noTrafficDurationSeconds = Number(
+          summary.noTrafficTravelTimeInSeconds ?? durationSeconds,
+        );
+        const trafficLengthMeters = Math.max(
+          0,
+          Number(summary.trafficLengthInMeters ?? 0),
+        );
+
         setRouteInformation({
-          distanceMeters: summary.lengthInMeters,
-          durationSeconds: summary.travelTimeInSeconds,
-          trafficDelaySeconds: summary.trafficDelayInSeconds ?? 0,
-          noTrafficDurationSeconds:
-            summary.noTrafficTravelTimeInSeconds ?? summary.travelTimeInSeconds,
-          trafficLengthMeters: summary.trafficLengthInMeters ?? 0,
+          distanceMeters,
+          durationSeconds,
+          trafficDelaySeconds,
+          noTrafficDurationSeconds,
+          trafficLengthMeters,
         });
 
         const map = mapRef.current;
@@ -540,7 +630,16 @@ export default function TrackWorker() {
           });
         }
       } catch (error) {
-        console.error(error);
+        if (currentRequestNumber !== routeRequestNumberRef.current) {
+          return;
+        }
+
+        setRouteInformation(null);
+
+        console.error(
+          "Unable to calculate TomTom route:",
+          error instanceof Error ? error.message : error,
+        );
       } finally {
         if (currentRequestNumber === routeRequestNumberRef.current) {
           setRouteLoading(false);
@@ -1218,7 +1317,7 @@ export default function TrackWorker() {
           <main className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div
               ref={mapContainerRef}
-              className="h-[620px] w-full bg-slate-100"
+              className="h-155 w-full bg-slate-100"
             />
           </main>
         </div>

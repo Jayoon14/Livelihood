@@ -291,7 +291,7 @@ export default function FloatingChatWidget() {
 
       const chats = await getChatList(userId);
 
-      const items: BookingChat[] = chats.map((booking: any) => {
+      const items: BookingChat[] = chats.map((booking) => {
         const other =
           booking.customer_id === userId
             ? booking.worker
@@ -409,7 +409,7 @@ export default function FloatingChatWidget() {
       try {
         const [chatContext, history] = await Promise.all([
           getChatContext(selectedBookingId!, currentUserId),
-          getMessages(selectedBookingId!),
+          getMessages(selectedBookingId!, currentUserId),
         ]);
 
         if (cancelled) return;
@@ -678,7 +678,7 @@ export default function FloatingChatWidget() {
   const otherName = fullName(otherUser);
 
   return (
-    <>
+    <div className="hidden lg:block">
       {!open && (
         <button
           type="button"
@@ -686,7 +686,7 @@ export default function FloatingChatWidget() {
             setOpen(true);
             setMinimized(false);
           }}
-          className="fixed bottom-5 right-4 z-[90] flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/35 transition hover:-translate-y-1 hover:bg-blue-700 sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
+          className="fixed bottom-5 right-4 z-90 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-2xl shadow-blue-600/35 transition hover:-translate-y-1 hover:bg-blue-700 sm:bottom-6 sm:right-6 sm:h-16 sm:w-16"
           aria-label="Open messages"
         >
           <MessageCircle className="h-7 w-7" />
@@ -703,7 +703,7 @@ export default function FloatingChatWidget() {
         <button
           type="button"
           onClick={() => setMinimized(false)}
-          className="fixed bottom-5 right-4 z-[90] flex items-center gap-3 rounded-full bg-white py-2 pl-2 pr-4 shadow-2xl ring-1 ring-slate-200 transition hover:-translate-y-1 sm:bottom-6 sm:right-6"
+          className="fixed bottom-5 right-4 z-90 flex items-center gap-3 rounded-full bg-white py-2 pl-2 pr-4 shadow-2xl ring-1 ring-slate-200 transition hover:-translate-y-1 sm:bottom-6 sm:right-6"
         >
           {selectedConversation ? (
             <Avatar user={selectedConversation.user} small />
@@ -733,9 +733,9 @@ export default function FloatingChatWidget() {
       )}
 
       {open && !minimized && (
-        <section className="fixed bottom-0 right-0 z-[90] flex h-[min(720px,calc(100vh-1rem))] w-full max-w-[760px] overflow-hidden bg-white shadow-2xl ring-1 ring-slate-200 sm:bottom-6 sm:right-6 sm:h-[640px] sm:w-[calc(100vw-3rem)] sm:rounded-[26px] lg:w-[760px]">
+        <section className="fixed bottom-0 right-0 z-90 flex h-[min(720px,calc(100vh-1rem))] w-full max-w-190 overflow-hidden bg-white shadow-2xl ring-1 ring-slate-200 sm:bottom-6 sm:right-6 sm:h-160 sm:w-[calc(100vw-3rem)] sm:rounded-[26px] lg:w-190">
           <aside
-            className={`w-full shrink-0 border-r border-slate-200 bg-white sm:w-[310px] ${
+            className={`w-full shrink-0 border-r border-slate-200 bg-white sm:w-77.5 ${
               mobileChatOpen ? "hidden sm:flex" : "flex"
             } flex-col`}
           >
@@ -858,7 +858,7 @@ export default function FloatingChatWidget() {
               </div>
             ) : (
               <>
-                <header className="flex min-h-[68px] items-center gap-2 border-b border-slate-200 bg-white px-3 py-3">
+                <header className="flex min-h-17 items-center gap-2 border-b border-slate-200 bg-white px-3 py-3">
                   <button
                     type="button"
                     onClick={() => setMobileChatOpen(false)}
@@ -879,7 +879,7 @@ export default function FloatingChatWidget() {
                     </p>
                   </div>
 
-                  <div className="relative max-w-[160px]">
+                  <div className="relative max-w-40">
                     <select
                       value={selectedBookingId}
                       onChange={(event) =>
@@ -935,7 +935,7 @@ export default function FloatingChatWidget() {
                   </button>
                 </header>
 
-                <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_#eff6ff,_#f8fafc_45%)] px-3 py-4">
+                <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#eff6ff,#f8fafc_45%)] px-3 py-4">
                   {chatLoading ? (
                     <div className="flex h-full items-center justify-center">
                       <LoaderCircle className="h-7 w-7 animate-spin text-blue-600" />
@@ -997,7 +997,7 @@ export default function FloatingChatWidget() {
                                 )}
 
                                 {item.message && (
-                                  <p className="whitespace-pre-wrap break-words px-3 pt-2.5 text-sm leading-5">
+                                  <p className="whitespace-pre-wrap wrap-break-word px-3 pt-2.5 text-sm leading-5">
                                     {item.message}
                                   </p>
                                 )}
@@ -1109,6 +1109,6 @@ export default function FloatingChatWidget() {
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }

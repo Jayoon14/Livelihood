@@ -285,7 +285,7 @@ export default function ForgotPassword() {
                     <button
                       type="submit"
                       disabled={loading || !email.trim()}
-                      className="mt-6 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-4 text-sm font-bold text-white shadow-lg shadow-indigo-400/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 disabled:cursor-not-allowed disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:shadow-none"
+                      className="mt-6 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-4 text-sm font-bold text-white shadow-lg shadow-indigo-400/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 disabled:cursor-not-allowed disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:shadow-none"
                     >
                       {loading ? (
                         <>

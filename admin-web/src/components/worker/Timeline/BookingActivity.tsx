@@ -38,7 +38,7 @@ export default function BookingActivity({ booking }: Props) {
               )}
 
               {index !== activities.length - 1 && (
-                <div className="w-[2px] flex-1 bg-gray-300 mt-1" />
+                <div className="w-0.5 flex-1 bg-gray-300 mt-1" />
               )}
             </div>
 

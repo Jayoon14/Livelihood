@@ -27,7 +27,6 @@ import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 import {
   acceptBooking,
-  completeBooking,
   getWorkerBookings,
   rejectBooking,
 } from "../../../services/workerBookingService";
@@ -42,7 +41,10 @@ type BookingStatus =
   | "Cancelled";
 
 type StatusFilter = "All" | BookingStatus;
-type BookingAction = "accept" | "reject" | "complete" | "delete";
+type BookingAction =
+  | "accept"
+  | "reject"
+  | "delete";
 
 interface CustomerProfile {
   id?: string;
@@ -457,25 +459,6 @@ export default function Bookings() {
     [runAction, workerId],
   );
 
-  const handleComplete = useCallback(
-    async (id: number) => {
-      if (!workerId) {
-        setPageError("Worker not authenticated.");
-        return;
-      }
-
-      if (!await confirmAction("Mark this service as completed?")) return;
-
-      await runAction(
-        id,
-        "complete",
-        () => completeBooking(id, workerId),
-        "Booking completed successfully.",
-        "Completed",
-      );
-    },
-    [runAction, workerId],
-  );
 
   const handleDelete = useCallback(
     async (id: number) => {
@@ -558,7 +541,7 @@ export default function Bookings() {
           </div>
         )}
 
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
+        <section className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-700 via-blue-600 to-cyan-500 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10" />
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -621,7 +604,7 @@ export default function Bookings() {
               onChange={(event) =>
                 setStatusFilter(event.target.value as StatusFilter)
               }
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto lg:min-w-[220px]"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto lg:min-w-55"
             >
               <option value="All">All Bookings</option>
               {STATUS_ORDER.map((status) => (
@@ -679,7 +662,7 @@ export default function Bookings() {
         </section>
 
         {isLoading ? (
-          <section className="flex min-h-[360px] flex-col items-center justify-center rounded-3xl border bg-white p-10 text-center shadow-lg">
+          <section className="flex min-h-90 flex-col items-center justify-center rounded-3xl border bg-white p-10 text-center shadow-lg">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
             <h2 className="mt-5 text-xl font-bold">Loading bookings</h2>
             <p className="mt-2 text-slate-500">
@@ -735,7 +718,7 @@ export default function Bookings() {
                         key={booking.id}
                         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-2xl sm:rounded-3xl"
                       >
-                        <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white sm:p-6">
+                        <div className="relative bg-linear-to-r from-blue-600 to-indigo-600 p-5 text-white sm:p-6">
                           <span
                             className={`absolute right-4 top-4 rounded-full px-3 py-1.5 text-xs font-bold ${getStatusBadgeClass(booking.status)}`}
                           >
@@ -873,20 +856,16 @@ export default function Bookings() {
                               </button>
                             )}
 
-                            {booking.status === "On Going" &&
-                              booking.trip_status === "On Trip" && (
-                                <ActionButton
-                                  label="Complete Service"
-                                  loading={isActionRunning(
-                                    booking.id,
-                                    "complete",
-                                  )}
-                                  onClick={() =>
-                                    void handleComplete(booking.id)
-                                  }
-                                  className="bg-blue-600 hover:bg-blue-700 sm:col-span-2"
-                                />
-                              )}
+                          {booking.status === "On Going" &&
+                            booking.trip_status === "On Trip" && (
+                              <Link
+                                to={`/worker/bookings/${booking.id}/complete`}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 sm:col-span-2"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Submit Completion Proof
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </article>
@@ -910,7 +889,7 @@ export default function Bookings() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 backdrop-blur-sm sm:p-6"
         >
           <div className="h-full w-full max-w-5xl overflow-y-auto bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-[30px]">
-            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white sm:p-8">
+            <div className="sticky top-0 z-10 bg-linear-to-r from-blue-600 to-indigo-700 p-5 text-white sm:p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 id="booking-details-title" className="text-3xl font-bold">
@@ -958,7 +937,7 @@ export default function Bookings() {
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+              <div className="rounded-3xl bg-linear-to-r from-blue-50 to-indigo-50 p-6">
                 <p className="text-slate-500">Booked Service</p>
                 <h3 className="mt-2 text-2xl font-bold text-blue-700 sm:text-4xl">
                   {getServiceName(selectedBooking)}
@@ -1056,15 +1035,14 @@ export default function Bookings() {
 
                 {selectedBooking.status === "On Going" &&
                   selectedBooking.trip_status === "On Trip" && (
-                    <ActionButton
-                      label="Complete Service"
-                      loading={isActionRunning(selectedBooking.id, "complete")}
-                      onClick={async () => {
-                        await handleComplete(selectedBooking.id);
-                        setSelectedBooking(null);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    />
+                    <Link
+                      to={`/worker/bookings/${selectedBooking.id}/complete`}
+                      onClick={() => setSelectedBooking(null)}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Submit Proof
+                    </Link>
                   )}
 
                 <button
@@ -1088,14 +1066,14 @@ export default function Bookings() {
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setChatBookingId(null);
           }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4 lg:p-6"
+          className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4 lg:p-6"
         >
-          <div className="relative h-[100dvh] w-full overflow-hidden bg-white shadow-2xl sm:h-[92dvh] sm:max-w-6xl sm:rounded-3xl">
+          <div className="relative h-dvh w-full overflow-hidden bg-white shadow-2xl sm:h-[92dvh] sm:max-w-6xl sm:rounded-3xl">
             <button
               type="button"
               onClick={() => setChatBookingId(null)}
               aria-label="Close chat"
-              className="absolute right-3 top-3 z-[110] flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg hover:bg-red-600"
+              className="absolute right-3 top-3 z-110 flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg hover:bg-red-600"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1206,7 +1184,7 @@ function BookingProgress({ status }: { status: BookingStatus }) {
 
   return (
     <div className="overflow-x-auto pb-2">
-      <div className="relative min-w-[640px]">
+      <div className="relative min-w-160">
         <div className="absolute left-12 right-12 top-7 h-1 bg-slate-200" />
         <div className="relative z-10 grid grid-cols-4 gap-4">
           {steps.map((label, index) => {

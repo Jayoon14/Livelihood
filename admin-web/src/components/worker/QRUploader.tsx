@@ -1,17 +1,21 @@
-import { confirmAction } from "../ui/confirmAction";
-import { toast } from "sonner";
-import { useEffect, useRef, useState } from "react";
-
 import {
   Eye,
   ImagePlus,
   LoaderCircle,
   RotateCw,
+  Trash2,
   X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
 
+import { confirmAction } from "../ui/confirmAction";
 import { supabase } from "../../lib/supabase";
 
 interface QRUploaderProps {
@@ -22,95 +26,187 @@ interface QRUploaderProps {
   onRemove?: () => void;
 }
 
+const BUCKET = "payment-qr";
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Unable to process the QR image.";
+}
+
+function sanitizeFolder(value: string): string {
+  const folder = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "-");
+
+  return folder || "other";
+}
+
+function getStoragePathFromPublicUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const marker = `/storage/v1/object/public/${BUCKET}/`;
+    const index = parsed.pathname.indexOf(marker);
+
+    if (index < 0) {
+      return null;
+    }
+
+    return decodeURIComponent(
+      parsed.pathname.slice(index + marker.length),
+    );
+  } catch {
+    return null;
+  }
+}
+
 export default function QRUploader({
   label,
   folder,
-  value,
+  value = "",
   onUploaded,
   onRemove,
 }: QRUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [uploading, setUploading] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
-
+  const [uploading, setUploading] =
+    useState(false);
+  const [removing, setRemoving] =
+    useState(false);
+  const [viewerOpen, setViewerOpen] =
+    useState(false);
   const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  const [rotation, setRotation] =
+    useState(0);
 
   useEffect(() => {
     if (!viewerOpen) {
       return;
     }
 
-    function handleEscape(event: KeyboardEvent) {
+    const previousOverflow =
+      document.body.style.overflow;
+
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         closeViewer();
       }
     }
 
-    document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
+      document.body.style.overflow =
+        previousOverflow;
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [viewerOpen]);
 
-  async function upload(file: File) {
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-
-    if (!allowedTypes.includes(file.type)) {
-      toast.warning("Please upload a PNG, JPG, JPEG, or WEBP image.");
+  async function upload(file: File): Promise<void> {
+    if (!ALLOWED_TYPES.has(file.type)) {
+      toast.warning(
+        "Please upload a PNG, JPG, JPEG, or WEBP image.",
+      );
       return;
     }
 
-    const maximumFileSize = 5 * 1024 * 1024;
+    if (file.size <= 0) {
+      toast.warning("The selected image is empty.");
+      return;
+    }
 
-    if (file.size > maximumFileSize) {
-      toast.warning("The QR image must not exceed 5 MB.");
+    if (file.size > MAX_FILE_SIZE) {
+      toast.warning(
+        "The QR image must not exceed 5 MB.",
+      );
       return;
     }
 
     try {
       setUploading(true);
 
-      const extension = file.name.split(".").pop()?.toLowerCase() || "png";
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      const safeFolder = folder
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9-_]/g, "-");
+      if (userError) {
+        throw userError;
+      }
 
-      const fileName = `${safeFolder}/${crypto.randomUUID()}.${extension}`;
+      if (!user) {
+        throw new Error(
+          "Your session has expired. Please sign in again.",
+        );
+      }
 
-      const { error: uploadError } = await supabase.storage
-        .from("payment-qr")
-        .upload(fileName, file, {
-          upsert: false,
-          contentType: file.type,
-          cacheControl: "3600",
-        });
+      const extension =
+        file.type === "image/png"
+          ? "png"
+          : file.type === "image/webp"
+            ? "webp"
+            : "jpg";
+
+      const path = [
+        user.id,
+        sanitizeFolder(folder),
+        `${crypto.randomUUID()}.${extension}`,
+      ].join("/");
+
+      const { error: uploadError } =
+        await supabase.storage
+          .from(BUCKET)
+          .upload(path, file, {
+            upsert: false,
+            contentType: file.type,
+            cacheControl: "3600",
+          });
 
       if (uploadError) {
         throw uploadError;
       }
 
       const { data } = supabase.storage
-        .from("payment-qr")
-        .getPublicUrl(fileName);
+        .from(BUCKET)
+        .getPublicUrl(path);
 
       if (!data.publicUrl) {
-        throw new Error("Unable to generate the QR image URL.");
+        await supabase.storage
+          .from(BUCKET)
+          .remove([path]);
+
+        throw new Error(
+          "Unable to generate the QR image URL.",
+        );
       }
 
-      onUploaded(data.publicUrl);
-    } catch (error) {
-      console.error("QR upload error:", error);
+      const previousPath =
+        getStoragePathFromPublicUrl(value);
 
-      toast.error(
-        error instanceof Error ? error.message : "Unable to upload QR image.",
-      );
+      onUploaded(data.publicUrl);
+
+      if (previousPath) {
+        void supabase.storage
+          .from(BUCKET)
+          .remove([previousPath]);
+      }
+
+      toast.success("QR image uploaded.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setUploading(false);
 
@@ -120,66 +216,87 @@ export default function QRUploader({
     }
   }
 
-  function openViewer() {
+  async function removeImage(): Promise<void> {
+    if (removing) {
+      return;
+    }
+
+    const confirmed = await confirmAction(
+      "Remove the uploaded QR code?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRemoving(true);
+
+      const path =
+        getStoragePathFromPublicUrl(value);
+
+      if (path) {
+        const { error } = await supabase.storage
+          .from(BUCKET)
+          .remove([path]);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      onRemove?.();
+      toast.success("QR image removed.");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  function openViewer(): void {
     setZoom(1);
     setRotation(0);
     setViewerOpen(true);
   }
 
-  function closeViewer() {
+  function closeViewer(): void {
     setViewerOpen(false);
     setZoom(1);
     setRotation(0);
   }
 
-  function zoomIn() {
-    setZoom((currentZoom) =>
-      Math.min(Number((currentZoom + 0.25).toFixed(2)), 3),
-    );
-  }
-
-  function zoomOut() {
-    setZoom((currentZoom) =>
-      Math.max(Number((currentZoom - 0.25).toFixed(2)), 0.5),
-    );
-  }
-
-  function rotateImage() {
-    setRotation((currentRotation) => currentRotation + 90);
-  }
-
   return (
     <>
       <div className="space-y-3">
-        <label className="block text-sm font-bold text-slate-700">
+        <label className="block text-sm font-bold text-slate-700 dark:text-slate-200">
           {label}
         </label>
 
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/jpg,image/webp"
+          accept="image/png,image/jpeg,image/webp"
           hidden
           onChange={(event) => {
-            const file = event.target.files?.[0];
+            const file =
+              event.target.files?.[0];
 
-            if (!file) {
-              return;
+            if (file) {
+              void upload(file);
             }
-
-            void upload(file);
           }}
         />
 
         {value ? (
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-            <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <div className="flex min-w-0 items-center gap-4">
                 <button
                   type="button"
                   onClick={openViewer}
-                  className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:border-blue-300"
-                  aria-label="View QR code"
+                  className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800"
+                  aria-label={`View ${label}`}
                 >
                   <img
                     src={value}
@@ -189,92 +306,96 @@ export default function QRUploader({
                 </button>
 
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Uploaded QR Code
                   </p>
 
-                  <p className="mt-1 truncate text-sm font-bold text-gray-900">
+                  <p className="mt-1 truncate text-sm font-bold text-slate-900 dark:text-white">
                     QR image is ready
                   </p>
 
-                  <p className="mt-1 text-xs text-gray-500">
-                    Click View QR to inspect the uploaded image.
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Verify that the account details
+                    shown in the image are correct.
                   </p>
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <div className="grid grid-cols-1 gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={openViewer}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
                 >
-                  <Eye size={17} />
-                  View QR
+                  <Eye className="h-4 w-4" />
+                  View
                 </button>
 
                 <button
                   type="button"
-                  disabled={uploading}
-                  onClick={() => inputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  disabled={uploading || removing}
+                  onClick={() =>
+                    inputRef.current?.click()
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   {uploading ? (
-                    <>
-                      <LoaderCircle size={17} className="animate-spin" />
-                      Uploading...
-                    </>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
                   ) : (
-                    <>
-                      <ImagePlus size={17} />
-                      Replace QR Code
-                    </>
+                    <ImagePlus className="h-4 w-4" />
                   )}
+                  Replace
                 </button>
+
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (await confirmAction("Remove the uploaded QR Code?")) {
-                      onRemove?.();
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700"
+                  disabled={uploading || removing}
+                  onClick={() =>
+                    void removeImage()
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
                 >
-                  <X size={17} />
-                  Remove QR
+                  {removing ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Remove
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/40">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-              <ImagePlus size={26} />
+          <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center transition hover:border-blue-300 dark:border-slate-700 dark:bg-slate-800/50">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+              <ImagePlus className="h-6 w-6" />
             </div>
 
-            <p className="mt-4 font-bold text-gray-900">Upload your QR code</p>
+            <p className="mt-4 font-bold text-slate-900 dark:text-white">
+              Upload your QR code
+            </p>
 
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               PNG, JPG, JPEG, or WEBP up to 5 MB.
             </p>
 
             <button
               type="button"
               disabled={uploading}
-              onClick={() => inputRef.current?.click()}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              onClick={() =>
+                inputRef.current?.click()
+              }
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
               {uploading ? (
-                <>
-                  <LoaderCircle size={17} className="animate-spin" />
-                  Uploading...
-                </>
+                <LoaderCircle className="h-4 w-4 animate-spin" />
               ) : (
-                <>
-                  <ImagePlus size={17} />
-                  Upload QR Code
-                </>
+                <ImagePlus className="h-4 w-4" />
               )}
+
+              {uploading
+                ? "Uploading..."
+                : "Upload QR Code"}
             </button>
           </div>
         )}
@@ -282,26 +403,27 @@ export default function QRUploader({
 
       {viewerOpen && value && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:p-6"
           role="dialog"
           aria-modal="true"
           aria-label={`${label} viewer`}
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
               closeViewer();
             }
           }}
         >
-          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            {/* MODAL HEADER */}
-
-            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-white shadow-2xl dark:bg-slate-900">
+            <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   QR Code
                 </p>
 
-                <h2 className="mt-0.5 text-lg font-bold text-gray-900">
+                <h2 className="mt-0.5 text-lg font-bold text-slate-900 dark:text-white">
                   {label}
                 </h2>
               </div>
@@ -309,17 +431,15 @@ export default function QRUploader({
               <button
                 type="button"
                 onClick={closeViewer}
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                 aria-label="Close QR viewer"
               >
-                <X size={22} />
+                <X className="h-5 w-5" />
               </button>
-            </div>
+            </header>
 
-            {/* IMAGE AREA */}
-
-            <div className="min-h-0 flex-1 overflow-auto bg-gray-100 p-4 sm:p-6">
-              <div className="flex min-h-[420px] items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-4 sm:p-6 dark:bg-slate-950">
+              <div className="flex min-h-[420px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                 <img
                   src={value}
                   alt={`${label} full view`}
@@ -332,45 +452,71 @@ export default function QRUploader({
               </div>
             </div>
 
-            {/* VIEWER CONTROLS */}
-
-            <div className="flex flex-wrap items-center justify-center gap-3 border-t border-gray-200 bg-white px-5 py-4">
-              <button
-                type="button"
-                onClick={zoomIn}
+            <footer className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+              <ViewerButton
+                onClick={() =>
+                  setZoom((current) =>
+                    Math.min(3, current + 0.25),
+                  )
+                }
                 disabled={zoom >= 3}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                <ZoomIn size={17} />
+                <ZoomIn className="h-4 w-4" />
                 Zoom +
-              </button>
+              </ViewerButton>
 
-              <button
-                type="button"
-                onClick={zoomOut}
+              <ViewerButton
+                onClick={() =>
+                  setZoom((current) =>
+                    Math.max(0.5, current - 0.25),
+                  )
+                }
                 disabled={zoom <= 0.5}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                <ZoomOut size={17} />
+                <ZoomOut className="h-4 w-4" />
                 Zoom -
-              </button>
+              </ViewerButton>
 
-              <button
-                type="button"
-                onClick={rotateImage}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700"
+              <ViewerButton
+                onClick={() =>
+                  setRotation(
+                    (current) =>
+                      (current + 90) % 360,
+                  )
+                }
               >
-                <RotateCw size={17} />
+                <RotateCw className="h-4 w-4" />
                 Rotate
-              </button>
+              </ViewerButton>
 
-              <span className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">
+              <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 {Math.round(zoom * 100)}%
               </span>
-            </div>
+            </footer>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function ViewerButton({
+  onClick,
+  disabled = false,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }

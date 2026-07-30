@@ -103,7 +103,7 @@ export default function WorkerRegister() {
 
           <Link
             to="/register"
-            className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] hover:from-[#2430D9] hover:via-[#4F35D8] hover:to-[#287FD2] text-white py-4 font-semibold transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40"
+            className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] hover:from-[#2430D9] hover:via-[#4F35D8] hover:to-[#287FD2] text-white py-4 font-semibold transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40"
           >
             Start Registration
             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />

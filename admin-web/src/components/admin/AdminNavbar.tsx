@@ -4,6 +4,7 @@ import {
   ChevronDown,
   LogOut,
   Pencil,
+  Settings,
   User,
   UserCircle,
 } from "lucide-react";
@@ -22,13 +23,10 @@ export default function AdminNavbar() {
 
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const { profile } = useProfile();
 
-  /*
-   * Tumataas ang value na ito kapag may INSERT, UPDATE,
-   * o DELETE sa notifications table.
-   */
   const notificationsVersion =
     useRealtimeTableVersion("notifications");
 
@@ -49,6 +47,7 @@ export default function AdminNavbar() {
       }
 
       const count = await getUnreadCount(user.id);
+
       setUnreadCount(count);
     } catch (error) {
       console.error(
@@ -58,10 +57,6 @@ export default function AdminNavbar() {
     }
   }, []);
 
-  /*
-   * Initial load at automatic reload kapag may pagbabago
-   * sa notifications table mula sa RealtimeProvider.
-   */
   useEffect(() => {
     void loadUnread();
   }, [loadUnread, notificationsVersion]);
@@ -76,59 +71,90 @@ export default function AdminNavbar() {
       }
     }
 
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener(
         "mousedown",
         handleClickOutside,
       );
+
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
   async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
     try {
       await logout();
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Admin logout failed:", error);
+      setLoggingOut(false);
     }
   }
 
+  function goTo(path: string) {
+    setOpen(false);
+    navigate(path);
+  }
+
   const fullName = profile
-    ? `${profile.first_name ?? ""} ${
-        profile.last_name ?? ""
-      }`.trim() || "Administrator"
+    ? [
+        profile.first_name,
+        profile.middle_name,
+        profile.last_name,
+        profile.suffix,
+      ]
+        .map((value) => value?.trim())
+        .filter(Boolean)
+        .join(" ") || "Administrator"
     : "Administrator";
 
   const email = profile?.email ?? "";
   const avatar = profile?.profile_picture ?? "";
 
   return (
-    <header className="flex h-20 items-center justify-between border-b bg-white px-8 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950">
+    <header className="flex h-20 items-center justify-between border-b border-slate-200 bg-white px-8 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
           Administrator Dashboard
         </h1>
 
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-slate-400">
           Welcome back, {fullName}
         </p>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         <ThemeDropdown />
+
         <button
           type="button"
           onClick={() => navigate("/admin/notifications")}
-          className="relative rounded-lg p-2 transition hover:bg-gray-100"
+          className="relative rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-slate-800"
           aria-label={`Notifications${
             unreadCount > 0
               ? `, ${unreadCount} unread`
               : ""
           }`}
         >
-          <Bell size={24} className="text-gray-700" />
+          <Bell
+            size={24}
+            className="text-gray-700 dark:text-slate-200"
+          />
 
           {unreadCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
@@ -143,7 +169,7 @@ export default function AdminNavbar() {
             onClick={() => {
               setOpen((currentOpen) => !currentOpen);
             }}
-            className="flex items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-gray-100"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-gray-100 dark:hover:bg-slate-800"
             aria-expanded={open}
             aria-haspopup="menu"
           >
@@ -160,11 +186,13 @@ export default function AdminNavbar() {
               />
             )}
 
-            <div className="text-left">
-              <p className="font-semibold">{fullName}</p>
+            <div className="hidden text-left sm:block">
+              <p className="max-w-48 truncate font-semibold text-slate-900 dark:text-white">
+                {fullName}
+              </p>
 
               {email && (
-                <p className="text-sm text-gray-500">
+                <p className="max-w-48 truncate text-sm text-gray-500 dark:text-slate-400">
                   {email}
                 </p>
               )}
@@ -172,7 +200,7 @@ export default function AdminNavbar() {
 
             <ChevronDown
               size={18}
-              className={`transition-transform ${
+              className={`hidden transition-transform sm:block ${
                 open ? "rotate-180" : ""
               }`}
             />
@@ -181,47 +209,64 @@ export default function AdminNavbar() {
           {open && (
             <div
               role="menu"
-              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  navigate("/admin/profile");
-                }}
-                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
-              >
-                <User size={20} />
-                My Profile
-              </button>
+              <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                <p className="truncate font-semibold text-slate-900 dark:text-white">
+                  {fullName}
+                </p>
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  navigate("/admin/profile/edit");
-                }}
-                className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-100"
-              >
-                <Pencil size={20} />
-                Edit Profile
-              </button>
+                {email && (
+                  <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">
+                    {email}
+                  </p>
+                )}
+              </div>
 
-              <hr />
+              <div className="py-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => goTo("/admin/profile")}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-slate-700 transition hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <User size={20} />
+                  My Profile
+                </button>
 
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  void handleLogout();
-                }}
-                className="flex w-full items-center gap-3 px-5 py-3 text-left text-red-600 hover:bg-red-50"
-              >
-                <LogOut size={20} />
-                Logout
-              </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => goTo("/admin/profile/edit")}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-slate-700 transition hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Pencil size={20} />
+                  Edit Profile
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => goTo("/settings")}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-slate-700 transition hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Settings size={20} />
+                  Settings
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 py-2 dark:border-slate-800">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void handleLogout()}
+                  disabled={loggingOut}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-950/30"
+                >
+                  <LogOut size={20} />
+                  {loggingOut ? "Logging out..." : "Logout"}
+                </button>
+              </div>
             </div>
           )}
         </div>

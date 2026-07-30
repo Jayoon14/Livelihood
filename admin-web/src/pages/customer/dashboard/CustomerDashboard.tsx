@@ -441,7 +441,7 @@ export default function CustomerDashboard() {
 
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="w-full mt-4 sm:mt-5 bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white rounded-xl py-2.5 sm:py-3 font-semibold text-sm sm:text-base transition-all shadow-md shadow-indigo-400/20 hover:shadow-lg hover:shadow-indigo-400/30"
+                      className="w-full mt-4 sm:mt-5 bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white rounded-xl py-2.5 sm:py-3 font-semibold text-sm sm:text-base transition-all shadow-md shadow-indigo-400/20 hover:shadow-lg hover:shadow-indigo-400/30"
                     >
                       View Profile
                     </button>
@@ -532,7 +532,7 @@ export default function CustomerDashboard() {
                   <div className="flex gap-2 mt-3.5 sm:mt-4">
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="flex-1 bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white rounded-xl py-2 sm:py-2.5 font-semibold text-xs sm:text-sm transition-all shadow-sm shadow-indigo-400/20 hover:shadow-md hover:shadow-indigo-400/30"
+                      className="flex-1 bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white rounded-xl py-2 sm:py-2.5 font-semibold text-xs sm:text-sm transition-all shadow-sm shadow-indigo-400/20 hover:shadow-md hover:shadow-indigo-400/30"
                     >
                       View Profile
                     </button>
@@ -590,7 +590,7 @@ export default function CustomerDashboard() {
                         onClick={() =>
                           navigate(`/customer/workers/${worker.id}`)
                         }
-                        className="bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all"
+                        className="bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all"
                       >
                         View Profile
                       </button>

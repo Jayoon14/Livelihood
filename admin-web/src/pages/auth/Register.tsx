@@ -424,7 +424,7 @@ return (
           <button
             type="button"
             onClick={handleNext}
-            className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-10 py-3.5 font-semibold text-white transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:from-[#2430D9] hover:via-[#4F35D8] hover:to-[#287FD2] hover:shadow-xl"
+            className="group inline-flex items-center gap-2 rounded-2xl bg-linear-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-10 py-3.5 font-semibold text-white transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:from-[#2430D9] hover:via-[#4F35D8] hover:to-[#287FD2] hover:shadow-xl"
           >
             {step === 6 ? "Submit" : "Next"}
             {step === 6 ? (

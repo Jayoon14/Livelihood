@@ -74,72 +74,70 @@ export default function Bookings() {
   }
 
   useEffect(() => {
-  let isCancelled = false;
-  let channel: ReturnType<typeof supabase.channel> | null = null;
+    let isCancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-  async function initialize() {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+    async function initialize() {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      if (!user || isCancelled) {
-        return;
-      }
+        if (!user || isCancelled) {
+          return;
+        }
 
-      await loadBookings();
+        await loadBookings();
 
-      if (isCancelled) {
-        return;
-      }
+        if (isCancelled) {
+          return;
+        }
 
-      const newChannel = supabase
-        .channel(
-          `customer-bookings-${user.id}-${crypto.randomUUID()}`,
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "bookings",
-            filter: `customer_id=eq.${user.id}`,
-          },
-          () => {
-            if (!isCancelled) {
-              void loadBookings();
-            }
-          },
-        );
+        const newChannel = supabase
+          .channel(`customer-bookings-${user.id}-${crypto.randomUUID()}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "bookings",
+              filter: `customer_id=eq.${user.id}`,
+            },
+            () => {
+              if (!isCancelled) {
+                void loadBookings();
+              }
+            },
+          );
 
-      channel = newChannel;
+        channel = newChannel;
 
-      channel.subscribe((status) => {
-        console.log("Customer bookings realtime status:", status);
-      });
-    } catch (error) {
-      if (!isCancelled) {
-        console.error("Initialize customer bookings realtime error:", error);
+        channel.subscribe((status) => {
+          console.log("Customer bookings realtime status:", status);
+        });
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Initialize customer bookings realtime error:", error);
+        }
       }
     }
-  }
 
-  void initialize();
+    void initialize();
 
-  return () => {
-    isCancelled = true;
+    return () => {
+      isCancelled = true;
 
-    if (channel) {
-      void supabase.removeChannel(channel);
-      channel = null;
-    }
-  };
-}, []);
+      if (channel) {
+        void supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+  }, []);
 
   async function loadBookings() {
     setLoading(true);
@@ -241,7 +239,7 @@ export default function Bookings() {
     try {
       await cancelBooking(id);
 
-     toast.success("Booking cancelled successfully.");
+      toast.success("Booking cancelled successfully.");
 
       loadBookings();
     } catch (error) {
@@ -251,75 +249,75 @@ export default function Bookings() {
     }
   }
 
-async function handleDelete(id: number) {
-  console.log("Delete button clicked:", id);
+  async function handleDelete(id: number) {
+    console.log("Delete button clicked:", id);
 
-  const confirmDelete = await confirmAction(
-    "Delete this booking from your history?",
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) {
-      console.error("Auth error:", userError);
-      toast.error(userError.message);
-      return;
-    }
-
-    if (!user) {
-      toast.warning("Please log in first.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("bookings")
-      .update({
-        customer_deleted: true,
-      })
-      .eq("id", id)
-      .eq("customer_id", user.id)
-      .select("id, customer_id, customer_deleted");
-
-    console.log("Delete result:", {
-      data,
-      error,
-      bookingId: id,
-      userId: user.id,
-    });
-
-    if (error) {
-      console.error("Delete error:", error);
-      toast.error(`Unable to delete: ${error.message}`);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      toast.error(
-        "Booking was not updated. The database policy may be blocking the request.",
-      );
-      return;
-    }
-
-    setBookings((currentBookings) =>
-      currentBookings.filter((booking) => booking.id !== id),
+    const confirmDelete = await confirmAction(
+      "Delete this booking from your history?",
     );
 
-    toast.success("Booking removed from your list.");
-  } catch (error) {
-    console.error("Unexpected delete error:", error);
+    if (!confirmDelete) return;
 
-    const message =
-      error instanceof Error ? error.message : "Unknown error occurred.";
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    toast.error(`Unable to delete booking: ${message}`);
+      if (userError) {
+        console.error("Auth error:", userError);
+        toast.error(userError.message);
+        return;
+      }
+
+      if (!user) {
+        toast.warning("Please log in first.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("bookings")
+        .update({
+          customer_deleted: true,
+        })
+        .eq("id", id)
+        .eq("customer_id", user.id)
+        .select("id, customer_id, customer_deleted");
+
+      console.log("Delete result:", {
+        data,
+        error,
+        bookingId: id,
+        userId: user.id,
+      });
+
+      if (error) {
+        console.error("Delete error:", error);
+        toast.error(`Unable to delete: ${error.message}`);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        toast.error(
+          "Booking was not updated. The database policy may be blocking the request.",
+        );
+        return;
+      }
+
+      setBookings((currentBookings) =>
+        currentBookings.filter((booking) => booking.id !== id),
+      );
+
+      toast.success("Booking removed from your list.");
+    } catch (error) {
+      console.error("Unexpected delete error:", error);
+
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred.";
+
+      toast.error(`Unable to delete booking: ${message}`);
+    }
   }
-}
 
   return (
     <CustomerLayout>
@@ -490,37 +488,33 @@ async function handleDelete(id: number) {
                         </>
                       )}
 
-                        {booking.status === "Approved" && (
-                          <>
-                            <button
-                              onClick={() =>
-                                navigate(
-                                  `/customer/tracking/${booking.id}`,
-                                )
-                              }
-                              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
-                            >
-                              <Navigation size={18} />
-                              Track Worker
-                            </button>
+                      {booking.status === "Approved" && (
+                        <>
+                          <button
+                            onClick={() =>
+                              navigate(`/customer/tracking/${booking.id}`)
+                            }
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+                          >
+                            <Navigation size={18} />
+                            Track Worker
+                          </button>
 
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/chat/${booking.id}`)}
-                              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
-                            >
-                              <MessageCircle size={18} />
-                              Open Chat
-                            </button>
-                          </>
-                        )}
-                        {booking.status === "On Going" &&
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/chat/${booking.id}`)}
+                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl"
+                          >
+                            <MessageCircle size={18} />
+                            Open Chat
+                          </button>
+                        </>
+                      )}
+                      {booking.status === "On Going" &&
                         booking.trip_status === "On Trip" && (
                           <button
                             onClick={() =>
-                              navigate(
-                                `/customer/tracking/${booking.id}`,
-                              )
+                              navigate(`/customer/tracking/${booking.id}`)
                             }
                             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
                           >
@@ -660,7 +654,7 @@ async function handleDelete(id: number) {
               </button>
 
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-t-3xl p-8">
+              <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-t-3xl p-8">
                 <div className="flex items-center gap-6">
                   <img
                     src={
@@ -758,11 +752,11 @@ async function handleDelete(id: number) {
           </div>
         )}
       {receiptBooking !== null && (
-        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl relative overflow-hidden">
             {/* Header */}
 
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white">
+            <div className="bg-linear-to-r from-green-600 to-emerald-600 p-6 text-white">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-3xl font-bold">Payment Receipt</h2>
@@ -870,7 +864,7 @@ async function handleDelete(id: number) {
       )}
       {chatBooking && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4"
+          className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               setChatBooking(null);
@@ -901,7 +895,8 @@ async function handleDelete(id: number) {
                   </h2>
 
                   <p className="truncate text-xs text-slate-500">
-                    Booking #{chatBooking.id} · {chatBooking.services?.service_name || "Service"}
+                    Booking #{chatBooking.id} ·{" "}
+                    {chatBooking.services?.service_name || "Service"}
                   </p>
                 </div>
               </div>
@@ -928,11 +923,11 @@ async function handleDelete(id: number) {
         </div>
       )}
       {rebookBooking && (
-        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-80 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden">
             {/* HEADER */}
 
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-7 text-white">
+            <div className="bg-linear-to-r from-indigo-600 to-blue-600 p-7 text-white">
               <div className="flex items-center gap-5">
                 <img
                   src={
@@ -1000,7 +995,7 @@ async function handleDelete(id: number) {
                       date,
                     );
 
-                    if (!availability.available) {
+                    if (availability.available === false) {
                       setAvailabilityMessage(availability.reason);
 
                       return;
@@ -1142,7 +1137,7 @@ ${
         </div>
       )}
       {reviewBooking && (
-        <div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-90 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden">
             <div className="bg-yellow-500 p-7 text-white">
               <h2 className="text-3xl font-bold">Leave Review</h2>

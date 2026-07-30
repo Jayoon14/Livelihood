@@ -947,7 +947,7 @@ export default function Notifications() {
                         >
                           <h2
                             className={`
-                              break-words
+                              wrap-break-word
                               text-sm
                               text-gray-900
                               sm:text-base
@@ -982,7 +982,7 @@ export default function Notifications() {
                         <p
                           className="
                             mt-1
-                            break-words
+                            wrap-break-word
                             text-sm
                             leading-6
                             text-gray-600

@@ -32,8 +32,14 @@ export type TransactionStatus =
 export interface PaymentProfile {
   id?: string;
   first_name: string | null;
+  middle_name?: string | null;
   last_name: string | null;
+  suffix?: string | null;
+  email?: string | null;
+  phone?: string | null;
   profile_picture?: string | null;
+  profile_image?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface PaymentBooking {
@@ -41,6 +47,9 @@ export interface PaymentBooking {
   booking_date?: string | null;
   booking_time?: string | null;
   address?: string | null;
+  service_name?: string | null;
+  status?: string | null;
+  payment_status?: string | null;
   services?: {
     service_name?: string | null;
   } | null;
@@ -126,12 +135,50 @@ interface AmountRecord {
 const PAYMENT_DETAILS_SELECT = `
   *,
   customer:profiles!customer_id(
+    id,
     first_name,
-    last_name
+    middle_name,
+    last_name,
+    suffix,
+    email,
+    phone,
+    profile_picture,
+    profile_image,
+    avatar_url
   ),
   worker:profiles!worker_id(
+    id,
     first_name,
-    last_name
+    middle_name,
+    last_name,
+    suffix,
+    email,
+    phone,
+    profile_picture,
+    profile_image,
+    avatar_url
+  ),
+  booking:bookings!booking_id(
+    id,
+    booking_date,
+    booking_time,
+    address,
+    service_name,
+    status,
+    payment_status
+  ),
+  payment_transactions(
+    id,
+    payment_id,
+    booking_id,
+    amount,
+    payment_method,
+    reference_number,
+    proof_of_payment,
+    transaction_status,
+    rejection_reason,
+    approved_at,
+    created_at
   )
 `;
 
@@ -356,10 +403,7 @@ export async function createPayment(
       reference_number: validReferenceNumber,
       proof_of_payment: validProof,
       payment_status: PAYMENT_STATUS.PENDING,
-      verification_status:
-        validPaymentMethod === "Cash"
-          ? VERIFICATION_STATUS.VERIFIED
-          : VERIFICATION_STATUS.PENDING,
+      verification_status: VERIFICATION_STATUS.PENDING,
     })
     .select()
     .single();
@@ -428,6 +472,9 @@ export async function getAllPayments(): Promise<PaymentRecord[]> {
     .from("payments")
     .select(PAYMENT_DETAILS_SELECT)
     .order("created_at", { ascending: false });
+
+  console.log("ADMIN PAYMENTS DATA:", data);
+  console.log("ADMIN PAYMENTS ERROR:", error);
 
   if (error) {
     throw error;
@@ -685,7 +732,6 @@ export async function approvePayment(
     .from("bookings")
     .update({
       payment_status: PAYMENT_STATUS.PAID,
-      status: "Completed",
     })
     .eq("id", validBookingId);
 
@@ -1014,17 +1060,49 @@ export async function updatePaymentSummary(
     paymentStatus = PAYMENT_STATUS.PAID;
   }
 
+  const verificationStatus = summary.isFullyPaid
+    ? VERIFICATION_STATUS.VERIFIED
+    : VERIFICATION_STATUS.PENDING;
+
   const { error } = await supabase
     .from("payments")
     .update({
       amount_paid: summary.approvedAmount,
+      total_paid: summary.approvedAmount,
+      remaining_balance: summary.remainingBalance,
       balance: summary.remainingBalance,
       payment_status: paymentStatus,
+      verification_status: verificationStatus,
     })
     .eq("id", id);
 
   if (error) {
     throw error;
+  }
+
+  const { data: paymentRow, error: paymentLookupError } = await supabase
+    .from("payments")
+    .select("booking_id")
+    .eq("id", id)
+    .single();
+
+  if (paymentLookupError) {
+    throw paymentLookupError;
+  }
+
+  const bookingPaymentStatus = summary.isFullyPaid
+    ? PAYMENT_STATUS.PAID
+    : summary.approvedAmount > 0
+      ? PAYMENT_STATUS.PARTIALLY_PAID
+      : PAYMENT_STATUS.PENDING;
+
+  const { error: bookingError } = await supabase
+    .from("bookings")
+    .update({ payment_status: bookingPaymentStatus })
+    .eq("id", Number(paymentRow.booking_id));
+
+  if (bookingError) {
+    throw bookingError;
   }
 
   return summary;
@@ -1104,7 +1182,6 @@ export async function approvePaymentTransaction(
       .from("bookings")
       .update({
         payment_status: PAYMENT_STATUS.PAID,
-        status: "Completed",
       })
       .eq("id", transaction.booking_id);
 
@@ -1226,21 +1303,28 @@ export async function rejectPaymentTransaction(
 export async function getWorkerPaymentTransactions(
   workerId: string,
 ): Promise<PaymentTransaction[]> {
-  const id = validateRequiredText(workerId, "Worker ID");
+  const id = validateRequiredText(
+    workerId,
+    "Worker ID",
+  );
 
   const { data, error } = await supabase
     .from("payment_transactions")
     .select(
       `
       *,
-      payment:payments!payment_id(
+      payment:payments!payment_id!inner(
         id,
         customer_id,
         worker_id,
         booking_id,
         customer:profiles!payments_customer_id_fkey(
+          id,
           first_name,
-          last_name
+          middle_name,
+          last_name,
+          suffix,
+          profile_picture
         ),
         booking:bookings!payments_booking_id_fkey(
           id,
@@ -1252,8 +1336,9 @@ export async function getWorkerPaymentTransactions(
       `,
     )
     .eq("payment.worker_id", id)
-    .eq("transaction_status", TRANSACTION_STATUS.PENDING)
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (error) {
     throw error;
@@ -1261,7 +1346,6 @@ export async function getWorkerPaymentTransactions(
 
   return (data ?? []) as PaymentTransaction[];
 }
-
 // ======================================
 // CREATE PAYMENT SUMMARY
 // ======================================

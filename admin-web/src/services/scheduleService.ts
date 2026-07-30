@@ -501,7 +501,7 @@ export async function getAvailableTimeSlots(
   const date = validateDateString(bookingDate, "Booking date");
   const availability = await checkWorkerAvailability(id, date);
 
-  if (!availability.available) {
+  if (availability.available === false) {
     return [];
   }
 
@@ -601,7 +601,7 @@ export async function createSchedule(
     payload.schedule_date,
   );
 
-  if (!availability.available) {
+  if (availability.available === false) {
     throw new Error(availability.reason);
   }
 

@@ -91,7 +91,7 @@ export default function RegisterChoice() {
       <div className="flex-1 flex justify-center">
         <div className="relative inline-flex bg-slate-100 rounded-full p-1.5 shadow-inner">
           <div
-            className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] transition-all duration-300"
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] transition-all duration-300"
             style={{
               left: role === "customer" ? "6px" : "50%",
               width: "calc(50% - 6px)",
@@ -169,7 +169,7 @@ export default function RegisterChoice() {
 
       <Link
         to={current.link}
-        className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white py-4 font-semibold transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40"
+        className="group mt-8 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 text-white py-4 font-semibold transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40"
       >
         {current.button}
 

@@ -1,4 +1,16 @@
 import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  LockKeyhole,
+  Pencil,
+  RefreshCw,
+  Save,
+  Trash2,
+  UserRound,
+  X,
+} from "lucide-react";
+import {
   type ChangeEvent,
   useCallback,
   useEffect,
@@ -6,180 +18,213 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
-import { supabase } from "../../../lib/supabase";
 import {
-  getProfile,
+  getCurrentProfile,
+  removeAvatar,
   updateProfile,
   uploadAvatar,
+  type WorkerProfile,
 } from "../../../services/profileService";
-
-interface WorkerProfile {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  profile_picture: string | null;
-}
 
 interface ProfileForm {
   first_name: string;
+  middle_name: string;
   last_name: string;
+  suffix: string;
   phone: string;
   address: string;
 }
 
 interface FieldErrors {
   first_name?: string;
+  middle_name?: string;
   last_name?: string;
+  suffix?: string;
   phone?: string;
   address?: string;
 }
 
+type ProfileMessage = {
+  type: "success" | "error";
+  text: string;
+} | null;
+
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_ADDRESS_LENGTH = 300;
 
-const ALLOWED_AVATAR_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function normalizeProfile(value: unknown): WorkerProfile | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const profile = value as Record<string, unknown>;
-
-  if (typeof profile.id !== "string") {
-    return null;
-  }
-
-  const stringOrNull = (field: unknown): string | null =>
-    typeof field === "string" ? field : null;
-
-  return {
-    id: profile.id,
-    first_name: stringOrNull(profile.first_name),
-    last_name: stringOrNull(profile.last_name),
-    email: stringOrNull(profile.email),
-    phone: stringOrNull(profile.phone),
-    address: stringOrNull(profile.address),
-    profile_picture: stringOrNull(profile.profile_picture),
-  };
-}
+const EMPTY_FORM: ProfileForm = {
+  first_name: "",
+  middle_name: "",
+  last_name: "",
+  suffix: "",
+  phone: "",
+  address: "",
+};
 
 function profileToForm(profile: WorkerProfile): ProfileForm {
   return {
     first_name: profile.first_name ?? "",
+    middle_name: profile.middle_name ?? "",
     last_name: profile.last_name ?? "",
+    suffix: profile.suffix ?? "",
     phone: profile.phone ?? "",
     address: profile.address ?? "",
   };
+}
+
+function normalizeForm(form: ProfileForm): ProfileForm {
+  return {
+    first_name: form.first_name.trim(),
+    middle_name: form.middle_name.trim(),
+    last_name: form.last_name.trim(),
+    suffix: form.suffix.trim(),
+    phone: form.phone.trim(),
+    address: form.address.trim(),
+  };
+}
+
+function formsEqual(first: ProfileForm, second: ProfileForm): boolean {
+  const normalizedFirst = normalizeForm(first);
+  const normalizedSecond = normalizeForm(second);
+
+  return (
+    normalizedFirst.first_name === normalizedSecond.first_name &&
+    normalizedFirst.middle_name === normalizedSecond.middle_name &&
+    normalizedFirst.last_name === normalizedSecond.last_name &&
+    normalizedFirst.suffix === normalizedSecond.suffix &&
+    normalizedFirst.phone === normalizedSecond.phone &&
+    normalizedFirst.address === normalizedSecond.address
+  );
 }
 
 function validateProfile(form: ProfileForm): FieldErrors {
   const errors: FieldErrors = {};
 
   const firstName = form.first_name.trim();
+  const middleName = form.middle_name.trim();
   const lastName = form.last_name.trim();
+  const suffix = form.suffix.trim();
   const phone = form.phone.trim();
   const address = form.address.trim();
 
   if (!firstName) {
     errors.first_name = "First name is required.";
   } else if (firstName.length > 80) {
-    errors.first_name = "First name must not exceed 80 characters.";
+    errors.first_name = "First name must contain 80 characters or fewer.";
+  }
+
+  if (middleName.length > 80) {
+    errors.middle_name = "Middle name must contain 80 characters or fewer.";
   }
 
   if (!lastName) {
     errors.last_name = "Last name is required.";
   } else if (lastName.length > 80) {
-    errors.last_name = "Last name must not exceed 80 characters.";
+    errors.last_name = "Last name must contain 80 characters or fewer.";
+  }
+
+  if (suffix.length > 20) {
+    errors.suffix = "Suffix must contain 20 characters or fewer.";
   }
 
   if (phone) {
-    const phonePattern = /^[0-9+\-()\s]{7,20}$/;
+    const compact = phone.replace(/[\s()-]/g, "");
 
-    if (!phonePattern.test(phone)) {
-      errors.phone =
-        "Enter a valid phone number using digits and common phone symbols.";
+    if (!/^\+?\d{7,15}$/.test(compact)) {
+      errors.phone = "Enter a valid phone number containing 7 to 15 digits.";
     }
   }
 
-  if (address.length > 300) {
-    errors.address = "Address must not exceed 300 characters.";
+  if (address.length > MAX_ADDRESS_LENGTH) {
+    errors.address = `Address must contain ${MAX_ADDRESS_LENGTH} characters or fewer.`;
   }
 
   return errors;
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message.trim()
-    ? error.message
-    : fallback;
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const message = (error as { message: string }).message.trim();
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return fallback;
 }
 
 export default function Profile() {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
-  const [form, setForm] = useState<ProfileForm>({
-    first_name: "",
-    last_name: "",
-    phone: "",
-    address: "",
-  });
+  const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
+  const [savedForm, setSavedForm] = useState<ProfileForm>(EMPTY_FORM);
 
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [message, setMessage] = useState<ProfileMessage>(null);
 
-  const clearMessages = useCallback(() => {
-    setErrorMessage("");
-    setSuccessMessage("");
-  }, []);
+  const busy = saving || uploading || removingAvatar;
 
-  const loadProfile = useCallback(async () => {
+  const hasUnsavedChanges = useMemo(
+    () => editing && !formsEqual(form, savedForm),
+    [editing, form, savedForm],
+  );
+
+  const fullName = useMemo(() => {
+    return [form.first_name, form.middle_name, form.last_name, form.suffix]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(" ");
+  }, [form.first_name, form.last_name, form.middle_name, form.suffix]);
+
+  const initials = useMemo(() => {
+    const first = form.first_name.trim().charAt(0);
+    const last = form.last_name.trim().charAt(0);
+
+    return `${first}${last}`.toUpperCase() || "W";
+  }, [form.first_name, form.last_name]);
+
+  const loadProfile = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
-      setErrorMessage("");
+      setMessage(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+      const data = await getCurrentProfile();
+      const nextForm = profileToForm(data);
 
-      if (authError) {
-        throw authError;
-      }
-
-      if (!user) {
-        throw new Error("Your session has expired. Please sign in again.");
-      }
-
-      const data = await getProfile(user.id);
-      const normalizedProfile = normalizeProfile(data);
-
-      if (!normalizedProfile) {
-        throw new Error("The profile data returned by the server is invalid.");
-      }
-
-      setProfile(normalizedProfile);
-      setForm(profileToForm(normalizedProfile));
+      setProfile(data);
+      setForm(nextForm);
+      setSavedForm(nextForm);
+      setEditing(false);
+      setFieldErrors({});
     } catch (error) {
       setProfile(null);
-      setErrorMessage(
-        getErrorMessage(error, "Unable to load your profile right now."),
-      );
+      setMessage({
+        type: "error",
+        text: getErrorMessage(error, "Unable to load your profile."),
+      });
     } finally {
       setLoading(false);
     }
@@ -189,19 +234,34 @@ export default function Profile() {
     void loadProfile();
   }, [loadProfile]);
 
-  const initials = useMemo(() => {
-    const firstInitial = form.first_name.trim().charAt(0);
-    const lastInitial = form.last_name.trim().charAt(0);
-    const value = `${firstInitial}${lastInitial}`.toUpperCase();
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return;
+      }
 
-    return value || "W";
-  }, [form.first_name, form.last_name]);
+      event.preventDefault();
+      event.returnValue = "";
+    };
 
-  const fullName = useMemo(() => {
-    return [form.first_name.trim(), form.last_name.trim()]
-      .filter(Boolean)
-      .join(" ");
-  }, [form.first_name, form.last_name]);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!message || message.type !== "success") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMessage(null);
+    }, 4_000);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   const updateFormField = useCallback(
     (field: keyof ProfileForm, value: string) => {
@@ -215,30 +275,47 @@ export default function Profile() {
         [field]: undefined,
       }));
 
-      clearMessages();
+      setMessage(null);
     },
-    [clearMessages],
+    [],
   );
 
-  const handleEditToggle = useCallback(() => {
-    if (saving || uploading || !profile) {
+  const cancelEditing = useCallback(async (): Promise<void> => {
+    if (!profile || busy) {
       return;
     }
 
-    clearMessages();
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm("Discard your unsaved profile changes?");
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    setForm(savedForm);
     setFieldErrors({});
+    setMessage(null);
+    setEditing(false);
+  }, [busy, hasUnsavedChanges, profile, savedForm]);
+
+  const handleEditToggle = useCallback(async (): Promise<void> => {
+    if (busy || !profile) {
+      return;
+    }
 
     if (editing) {
-      setForm(profileToForm(profile));
-      setEditing(false);
+      await cancelEditing();
       return;
     }
 
+    setMessage(null);
+    setFieldErrors({});
     setEditing(true);
-  }, [clearMessages, editing, profile, saving, uploading]);
+  }, [busy, cancelEditing, editing, profile]);
 
-  const handleSave = useCallback(async () => {
-    if (!profile || saving) {
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (!profile || saving || !hasUnsavedChanges) {
       return;
     }
 
@@ -246,61 +323,67 @@ export default function Profile() {
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
-      setErrorMessage("Please correct the highlighted fields.");
-      setSuccessMessage("");
+      setMessage({
+        type: "error",
+        text: "Please correct the highlighted fields.",
+      });
       return;
     }
 
     try {
       setSaving(true);
-      clearMessages();
+      setMessage(null);
 
-      const payload = {
-        first_name: form.first_name.trim(),
-        last_name: form.last_name.trim(),
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-      };
+      const normalized = normalizeForm(form);
 
-      await updateProfile(profile.id, payload);
+      const updated = await updateProfile(profile.id, normalized);
 
-      const updatedProfile: WorkerProfile = {
-        ...profile,
-        ...payload,
-      };
+      const nextForm = profileToForm(updated);
 
-      setProfile(updatedProfile);
-      setForm(profileToForm(updatedProfile));
+      setProfile(updated);
+      setForm(nextForm);
+      setSavedForm(nextForm);
+      setFieldErrors({});
       setEditing(false);
-      setSuccessMessage("Profile updated successfully.");
+      setMessage({
+        type: "success",
+        text: "Profile updated successfully.",
+      });
     } catch (error) {
-      setErrorMessage(
-        getErrorMessage(error, "Unable to update your profile."),
-      );
+      setMessage({
+        type: "error",
+        text: getErrorMessage(error, "Unable to update your profile."),
+      });
     } finally {
       setSaving(false);
     }
-  }, [clearMessages, form, profile, saving]);
+  }, [form, hasUnsavedChanges, profile, saving]);
 
   const handleUpload = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
+    async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
       const file = event.target.files?.[0];
 
       event.target.value = "";
 
-      if (!file || !profile || uploading) {
+      if (!file || !profile || busy) {
         return;
       }
 
-      clearMessages();
+      setMessage(null);
 
       if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
-        setErrorMessage("Please upload a JPG, PNG, or WEBP image.");
+        setMessage({
+          type: "error",
+          text: "Please upload a JPG, PNG, or WEBP image.",
+        });
         return;
       }
 
-      if (file.size > MAX_AVATAR_SIZE_BYTES) {
-        setErrorMessage("Profile image must be 5 MB or smaller.");
+      if (file.size <= 0 || file.size > MAX_AVATAR_SIZE_BYTES) {
+        setMessage({
+          type: "error",
+          text: "Profile image must be a non-empty file no larger than 5 MB.",
+        });
         return;
       }
 
@@ -309,46 +392,99 @@ export default function Profile() {
 
         const url = await uploadAvatar(profile.id, file);
 
-        if (!url || typeof url !== "string") {
-          throw new Error("The uploaded image URL is invalid.");
-        }
-
-        const updatedProfile: WorkerProfile = {
+        const updatedProfile = {
           ...profile,
           profile_picture: url,
         };
 
         setProfile(updatedProfile);
-        setSuccessMessage("Profile picture updated successfully.");
+        setMessage({
+          type: "success",
+          text: "Profile picture updated successfully.",
+        });
       } catch (error) {
-        setErrorMessage(
-          getErrorMessage(error, "Unable to upload your profile picture."),
-        );
+        setMessage({
+          type: "error",
+          text: getErrorMessage(
+            error,
+            "Unable to upload your profile picture.",
+          ),
+        });
       } finally {
         setUploading(false);
       }
     },
-    [clearMessages, profile, uploading],
+    [busy, profile],
   );
+
+  const handleRemoveAvatar = useCallback(async (): Promise<void> => {
+    if (!profile?.profile_picture || busy) {
+      return;
+    }
+
+    const confirmed = window.confirm("Remove your current profile picture?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRemovingAvatar(true);
+      setMessage(null);
+
+      await removeAvatar(profile.id, profile.profile_picture);
+
+      setProfile({
+        ...profile,
+        profile_picture: null,
+      });
+
+      setMessage({
+        type: "success",
+        text: "Profile picture removed successfully.",
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: getErrorMessage(error, "Unable to remove your profile picture."),
+      });
+    } finally {
+      setRemovingAvatar(false);
+    }
+  }, [busy, profile]);
 
   if (loading) {
     return (
       <WorkerLayout>
-        <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
-          <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="mx-auto h-32 w-32 rounded-full bg-slate-200" />
-            <div className="mx-auto mt-5 h-7 w-48 rounded bg-slate-200" />
-            <div className="mt-10 grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-14 rounded-xl bg-slate-200"
-                />
-              ))}
+        <main className="mx-auto max-w-5xl p-3 sm:p-6 lg:p-8">
+          <section className="animate-pulse overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="h-44 bg-slate-200 dark:bg-slate-800" />
+
+            <div className="p-5 sm:p-8">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                <div className="h-28 w-28 rounded-full bg-slate-200 dark:bg-slate-700" />
+
+                <div className="space-y-3">
+                  <div className="h-7 w-56 rounded bg-slate-200 dark:bg-slate-700" />
+                  <div className="h-4 w-44 rounded bg-slate-200 dark:bg-slate-700" />
+                </div>
+              </div>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                {Array.from({
+                  length: 6,
+                }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 rounded-xl bg-slate-200 dark:bg-slate-700"
+                  />
+                ))}
+              </div>
+
+              <div className="mt-4 h-28 rounded-xl bg-slate-200 dark:bg-slate-700" />
             </div>
-            <div className="mt-4 h-28 rounded-xl bg-slate-200" />
-          </div>
-        </div>
+          </section>
+        </main>
       </WorkerLayout>
     );
   }
@@ -356,88 +492,119 @@ export default function Profile() {
   if (!profile) {
     return (
       <WorkerLayout>
-        <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
-          <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-bold text-slate-900">
+        <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
+          <section className="rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm sm:rounded-3xl sm:p-8 dark:border-red-900/50 dark:bg-slate-900">
+            <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
+
+            <h1 className="mt-4 text-2xl font-bold text-slate-900 dark:text-white">
               Unable to load profile
             </h1>
-            <p className="mt-3 text-sm text-red-700">
-              {errorMessage || "Your profile could not be loaded."}
+
+            <p className="mt-3 text-sm text-red-700 dark:text-red-300">
+              {message?.text || "Your profile could not be loaded."}
             </p>
+
             <button
               type="button"
               onClick={() => void loadProfile()}
-              className="mt-6 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
             >
+              <RefreshCw className="h-4 w-4" />
               Try Again
             </button>
-          </div>
-        </div>
+          </section>
+        </main>
       </WorkerLayout>
     );
   }
 
   return (
     <WorkerLayout>
-      <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 px-6 py-8 text-white sm:px-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-100">
-              Worker Account
-            </p>
-            <h1 className="mt-2 text-3xl font-bold">My Profile</h1>
-            <p className="mt-2 max-w-xl text-sm text-blue-100">
-              Keep your personal and contact information accurate so customers
-              can reach you easily.
-            </p>
-          </div>
+      <main className="mx-auto max-w-5xl p-3 pb-28 sm:p-6 sm:pb-8 lg:p-8">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
+          <header className="relative overflow-hidden bg-linear-to-r from-blue-600 via-blue-500 to-cyan-500 px-5 py-7 text-white sm:px-8 sm:py-9">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-white/10" />
 
-          <div className="p-6 sm:p-8">
-            {errorMessage && (
+            <div className="relative">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100 sm:text-sm">
+                Worker Account
+              </p>
+
+              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+                My Profile
+              </h1>
+
+              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">
+                Keep your personal and contact information accurate so customers
+                can identify and reach you.
+              </p>
+            </div>
+          </header>
+
+          <div className="p-4 sm:p-8">
+            {message && (
               <div
-                role="alert"
-                className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                role={message.type === "error" ? "alert" : "status"}
+                className={`mb-6 flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-medium ${
+                  message.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                }`}
               >
-                {errorMessage}
+                <div className="flex items-start gap-2">
+                  {message.type === "success" ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+
+                  <span>{message.text}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMessage(null)}
+                  className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                  aria-label="Dismiss message"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             )}
 
-            {successMessage && (
-              <div
-                role="status"
-                className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700"
-              >
-                {successMessage}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-6 border-b border-slate-200 pb-8 sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-6 border-b border-slate-200 pb-8 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
               <div className="flex flex-col items-center gap-4 sm:flex-row">
                 <div className="relative">
                   {profile.profile_picture ? (
                     <img
                       src={profile.profile_picture}
                       alt={`${fullName || "Worker"} profile`}
-                      className="h-32 w-32 rounded-full border-4 border-white object-cover shadow-lg ring-2 ring-blue-100"
+                      className="h-28 w-28 rounded-full border-4 border-white object-cover shadow-lg ring-2 ring-blue-100 sm:h-32 sm:w-32 dark:border-slate-900 dark:ring-blue-500/30"
                     />
                   ) : (
-                    <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-blue-100 text-4xl font-bold text-blue-700 shadow-lg ring-2 ring-blue-100">
+                    <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-blue-100 text-3xl font-bold text-blue-700 shadow-lg ring-2 ring-blue-100 sm:h-32 sm:w-32 sm:text-4xl dark:border-slate-900 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/30">
                       {initials}
                     </div>
                   )}
 
-                  {uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/55 text-sm font-semibold text-white">
-                      Uploading...
+                  {busy && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/60 px-2 text-center text-xs font-semibold text-white">
+                      {uploading
+                        ? "Uploading..."
+                        : removingAvatar
+                          ? "Removing..."
+                          : "Saving..."}
                     </div>
                   )}
                 </div>
 
                 <div className="text-center sm:text-left">
-                  <h2 className="text-2xl font-bold text-slate-900">
+                  <h2 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
                     {fullName || "Worker Profile"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+
+                  <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
                     {profile.email || "No email available"}
                   </p>
 
@@ -445,167 +612,210 @@ export default function Profile() {
                     ref={fileInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={handleUpload}
-                    disabled={uploading || saving}
+                    onChange={(event) => void handleUpload(event)}
+                    disabled={busy}
                     className="sr-only"
                   />
 
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || saving}
-                    className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {uploading ? "Uploading..." : "Change Profile Picture"}
-                  </button>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={busy}
+                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50"
+                    >
+                      <Camera className="h-4 w-4" />
+                      {uploading ? "Uploading..." : "Change Photo"}
+                    </button>
 
-                  <p className="mt-2 text-xs text-slate-500">
-                    JPG, PNG, or WEBP. Maximum file size: 5 MB.
+                    {profile.profile_picture && (
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveAvatar()}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    JPG, PNG, or WEBP. Maximum: 5 MB.
                   </p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={handleEditToggle}
-                disabled={saving || uploading}
-                className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void handleEditToggle()}
+                disabled={busy}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
-                {editing ? "Cancel Editing" : "Edit Profile"}
-              </button>
-            </div>
-
-            <div className="mt-8 grid gap-5 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  First Name
-                </span>
-                <input
-                  type="text"
-                  disabled={!editing || saving}
-                  value={form.first_name}
-                  onChange={(event) =>
-                    updateFormField("first_name", event.target.value)
-                  }
-                  className={`w-full rounded-xl border px-4 py-3 text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 ${
-                    fieldErrors.first_name
-                      ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                  }`}
-                  placeholder="First Name"
-                  aria-invalid={Boolean(fieldErrors.first_name)}
-                />
-                {fieldErrors.first_name && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {fieldErrors.first_name}
-                  </p>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  Last Name
-                </span>
-                <input
-                  type="text"
-                  disabled={!editing || saving}
-                  value={form.last_name}
-                  onChange={(event) =>
-                    updateFormField("last_name", event.target.value)
-                  }
-                  className={`w-full rounded-xl border px-4 py-3 text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 ${
-                    fieldErrors.last_name
-                      ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                  }`}
-                  placeholder="Last Name"
-                  aria-invalid={Boolean(fieldErrors.last_name)}
-                />
-                {fieldErrors.last_name && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {fieldErrors.last_name}
-                  </p>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  Email Address
-                </span>
-                <input
-                  type="email"
-                  disabled
-                  value={profile.email ?? ""}
-                  className="w-full cursor-not-allowed rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-slate-600"
-                  placeholder="Email Address"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">
-                  Phone Number
-                </span>
-                <input
-                  type="tel"
-                  disabled={!editing || saving}
-                  value={form.phone}
-                  onChange={(event) =>
-                    updateFormField("phone", event.target.value)
-                  }
-                  className={`w-full rounded-xl border px-4 py-3 text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 ${
-                    fieldErrors.phone
-                      ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                  }`}
-                  placeholder="Phone Number"
-                  aria-invalid={Boolean(fieldErrors.phone)}
-                />
-                {fieldErrors.phone && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {fieldErrors.phone}
-                  </p>
-                )}
-              </label>
-            </div>
-
-            <label className="mt-5 block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">
-                Address
-              </span>
-              <textarea
-                disabled={!editing || saving}
-                value={form.address}
-                onChange={(event) =>
-                  updateFormField("address", event.target.value)
-                }
-                className={`min-h-28 w-full resize-y rounded-xl border px-4 py-3 text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 ${
-                  fieldErrors.address
-                    ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                    : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                }`}
-                rows={4}
-                placeholder="Complete Address"
-                aria-invalid={Boolean(fieldErrors.address)}
-              />
-              <div className="mt-2 flex items-center justify-between gap-4">
-                {fieldErrors.address ? (
-                  <p className="text-sm text-red-600">{fieldErrors.address}</p>
+                {editing ? (
+                  <>
+                    <X className="h-4 w-4" />
+                    Cancel Editing
+                  </>
                 ) : (
-                  <span />
+                  <>
+                    <Pencil className="h-4 w-4" />
+                    Edit Profile
+                  </>
                 )}
-                <p className="text-xs text-slate-500">
-                  {form.address.length}/300
-                </p>
-              </div>
-            </label>
+              </button>
+            </section>
 
-            {editing && (
-              <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+            <section className="mt-8">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-xl bg-blue-100 p-2 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                  <UserRound className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white">
+                    Personal Information
+                  </h3>
+
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Your basic identity and contact details.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <ProfileField
+                  label="First Name"
+                  required
+                  value={form.first_name}
+                  disabled={!editing || saving}
+                  error={fieldErrors.first_name}
+                  placeholder="First Name"
+                  onChange={(value) => updateFormField("first_name", value)}
+                />
+
+                <ProfileField
+                  label="Middle Name"
+                  value={form.middle_name}
+                  disabled={!editing || saving}
+                  error={fieldErrors.middle_name}
+                  placeholder="Middle Name"
+                  onChange={(value) => updateFormField("middle_name", value)}
+                />
+
+                <ProfileField
+                  label="Last Name"
+                  required
+                  value={form.last_name}
+                  disabled={!editing || saving}
+                  error={fieldErrors.last_name}
+                  placeholder="Last Name"
+                  onChange={(value) => updateFormField("last_name", value)}
+                />
+
+                <ProfileField
+                  label="Suffix"
+                  value={form.suffix}
+                  disabled={!editing || saving}
+                  error={fieldErrors.suffix}
+                  placeholder="Jr., Sr., III"
+                  onChange={(value) => updateFormField("suffix", value)}
+                />
+
+                <ProfileField
+                  label="Email Address"
+                  type="email"
+                  value={profile.email ?? ""}
+                  disabled
+                  placeholder="Email Address"
+                  helper="Email changes are managed through account security."
+                />
+
+                <ProfileField
+                  label="Phone Number"
+                  type="tel"
+                  value={form.phone}
+                  disabled={!editing || saving}
+                  error={fieldErrors.phone}
+                  placeholder="+63 912 345 6789"
+                  onChange={(value) => updateFormField("phone", value)}
+                />
+              </div>
+
+              <label className="mt-5 block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Address
+                </span>
+
+                <textarea
+                  disabled={!editing || saving}
+                  value={form.address}
+                  maxLength={MAX_ADDRESS_LENGTH}
+                  onChange={(event) =>
+                    updateFormField("address", event.target.value)
+                  }
+                  className={`min-h-28 w-full resize-y rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
+                    fieldErrors.address
+                      ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-950"
+                      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:focus:ring-blue-950"
+                  }`}
+                  rows={4}
+                  placeholder="Complete Address"
+                  aria-invalid={Boolean(fieldErrors.address)}
+                />
+
+                <div className="mt-2 flex items-center justify-between gap-4">
+                  {fieldErrors.address ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {fieldErrors.address}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {form.address.length}/{MAX_ADDRESS_LENGTH}
+                  </p>
+                </div>
+              </label>
+            </section>
+
+            <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-violet-100 p-2 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                    <LockKeyhole className="h-5 w-5" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white">
+                      Account Security
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Update your password from the worker settings page.
+                    </p>
+                  </div>
+                </div>
+
                 <button
                   type="button"
-                  onClick={handleEditToggle}
+                  onClick={() => navigate("/worker/settings")}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Open Settings
+                </button>
+              </div>
+            </section>
+
+            {editing && (
+              <div className="mt-8 hidden flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex sm:flex-row sm:justify-end dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => void cancelEditing()}
                   disabled={saving}
-                  className="rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -613,16 +823,99 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => void handleSave()}
-                  disabled={saving || uploading}
-                  className="rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={
+                    saving || uploading || removingAvatar || !hasUnsavedChanges
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
+                  <Save className="h-4 w-4" />
                   {saving ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             )}
           </div>
         </section>
-      </div>
+
+        {editing && (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur sm:hidden dark:border-slate-700 dark:bg-slate-900/95">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => void cancelEditing()}
+                disabled={saving}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={
+                  saving || uploading || removingAvatar || !hasUnsavedChanges
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
     </WorkerLayout>
+  );
+}
+
+function ProfileField({
+  label,
+  required = false,
+  type = "text",
+  value,
+  disabled,
+  error,
+  helper,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  required?: boolean;
+  type?: "text" | "email" | "tel";
+  value: string;
+  disabled: boolean;
+  error?: string;
+  helper?: string;
+  placeholder?: string;
+  onChange?: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {label}
+        {required && <span className="ml-1 text-red-500">*</span>}
+      </span>
+
+      <input
+        type={type}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
+          error
+            ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-950"
+            : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:focus:ring-blue-950"
+        }`}
+        placeholder={placeholder}
+        aria-invalid={Boolean(error)}
+      />
+
+      {error ? (
+        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+      ) : helper ? (
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          {helper}
+        </p>
+      ) : null}
+    </label>
   );
 }

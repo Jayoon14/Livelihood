@@ -568,7 +568,7 @@ export default function CustomerRegister() {
             <button
               onClick={handleRegister}
               disabled={loading}
-              className="w-full mt-8 bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-4 rounded-2xl font-semibold text-base transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
+              className="w-full mt-8 bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-4 rounded-2xl font-semibold text-base transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
             >
               {loading ? "Creating Account..." : "Create Account"}
             </button>

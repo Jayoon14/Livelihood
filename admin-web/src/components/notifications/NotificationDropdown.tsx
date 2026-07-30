@@ -1,151 +1,308 @@
-import { useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck, X } from "lucide-react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import {
+  Bell,
+  CheckCheck,
+  LoaderCircle,
+  RefreshCw,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { supabase } from "../../lib/supabase";
+import {
+  deleteMyNotification,
+  getCurrentNotificationUserId,
+  getMyNotifications,
+  getMyUnreadCount,
+  markAllMyNotificationsAsRead,
+  markMyNotificationAsRead,
+  type Notification,
+} from "../../services/notificationService";
 import NotificationItem from "./NotificationItem";
 import NotificationToast from "./NotificationToast";
 
-import {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification,
-} from "../../services/notificationService";
-
 interface NotificationDropdownProps {
   role: "worker" | "customer";
+}
+
+const DROPDOWN_PAGE_SIZE = 10;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const message = (error as { message: string }).message.trim();
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
+function getNotificationRoute(
+  notification: Notification,
+  role: "worker" | "customer",
+): string {
+  const text =
+    `${notification.title} ${notification.message}`.toLowerCase();
+
+  if (text.includes("message") || text.includes("chat")) {
+    return notification.booking_id
+      ? `/chat/${notification.booking_id}`
+      : "/chat";
+  }
+
+  if (role === "worker") {
+    if (
+      text.includes("payment") ||
+      text.includes("receipt") ||
+      text.includes("refund")
+    ) {
+      return "/worker/payments";
+    }
+
+    if (
+      text.includes("review") ||
+      text.includes("rating") ||
+      text.includes("feedback")
+    ) {
+      return "/worker/reviews";
+    }
+
+    return "/worker/bookings";
+  }
+
+  return "/customer/bookings";
+}
+
+function sortNotifications(items: Notification[]): Notification[] {
+  return [...items].sort(
+    (first, second) =>
+      new Date(second.created_at).getTime() -
+      new Date(first.created_at).getTime(),
+  );
 }
 
 export default function NotificationDropdown({
   role,
 }: NotificationDropdownProps) {
   const navigate = useNavigate();
-
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
-
-  const [notifications, setNotifications] = useState<any[]>([]);
-
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-
   const [userId, setUserId] = useState("");
-
-  // NEW
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [processingIds, setProcessingIds] = useState<Set<number>>(
+    new Set(),
+  );
   const [toastNotification, setToastNotification] =
-    useState<any | null>(null);
+    useState<Notification | null>(null);
 
-  // ==========================
-  // LOAD NOTIFICATIONS
-  // ==========================
+  const setProcessing = useCallback(
+    (id: number, active: boolean): void => {
+      setProcessingIds((current) => {
+        const next = new Set(current);
 
-  async function loadNotifications(currentUserId?: string) {
-    const id = currentUserId || userId;
+        if (active) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
 
-    if (!id) return;
-
-    try {
-      const data = await getNotifications(id);
-
-      setNotifications(data);
-
-      const count = await getUnreadCount(id);
-
-      setUnreadCount(count);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // ==========================
-  // INITIALIZE
-  // ==========================
-
-  useEffect(() => {
-  let isCancelled = false;
-  let channel: ReturnType<typeof supabase.channel> | null = null;
-
-  async function initialize() {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!user || isCancelled) {
-        return;
-      }
-
-      setUserId(user.id);
-
-      await loadNotifications(user.id);
-
-      // Mahalaga: huwag nang gumawa ng channel kapag na-cleanup na ang effect.
-      if (isCancelled) {
-        return;
-      }
-
-      const channelName = `${role}-notification-dropdown-${user.id}-${crypto.randomUUID()}`;
-
-      const newChannel = supabase.channel(channelName);
-
-      newChannel.on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload: any) => {
-          if (isCancelled) {
-            return;
-          }
-
-          void loadNotifications(user.id);
-
-          if (payload.eventType === "INSERT") {
-            setToastNotification(payload.new);
-          }
-        },
-      );
-
-      channel = newChannel;
-
-      channel.subscribe((status) => {
-        console.log(`${role} notification dropdown realtime:`, status);
+        return next;
       });
-    } catch (error) {
-      if (!isCancelled) {
-        console.error("Initialize notification dropdown error:", error);
+    },
+    [],
+  );
+
+  const loadNotifications = useCallback(
+    async (showRefresh = false): Promise<void> => {
+      if (showRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
-    }
-  }
 
-  void initialize();
+      try {
+        const [page, count] = await Promise.all([
+          getMyNotifications({
+            page: 1,
+            pageSize: DROPDOWN_PAGE_SIZE,
+          }),
+          getMyUnreadCount(),
+        ]);
 
-  return () => {
-    isCancelled = true;
+        setNotifications(page.items);
+        setUnreadCount(count);
+      } catch (error) {
+        const message = getErrorMessage(
+          error,
+          "Unable to load notifications.",
+        );
 
-    if (channel) {
-      void supabase.removeChannel(channel);
-      channel = null;
-    }
-  };
-}, [role]);
+        console.error(message, error);
 
-  // ==========================
-  // CLOSE DROPDOWN
-  // ==========================
+        if (showRefresh) {
+          toast.error(message);
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    let isCancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function initialize(): Promise<void> {
+      try {
+        const currentUserId =
+          await getCurrentNotificationUserId();
+
+        if (isCancelled) {
+          return;
+        }
+
+        setUserId(currentUserId);
+        await loadNotifications();
+
+        if (isCancelled) {
+          return;
+        }
+
+        channel = supabase
+          .channel(
+            `${role}-notification-dropdown-${currentUserId}`,
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${currentUserId}`,
+            },
+            (
+              payload: RealtimePostgresChangesPayload<Notification>,
+            ) => {
+              if (isCancelled) {
+                return;
+              }
+
+              if (payload.eventType === "INSERT") {
+                const newNotification = payload.new;
+
+                setNotifications((current) =>
+                  sortNotifications([
+                    newNotification,
+                    ...current.filter(
+                      (item) => item.id !== newNotification.id,
+                    ),
+                  ]).slice(0, DROPDOWN_PAGE_SIZE),
+                );
+
+                if (!newNotification.is_read) {
+                  setUnreadCount((current) => current + 1);
+                }
+
+                setToastNotification(newNotification);
+                return;
+              }
+
+              if (payload.eventType === "UPDATE") {
+                const updatedNotification = payload.new;
+
+                setNotifications((current) =>
+                  sortNotifications(
+                    current.map((item) =>
+                      item.id === updatedNotification.id
+                        ? updatedNotification
+                        : item,
+                    ),
+                  ),
+                );
+
+                setUnreadCount((current) => {
+                  const previous = payload.old as Partial<Notification>;
+                  const wasUnread = previous.is_read === false;
+                  const isUnread = updatedNotification.is_read === false;
+
+                  if (wasUnread && !isUnread) {
+                    return Math.max(0, current - 1);
+                  }
+
+                  if (!wasUnread && isUnread) {
+                    return current + 1;
+                  }
+
+                  return current;
+                });
+
+                return;
+              }
+
+              if (payload.eventType === "DELETE") {
+                const deleted = payload.old as Partial<Notification>;
+
+                setNotifications((current) =>
+                  current.filter((item) => item.id !== deleted.id),
+                );
+
+                if (deleted.is_read === false) {
+                  setUnreadCount((current) =>
+                    Math.max(0, current - 1),
+                  );
+                }
+              }
+            },
+          )
+          .subscribe();
+      } catch (error) {
+        if (!isCancelled) {
+          console.error(
+            "Initialize notification dropdown error:",
+            error,
+          );
+        }
+      }
+    }
+
+    void initialize();
+
+    return () => {
+      isCancelled = true;
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [loadNotifications, role]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent): void {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
@@ -157,204 +314,227 @@ export default function NotificationDropdown({
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
     };
   }, []);
-    // ==========================
-  // READ NOTIFICATION
-  // ==========================
 
-  async function handleRead(id: number) {
-    try {
-      await markAsRead(id);
-
-      await loadNotifications();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // ==========================
-  // DELETE NOTIFICATION
-  // ==========================
-
-  async function handleDelete(id: number) {
-    try {
-      await deleteNotification(id);
-
-      await loadNotifications();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // ==========================
-  // MARK ALL AS READ
-  // ==========================
-
-  async function handleMarkAllRead() {
-    try {
-      if (!userId) return;
-
-      await markAllNotificationsAsRead(userId);
-
-      await loadNotifications();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  // ==========================
-  // OPEN NOTIFICATION
-  // ==========================
-
-  async function handleOpenNotification(notification: any) {
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
-
-    await loadNotifications();
-
-    const title = String(notification.title ?? "").toLowerCase();
-    const bookingId = notification.booking_id;
-
-    if ((title.includes("chat") || title.includes("message")) && bookingId) {
-      navigate(`/chat/${bookingId}`);
-      setOpen(false);
+  async function handleRead(id: number): Promise<void> {
+    if (processingIds.has(id)) {
       return;
     }
 
-    if (role === "worker") {
-      if (notification.title === "New Payment Request") {
-        navigate("/worker/payment-requests");
-      } else {
-        navigate("/worker/bookings");
+    try {
+      setProcessing(id, true);
+
+      const current = notifications.find(
+        (notification) => notification.id === id,
+      );
+
+      await markMyNotificationAsRead(id);
+
+      setNotifications((items) =>
+        items.map((notification) =>
+          notification.id === id
+            ? {
+                ...notification,
+                is_read: true,
+              }
+            : notification,
+        ),
+      );
+
+      if (current && !current.is_read) {
+        setUnreadCount((count) => Math.max(0, count - 1));
       }
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Unable to mark the notification as read.",
+        ),
+      );
+    } finally {
+      setProcessing(id, false);
+    }
+  }
+
+  async function handleDelete(
+    notification: Notification,
+  ): Promise<void> {
+    if (processingIds.has(notification.id)) {
+      return;
     }
 
-    if (role === "customer") {
-      navigate("/customer/bookings");
+    try {
+      setProcessing(notification.id, true);
+
+      await deleteMyNotification(notification.id);
+
+      setNotifications((current) =>
+        current.filter((item) => item.id !== notification.id),
+      );
+
+      if (!notification.is_read) {
+        setUnreadCount((current) =>
+          Math.max(0, current - 1),
+        );
+      }
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Unable to delete the notification.",
+        ),
+      );
+    } finally {
+      setProcessing(notification.id, false);
+    }
+  }
+
+  async function handleMarkAllRead(): Promise<void> {
+    if (!userId || unreadCount === 0 || markingAll) {
+      return;
+    }
+
+    try {
+      setMarkingAll(true);
+
+      await markAllMyNotificationsAsRead();
+
+      setNotifications((current) =>
+        current.map((notification) => ({
+          ...notification,
+          is_read: true,
+        })),
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Unable to mark all notifications as read.",
+        ),
+      );
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  async function handleOpenNotification(
+    notification: Notification,
+  ): Promise<void> {
+    if (!notification.is_read) {
+      await handleRead(notification.id);
     }
 
     setOpen(false);
+    navigate(getNotificationRoute(notification, role));
   }
-    return (
+
+  return (
     <div className="relative" ref={dropdownRef}>
-      {/* Notification Bell */}
       <button
-        onClick={() => setOpen(!open)}
-        className="
-          relative
-          rounded-full
-          p-2
-          transition
-          hover:bg-gray-100
-        "
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="relative rounded-full p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+        aria-label="Open notifications"
+        aria-expanded={open}
       >
-        <Bell size={23} className="text-gray-700" />
+        <Bell className="h-6 w-6 text-slate-700 dark:text-slate-200" />
 
         {unreadCount > 0 && (
-          <span
-            className="
-              absolute
-              -top-1
-              -right-1
-              min-w-[20px]
-              h-5
-              px-1
-              rounded-full
-              bg-red-600
-              text-white
-              text-[11px]
-              font-semibold
-              flex
-              items-center
-              justify-center
-            "
-          >
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Notification Dropdown */}
       {open && (
-        <div
-          className="
-            absolute
-            right-0
-            mt-3
-            w-[390px]
-            bg-white
-            rounded-2xl
-            shadow-2xl
-            border
-            overflow-hidden
-            z-50
-            animate-in
-            fade-in
-            slide-in-from-top-2
-            duration-200
-          "
-        >
-          {/* HEADER */}
-          <div className="flex items-center justify-between border-b px-5 py-4">
+        <div className="fixed inset-x-3 top-20 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-100 dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-700">
             <div>
-              <h2 className="text-lg font-bold">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 Notifications
               </h2>
 
-              <p className="text-xs text-gray-500">
-                {notifications.length} notification(s)
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {unreadCount} unread notification
+                {unreadCount === 1 ? "" : "s"}
               </p>
             </div>
 
-            <button
-              onClick={() => setOpen(false)}
-              className="rounded-full p-1 hover:bg-gray-100"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void loadNotifications(true)}
+                disabled={refreshing}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-800"
+                aria-label="Refresh notifications"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
+                />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Close notifications"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {/* ACTION BAR */}
-          <div className="flex items-center justify-between border-b bg-gray-50 px-5 py-3">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
             <button
-              onClick={handleMarkAllRead}
-              className="
-                flex
-                items-center
-                gap-2
-                text-sm
-                font-medium
-                text-blue-600
-                hover:text-blue-700
-              "
+              type="button"
+              onClick={() => void handleMarkAllRead()}
+              disabled={
+                markingAll || unreadCount === 0 || !userId
+              }
+              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-300"
             >
-              <CheckCheck size={16} />
+              {markingAll ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
+
               Mark all as read
             </button>
 
-            <span className="text-xs text-gray-500">
-              Unread: {unreadCount}
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Latest {notifications.length}
             </span>
           </div>
 
-          {/* NOTIFICATION LIST */}
-          <div className="max-h-[450px] overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                <Bell
-                  size={40}
-                  className="mb-3 text-gray-300"
-                />
+          <div className="max-h-[65vh] overflow-y-auto sm:max-h-112">
+            {loading ? (
+              <div className="space-y-3 p-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-24 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"
+                  />
+                ))}
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+                <Bell className="h-10 w-10 text-slate-300 dark:text-slate-600" />
 
-                <p className="font-medium">
+                <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">
                   No notifications yet
                 </p>
 
-                <p className="mt-1 text-xs text-gray-400">
-                  You're all caught up.
+                <p className="mt-1 text-xs text-slate-400">
+                  You are all caught up.
                 </p>
               </div>
             ) : (
@@ -362,6 +542,8 @@ export default function NotificationDropdown({
                 <NotificationItem
                   key={notification.id}
                   notification={notification}
+                  processing={processingIds.has(notification.id)}
+                  compact
                   onRead={handleRead}
                   onDelete={handleDelete}
                   onClick={handleOpenNotification}
@@ -370,9 +552,9 @@ export default function NotificationDropdown({
             )}
           </div>
 
-          {/* FOOTER */}
-          <div className="border-t bg-gray-50">
+          <div className="border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
             <button
+              type="button"
               onClick={() => {
                 setOpen(false);
 
@@ -382,16 +564,7 @@ export default function NotificationDropdown({
                     : "/customer/notifications",
                 );
               }}
-              className="
-                w-full
-                py-3
-                text-center
-                text-sm
-                font-semibold
-                text-blue-600
-                transition
-                hover:bg-blue-50
-              "
+              className="w-full py-3 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30"
             >
               View All Notifications →
             </button>
@@ -399,7 +572,6 @@ export default function NotificationDropdown({
         </div>
       )}
 
-      {/* TOAST NOTIFICATION */}
       {toastNotification && (
         <NotificationToast
           notification={toastNotification}

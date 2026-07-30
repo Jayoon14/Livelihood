@@ -15,7 +15,14 @@ export interface PaymentForm {
   bank_name: string;
   account_name: string;
   account_number: string;
+
+  /**
+   * Legacy database field.
+   * Keep this property until the database column is removed,
+   * but do not collect or store card expiration information.
+   */
   card_expiration: string;
+
   bank_qr: string;
 }
 

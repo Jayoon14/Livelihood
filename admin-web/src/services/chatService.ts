@@ -354,10 +354,9 @@ export async function getChatContext(
 
 export async function getMessages(
   bookingId: number,
+  userId: string,
 ): Promise<ChatMessage[]> {
-  if (!Number.isFinite(bookingId)) {
-    throw new Error("Invalid booking conversation.");
-  }
+  await getParticipantContext(bookingId, userId);
 
   const { data, error } = await supabase
     .from("messages")
@@ -439,8 +438,14 @@ export async function sendFile(
 export async function uploadChatImage(file: File): Promise<string> {
   validateImage(file);
 
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !authData.user) {
+    throw new Error(authError?.message || "Please sign in before uploading an image.");
+  }
+
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `images/${crypto.randomUUID()}.${extension}`;
+  const path = `${authData.user.id}/images/${crypto.randomUUID()}.${extension}`;
 
   const { error } = await supabase.storage
     .from("chat-images")
@@ -470,8 +475,14 @@ export async function uploadChatFile(
 ): Promise<{ url: string; name: string }> {
   validateDocument(file);
 
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !authData.user) {
+    throw new Error(authError?.message || "Please sign in before uploading a file.");
+  }
+
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const path = `documents/${crypto.randomUUID()}-${safeName}`;
+  const path = `${authData.user.id}/documents/${crypto.randomUUID()}-${safeName}`;
 
   const { error } = await supabase.storage
     .from("chat-files")
@@ -561,6 +572,8 @@ export async function markMessagesSeen(
   if (!Number.isFinite(bookingId) || !userId) {
     return;
   }
+
+  await getParticipantContext(bookingId, userId);
 
   const { error } = await supabase
     .from("messages")

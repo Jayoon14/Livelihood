@@ -1,370 +1,935 @@
-import { toast } from "sonner";
-import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-import AdminLayout from "../../../layouts/AdminLayout";
-import { supabase } from "../../../lib/supabase";
-
-import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
-} from "../../../services/notificationService";
-
 import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from "@supabase/supabase-js";
+import {
+  ArrowLeft,
+  Bell,
+  CalendarDays,
+  Check,
+  CheckCheck,
+  CreditCard,
+  RefreshCw,
+  Search,
+  Trash2,
+  UserPlus,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-type NotificationItem = {
-  id: number;
-  user_id: string;
-  booking_id: number | null;
-  title: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
-};
+import AdminLayout from "../../../layouts/AdminLayout";
+import { supabase } from "../../../lib/supabase";
+import {
+  deleteMyNotification,
+  deleteMyReadNotifications,
+  getMyNotifications,
+  markAllMyNotificationsAsRead,
+  markMyNotificationAsRead,
+  type Notification,
+} from "../../../services/notificationService";
+
+type FilterValue = "all" | "unread" | "read";
+
+const PAGE_SIZE = 15;
+
+function formatExactDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatRelativeDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown time";
+  }
+
+  const difference = date.getTime() - Date.now();
+  const absolute = Math.abs(difference);
+
+  const divisions = [
+    { amount: 1000 * 60 * 60 * 24 * 365, unit: "year" },
+    { amount: 1000 * 60 * 60 * 24 * 30, unit: "month" },
+    { amount: 1000 * 60 * 60 * 24, unit: "day" },
+    { amount: 1000 * 60 * 60, unit: "hour" },
+    { amount: 1000 * 60, unit: "minute" },
+  ] as const;
+
+  const formatter = new Intl.RelativeTimeFormat("en", {
+    numeric: "auto",
+  });
+
+  for (const division of divisions) {
+    if (absolute >= division.amount) {
+      return formatter.format(
+        Math.round(difference / division.amount),
+        division.unit,
+      );
+    }
+  }
+
+  return "just now";
+}
+
+function normalizeText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function resolveNotificationRoute(
+  item: Notification,
+): string {
+  const title = normalizeText(item.title);
+  const message = normalizeText(item.message);
+  const combined = `${title} ${message}`;
+
+  if (combined.includes("worker")) {
+    return "/admin/workers";
+  }
+
+  if (combined.includes("payment")) {
+    return "/admin/payments";
+  }
+
+  if (
+    combined.includes("booking") ||
+    item.booking_id
+  ) {
+    return "/admin/bookings";
+  }
+
+  if (combined.includes("customer")) {
+    return "/admin/customers";
+  }
+
+  return "/admin/dashboard";
+}
+
+function iconForNotification(item: Notification) {
+  const value = normalizeText(
+    `${item.title} ${item.message}`,
+  );
+
+  if (value.includes("worker")) {
+    return UserPlus;
+  }
+
+  if (value.includes("payment")) {
+    return CreditCard;
+  }
+
+  if (value.includes("booking")) {
+    return CalendarDays;
+  }
+
+  return Bell;
+}
+
+function mergeNotification(
+  current: Notification[],
+  incoming: Notification,
+): Notification[] {
+  const existingIndex = current.findIndex(
+    (item) => item.id === incoming.id,
+  );
+
+  if (existingIndex === -1) {
+    return [incoming, ...current];
+  }
+
+  const next = [...current];
+  next[existingIndex] = incoming;
+
+  return next.sort(
+    (first, second) =>
+      new Date(second.created_at).getTime() -
+      new Date(first.created_at).getTime(),
+  );
+}
 
 export default function Notifications() {
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<
+    Notification[]
+  >([]);
+  const [filter, setFilter] =
+    useState<FilterValue>("all");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] =
+    useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [markingAll, setMarkingAll] = useState(false);
+  const [refreshing, setRefreshing] =
+    useState(false);
+  const [loadingMore, setLoadingMore] =
+    useState(false);
+  const [markingAll, setMarkingAll] =
+    useState(false);
+  const [clearingRead, setClearingRead] =
+    useState(false);
+  const [deletingIds, setDeletingIds] = useState<
+    number[]
+  >([]);
+  const [error, setError] = useState("");
+  const [userId, setUserId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
-    let isCancelled = false;
-    let channel: RealtimeChannel | null = null;
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
 
-    async function initialize() {
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadNotifications = useCallback(
+    async ({
+      requestedPage = 1,
+      append = false,
+      background = false,
+    }: {
+      requestedPage?: number;
+      append?: boolean;
+      background?: boolean;
+    } = {}) => {
+      if (append) {
+        setLoadingMore(true);
+      } else if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      if (!append) {
+        setError("");
+      }
+
+      try {
+        const result = await getMyNotifications({
+          page: requestedPage,
+          pageSize: PAGE_SIZE,
+          unreadOnly: filter === "unread",
+          search: debouncedSearch || undefined,
+        });
+
+        let items = result.items;
+
+        if (filter === "read") {
+          items = items.filter((item) => item.is_read);
+        }
+
+        setNotifications((current) =>
+          append ? [...current, ...items] : items,
+        );
+        setTotal(result.total);
+        setHasMore(result.hasMore);
+        setPage(requestedPage);
+      } catch (caught) {
+        const message =
+          caught instanceof Error
+            ? caught.message
+            : "Unable to load notifications.";
+
+        setError(message);
+
+        if (!append) {
+          toast.error(message);
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
+    },
+    [debouncedSearch, filter],
+  );
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    let channel: RealtimeChannel | null = null;
+    let active = true;
+
+    async function initializeRealtime() {
       try {
         const {
           data: { user },
-          error,
+          error: userError,
         } = await supabase.auth.getUser();
 
-        if (error) {
-          throw error;
+        if (userError) {
+          throw userError;
         }
 
-        if (!user || isCancelled) {
-          setLoading(false);
+        if (!user || !active) {
           return;
         }
 
-        await loadNotifications();
-
-        if (isCancelled) return;
+        setUserId(user.id);
 
         channel = supabase
-          .channel(`admin-notifications-${user.id}-${Date.now()}`)
+          .channel(`admin-notifications-${user.id}`)
           .on(
             "postgres_changes",
             {
-              event: "*",
+              event: "INSERT",
               schema: "public",
               table: "notifications",
               filter: `user_id=eq.${user.id}`,
             },
-            (_payload: RealtimePostgresChangesPayload<NotificationItem>) => {
-              void loadNotifications();
+            (
+              payload: RealtimePostgresChangesPayload<Notification>,
+            ) => {
+              const incoming =
+                payload.new as Notification;
+
+              setNotifications((current) =>
+                mergeNotification(current, incoming),
+              );
+              setTotal((current) => current + 1);
+
+              if (!incoming.is_read) {
+                toast.info(incoming.title, {
+                  description: incoming.message,
+                });
+              }
             },
           )
-          .subscribe((status) => {
-            console.log("Admin notifications realtime status:", status);
-          });
-      } catch (error) {
-        console.error("Initialize admin notifications error:", error);
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (
+              payload: RealtimePostgresChangesPayload<Notification>,
+            ) => {
+              const incoming =
+                payload.new as Notification;
 
-        if (!isCancelled) {
-          setLoading(false);
-        }
+              setNotifications((current) => {
+                if (
+                  filter === "unread" &&
+                  incoming.is_read
+                ) {
+                  return current.filter(
+                    (item) => item.id !== incoming.id,
+                  );
+                }
+
+                if (
+                  filter === "read" &&
+                  !incoming.is_read
+                ) {
+                  return current.filter(
+                    (item) => item.id !== incoming.id,
+                  );
+                }
+
+                return mergeNotification(
+                  current,
+                  incoming,
+                );
+              });
+            },
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "DELETE",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (
+              payload: RealtimePostgresChangesPayload<Notification>,
+            ) => {
+              const deleted =
+                payload.old as Partial<Notification>;
+
+              if (typeof deleted.id !== "number") {
+                return;
+              }
+
+              setNotifications((current) =>
+                current.filter(
+                  (item) => item.id !== deleted.id,
+                ),
+              );
+              setTotal((current) =>
+                Math.max(0, current - 1),
+              );
+            },
+          )
+          .subscribe();
+      } catch (caught) {
+        console.error(
+          "Admin notification realtime error:",
+          caught,
+        );
       }
     }
 
-    void initialize();
+    void initializeRealtime();
 
     return () => {
-      isCancelled = true;
+      active = false;
 
       if (channel) {
         void supabase.removeChannel(channel);
-        channel = null;
       }
     };
-  }, []);
+  }, [filter]);
 
-  async function loadNotifications() {
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+  const unreadCount = useMemo(
+    () =>
+      notifications.filter((item) => !item.is_read)
+        .length,
+    [notifications],
+  );
 
-      if (error) {
-        throw error;
-      }
-
-      if (!user) {
-        setNotifications([]);
-        return;
-      }
-
-      const data = await getNotifications(user.id);
-
-      setNotifications(data as NotificationItem[]);
-    } catch (error) {
-      console.error("Load admin notifications error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const readCount = useMemo(
+    () =>
+      notifications.filter((item) => item.is_read)
+        .length,
+    [notifications],
+  );
 
   async function handleRead(id: number) {
-    try {
-      await markAsRead(id);
+    const existing = notifications.find(
+      (item) => item.id === id,
+    );
 
-      setNotifications((previous) =>
-        previous.map((item) =>
+    if (!existing || existing.is_read) {
+      return;
+    }
+
+    setNotifications((current) =>
+      current.map((item) =>
+        item.id === id
+          ? { ...item, is_read: true }
+          : item,
+      ),
+    );
+
+    try {
+      await markMyNotificationAsRead(id);
+
+      if (filter === "unread") {
+        setNotifications((current) =>
+          current.filter((item) => item.id !== id),
+        );
+      }
+    } catch (caught) {
+      setNotifications((current) =>
+        current.map((item) =>
           item.id === id
-            ? {
-                ...item,
-                is_read: true,
-              }
+            ? { ...item, is_read: false }
             : item,
         ),
       );
-    } catch (error) {
-      console.error("Mark notification as read error:", error);
-      toast.error("Unable to mark the notification as read.");
+
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to mark notification as read.",
+      );
     }
   }
 
   async function handleMarkAllAsRead() {
-    if (unreadCount === 0 || markingAll) return;
+    if (unreadCount === 0 || markingAll) {
+      return;
+    }
+
+    setMarkingAll(true);
 
     try {
-      setMarkingAll(true);
+      await markAllMyNotificationsAsRead();
 
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!user) return;
-
-      await markAllAsRead(user.id);
-
-      setNotifications((previous) =>
-        previous.map((item) => ({
-          ...item,
-          is_read: true,
-        })),
+      setNotifications((current) =>
+        filter === "unread"
+          ? []
+          : current.map((item) => ({
+              ...item,
+              is_read: true,
+            })),
       );
-    } catch (error) {
-      console.error("Mark all notifications as read error:", error);
-      toast.error("Unable to mark all notifications as read.");
+
+      toast.success(
+        "All notifications marked as read.",
+      );
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to mark all notifications as read.",
+      );
     } finally {
       setMarkingAll(false);
     }
   }
 
-  async function handleOpenNotification(item: NotificationItem) {
+  async function handleDelete(item: Notification) {
+    const confirmed = window.confirm(
+      `Delete "${item.title}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingIds((current) => [
+      ...current,
+      item.id,
+    ]);
+
     try {
-      if (!item.is_read) {
-        await handleRead(item.id);
-      }
+      await deleteMyNotification(item.id);
 
-      switch (item.title) {
-        case "New Worker Registration":
-          navigate("/admin/workers");
-          break;
+      setNotifications((current) =>
+        current.filter(
+          (notification) =>
+            notification.id !== item.id,
+        ),
+      );
+      setTotal((current) =>
+        Math.max(0, current - 1),
+      );
 
-        case "New Booking":
-          navigate("/admin/bookings");
-          break;
-
-        case "New Booking Request":
-          navigate("/admin/bookings");
-          break;
-
-        case "New Payment Request":
-          navigate("/admin/payments");
-          break;
-
-        case "Booking Cancelled":
-          navigate("/admin/bookings");
-          break;
-
-        default:
-          navigate("/admin/dashboard");
-          break;
-      }
-    } catch (error) {
-      console.error("Open admin notification error:", error);
+      toast.success("Notification deleted.");
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to delete notification.",
+      );
+    } finally {
+      setDeletingIds((current) =>
+        current.filter((id) => id !== item.id),
+      );
     }
   }
 
-  const unreadCount = notifications.filter((item) => !item.is_read).length;
+  async function handleClearRead() {
+    if (readCount === 0 || clearingRead) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete all read notifications?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setClearingRead(true);
+
+    try {
+      await deleteMyReadNotifications();
+
+      setNotifications((current) =>
+        current.filter((item) => !item.is_read),
+      );
+      setTotal((current) =>
+        Math.max(0, current - readCount),
+      );
+
+      toast.success(
+        "Read notifications were cleared.",
+      );
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to clear read notifications.",
+      );
+    } finally {
+      setClearingRead(false);
+    }
+  }
+
+  async function handleOpenNotification(
+    item: Notification,
+  ) {
+    if (!item.is_read) {
+      await handleRead(item.id);
+    }
+
+    navigate(resolveNotificationRoute(item));
+  }
+
+  async function handleLoadMore() {
+    await loadNotifications({
+      requestedPage: page + 1,
+      append: true,
+    });
+  }
 
   return (
     <AdminLayout>
-      <div className="p-5 md:p-6">
-        {/* HEADER */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+      <section className="space-y-6 p-4 sm:p-6 lg:p-8">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="
-                flex
-                h-10
-                w-10
-                shrink-0
-                items-center
-                justify-center
-                rounded-lg
-                border
-                border-gray-200
-                bg-white
-                text-gray-700
-                transition
-                hover:bg-gray-100
-              "
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               aria-label="Go back"
             >
-              <ArrowLeft size={21} />
+              <ArrowLeft size={20} />
             </button>
 
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
                 Notifications
               </h1>
-
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {unreadCount > 0
                   ? `${unreadCount} unread notification${
                       unreadCount === 1 ? "" : "s"
-                    }`
-                  : "All notifications are read"}
+                    } currently shown`
+                  : "All currently shown notifications are read"}
               </p>
+              {userId && (
+                <p className="mt-1 text-xs text-slate-400">
+                  Realtime updates are active.
+                </p>
+              )}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              void handleMarkAllAsRead();
-            }}
-            disabled={markingAll || unreadCount === 0}
-            className="
-              flex
-              items-center
-              justify-center
-              gap-2
-              rounded-lg
-              bg-red-600
-              px-4
-              py-2.5
-              font-medium
-              text-white
-              transition
-              hover:bg-red-700
-              disabled:cursor-not-allowed
-              disabled:bg-gray-300
-            "
-          >
-            <CheckCheck size={19} />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void loadNotifications({
+                  background: true,
+                })
+              }
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${
+                  refreshing ? "animate-spin" : ""
+                }`}
+              />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
 
-            {markingAll ? "Marking..." : "Mark All as Read"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() =>
+                void handleMarkAllAsRead()
+              }
+              disabled={
+                markingAll || unreadCount === 0
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCheck className="h-4 w-4" />
+              {markingAll
+                ? "Marking..."
+                : "Mark all read"}
+            </button>
 
-        {/* NOTIFICATIONS LIST */}
-        <div className="overflow-hidden rounded-xl bg-white shadow">
+            <button
+              type="button"
+              onClick={() => void handleClearRead()}
+              disabled={clearingRead || readCount === 0}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-slate-900 dark:hover:bg-red-950/20"
+            >
+              <Trash2 className="h-4 w-4" />
+              {clearingRead
+                ? "Clearing..."
+                : "Clear read"}
+            </button>
+          </div>
+        </header>
+
+        <section className="grid gap-4 sm:grid-cols-3">
+          <SummaryCard
+            label="Total results"
+            value={total}
+            icon={Bell}
+          />
+          <SummaryCard
+            label="Unread shown"
+            value={unreadCount}
+            icon={Bell}
+          />
+          <SummaryCard
+            label="Read shown"
+            value={readCount}
+            icon={CheckCheck}
+          />
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <label className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Search notifications..."
+                className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-10 text-sm outline-none focus:border-emerald-500 dark:border-slate-700"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </label>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["all", "All"],
+                  ["unread", "Unread"],
+                  ["read", "Read"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setFilter(value);
+                    setPage(1);
+                  }}
+                  className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                    filter === value
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {error && !loading && (
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-center dark:border-red-900/40 dark:bg-red-950/20">
+            <p className="font-semibold text-red-700 dark:text-red-300">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                void loadNotifications()
+              }
+              className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Try again
+            </button>
+          </section>
+        )}
+
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           {loading ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-10 text-center text-sm text-slate-500">
               Loading notifications...
             </div>
           ) : notifications.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No notifications.
+            <div className="flex flex-col items-center p-12 text-center">
+              <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
+                <Bell className="h-8 w-8 text-slate-400" />
+              </div>
+              <h2 className="mt-4 font-bold text-slate-900 dark:text-white">
+                No notifications found
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Try another filter or search term.
+              </p>
             </div>
           ) : (
-            notifications.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  void handleOpenNotification(item);
-                }}
-                className={`
-                  cursor-pointer
-                  border-b
-                  p-5
-                  transition
-                  last:border-b-0
-                  hover:bg-gray-50
-                  ${
-                    item.is_read
-                      ? "bg-white"
-                      : "border-l-4 border-l-red-600 bg-red-50"
-                  }
-                `}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h2 className="font-semibold text-gray-900">
-                        {item.title}
-                      </h2>
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+              {notifications.map((item) => {
+                const Icon =
+                  iconForNotification(item);
+                const deleting =
+                  deletingIds.includes(item.id);
 
-                      {!item.is_read && (
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-600" />
-                      )}
-                    </div>
-
-                    <p className="mt-1 text-sm text-gray-600">{item.message}</p>
-
-                    <p className="mt-2 text-xs text-gray-400">
-                      {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </div>
-
-                  {!item.is_read && (
+                return (
+                  <article
+                    key={item.id}
+                    className={`group relative transition ${
+                      item.is_read
+                        ? "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                        : "bg-emerald-50/70 hover:bg-emerald-50 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+                    }`}
+                  >
                     <button
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleRead(item.id);
-                      }}
-                      className="
-                        shrink-0
-                        rounded-lg
-                        bg-red-600
-                        px-3
-                        py-2
-                        text-sm
-                        font-medium
-                        text-white
-                        transition
-                        hover:bg-red-700
-                      "
+                      onClick={() =>
+                        void handleOpenNotification(
+                          item,
+                        )
+                      }
+                      className="w-full p-5 text-left"
                     >
-                      Read
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`rounded-xl p-2.5 ${
+                            item.is_read
+                              ? "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+
+                        <div className="min-w-0 flex-1 pr-24">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="font-bold text-slate-900 dark:text-white">
+                              {item.title}
+                            </h2>
+
+                            {!item.is_read && (
+                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+                            )}
+                          </div>
+
+                          <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            {item.message}
+                          </p>
+
+                          <p
+                            className="mt-2 text-xs text-slate-400"
+                            title={formatExactDate(
+                              item.created_at,
+                            )}
+                          >
+                            {formatRelativeDate(
+                              item.created_at,
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </button>
-                  )}
-                </div>
-              </div>
-            ))
+
+                    <div className="absolute right-4 top-4 flex gap-2">
+                      {!item.is_read && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleRead(item.id);
+                          }}
+                          className="rounded-lg border border-slate-200 bg-white p-2 text-emerald-600 shadow-sm transition hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-emerald-950/20"
+                          aria-label="Mark as read"
+                          title="Mark as read"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleDelete(item);
+                        }}
+                        disabled={deleting}
+                        className="rounded-lg border border-slate-200 bg-white p-2 text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-red-950/20"
+                        aria-label="Delete notification"
+                        title="Delete notification"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           )}
-        </div>
-      </div>
+
+          {!loading &&
+            notifications.length > 0 &&
+            hasMore && (
+              <div className="border-t border-slate-200 p-4 text-center dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleLoadMore()
+                  }
+                  disabled={loadingMore}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {loadingMore
+                    ? "Loading..."
+                    : "Load more"}
+                </button>
+              </div>
+            )}
+        </section>
+      </section>
     </AdminLayout>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Bell;
+}) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-500">
+          {label}
+        </p>
+        <Icon className="h-5 w-5 text-emerald-600" />
+      </div>
+      <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
+        {value.toLocaleString()}
+      </p>
+    </article>
   );
 }

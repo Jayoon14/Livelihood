@@ -602,7 +602,7 @@ export default function PaymentHistory() {
                 {/* DESKTOP TABLE */}
 
                 <div className="hidden overflow-x-auto lg:block">
-                  <table className="w-full min-w-[950px]">
+                  <table className="w-full min-w-237.5">
                     <thead className="border-b border-gray-200 bg-gray-50">
                       <tr>
                         <TableHeader>Worker</TableHeader>
@@ -662,7 +662,7 @@ export default function PaymentHistory() {
                             </td>
 
                             <td className="px-5 py-4">
-                              <p className="max-w-[220px] truncate text-sm font-medium text-gray-700">
+                              <p className="max-w-55 truncate text-sm font-medium text-gray-700">
                                 {getServiceName(payment)}
                               </p>
                             </td>

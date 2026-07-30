@@ -241,7 +241,7 @@ export default function CustomerWorkerProfile() {
         date,
       );
 
-      if (!availability.available) {
+      if (availability.available === false) {
         setAvailabilityMessage(
           availability.reason || "The worker is unavailable on this date.",
         );
@@ -296,7 +296,7 @@ export default function CustomerWorkerProfile() {
         bookingDate,
       );
 
-      if (!availability.available) {
+      if (availability.available === false) {
         toast.warning(availability.reason || "The worker is unavailable on this date.");
         return;
       }
@@ -428,7 +428,7 @@ export default function CustomerWorkerProfile() {
         <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-8">
           <div className="animate-pulse space-y-6">
             <div className="h-52 rounded-3xl bg-slate-200" />
-            <div className="h-[700px] rounded-3xl bg-slate-200" />
+            <div className="h-175 rounded-3xl bg-slate-200" />
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="h-72 rounded-3xl bg-slate-200" />
               <div className="h-72 rounded-3xl bg-slate-200" />
@@ -472,7 +472,7 @@ export default function CustomerWorkerProfile() {
         <div className="mx-auto w-full max-w-[1800px] space-y-6 px-4 py-6 sm:px-6 xl:px-8">
           {/* PROFILE HEADER */}
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="h-24 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-400 sm:h-28" />
+            <div className="h-24 bg-linear-to-r from-blue-600 via-cyan-500 to-emerald-400 sm:h-28" />
 
             <div className="relative px-5 pb-5 sm:px-7 sm:pb-7">
               <div className="-mt-10 flex flex-col gap-5 sm:-mt-12">
@@ -739,7 +739,7 @@ export default function CustomerWorkerProfile() {
                     />
                   </div>
 
-                  <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-5">
+                  <div className="rounded-2xl border border-blue-200 bg-linear-to-r from-blue-50 to-cyan-50 p-5">
                     <div className="flex items-end justify-between gap-4">
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">

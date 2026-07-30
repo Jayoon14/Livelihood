@@ -253,7 +253,7 @@ export default function ChatRoom() {
 
         const [chatContext, history] = await Promise.all([
           getChatContext(bookingId, currentUserId),
-          getMessages(bookingId),
+          getMessages(bookingId, currentUserId),
         ]);
 
         if (cancelled) {
@@ -741,7 +741,7 @@ export default function ChatRoom() {
     <div className="min-h-screen bg-slate-100 p-0 sm:p-3">
       <div className="mx-auto flex h-screen w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[calc(100vh-1.5rem)] sm:rounded-[28px] sm:border sm:border-slate-200/80">
         {/* Chat Header */}
-        <header className="relative z-20 flex min-h-[82px] items-center gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6">
+        <header className="relative z-20 flex min-h-20.5 items-center gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -965,7 +965,7 @@ export default function ChatRoom() {
                       <div
                         className={`overflow-hidden shadow-sm ${
                           mine
-                            ? `bg-gradient-to-br from-blue-600 to-indigo-600 text-white ${
+                            ? `bg-linear-to-br from-blue-600 to-indigo-600 text-white ${
                                 sameSenderAsNext
                                   ? "rounded-2xl rounded-br-md"
                                   : "rounded-2xl rounded-br-md"
@@ -987,13 +987,13 @@ export default function ChatRoom() {
                             <img
                               src={item.image_url}
                               alt="Chat attachment"
-                              className="max-h-[430px] w-full min-w-[210px] object-cover transition duration-300 hover:scale-[1.02]"
+                              className="max-h-107.5 w-full min-w-52.5 object-cover transition duration-300 hover:scale-[1.02]"
                             />
                           </a>
                         )}
 
                         {item.message && (
-                          <p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">
+                          <p className="whitespace-pre-wrap wrap-break-word px-4 pt-3 text-sm leading-6">
                             {item.message}
                           </p>
                         )}
@@ -1003,7 +1003,7 @@ export default function ChatRoom() {
                             href={item.file_url}
                             target="_blank"
                             rel="noreferrer"
-                            className={`m-2 flex min-w-[230px] items-center gap-3 rounded-xl p-3 transition ${
+                            className={`m-2 flex min-w-57.5 items-center gap-3 rounded-xl p-3 transition ${
                               mine
                                 ? "bg-white/15 hover:bg-white/20"
                                 : "bg-slate-100 hover:bg-slate-200"
@@ -1195,12 +1195,12 @@ export default function ChatRoom() {
               }
               onClick={() => void handleSend()}
               aria-label="Send message"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 transition hover:scale-105 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-300 disabled:shadow-none disabled:hover:scale-100"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 transition hover:scale-105 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-300 disabled:shadow-none disabled:hover:scale-100"
             >
               {sending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" />
               ) : (
-                <Send className="h-5 w-5 translate-x-[1px]" />
+                <Send className="h-5 w-5 translate-x-px" />
               )}
             </button>
           </div>

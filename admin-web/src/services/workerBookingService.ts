@@ -196,7 +196,7 @@ export async function acceptBooking(
     .from("bookings")
     .update({
       status: "Approved",
-      schedule_status: "Approved",
+      schedule_status: "Scheduled",
       trip_status: "Accepted",
       completion_status: "Not Started",
       accepted_at: acceptedAt,
@@ -264,7 +264,7 @@ export async function rejectBooking(
     .from("bookings")
     .update({
       status: "Cancelled",
-      schedule_status: "Cancelled",
+      schedule_status: "Pending",
       trip_status: "Cancelled",
       cancel_reason: normalizedReason,
     })
@@ -387,7 +387,7 @@ export async function startTrip(
     .from("bookings")
     .update({
       status: "On Going",
-      schedule_status: "On Going",
+      schedule_status: "Scheduled",
       trip_status: "On Trip",
       completion_status: "Not Started",
       trip_started_at: tripStartedAt,
@@ -453,7 +453,7 @@ export async function completeBooking(
     .from("bookings")
     .update({
       status: "Completed",
-      schedule_status: "Completed",
+      schedule_status: "Scheduled",
       trip_status: "Completed",
       completion_status: "Worker Completed",
       completed_at: completedAt,

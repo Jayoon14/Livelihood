@@ -66,7 +66,7 @@ export default function ThemeDropdown() {
       {open && (
         <div
           role="menu"
-          className="theme-menu-enter absolute right-0 z-[100] mt-3 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.18)] dark:border-slate-700 dark:bg-slate-900"
+          className="theme-menu-enter absolute right-0 z-100 mt-3 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.18)] dark:border-slate-700 dark:bg-slate-900"
         >
           {options.map(({ mode: optionMode, label, icon: Icon }) => {
             const selected = mode === optionMode;

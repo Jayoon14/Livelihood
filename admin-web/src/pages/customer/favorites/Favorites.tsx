@@ -101,7 +101,7 @@ export default function Favorites() {
     <CustomerLayout>
       <div className="mx-auto w-full max-w-[1800px] px-6 py-6 space-y-6">
         {/* Header */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 px-5 py-7 text-white shadow-lg sm:rounded-3xl sm:px-8 sm:py-9 lg:px-10">
+        <section className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-700 via-indigo-600 to-cyan-500 px-5 py-7 text-white shadow-lg sm:rounded-3xl sm:px-8 sm:py-9 lg:px-10">
           <div className="absolute -right-10 -top-14 h-44 w-44 rounded-full bg-white/10 sm:h-56 sm:w-56" />
           <div className="absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-cyan-200/10" />
 

@@ -235,7 +235,7 @@ function Avatar({
 
 function EmptyChat() {
   return (
-    <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50/60 p-8 text-center">
+    <div className="flex h-full items-center justify-center bg-linear-to-br from-slate-50 to-blue-50/60 p-8 text-center">
       <div>
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] bg-blue-600 text-white shadow-xl shadow-blue-600/25">
           <MessageCircle className="h-9 w-9" />
@@ -347,7 +347,7 @@ export default function ChatList() {
 
       const chats = await getChatList(userId);
 
-      const items: BookingChat[] = chats.map((booking: any) => {
+      const items: BookingChat[] = chats.map((booking) => {
         const other =
           booking.customer_id === userId
             ? booking.worker
@@ -479,7 +479,7 @@ export default function ChatList() {
       try {
         const [chatContext, history] = await Promise.all([
           getChatContext(selectedBookingId!, currentUserId),
-          getMessages(selectedBookingId!),
+          getMessages(selectedBookingId!, currentUserId),
         ]);
 
         if (cancelled) return;
@@ -765,7 +765,7 @@ export default function ChatList() {
     <main className="fixed inset-0 z-50 h-screen w-screen overflow-hidden bg-white">
       <section className="flex h-full w-full overflow-hidden bg-white">
         <aside
-          className={`w-full shrink-0 border-r border-slate-200 bg-white lg:w-[390px] ${
+          className={`w-full shrink-0 border-r border-slate-200 bg-white lg:w-97.5 ${
             showMobileChat ? "hidden lg:flex" : "flex"
           } flex-col`}
         >
@@ -988,7 +988,7 @@ export default function ChatList() {
             <EmptyChat />
           ) : (
             <>
-              <header className="flex min-h-[76px] items-center gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-5">
+              <header className="flex min-h-19 items-center gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-5">
                 <button
                   type="button"
                   onClick={() => setShowMobileChat(false)}
@@ -1032,7 +1032,7 @@ export default function ChatList() {
               </header>
 
               <div className="relative flex min-h-0 flex-1 flex-col">
-                <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_#eff6ff,_#f8fafc_45%,_#f8fafc)] px-3 py-5 sm:px-6">
+                <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#eff6ff,#f8fafc_45%,#f8fafc)] px-3 py-5 sm:px-6">
                   {chatLoading ? (
                     <div className="flex h-full items-center justify-center">
                       <LoaderCircle className="h-8 w-8 animate-spin text-blue-600" />
@@ -1112,7 +1112,7 @@ export default function ChatList() {
                                 )}
 
                                 {item.message && (
-                                  <p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">
+                                  <p className="whitespace-pre-wrap wrap-break-word px-4 pt-3 text-sm leading-6">
                                     {item.message}
                                   </p>
                                 )}

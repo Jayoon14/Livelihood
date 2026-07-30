@@ -16,6 +16,7 @@ import type {
 import { supabase } from "../lib/supabase";
 
 export type RealtimeTable =
+  | "activity_logs"
   | "bookings"
   | "chats"
   | "messages"
@@ -56,6 +57,7 @@ interface RealtimeProviderProps {
 }
 
 const INITIAL_VERSIONS: RealtimeVersions = {
+  activity_logs: 0,
   bookings: 0,
   chats: 0,
   messages: 0,
@@ -66,6 +68,7 @@ const INITIAL_VERSIONS: RealtimeVersions = {
 };
 
 const REALTIME_TABLES: RealtimeTable[] = [
+  "activity_logs",
   "bookings",
   "chats",
   "messages",

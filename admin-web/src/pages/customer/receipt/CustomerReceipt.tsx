@@ -526,7 +526,7 @@ export default function CustomerReceipt() {
                 HEADER
             ========================== */}
 
-            <header className="relative overflow-hidden bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 px-6 py-8 text-white sm:px-10">
+            <header className="relative overflow-hidden bg-linear-to-r from-blue-700 via-blue-600 to-indigo-600 px-6 py-8 text-white sm:px-10">
               <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
 
               <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-white/5" />
@@ -715,7 +715,7 @@ export default function CustomerReceipt() {
                             </div>
 
                             <div className="min-w-0">
-                              <p className="break-words font-bold text-gray-900">
+                              <p className="wrap-break-word font-bold text-gray-900">
                                 {transaction.payment_method || "Not specified"}
                               </p>
 
@@ -837,7 +837,7 @@ export default function CustomerReceipt() {
                           className="flex items-center justify-between gap-5"
                         >
                           <div className="min-w-0">
-                            <p className="break-words text-sm font-medium text-slate-300">
+                            <p className="wrap-break-word text-sm font-medium text-slate-300">
                               {transaction.payment_method || "Payment"} #
                               {index + 1}
                             </p>
@@ -982,7 +982,7 @@ function InfoCard({ icon: Icon, label, value }: InfoCardProps) {
           {label}
         </p>
 
-        <p className="mt-1 break-words text-sm font-bold text-gray-900">
+        <p className="mt-1 wrap-break-word text-sm font-bold text-gray-900">
           {value}
         </p>
       </div>

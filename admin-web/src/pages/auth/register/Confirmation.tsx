@@ -19,7 +19,7 @@ export default function Confirmation() {
 
       <div
         className="
-          bg-gradient-to-r
+          bg-linear-to-r
           from-blue-600
           to-blue-700
           rounded-2xl
@@ -493,7 +493,7 @@ function Info({
           col-span-2
           font-semibold
           text-gray-800
-          break-words
+          wrap-break-word
         "
       >
         {children || "-"}

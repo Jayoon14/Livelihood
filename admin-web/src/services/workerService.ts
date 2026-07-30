@@ -6,10 +6,11 @@ export const WORKER_STATUS = {
   APPROVED: "Approved",
   REJECTED: "Rejected",
   PENDING: "Pending",
+  DISABLED: "Disabled",
+  BLOCKED: "Blocked",
 } as const;
 
-export type WorkerStatus =
-  (typeof WORKER_STATUS)[keyof typeof WORKER_STATUS];
+export type WorkerStatus = (typeof WORKER_STATUS)[keyof typeof WORKER_STATUS];
 
 export interface WorkerProfile {
   id: string;
@@ -19,6 +20,18 @@ export interface WorkerProfile {
   email: string | null;
   phone: string | null;
   profile_picture: string | null;
+  profile_image?: string | null;
+  avatar_url?: string | null;
+  gender?: string | null;
+  birth_date?: string | null;
+  civil_status?: string | null;
+  religion?: string | null;
+  house_no?: string | null;
+  street?: string | null;
+  address?: string | null;
+  barangay?: string | null;
+  municipality?: string | null;
+  province?: string | null;
   role: string;
   status: string | null;
   created_at?: string;
@@ -144,17 +157,11 @@ function validatePriceFilter(
   return value;
 }
 
-function normalizeServices(
-  services: unknown,
-): WorkerServiceRecord[] {
-  return Array.isArray(services)
-    ? (services as WorkerServiceRecord[])
-    : [];
+function normalizeServices(services: unknown): WorkerServiceRecord[] {
+  return Array.isArray(services) ? (services as WorkerServiceRecord[]) : [];
 }
 
-function normalizeWorkerWithServices(
-  value: unknown,
-): WorkerWithServices {
+function normalizeWorkerWithServices(value: unknown): WorkerWithServices {
   const worker = value as WorkerProfile & {
     services?: unknown;
   };
@@ -175,9 +182,7 @@ function normalizeWorkerRelation(
   return relation;
 }
 
-function calculateAverageRating(
-  reviews: ReviewRecord[] | null,
-): number {
+function calculateAverageRating(reviews: ReviewRecord[] | null): number {
   if (!reviews?.length) {
     return 0;
   }
@@ -190,25 +195,17 @@ function calculateAverageRating(
     return 0;
   }
 
-  const total = validRatings.reduce(
-    (sum, rating) => sum + rating,
-    0,
-  );
+  const total = validRatings.reduce((sum, rating) => sum + rating, 0);
 
   return Number((total / validRatings.length).toFixed(1));
 }
 
-async function getWorkerMetrics(
-  workerId: string,
-): Promise<{
+async function getWorkerMetrics(workerId: string): Promise<{
   average_rating: number;
   completed_jobs: number;
 }> {
   const [reviewsResult, completedJobsResult] = await Promise.all([
-    supabase
-      .from("reviews")
-      .select("rating")
-      .eq("worker_id", workerId),
+    supabase.from("reviews").select("rating").eq("worker_id", workerId),
     supabase
       .from("bookings")
       .select("*", {
@@ -278,18 +275,8 @@ async function updateWorkerStatus(
   }
 
   const sideEffects = await Promise.allSettled([
-    logActivity(
-      id,
-      activityAction,
-      "Workers",
-      activityDescription,
-    ),
-    createNotification(
-      id,
-      0,
-      notificationTitle,
-      notificationMessage,
-    ),
+    logActivity(id, activityAction, "Workers", activityDescription),
+    createNotification(id, 0, notificationTitle, notificationMessage),
   ]);
 
   sideEffects.forEach((result) => {
@@ -307,6 +294,7 @@ async function updateWorkerStatus(
 
 export async function getWorkers(
   search = "",
+  status: WorkerStatus | "All" = "All",
 ): Promise<WorkerProfile[]> {
   let query = supabase
     .from("profiles")
@@ -315,6 +303,10 @@ export async function getWorkers(
     .order("created_at", {
       ascending: false,
     });
+
+  if (status !== "All") {
+    query = query.eq("status", status);
+  }
 
   const keyword = search.trim();
 
@@ -339,9 +331,7 @@ export async function getWorkers(
 // GET SINGLE WORKER
 // ====================
 
-export async function getWorker(
-  id: string,
-): Promise<WorkerProfile> {
+export async function getWorker(id: string): Promise<WorkerProfile> {
   const workerId = validateWorkerId(id);
 
   const { data, error } = await supabase
@@ -366,9 +356,7 @@ export async function getWorker(
 // ALIASES
 // ====================
 
-export async function getWorkerById(
-  id: string,
-): Promise<WorkerProfile> {
+export async function getWorkerById(id: string): Promise<WorkerProfile> {
   return getWorker(id);
 }
 
@@ -379,7 +367,8 @@ export async function getWorkerDetails(
 
   const { data, error } = await supabase
     .from("profiles")
-    .select(`
+    .select(
+      `
       *,
       services (
         id,
@@ -388,7 +377,8 @@ export async function getWorkerDetails(
         description,
         price
       )
-    `)
+    `,
+    )
     .eq("id", workerId)
     .eq("role", "worker")
     .single();
@@ -408,9 +398,7 @@ export async function getWorkerDetails(
 // APPROVE WORKER
 // ====================
 
-export async function approveWorker(
-  id: string,
-): Promise<WorkerProfile[]> {
+export async function approveWorker(id: string): Promise<WorkerProfile[]> {
   return updateWorkerStatus(
     id,
     WORKER_STATUS.APPROVED,
@@ -425,9 +413,7 @@ export async function approveWorker(
 // REJECT WORKER
 // ====================
 
-export async function rejectWorker(
-  id: string,
-): Promise<WorkerProfile[]> {
+export async function rejectWorker(id: string): Promise<WorkerProfile[]> {
   return updateWorkerStatus(
     id,
     WORKER_STATUS.REJECTED,
@@ -554,21 +540,15 @@ export async function getCompleteWorkerProfile(
 ): Promise<CompleteWorkerProfile> {
   const workerId = validateWorkerId(profileId);
 
-  const [
-    profile,
-    education,
-    workExperience,
-    skills,
-    documents,
-    services,
-  ] = await Promise.all([
-    getWorker(workerId),
-    getEducation(workerId),
-    getWorkExperience(workerId),
-    getSkills(workerId),
-    getDocuments(workerId),
-    getServices(workerId),
-  ]);
+  const [profile, education, workExperience, skills, documents, services] =
+    await Promise.all([
+      getWorker(workerId),
+      getEducation(workerId),
+      getWorkExperience(workerId),
+      getSkills(workerId),
+      getDocuments(workerId),
+      getServices(workerId),
+    ]);
 
   return {
     profile,
@@ -608,9 +588,7 @@ export async function getFeaturedWorkers(
 // =====================
 
 export async function getCategories(): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("services")
-    .select("category");
+  const { data, error } = await supabase.from("services").select("category");
 
   if (error) {
     throw error;
@@ -620,9 +598,7 @@ export async function getCategories(): Promise<string[]> {
     .map((item) => (item as ServiceCategoryRecord).category?.trim())
     .filter((category): category is string => Boolean(category));
 
-  return [...new Set(categories)].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  return [...new Set(categories)].sort((a, b) => a.localeCompare(b));
 }
 
 // =====================
@@ -643,9 +619,7 @@ export async function searchDashboard(
     validMaxPrice !== undefined &&
     validMinPrice > validMaxPrice
   ) {
-    throw new Error(
-      "Minimum price cannot be greater than maximum price.",
-    );
+    throw new Error("Minimum price cannot be greater than maximum price.");
   }
 
   let query = supabase
@@ -682,10 +656,7 @@ export async function searchDashboard(
     );
   }
 
-  if (
-    validMinPrice !== undefined ||
-    validMaxPrice !== undefined
-  ) {
+  if (validMinPrice !== undefined || validMaxPrice !== undefined) {
     workers = workers.filter((worker) =>
       worker.services.some((service) => {
         const price = Number(service.price);
@@ -694,17 +665,11 @@ export async function searchDashboard(
           return false;
         }
 
-        if (
-          validMinPrice !== undefined &&
-          price < validMinPrice
-        ) {
+        if (validMinPrice !== undefined && price < validMinPrice) {
           return false;
         }
 
-        if (
-          validMaxPrice !== undefined &&
-          price > validMaxPrice
-        ) {
+        if (validMaxPrice !== undefined && price > validMaxPrice) {
           return false;
         }
 
@@ -761,9 +726,7 @@ export async function getWorkersByCategory(
 
   const workers = (data ?? [])
     .map((item) =>
-      normalizeWorkerRelation(
-        (item as WorkerRelationRecord).worker,
-      ),
+      normalizeWorkerRelation((item as WorkerRelationRecord).worker),
     )
     .filter((worker): worker is WorkerProfile => Boolean(worker));
 
@@ -776,9 +739,7 @@ export async function getWorkersByCategory(
 // CHECK AVAILABILITY
 // =====================
 
-export async function isWorkerAvailable(
-  workerId: string,
-): Promise<boolean> {
+export async function isWorkerAvailable(workerId: string): Promise<boolean> {
   const id = validateWorkerId(workerId);
   const today = new Date();
 
@@ -900,8 +861,264 @@ export async function getRecommendedWorkers(
     .map(normalizeWorkerWithServices)
     .filter((worker) =>
       worker.services.some(
-        (workerService) =>
-          workerService.category === category,
+        (workerService) => workerService.category === category,
       ),
     );
+}
+
+// =============================
+// ADMIN WORKER MANAGEMENT
+// =============================
+
+export interface AdminWorkerListItem extends WorkerProfile {
+  full_name: string;
+  avatar: string | null;
+  normalized_status: WorkerStatus;
+  average_rating: number;
+  completed_jobs: number;
+}
+
+export interface WorkerBookingSummary {
+  id: number;
+  customer_id: string;
+  customer_name: string;
+  service_name: string | null;
+  booking_date: string | null;
+  booking_time: string | null;
+  status: string;
+  created_at: string | null;
+}
+
+export interface WorkerReviewSummary {
+  id: number;
+  booking_id: number;
+  customer_id: string;
+  customer_name: string;
+  rating: number;
+  review: string | null;
+  created_at: string | null;
+}
+
+export function normalizeWorkerStatus(value?: string | null): WorkerStatus {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+  switch (normalized) {
+    case "approved":
+    case "active":
+    case "verified":
+      return WORKER_STATUS.APPROVED;
+    case "rejected":
+    case "declined":
+      return WORKER_STATUS.REJECTED;
+    case "disabled":
+    case "inactive":
+    case "suspended":
+      return WORKER_STATUS.DISABLED;
+    case "blocked":
+    case "banned":
+      return WORKER_STATUS.BLOCKED;
+    case "pending":
+    case "verification":
+    default:
+      return WORKER_STATUS.PENDING;
+  }
+}
+
+export function getWorkerFullName(worker: WorkerProfile): string {
+  return (
+    [worker.first_name, worker.middle_name, worker.last_name]
+      .map((part) => part?.trim())
+      .filter((part): part is string => Boolean(part))
+      .join(" ") ||
+    worker.email ||
+    "Unnamed worker"
+  );
+}
+
+export function getWorkerAvatar(worker: WorkerProfile): string | null {
+  return (
+    worker.profile_picture?.trim() ||
+    worker.profile_image?.trim() ||
+    worker.avatar_url?.trim() ||
+    null
+  );
+}
+
+function relationName(value: unknown, fallback: string): string {
+  const relation = Array.isArray(value) ? value[0] : value;
+  if (!relation || typeof relation !== "object") return fallback;
+  const row = relation as Record<string, unknown>;
+  return (
+    [row.first_name, row.middle_name, row.last_name]
+      .map((part) => String(part ?? "").trim())
+      .filter(Boolean)
+      .join(" ") ||
+    String(row.email ?? "").trim() ||
+    fallback
+  );
+}
+
+export async function getAdminWorkers(
+  search = "",
+  status: WorkerStatus | "All" = "All",
+): Promise<AdminWorkerListItem[]> {
+  const workers = await getWorkers(search, status);
+  if (!workers.length) return [];
+
+  const ids = workers.map((worker) => worker.id);
+  const [reviewsResult, bookingsResult] = await Promise.all([
+    supabase.from("reviews").select("worker_id, rating").in("worker_id", ids),
+    supabase.from("bookings").select("worker_id, status").in("worker_id", ids),
+  ]);
+
+  if (reviewsResult.error) throw reviewsResult.error;
+  if (bookingsResult.error) throw bookingsResult.error;
+
+  const ratings = new Map<string, number[]>();
+  for (const item of reviewsResult.data ?? []) {
+    const row = item as { worker_id: string; rating: number | string | null };
+    const rating = Number(row.rating);
+    if (!Number.isFinite(rating)) continue;
+    ratings.set(row.worker_id, [...(ratings.get(row.worker_id) ?? []), rating]);
+  }
+
+  const completed = new Map<string, number>();
+  for (const item of bookingsResult.data ?? []) {
+    const row = item as { worker_id: string; status: string | null };
+    if (
+      String(row.status ?? "")
+        .trim()
+        .toLowerCase() === "completed"
+    ) {
+      completed.set(row.worker_id, (completed.get(row.worker_id) ?? 0) + 1);
+    }
+  }
+
+  return workers.map((worker) => {
+    const values = ratings.get(worker.id) ?? [];
+    const average = values.length
+      ? Number(
+          (
+            values.reduce((sum, value) => sum + value, 0) / values.length
+          ).toFixed(1),
+        )
+      : 0;
+
+    return {
+      ...worker,
+      full_name: getWorkerFullName(worker),
+      avatar: getWorkerAvatar(worker),
+      normalized_status: normalizeWorkerStatus(worker.status),
+      average_rating: average,
+      completed_jobs: completed.get(worker.id) ?? 0,
+    };
+  });
+}
+
+export async function setWorkerStatus(
+  workerId: string,
+  status: WorkerStatus,
+): Promise<WorkerProfile> {
+  const normalized = normalizeWorkerStatus(status);
+  const labels: Record<WorkerStatus, [string, string, string, string]> = {
+    [WORKER_STATUS.APPROVED]: [
+      "APPROVED",
+      "Worker account approved",
+      "Account Approved",
+      "Your worker account has been approved.",
+    ],
+    [WORKER_STATUS.REJECTED]: [
+      "REJECTED",
+      "Worker account rejected",
+      "Account Rejected",
+      "Your worker registration has been rejected.",
+    ],
+    [WORKER_STATUS.PENDING]: [
+      "PENDING",
+      "Worker account moved to pending",
+      "Account Pending",
+      "Your worker account is pending administrator review.",
+    ],
+    [WORKER_STATUS.DISABLED]: [
+      "DISABLED",
+      "Worker account disabled",
+      "Account Disabled",
+      "Your worker account has been disabled. Contact the administrator for assistance.",
+    ],
+    [WORKER_STATUS.BLOCKED]: [
+      "BLOCKED",
+      "Worker account blocked",
+      "Account Blocked",
+      "Your worker account has been blocked. Contact the administrator for assistance.",
+    ],
+  };
+  const [action, description, title, message] = labels[normalized];
+  const rows = await updateWorkerStatus(
+    workerId,
+    normalized,
+    action,
+    description,
+    title,
+    message,
+  );
+  return rows[0];
+}
+
+export async function getWorkerBookings(
+  workerId: string,
+): Promise<WorkerBookingSummary[]> {
+  const id = validateWorkerId(workerId);
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(
+      `id, customer_id, service_name, booking_date, booking_time, status, created_at,
+      customer:profiles!customer_id(first_name, middle_name, last_name, email)`,
+    )
+    .eq("worker_id", id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).map((item) => {
+    const row = item as unknown as Record<string, unknown>;
+    return {
+      id: Number(row.id),
+      customer_id: String(row.customer_id ?? ""),
+      customer_name: relationName(row.customer, "Unknown customer"),
+      service_name: row.service_name ? String(row.service_name) : null,
+      booking_date: row.booking_date ? String(row.booking_date) : null,
+      booking_time: row.booking_time ? String(row.booking_time) : null,
+      status: String(row.status ?? "Unknown"),
+      created_at: row.created_at ? String(row.created_at) : null,
+    };
+  });
+}
+
+export async function getWorkerReviews(
+  workerId: string,
+): Promise<WorkerReviewSummary[]> {
+  const id = validateWorkerId(workerId);
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
+      `id, booking_id, customer_id, rating, review, created_at,
+      customer:profiles!customer_id(first_name, middle_name, last_name, email)`,
+    )
+    .eq("worker_id", id)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data ?? []).map((item) => {
+    const row = item as unknown as Record<string, unknown>;
+    return {
+      id: Number(row.id),
+      booking_id: Number(row.booking_id),
+      customer_id: String(row.customer_id ?? ""),
+      customer_name: relationName(row.customer, "Unknown customer"),
+      rating: Number(row.rating ?? 0),
+      review: row.review ? String(row.review) : null,
+      created_at: row.created_at ? String(row.created_at) : null,
+    };
+  });
 }

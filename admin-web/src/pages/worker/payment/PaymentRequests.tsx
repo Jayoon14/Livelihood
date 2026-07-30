@@ -1,624 +1,1108 @@
-import { confirmAction } from "../../../components/ui/confirmAction";
-import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  CheckCircle2,
-  XCircle,
-  Clock3,
-  Wallet,
-  CreditCard,
+  AlertCircle,
   Banknote,
-  Landmark,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
   Copy,
+  CreditCard,
   Eye,
-  Calendar,
+  Landmark,
+  LoaderCircle,
   MapPin,
-  User,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  UserRound,
+  Wallet,
   X,
+  XCircle,
   ZoomIn,
   ZoomOut,
-  RotateCw,
 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import { confirmAction } from "../../../components/ui/confirmAction";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
-
 import {
   approvePaymentTransaction,
   getWorkerPaymentTransactions,
   rejectPaymentTransaction,
+  type PaymentTransaction,
 } from "../../../services/paymentService";
 
-type PaymentTransaction = {
+type PaymentFilter =
+  | "All"
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Cash"
+  | "GCash"
+  | "Maya"
+  | "Bank Transfer";
+
+interface WorkerPaymentRelation {
   id: number;
-  payment_id: number;
   booking_id: number;
+  worker_id?: string;
+  customer?: {
+    first_name?: string | null;
+    middle_name?: string | null;
+    last_name?: string | null;
+    suffix?: string | null;
+    profile_picture?: string | null;
+    profile_image?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  booking?: {
+    id?: number;
+    booking_date?: string | null;
+    booking_time?: string | null;
+    address?: string | null;
+  } | null;
+}
 
-  amount: number | string;
+interface WorkerPaymentTransaction extends PaymentTransaction {
+  payment?: WorkerPaymentRelation | null;
+}
 
-  payment_method: string | null;
+type PageMessage = {
+  type: "error" | "success";
+  text: string;
+} | null;
 
-  reference_number: string | null;
+const ITEMS_PER_PAGE = 8;
 
-  proof_of_payment: string | null;
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
 
-  transaction_status: string;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const value = (error as { message: string }).message.trim();
 
-  payment?: {
-    id: number;
+    if (value) {
+      return value;
+    }
+  }
 
-    booking_id: number;
+  return fallback;
+}
 
-    customer?: {
-      first_name?: string | null;
-      last_name?: string | null;
-    };
+function toAmount(value: unknown): number {
+  const amount = Number(value);
 
-    booking?: {
-      booking_date?: string | null;
-      booking_time?: string | null;
-      address?: string | null;
-    };
-  };
-};
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatCurrency(value: unknown): string {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  }).format(toAmount(value));
+}
+
+function formatDate(
+  dateValue?: string | null,
+  timeValue?: string | null,
+): string {
+  if (!dateValue) {
+    return "Schedule unavailable";
+  }
+
+  const combinedValue = timeValue ? `${dateValue}T${timeValue}` : dateValue;
+
+  const date = new Date(combinedValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return [dateValue, timeValue].filter(Boolean).join(" ");
+  }
+
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    ...(timeValue
+      ? {
+          timeStyle: "short" as const,
+        }
+      : {}),
+  }).format(date);
+}
+
+function getCustomerName(transaction: WorkerPaymentTransaction): string {
+  const customer = transaction.payment?.customer;
+
+  return (
+    [
+      customer?.first_name,
+      customer?.middle_name,
+      customer?.last_name,
+      customer?.suffix,
+    ]
+      .map((part) => part?.trim())
+      .filter((part): part is string => Boolean(part))
+      .join(" ") || "Customer"
+  );
+}
+
+function getStatusClass(status: string): string {
+  switch (status.trim().toLowerCase()) {
+    case "approved":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300";
+
+    case "rejected":
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300";
+
+    default:
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300";
+  }
+}
+
+function getMethodIcon(method: string | null) {
+  const value = method?.trim().toLowerCase();
+
+  if (value === "cash") {
+    return Banknote;
+  }
+
+  if (value === "bank transfer") {
+    return Landmark;
+  }
+
+  return CreditCard;
+}
+
+function isImageProof(url: string): boolean {
+  const cleanUrl = url.split("?")[0].toLowerCase();
+
+  return /\.(jpg|jpeg|png|webp|gif)$/.test(cleanUrl);
+}
 
 export default function PaymentRequests() {
-  const [payments, setPayments] = useState<PaymentTransaction[]>([]);
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [workerId, setWorkerId] = useState<string | null>(null);
+  const [payments, setPayments] = useState<WorkerPaymentTransaction[]>([]);
 
   const [loading, setLoading] = useState(true);
-
+  const [refreshing, setRefreshing] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<PaymentFilter>("All");
+  const [page, setPage] = useState(1);
+  const [message, setMessage] = useState<PageMessage>(null);
 
-  const [filter, setFilter] = useState("All");
-
-  /* IMAGE VIEWER */
-
-  const [selectedImage, setSelectedImage] = useState("");
-
+  const [selectedProof, setSelectedProof] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
-
   const [rotation, setRotation] = useState(0);
 
+  const [rejectionTransaction, setRejectionTransaction] =
+    useState<WorkerPaymentTransaction | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const loadPayments = useCallback(
+    async (
+      id: string,
+      options: {
+        showRefresh?: boolean;
+      } = {},
+    ): Promise<void> => {
+      if (options.showRefresh) {
+        setRefreshing(true);
+      }
+
+      try {
+        const data = await getWorkerPaymentTransactions(id);
+
+        setPayments((data ?? []) as WorkerPaymentTransaction[]);
+        setMessage(null);
+      } catch (error) {
+        setMessage({
+          type: "error",
+          text: getErrorMessage(error, "Unable to load payment requests."),
+        });
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
-    loadPayments();
-  }, []);
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-  async function loadPayments() {
-    try {
-      setLoading(true);
+    async function initialize(): Promise<void> {
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        if (error) {
+          throw error;
+        }
 
-      if (!user) return;
+        if (!user) {
+          throw new Error("Your session has expired. Please sign in again.");
+        }
 
-      const data = await getWorkerPaymentTransactions(user.id);
+        if (!mounted) {
+          return;
+        }
 
-      setPayments((data ?? []) as PaymentTransaction[]);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
+        setWorkerId(user.id);
+        await loadPayments(user.id);
+
+        channel = supabase
+          .channel(`worker-payment-requests-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "payment_transactions",
+            },
+            () => {
+              if (realtimeTimerRef.current) {
+                clearTimeout(realtimeTimerRef.current);
+              }
+
+              realtimeTimerRef.current = setTimeout(() => {
+                if (mounted) {
+                  void loadPayments(user.id);
+                }
+              }, 300);
+            },
+          )
+          .subscribe();
+      } catch (error) {
+        if (mounted) {
+          setMessage({
+            type: "error",
+            text: getErrorMessage(
+              error,
+              "Unable to initialize payment requests.",
+            ),
+          });
+          setLoading(false);
+        }
+      }
     }
-  }
 
-  /* =====================
-      APPROVE
-  ====================== */
+    void initialize();
 
-  async function handleApprove(payment: PaymentTransaction) {
-    if (!await confirmAction(`Approve ₱${formatCurrency(payment.amount)}?`)) {
+    return () => {
+      mounted = false;
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [loadPayments]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search]);
+
+  useEffect(() => {
+    if (!selectedProof && !rejectionTransaction) {
       return;
     }
 
-    try {
-      setProcessingId(payment.id);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-      await approvePaymentTransaction(payment.id);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedProof(null);
+        setRejectionTransaction(null);
+      }
+    };
 
-      await loadPayments();
+    window.addEventListener("keydown", handleKeyDown);
 
-      toast.success("Payment approved successfully.");
-    } catch (error) {
-      console.error(error);
-
-      toast.error("Unable to approve payment.");
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  /* =====================
-      REJECT
-  ====================== */
-
-  async function handleReject(payment: PaymentTransaction) {
-    if (!await confirmAction(`Reject ₱${formatCurrency(payment.amount)}?`)) {
-      return;
-    }
-
-    const reason = prompt("Reason for rejection?") ?? "";
-
-    try {
-      setProcessingId(payment.id);
-
-      await rejectPaymentTransaction(payment.id, reason);
-
-      await loadPayments();
-
-      toast.success("Payment rejected successfully.");
-    } catch (error) {
-      console.error(error);
-
-      toast.error("Unable to reject payment.");
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  /* =====================
-      HELPERS
-  ====================== */
-
-  function formatCurrency(value: number | string) {
-    return new Intl.NumberFormat("en-PH", {
-      minimumFractionDigits: 2,
-    }).format(Number(value) || 0);
-  }
-
-  function customerName(payment: PaymentTransaction) {
-    return `${payment.payment?.customer?.first_name ?? ""} ${
-      payment.payment?.customer?.last_name ?? ""
-    }`.trim();
-  }
-
-  function copyReference(reference: string) {
-    navigator.clipboard.writeText(reference);
-
-    toast.success("Reference copied.");
-  }
-
-  /* =====================
-      FILTERS
-  ====================== */
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [rejectionTransaction, selectedProof]);
 
   const filteredPayments = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+
     return payments.filter((payment) => {
-      const customer = customerName(payment).toLowerCase();
+      const name = getCustomerName(payment).toLowerCase();
+      const reference = payment.reference_number?.toLowerCase().trim() ?? "";
+      const bookingId = String(payment.booking_id);
 
-      const searchMatch = customer.includes(search.toLowerCase());
+      const matchesSearch =
+        !keyword ||
+        name.includes(keyword) ||
+        reference.includes(keyword) ||
+        bookingId.includes(keyword);
 
-      const filterMatch =
+      const matchesFilter =
         filter === "All" ||
         payment.payment_method === filter ||
         payment.transaction_status === filter;
 
-      return searchMatch && filterMatch;
+      return matchesSearch && matchesFilter;
     });
-  }, [payments, search, filter]);
+  }, [filter, payments, search]);
 
-  /* =====================
-      DASHBOARD
-  ====================== */
+  const statistics = useMemo(() => {
+    const pending = payments.filter(
+      (payment) => payment.transaction_status === "Pending",
+    );
+    const approved = payments.filter(
+      (payment) => payment.transaction_status === "Approved",
+    );
+    const rejected = payments.filter(
+      (payment) => payment.transaction_status === "Rejected",
+    );
 
-  const totalPending = payments.filter(
-    (p) => p.transaction_status === "Pending",
-  ).length;
+    return {
+      pending: pending.length,
+      approved: approved.length,
+      rejected: rejected.length,
+      pendingAmount: pending.reduce(
+        (sum, payment) => sum + toAmount(payment.amount),
+        0,
+      ),
+    };
+  }, [payments]);
 
-  const totalApproved = payments.filter(
-    (p) => p.transaction_status === "Approved",
-  ).length;
-
-  const totalRejected = payments.filter(
-    (p) => p.transaction_status === "Rejected",
-  ).length;
-
-  const totalAmount = payments.reduce(
-    (sum, payment) => sum + Number(payment.amount),
-    0,
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPayments.length / ITEMS_PER_PAGE),
   );
+
+  const paginatedPayments = useMemo(() => {
+    const from = (page - 1) * ITEMS_PER_PAGE;
+
+    return filteredPayments.slice(from, from + ITEMS_PER_PAGE);
+  }, [filteredPayments, page]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const handleRefresh = useCallback(async (): Promise<void> => {
+    if (!workerId || refreshing) {
+      return;
+    }
+
+    await loadPayments(workerId, {
+      showRefresh: true,
+    });
+  }, [loadPayments, refreshing, workerId]);
+
+  const handleApprove = useCallback(
+    async (payment: WorkerPaymentTransaction): Promise<void> => {
+      if (processingId !== null) {
+        return;
+      }
+
+      const confirmed = await confirmAction(
+        `Approve ${formatCurrency(payment.amount)} from ${getCustomerName(
+          payment,
+        )}?`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setProcessingId(payment.id);
+
+        await approvePaymentTransaction(payment.id);
+
+        setPayments((current) =>
+          current.filter((item) => item.id !== payment.id),
+        );
+
+        setMessage({
+          type: "success",
+          text: "Payment transaction approved.",
+        });
+        toast.success("Payment approved successfully.");
+      } catch (error) {
+        const text = getErrorMessage(error, "Unable to approve payment.");
+
+        setMessage({
+          type: "error",
+          text,
+        });
+        toast.error(text);
+      } finally {
+        setProcessingId(null);
+      }
+    },
+    [processingId],
+  );
+
+  const openRejectModal = useCallback(
+    (payment: WorkerPaymentTransaction): void => {
+      if (processingId !== null) {
+        return;
+      }
+
+      setRejectionTransaction(payment);
+      setRejectionReason("");
+    },
+    [processingId],
+  );
+
+  const handleReject = useCallback(async (): Promise<void> => {
+    if (!rejectionTransaction || processingId !== null) {
+      return;
+    }
+
+    const reason = rejectionReason.trim();
+
+    if (!reason) {
+      toast.info("Please provide a rejection reason.");
+      return;
+    }
+
+    if (reason.length > 300) {
+      toast.info("Rejection reason must contain 300 characters or fewer.");
+      return;
+    }
+
+    const transaction = rejectionTransaction;
+
+    try {
+      setProcessingId(transaction.id);
+
+      await rejectPaymentTransaction(transaction.id, reason);
+
+      setPayments((current) =>
+        current.filter((item) => item.id !== transaction.id),
+      );
+      setRejectionTransaction(null);
+      setRejectionReason("");
+
+      setMessage({
+        type: "success",
+        text: "Payment transaction rejected.",
+      });
+      toast.success("Payment rejected successfully.");
+    } catch (error) {
+      const text = getErrorMessage(error, "Unable to reject payment.");
+
+      setMessage({
+        type: "error",
+        text,
+      });
+      toast.error(text);
+    } finally {
+      setProcessingId(null);
+    }
+  }, [processingId, rejectionReason, rejectionTransaction]);
+
+  const copyReference = useCallback(async (reference: string) => {
+    try {
+      await navigator.clipboard.writeText(reference);
+      toast.success("Reference copied.");
+    } catch {
+      toast.error("Unable to copy the reference.");
+    }
+  }, []);
+
+  const openProof = useCallback((url: string): void => {
+    setSelectedProof(url);
+    setZoom(1);
+    setRotation(0);
+  }, []);
+
   return (
     <WorkerLayout>
-      <div className="space-y-8 p-8">
-        {/* HERO */}
-
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 p-8 text-white shadow-xl">
-          <h1 className="text-4xl font-bold">Payment Requests</h1>
-
-          <p className="mt-3 max-w-3xl text-blue-100">
-            Review customer payment submissions, verify proof of payment, and
-            approve or reject transactions securely.
-          </p>
-        </div>
-
-        {/* DASHBOARD */}
-
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Pending</p>
-
-                <h2 className="mt-2 text-4xl font-bold text-amber-500">
-                  {totalPending}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl bg-amber-100 p-4">
-                <Clock3 size={30} className="text-amber-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Approved</p>
-
-                <h2 className="mt-2 text-4xl font-bold text-green-600">
-                  {totalApproved}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl bg-green-100 p-4">
-                <CheckCircle2 size={30} className="text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Rejected</p>
-
-                <h2 className="mt-2 text-4xl font-bold text-red-600">
-                  {totalRejected}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl bg-red-100 p-4">
-                <XCircle size={30} className="text-red-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Amount</p>
-
-                <h2 className="mt-2 text-3xl font-bold text-blue-600">
-                  ₱{formatCurrency(totalAmount)}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl bg-blue-100 p-4">
-                <Wallet size={30} className="text-blue-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SEARCH */}
-
-        <div className="rounded-3xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="relative w-full lg:max-w-md">
-              <Search
-                size={18}
-                className="absolute left-4 top-4 text-gray-400"
-              />
-
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search customer..."
-                className="h-12 w-full rounded-xl border pl-11 pr-4 outline-none focus:border-blue-600"
-              />
-            </div>
-
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="h-12 rounded-xl border px-4 outline-none"
+      <main className="min-h-screen bg-slate-50 p-3 sm:p-6 lg:p-8 dark:bg-slate-950">
+        <div className="mx-auto max-w-7xl space-y-6">
+          {message && (
+            <div
+              role={message.type === "error" ? "alert" : "status"}
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+                message.type === "error"
+                  ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+              }`}
             >
-              <option>All</option>
+              <div className="flex items-start gap-2">
+                {message.type === "error" && (
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                )}
+                <span>{message.text}</span>
+              </div>
 
-              <option>Pending</option>
+              <button
+                type="button"
+                onClick={() => setMessage(null)}
+                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                aria-label="Dismiss message"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
 
-              <option>Approved</option>
+          <header className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-600 via-indigo-600 to-violet-700 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
 
-              <option>Rejected</option>
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                  Payment Verification
+                </p>
 
-              <option>Cash</option>
+                <h1 className="mt-2 text-2xl font-bold sm:text-4xl">
+                  Payment Requests
+                </h1>
 
-              <option>GCash</option>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100 sm:text-base">
+                  Review customer payment submissions and verify proof of
+                  payment securely.
+                </p>
+              </div>
 
-              <option>Maya</option>
+              <button
+                type="button"
+                onClick={() => void handleRefresh()}
+                disabled={refreshing || !workerId}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur transition hover:bg-white/25 disabled:opacity-50 sm:w-auto"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
 
-              <option>Bank Transfer</option>
-            </select>
-          </div>
-        </div>
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+          </header>
 
-        {/* LOADING */}
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <StatCard
+              label="Pending"
+              value={statistics.pending}
+              icon={Clock3}
+              iconClassName="bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+            />
 
-        {loading && (
-          <div className="rounded-3xl bg-white p-20 text-center shadow-sm">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+            <StatCard
+              label="Approved"
+              value={statistics.approved}
+              icon={CheckCircle2}
+              iconClassName="bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+            />
 
-            <p className="mt-6 text-gray-500">Loading payment requests...</p>
-          </div>
-        )}
+            <StatCard
+              label="Rejected"
+              value={statistics.rejected}
+              icon={XCircle}
+              iconClassName="bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300"
+            />
 
-        {/* EMPTY */}
+            <StatCard
+              label="Pending Amount"
+              value={formatCurrency(statistics.pendingAmount)}
+              icon={Wallet}
+              iconClassName="bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
+              compact
+            />
+          </section>
 
-        {!loading && filteredPayments.length === 0 && (
-          <div className="rounded-3xl bg-white py-24 text-center shadow-sm">
-            <Wallet size={60} className="mx-auto text-gray-300" />
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-            <h2 className="mt-6 text-2xl font-bold">No Payment Requests</h2>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search customer, booking, or reference..."
+                  className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                />
 
-            <p className="mt-3 text-gray-500">
-              Customer payment submissions will appear here.
-            </p>
-          </div>
-        )}
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-        {/* PAYMENT CARDS */}
+              <select
+                value={filter}
+                onChange={(event) =>
+                  setFilter(event.target.value as PaymentFilter)
+                }
+                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+              >
+                <option value="All">All Requests</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Maya">Maya</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+          </section>
 
-        {!loading && filteredPayments.length > 0 && (
-          <div className="space-y-6">
-            {filteredPayments.map((payment) => {
-              const processing = processingId === payment.id;
-
-              return (
+          {loading ? (
+            <section className="space-y-4">
+              {Array.from({
+                length: 4,
+              }).map((_, index) => (
                 <div
+                  key={index}
+                  className="h-96 animate-pulse rounded-2xl bg-slate-200 sm:rounded-3xl dark:bg-slate-800"
+                />
+              ))}
+            </section>
+          ) : paginatedPayments.length === 0 ? (
+            <section className="rounded-2xl border border-slate-200 bg-white px-5 py-16 text-center shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+                <Wallet className="h-10 w-10" />
+              </div>
+
+              <h2 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
+                No Payment Requests
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {search || filter !== "All"
+                  ? "No payment requests match the current search or filter."
+                  : "New customer payment submissions will appear here."}
+              </p>
+            </section>
+          ) : (
+            <section className="space-y-4 sm:space-y-6">
+              {paginatedPayments.map((payment) => (
+                <PaymentCard
                   key={payment.id}
-                  className="rounded-3xl border bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  payment={payment}
+                  processing={processingId === payment.id}
+                  onApprove={() => void handleApprove(payment)}
+                  onReject={() => openRejectModal(payment)}
+                  onOpenProof={openProof}
+                  onCopyReference={copyReference}
+                />
+              ))}
+            </section>
+          )}
+
+          {!loading && filteredPayments.length > 0 && (
+            <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Showing{" "}
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {(page - 1) * ITEMS_PER_PAGE + 1}
+                </strong>
+                –
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {Math.min(page * ITEMS_PER_PAGE, filteredPayments.length)}
+                </strong>{" "}
+                of{" "}
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {filteredPayments.length}
+                </strong>
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page === 1}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
-                  {/* HEADER */}
+                  Previous
+                </button>
 
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                        <User size={30} className="text-blue-600" />
-                      </div>
-
-                      <div>
-                        <h2 className="text-xl font-bold">
-                          {customerName(payment)}
-                        </h2>
-
-                        <p className="text-gray-500">
-                          Booking #{payment.booking_id}
-                        </p>
-                      </div>
-                    </div>
-
-                    <StatusBadge status={payment.transaction_status} />
-                  </div>
-
-                  {/* CONTENT */}
-
-                  <div className="mt-8 grid gap-8 lg:grid-cols-3">
-                    {/* CUSTOMER */}
-
-                    <div className="space-y-4 rounded-2xl bg-gray-50 p-5">
-                      <InfoRow
-                        icon={<Wallet size={18} />}
-                        label="Amount"
-                        value={`₱${formatCurrency(payment.amount)}`}
-                      />
-
-                      <InfoRow
-                        icon={<CreditCard size={18} />}
-                        label="Payment"
-                        value={payment.payment_method ?? "-"}
-                      />
-
-                      <InfoRow
-                        icon={<Calendar size={18} />}
-                        label="Booking"
-                        value={payment.payment?.booking?.booking_date ?? "-"}
-                      />
-
-                      <InfoRow
-                        icon={<MapPin size={18} />}
-                        label="Address"
-                        value={payment.payment?.booking?.address ?? "-"}
-                      />
-                    </div>
-                    {/* PROOF OF PAYMENT */}
-
-                    <div className="rounded-2xl border bg-gray-50 p-5">
-                      <h3 className="mb-4 text-lg font-bold">
-                        Proof of Payment
-                      </h3>
-
-                      {payment.proof_of_payment ? (
-                        <>
-                          <img
-                            src={payment.proof_of_payment}
-                            alt="Proof"
-                            onClick={() => {
-                              setSelectedImage(payment.proof_of_payment!);
-
-                              setZoom(1);
-
-                              setRotation(0);
-                            }}
-                            className="h-64 w-full cursor-pointer rounded-xl border object-contain transition hover:scale-[1.02]"
-                          />
-
-                          <button
-                            onClick={() => {
-                              setSelectedImage(payment.proof_of_payment!);
-
-                              setZoom(1);
-
-                              setRotation(0);
-                            }}
-                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
-                          >
-                            <Eye size={18} />
-                            View Full Image
-                          </button>
-                        </>
-                      ) : payment.payment_method === "Cash" ? (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-700">
-                          Cash payments do not require proof of payment.
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-600">
-                          No proof of payment uploaded.
-                        </div>
-                      )}
-                    </div>
-
-                    {/* DETAILS */}
-
-                    <div className="space-y-4 rounded-2xl bg-gray-50 p-5">
-                      <InfoRow
-                        icon={<CreditCard size={18} />}
-                        label="Method"
-                        value={
-                          <PaymentMethodBadge
-                            method={payment.payment_method ?? "-"}
-                          />
-                        }
-                      />
-
-                      <InfoRow
-                        icon={<Copy size={18} />}
-                        label="Reference"
-                        value={
-                          payment.reference_number ? (
-                            <button
-                              onClick={() =>
-                                copyReference(payment.reference_number!)
-                              }
-                              className="font-semibold text-blue-600 hover:underline"
-                            >
-                              {payment.reference_number}
-                            </button>
-                          ) : (
-                            "-"
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* ACTIONS */}
-
-                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                    <button
-                      disabled={processing}
-                      onClick={() => {
-                        void handleReject(payment);
-                      }}
-                      className="rounded-xl border border-red-300 bg-red-50 px-6 py-3 font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                    >
-                      {processing ? "Processing..." : "Reject"}
-                    </button>
-
-                    <button
-                      disabled={processing}
-                      onClick={() => {
-                        void handleApprove(payment);
-                      }}
-                      className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50"
-                    >
-                      {processing ? "Processing..." : "Approve"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* IMAGE VIEWER */}
-
-      {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
-          <button
-            onClick={() => setSelectedImage("")}
-            className="absolute right-6 top-6 rounded-full bg-white p-2"
-          >
-            <X />
-          </button>
-
-          <div className="absolute left-6 top-6 flex gap-3">
-            <button
-              onClick={() => setZoom((z) => z + 0.2)}
-              className="rounded-xl bg-white p-3"
-            >
-              <ZoomIn />
-            </button>
-
-            <button
-              onClick={() => setZoom((z) => Math.max(0.5, z - 0.2))}
-              className="rounded-xl bg-white p-3"
-            >
-              <ZoomOut />
-            </button>
-
-            <button
-              onClick={() => setRotation((r) => r + 90)}
-              className="rounded-xl bg-white p-3"
-            >
-              <RotateCw />
-            </button>
-          </div>
-
-          <img
-            src={selectedImage}
-            alt="Proof"
-            style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            }}
-            className="max-h-[90vh] max-w-[90vw] rounded-2xl transition-all duration-300"
-          />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
+                  disabled={page === totalPages}
+                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </footer>
+          )}
         </div>
+      </main>
+
+      {rejectionTransaction && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-payment-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setRejectionTransaction(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="reject-payment-title"
+                  className="text-xl font-bold text-slate-900 dark:text-white"
+                >
+                  Reject Payment
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Explain why {formatCurrency(rejectionTransaction.amount)}{" "}
+                  cannot be approved.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRejectionTransaction(null)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Close rejection dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <label className="mt-5 block">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Rejection reason
+              </span>
+
+              <textarea
+                value={rejectionReason}
+                onChange={(event) => setRejectionReason(event.target.value)}
+                maxLength={300}
+                rows={5}
+                placeholder="Example: The uploaded receipt is unclear or the reference number does not match."
+                className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-red-950"
+              />
+
+              <span className="mt-1 block text-right text-xs text-slate-400">
+                {rejectionReason.length}/300
+              </span>
+            </label>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRejectionTransaction(null)}
+                disabled={processingId !== null}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleReject()}
+                disabled={processingId !== null || !rejectionReason.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {processingId !== null && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
+                Reject Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedProof && (
+        <ProofViewer
+          url={selectedProof}
+          zoom={zoom}
+          rotation={rotation}
+          onClose={() => setSelectedProof(null)}
+          onZoomIn={() => setZoom((current) => Math.min(3, current + 0.2))}
+          onZoomOut={() => setZoom((current) => Math.max(0.5, current - 0.2))}
+          onRotate={() => setRotation((current) => (current + 90) % 360)}
+          onReset={() => {
+            setZoom(1);
+            setRotation(0);
+          }}
+        />
       )}
     </WorkerLayout>
   );
 }
 
-/* ==========================
-   STATUS BADGE
-========================== */
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    Pending: "bg-yellow-100 text-yellow-700",
-
-    Approved: "bg-green-100 text-green-700",
-
-    Rejected: "bg-red-100 text-red-700",
-  };
+function PaymentCard({
+  payment,
+  processing,
+  onApprove,
+  onReject,
+  onOpenProof,
+  onCopyReference,
+}: {
+  payment: WorkerPaymentTransaction;
+  processing: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+  onOpenProof: (url: string) => void;
+  onCopyReference: (reference: string) => Promise<void>;
+}) {
+  const MethodIcon = getMethodIcon(payment.payment_method);
+  const customerName = getCustomerName(payment);
+  const booking = payment.payment?.booking;
+  const isPending = payment.transaction_status === "Pending";
 
   return (
-    <span
-      className={`rounded-full px-4 py-2 text-sm font-bold ${
-        styles[status] ?? "bg-gray-100 text-gray-700"
-      }`}
-    >
-      {status}
-    </span>
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-lg sm:rounded-3xl sm:p-7 dark:border-slate-700 dark:bg-slate-900">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <CustomerAvatar customer={payment.payment?.customer ?? null} />
+
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
+              {customerName}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Booking #{payment.booking_id}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${getStatusClass(
+            payment.transaction_status,
+          )}`}
+        >
+          {payment.transaction_status === "Approved" ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : payment.transaction_status === "Rejected" ? (
+            <XCircle className="h-4 w-4" />
+          ) : (
+            <Clock3 className="h-4 w-4" />
+          )}
+
+          {payment.transaction_status}
+        </span>
+      </header>
+
+      <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_1.15fr_1fr]">
+        <div className="space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5 dark:bg-slate-800/50">
+          <InfoRow
+            icon={<Wallet className="h-4 w-4" />}
+            label="Amount"
+            value={formatCurrency(payment.amount)}
+          />
+
+          <InfoRow
+            icon={<MethodIcon className="h-4 w-4" />}
+            label="Payment Method"
+            value={payment.payment_method || "Not provided"}
+          />
+
+          <InfoRow
+            icon={<CalendarDays className="h-4 w-4" />}
+            label="Booking Schedule"
+            value={formatDate(booking?.booking_date, booking?.booking_time)}
+          />
+
+          <InfoRow
+            icon={<MapPin className="h-4 w-4" />}
+            label="Address"
+            value={booking?.address || "Address unavailable"}
+          />
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-4 sm:p-5 dark:border-slate-700">
+          <h3 className="font-bold text-slate-900 dark:text-white">
+            Proof of Payment
+          </h3>
+
+          <div className="mt-4">
+            {payment.proof_of_payment ? (
+              isImageProof(payment.proof_of_payment) ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenProof(payment.proof_of_payment!)}
+                    className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <img
+                      src={payment.proof_of_payment}
+                      alt={`Payment proof from ${customerName}`}
+                      className="h-56 w-full object-contain transition hover:scale-[1.02]"
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onOpenProof(payment.proof_of_payment!)}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Full Image
+                  </button>
+                </>
+              ) : (
+                <a
+                  href={payment.proof_of_payment}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                >
+                  <Eye className="h-4 w-4" />
+                  Open Payment Document
+                </a>
+              )
+            ) : payment.payment_method === "Cash" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                Cash payments do not require an uploaded proof.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                No proof of payment was uploaded.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5 dark:bg-slate-800/50">
+          <InfoRow
+            icon={<CreditCard className="h-4 w-4" />}
+            label="Method"
+            value={payment.payment_method || "Not provided"}
+          />
+
+          <InfoRow
+            icon={<Copy className="h-4 w-4" />}
+            label="Reference Number"
+            value={
+              payment.reference_number ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void onCopyReference(payment.reference_number!)
+                  }
+                  className="break-all text-left font-semibold text-blue-600 hover:underline dark:text-blue-300"
+                >
+                  {payment.reference_number}
+                </button>
+              ) : (
+                "Not provided"
+              )
+            }
+          />
+        </div>
+      </div>
+
+      {isPending && (
+        <footer className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-end">
+          <button
+            type="button"
+            onClick={onReject}
+            disabled={processing}
+            className="rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+          >
+            Reject
+          </button>
+
+          <button
+            type="button"
+            onClick={onApprove}
+            disabled={processing}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
+            Approve
+          </button>
+        </footer>
+      )}
+    </article>
   );
 }
 
-/* ==========================
-   INFO ROW
-========================== */
+function CustomerAvatar({
+  customer,
+}: {
+  customer: WorkerPaymentRelation["customer"];
+}) {
+  const [imageError, setImageError] = useState(false);
+
+  const profilePicture =
+    customer?.profile_picture?.trim() ||
+    customer?.profile_image?.trim() ||
+    customer?.avatar_url?.trim() ||
+    null;
+
+  const fullName = [
+    customer?.first_name,
+    customer?.middle_name,
+    customer?.last_name,
+    customer?.suffix,
+  ]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+
+  const initials =
+    `${customer?.first_name?.trim().charAt(0) ?? ""}${
+      customer?.last_name?.trim().charAt(0) ?? ""
+    }`.toUpperCase() || "C";
+
+  useEffect(() => {
+    setImageError(false);
+  }, [profilePicture]);
+
+  if (profilePicture && !imageError) {
+    return (
+      <img
+        src={profilePicture}
+        alt={`${fullName || "Customer"} profile`}
+        loading="lazy"
+        onError={() => setImageError(true)}
+        className="h-14 w-14 shrink-0 rounded-full border border-slate-200 bg-slate-100 object-cover sm:h-16 sm:w-16 dark:border-slate-700 dark:bg-slate-800"
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-600 sm:h-16 sm:w-16 dark:bg-blue-500/15 dark:text-blue-300"
+      aria-label={`${fullName || "Customer"} profile fallback`}
+    >
+      {initials || <UserRound className="h-6 w-6" />}
+    </div>
+  );
+}
 
 function InfoRow({
   icon,
@@ -626,68 +1110,146 @@ function InfoRow({
   value,
 }: {
   icon: React.ReactNode;
-
   label: string;
-
   value: React.ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-1 text-blue-600">{icon}</div>
+      <div className="mt-0.5 text-slate-400">{icon}</div>
 
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-400">{label}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          {label}
+        </p>
 
-        <div className="font-semibold text-gray-800">{value}</div>
+        <div className="mt-1 wrap-break-word text-sm font-semibold text-slate-800 dark:text-slate-200">
+          {value}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ==========================
-   PAYMENT METHOD
-========================== */
-
-function PaymentMethodBadge({ method }: { method: string }) {
-  const styles: Record<
-    string,
-    {
-      className: string;
-      icon: React.ReactNode;
-    }
-  > = {
-    Cash: {
-      className: "bg-green-100 text-green-700",
-      icon: <Banknote size={16} />,
-    },
-
-    GCash: {
-      className: "bg-blue-100 text-blue-700",
-      icon: <Wallet size={16} />,
-    },
-
-    Maya: {
-      className: "bg-emerald-100 text-emerald-700",
-      icon: <CreditCard size={16} />,
-    },
-
-    "Bank Transfer": {
-      className: "bg-purple-100 text-purple-700",
-      icon: <Landmark size={16} />,
-    },
-  };
-
-  const current = styles[method] ?? {
-    className: "bg-gray-100 text-gray-700",
-    icon: <CreditCard size={16} />,
-  };
-
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  iconClassName,
+  compact = false,
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof Wallet;
+  iconClassName: string;
+  compact?: boolean;
+}) {
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${current.className}`}
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
+            {label}
+          </p>
+
+          <p
+            className={`mt-2 truncate font-bold text-slate-900 dark:text-white ${
+              compact ? "text-xl sm:text-3xl" : "text-2xl sm:text-4xl"
+            }`}
+          >
+            {value}
+          </p>
+        </div>
+
+        <div className={`hidden rounded-xl p-2.5 sm:block ${iconClassName}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ProofViewer({
+  url,
+  zoom,
+  rotation,
+  onClose,
+  onZoomIn,
+  onZoomOut,
+  onRotate,
+  onReset,
+}: {
+  url: string;
+  zoom: number;
+  rotation: number;
+  onClose: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onRotate: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-60 flex flex-col bg-slate-950/95"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Payment proof viewer"
     >
-      {current.icon}
-      {method}
-    </span>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-3 sm:p-4">
+        <div className="flex flex-wrap gap-2">
+          <ViewerButton label="Zoom in" onClick={onZoomIn}>
+            <ZoomIn className="h-5 w-5" />
+          </ViewerButton>
+
+          <ViewerButton label="Zoom out" onClick={onZoomOut}>
+            <ZoomOut className="h-5 w-5" />
+          </ViewerButton>
+
+          <ViewerButton label="Rotate" onClick={onRotate}>
+            <RotateCcw className="h-5 w-5" />
+          </ViewerButton>
+
+          <ViewerButton label="Reset" onClick={onReset}>
+            Reset
+          </ViewerButton>
+        </div>
+
+        <ViewerButton label="Close viewer" onClick={onClose}>
+          <X className="h-5 w-5" />
+        </ViewerButton>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center overflow-auto p-4 sm:p-8">
+        <img
+          src={url}
+          alt="Payment proof enlarged"
+          style={{
+            transform: `scale(${zoom}) rotate(${rotation}deg)`,
+          }}
+          className="max-h-[75vh] max-w-full rounded-xl object-contain transition-transform duration-200"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ViewerButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-10 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20"
+      aria-label={label}
+      title={label}
+    >
+      {children}
+    </button>
   );
 }
