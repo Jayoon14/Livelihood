@@ -1,14 +1,120 @@
 import { toast } from "sonner";
 import { useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
-
 import { createBooking } from "../../../services/customerBookingService";
+
+const WORKER_ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+
+type BookingConfirmationState = {
+  workerId: string;
+  workerName: string;
+  service: string;
+  serviceId: number | string;
+  date: string;
+  time: string;
+  price: number | string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+};
+
+function isRecentLastSeen(lastSeen: string | null | undefined): boolean {
+  if (!lastSeen) return false;
+
+  const timestamp = new Date(lastSeen).getTime();
+
+  if (!Number.isFinite(timestamp)) return false;
+
+  const elapsed = Date.now() - timestamp;
+
+  return elapsed >= 0 && elapsed <= WORKER_ONLINE_TIMEOUT_MS;
+}
+
+async function assertWorkerCanReceiveBooking(
+  workerId: string,
+): Promise<void> {
+  const normalizedWorkerId = workerId.trim();
+
+  if (!normalizedWorkerId) {
+    throw new Error("Worker information is missing.");
+  }
+
+  const { data: worker, error } = await supabase
+    .from("profiles")
+    .select("id, role, status, last_seen")
+    .eq("id", normalizedWorkerId)
+    .eq("role", "worker")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Unable to verify worker status: ${error.message}`,
+    );
+  }
+
+  if (!worker) {
+    throw new Error("Worker account was not found.");
+  }
+
+  if (
+    String(worker.status ?? "")
+      .trim()
+      .toLowerCase() !== "approved"
+  ) {
+    throw new Error(
+      "This worker account is currently unavailable.",
+    );
+  }
+
+  if (!isRecentLastSeen(worker.last_seen)) {
+    throw new Error(
+      "This worker is currently offline. Please choose another available worker or try again later.",
+    );
+  }
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "Failed to submit booking.";
+}
+
+function isExpectedBookingBlock(message: string): boolean {
+  const normalizedMessage = message.toLowerCase();
+
+  return (
+    normalizedMessage.includes(
+      "already have an active booking",
+    ) ||
+    normalizedMessage.includes(
+      "worker is currently offline",
+    ) ||
+    normalizedMessage.includes(
+      "worker account is currently unavailable",
+    ) ||
+    normalizedMessage.includes(
+      "worker is no longer available",
+    ) ||
+    normalizedMessage.includes(
+      "time slot has already been booked",
+    )
+  );
+}
 
 export default function BookingConfirmation() {
   return (
@@ -20,11 +126,14 @@ export default function BookingConfirmation() {
 
 function BookingConfirmationContent() {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
+
+  const routeState =
+    location.state as BookingConfirmationState | null;
 
   const [loading, setLoading] = useState(false);
 
-  if (!state) {
+  if (!routeState) {
     return (
       <div className="p-10 text-center">
         Booking information not found.
@@ -32,46 +141,81 @@ function BookingConfirmationContent() {
     );
   }
 
-  async function handleConfirmBooking() {
-    try {
-      setLoading(true);
+  const state: BookingConfirmationState = routeState;
 
+  async function handleConfirmBooking() {
+    if (loading) return;
+
+    setLoading(true);
+
+    try {
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw new Error(
+          `Unable to verify your account: ${authError.message}`,
+        );
+      }
 
       if (!user) {
         toast.warning("Please login first.");
-        navigate("/");
+
+        navigate("/", {
+          replace: true,
+        });
+
         return;
+      }
+
+      const normalizedServiceId = Number(state.serviceId);
+      const normalizedLatitude = Number(state.latitude);
+      const normalizedLongitude = Number(state.longitude);
+
+      if (
+        !Number.isInteger(normalizedServiceId) ||
+        normalizedServiceId <= 0
+      ) {
+        throw new Error(
+          "The selected service is invalid. Please return and select the service again.",
+        );
+      }
+
+      if (
+        !state.workerId?.trim() ||
+        !state.date?.trim() ||
+        !state.time?.trim()
+      ) {
+        throw new Error(
+          "Some booking details are missing. Please return and complete the booking form.",
+        );
       }
 
       if (
         !state.address?.trim() ||
-        !Number.isFinite(state.latitude) ||
-        !Number.isFinite(state.longitude)
+        !Number.isFinite(normalizedLatitude) ||
+        !Number.isFinite(normalizedLongitude)
       ) {
         throw new Error(
           "Service location is missing. Please return and select the location again.",
         );
       }
 
-      console.log("Booking confirmation state:", state);
+      await assertWorkerCanReceiveBooking(state.workerId);
 
       await createBooking({
         customer_id: user.id,
-        worker_id: state.workerId,
-        service_id: Number(state.serviceId),
-
+        worker_id: state.workerId.trim(),
+        service_id: normalizedServiceId,
         booking_date: state.date,
         booking_time: state.time,
-
-        address: state.address,
-        customer_address: state.address,
-        customer_latitude: Number(state.latitude),
-        customer_longitude: Number(state.longitude),
-
-        notes: state.notes ?? "",
+        address: state.address.trim(),
+        customer_address: state.address.trim(),
+        customer_latitude: normalizedLatitude,
+        customer_longitude: normalizedLongitude,
+        notes: state.notes?.trim() ?? "",
       });
 
       toast.success(
@@ -82,17 +226,17 @@ function BookingConfirmationContent() {
         replace: true,
       });
     } catch (error) {
-      console.error(
-        "BOOKING SUBMISSION ERROR:",
-        error,
-      );
+      const message = getErrorMessage(error);
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to submit booking.";
+      if (isExpectedBookingBlock(message)) {
+        console.info("Booking prevented:", message);
+      } else {
+        console.error("BOOKING SUBMISSION ERROR:", error);
+      }
 
-      toast.error(message);
+      toast.error(message, {
+        duration: 6000,
+      });
     } finally {
       setLoading(false);
     }
@@ -106,39 +250,43 @@ function BookingConfirmationContent() {
         </h1>
 
         <div className="space-y-5">
-          <div className="flex justify-between">
-            <span className="font-semibold">
-              Worker
-            </span>
+          <div className="flex justify-between gap-6">
+            <span className="font-semibold">Worker</span>
 
-            <span>{state.workerName}</span>
+            <span className="text-right">
+              {state.workerName}
+            </span>
           </div>
 
-          <div className="flex justify-between">
-            <span className="font-semibold">
-              Service
-            </span>
+          <div className="flex justify-between gap-6">
+            <span className="font-semibold">Service</span>
 
-            <span>{state.service}</span>
+            <span className="text-right">
+              {state.service}
+            </span>
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-6">
             <span className="font-semibold">
               Booking Date
             </span>
 
-            <span>{state.date}</span>
+            <span className="text-right">
+              {state.date}
+            </span>
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-6">
             <span className="font-semibold">
               Booking Time
             </span>
 
-            <span>{state.time}</span>
+            <span className="text-right">
+              {state.time}
+            </span>
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-6">
             <span className="font-semibold">
               Service Location
             </span>
@@ -148,18 +296,18 @@ function BookingConfirmationContent() {
             </span>
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-6">
             <span className="font-semibold">
               Coordinates
             </span>
 
-            <span>
+            <span className="text-right">
               {Number(state.latitude).toFixed(6)},{" "}
               {Number(state.longitude).toFixed(6)}
             </span>
           </div>
 
-          <div className="flex justify-between border-t pt-6">
+          <div className="flex justify-between gap-6 border-t pt-6">
             <span className="text-xl font-bold">
               Total Amount
             </span>
@@ -175,19 +323,19 @@ function BookingConfirmationContent() {
             type="button"
             onClick={() => navigate(-1)}
             disabled={loading}
-            className="rounded-xl border px-6 py-3 disabled:opacity-50"
+            className="rounded-xl border px-6 py-3 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Back
           </button>
 
           <button
             type="button"
-            onClick={handleConfirmBooking}
+            onClick={() => void handleConfirmBooking()}
             disabled={loading}
-            className="rounded-xl bg-blue-600 px-8 py-3 text-white disabled:bg-gray-400"
+            className="rounded-xl bg-blue-600 px-8 py-3 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             {loading
-              ? "Submitting..."
+              ? "Submitting booking..."
               : "Confirm Booking"}
           </button>
         </div>

@@ -2,7 +2,7 @@ import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Navigation, Phone, User } from "lucide-react";
+import { ArrowLeft, MapPin, MessageCircle, Navigation, Phone, User } from "lucide-react";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
@@ -10,7 +10,6 @@ import LocationPicker from "../../../components/maps/LocationPicker";
 import { supabase } from "../../../lib/supabase";
 
 import {
-  completeBooking,
   getBooking,
   markWorkerArrived,
   startTrip,
@@ -173,46 +172,24 @@ export default function NavigateToCustomer() {
       setUpdatingStatus(false);
     }
   }
-  async function handleCompleteService() {
-    if (!booking || !workerId || updatingStatus) {
+  function handleCompleteService() {
+    if (!booking || updatingStatus) {
       return;
     }
 
-    const confirmed = await confirmAction(
-      "Confirm that the service has been completed?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setUpdatingStatus(true);
-
-      const updatedBooking = await completeBooking(booking.id, workerId);
-
-      setBooking((current) =>
-        current
-          ? {
-              ...current,
-              status: updatedBooking.status,
-              trip_status: updatedBooking.trip_status,
-              completed_at: updatedBooking.completed_at,
-            }
-          : current,
-      );
-
-      toast.success("Service completed successfully.");
-    } catch (error) {
-      console.error("Unable to complete service:", error);
-
+    if (
+      booking.status !== "On Going" ||
+      booking.trip_status !== "On Trip"
+    ) {
       toast.error(
-        error instanceof Error ? error.message : "Unable to complete service.",
+        "Completion proof can only be submitted while the service is ongoing.",
       );
-    } finally {
-      setUpdatingStatus(false);
+      return;
     }
+
+    navigate(`/worker/bookings/${booking.id}/complete`);
   }
+
   if (loading) {
     return (
       <WorkerLayout>
@@ -339,6 +316,17 @@ export default function NavigateToCustomer() {
                     <Phone className="h-4 w-4" />
                     Call Customer
                   </a>
+                )}
+
+                {booking.customer?.id && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/chat/${booking.id}`)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Chat Customer
+                  </button>
                 )}
 
                 {booking.status === "Approved" &&

@@ -78,7 +78,20 @@ function calculateDistanceMeters(first: Coordinates, second: Coordinates) {
   return earthRadiusMeters * c;
 }
 
-function createWorkerMarkerElement() {
+function buildWorkerName(profile?: WorkerProfile | null): string {
+  if (!profile) return "Available Worker";
+
+  return [
+    profile.first_name,
+    profile.middle_name,
+    profile.last_name,
+  ]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(" ") || "Available Worker";
+}
+
+function createWorkerMarkerElement(profile?: WorkerProfile | null) {
   const container = document.createElement("div");
 
   container.className = WORKER_MARKER_CLASS;
@@ -137,8 +150,63 @@ function createWorkerMarkerElement() {
       background: #22c55e;
     "
   ></span>
+
+  <div
+    data-worker-tooltip
+    style="
+      pointer-events: none;
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 12px);
+      min-width: 180px;
+      transform: translate(-50%, 6px);
+      opacity: 0;
+      visibility: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.98);
+      padding: 10px 12px;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.22);
+      color: #0f172a;
+      transition: opacity 160ms ease, transform 160ms ease;
+      white-space: nowrap;
+      z-index: 50;
+    "
+  >
+    <div style="font-size: 13px; font-weight: 800;">
+      ${buildWorkerName(profile)}
+    </div>
+    <div style="margin-top: 2px; font-size: 11px; font-weight: 700; color: #16a34a;">
+      Online • Available
+    </div>
+  </div>
 </div>
 `;
+
+  const tooltip = container.querySelector<HTMLElement>(
+    "[data-worker-tooltip]",
+  );
+
+  const showTooltip = () => {
+    if (!tooltip) return;
+    tooltip.style.opacity = "1";
+    tooltip.style.visibility = "visible";
+    tooltip.style.transform = "translate(-50%, 0)";
+  };
+
+  const hideTooltip = () => {
+    if (!tooltip) return;
+    tooltip.style.opacity = "0";
+    tooltip.style.visibility = "hidden";
+    tooltip.style.transform = "translate(-50%, 6px)";
+  };
+
+  container.addEventListener("mouseenter", showTooltip);
+  container.addEventListener("mouseleave", hideTooltip);
+  container.addEventListener("focusin", showTooltip);
+  container.addEventListener("focusout", hideTooltip);
+  container.tabIndex = 0;
+  container.setAttribute("aria-label", `${buildWorkerName(profile)}, online and available`);
 
   return container;
 }
@@ -372,7 +440,7 @@ export function useNearbyWorkers({
         return;
       }
 
-      const element = createWorkerMarkerElement();
+      const element = createWorkerMarkerElement(profile);
 
       updateWorkerHeading(element, worker.heading);
 

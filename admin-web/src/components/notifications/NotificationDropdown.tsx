@@ -99,11 +99,82 @@ function sortNotifications(items: Notification[]): Notification[] {
   );
 }
 
+async function requestBrowserNotificationPermission(): Promise<void> {
+  if (
+    "Notification" in window &&
+    window.Notification.permission === "default"
+  ) {
+    try {
+      await window.Notification.requestPermission();
+    } catch (error) {
+      console.warn("Unable to request browser notification permission:", error);
+    }
+  }
+}
+
+function playNotificationSound(): void {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & {
+        webkitAudioContext?: typeof AudioContext;
+      }).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const startedAt = audioContext.currentTime;
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, startedAt);
+    oscillator.frequency.exponentialRampToValueAtTime(660, startedAt + 0.18);
+
+    gain.gain.setValueAtTime(0.0001, startedAt);
+    gain.gain.exponentialRampToValueAtTime(0.16, startedAt + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + 0.24);
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(startedAt);
+    oscillator.stop(startedAt + 0.25);
+
+    oscillator.addEventListener("ended", () => {
+      void audioContext.close();
+    });
+  } catch (error) {
+    console.warn("Unable to play notification sound:", error);
+  }
+}
+
+function showBrowserNotification(notification: Notification): void {
+  if (
+    document.visibilityState === "visible" ||
+    !("Notification" in window) ||
+    window.Notification.permission !== "granted"
+  ) {
+    return;
+  }
+
+  try {
+    new window.Notification(notification.title, {
+      body: notification.message,
+      tag: `livelihoodgo-notification-${notification.id}`,
+    });
+  } catch (error) {
+    console.warn("Unable to show browser notification:", error);
+  }
+}
+
 export default function NotificationDropdown({
   role,
 }: NotificationDropdownProps) {
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const alertedNotificationIdsRef = useRef<Set<number>>(new Set());
 
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -228,7 +299,15 @@ export default function NotificationDropdown({
                   setUnreadCount((current) => current + 1);
                 }
 
-                setToastNotification(newNotification);
+                if (
+                  !alertedNotificationIdsRef.current.has(newNotification.id)
+                ) {
+                  alertedNotificationIdsRef.current.add(newNotification.id);
+                  setToastNotification(newNotification);
+                  playNotificationSound();
+                  showBrowserNotification(newNotification);
+                }
+
                 return;
               }
 
@@ -438,7 +517,10 @@ export default function NotificationDropdown({
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          setOpen((current) => !current);
+          void requestBrowserNotificationPermission();
+        }}
         className="relative rounded-full p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
         aria-label="Open notifications"
         aria-expanded={open}

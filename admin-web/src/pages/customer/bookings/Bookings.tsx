@@ -1,6 +1,6 @@
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -25,17 +25,87 @@ import {
 } from "../../../services/scheduleService";
 import { createReview } from "../../../services/reviewService";
 
+type WorkerSummary = {
+  first_name?: string | null;
+  middle_name?: string | null;
+  last_name?: string | null;
+  profile_picture?: string | null;
+};
+
+type ServiceSummary = {
+  service_name?: string | null;
+};
+
+type CompletionProofImage = {
+  id: number;
+  image_url: string;
+};
+
+type CompletionProofData = {
+  id: number;
+  booking_id: number;
+  worker_id: string;
+  summary: string;
+  notes?: string | null;
+  hours_worked?: number | string | null;
+  created_at?: string | null;
+  images: CompletionProofImage[];
+};
+
+type CustomerBooking = {
+  id: number;
+  customer_id: string;
+  worker_id: string;
+  service_id: number | string;
+  status: string;
+  trip_status?: string | null;
+  completion_status?: string | null;
+  payment_status?: string | null;
+  price?: number | null;
+  booking_date: string;
+  booking_time: string;
+  created_at: string;
+  address?: string | null;
+  customer_address?: string | null;
+  notes?: string | null;
+  customer_latitude?: number | null;
+  customer_longitude?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  payment_reference?: string | null;
+  payment_date?: string | null;
+  transaction_id?: string | null;
+  customer_deleted?: boolean | null;
+  reviewed: boolean;
+  worker?: WorkerSummary | null;
+  services?: ServiceSummary | null;
+};
+
+type BookingAction = "cancel" | "delete" | "review" | "rebook";
+
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+
+function isRecentLastSeen(lastSeen?: string | null): boolean {
+  if (!lastSeen) return false;
+  const timestamp = new Date(lastSeen).getTime();
+  return Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp <= ONLINE_TIMEOUT_MS;
+}
+
 export default function Bookings() {
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<CustomerBooking[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("Newest");
   const [loading, setLoading] = useState(true);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [receiptBooking, setReceiptBooking] = useState<any>(null);
-  const [reviewBooking, setReviewBooking] = useState<any>(null);
-  const [rebookBooking, setRebookBooking] = useState<any>(null);
-  const [chatBooking, setChatBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<CustomerBooking | null>(null);
+  const [completionProof, setCompletionProof] =
+    useState<CompletionProofData | null>(null);
+  const [loadingCompletionProof, setLoadingCompletionProof] = useState(false);
+  const [completionProofError, setCompletionProofError] = useState("");
+  const [receiptBooking, setReceiptBooking] = useState<CustomerBooking | null>(null);
+  const [reviewBooking, setReviewBooking] = useState<CustomerBooking | null>(null);
+  const [rebookBooking, setRebookBooking] = useState<CustomerBooking | null>(null);
+  const [chatBooking, setChatBooking] = useState<CustomerBooking | null>(null);
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredTime, setPreferredTime] = useState("");
   const [rebookNotes, setRebookNotes] = useState("");
@@ -48,6 +118,16 @@ export default function Bookings() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
   const [availabilityMessage, setAvailabilityMessage] = useState("");
+  const [activeAction, setActiveAction] = useState<{
+    type: BookingAction;
+    bookingId: number;
+  } | null>(null);
+
+  const isActionLoading = useCallback(
+    (type: BookingAction, bookingId: number) =>
+      activeAction?.type === type && activeAction.bookingId === bookingId,
+    [activeAction],
+  );
 
   const navigate = useNavigate();
 
@@ -139,21 +219,25 @@ export default function Bookings() {
     };
   }, []);
 
-  async function loadBookings() {
+  const loadBookings = useCallback(async () => {
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await supabase
-      .from("bookings")
-      .select(
-        `
+      if (userError) throw userError;
+      if (!user) {
+        setBookings([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("bookings")
+        .select(
+          `
           *,
           worker:profiles!bookings_worker_id_fkey(
             first_name,
@@ -165,28 +249,31 @@ export default function Bookings() {
             service_name
           )
       `,
-      )
-      .eq("customer_id", user.id)
-      .eq("customer_deleted", false)
-      .order("created_at", {
-        ascending: false,
-      });
+        )
+        .eq("customer_id", user.id)
+        .eq("customer_deleted", false)
+        .order("created_at", { ascending: false });
 
-    if (!error && data) {
+      if (error) throw error;
+
       const updated = await Promise.all(
-        data.map(async (booking) => ({
+        (data ?? []).map(async (booking) => ({
           ...booking,
           reviewed: await hasReviewed(booking.id, user.id),
         })),
       );
 
-      setBookings(updated);
+      setBookings(updated as CustomerBooking[]);
+    } catch (error) {
+      console.error("Load customer bookings error:", error);
+      toast.error("Unable to load bookings.");
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    setLoading(false);
-  }
-  const filteredBookings = [...bookings]
-    .filter((booking: any) => {
+  const filteredBookings = useMemo(() => [...bookings]
+    .filter((booking) => {
       const workerName = [
         booking.worker?.first_name,
         booking.worker?.middle_name,
@@ -205,7 +292,7 @@ export default function Bookings() {
 
       return matchesSearch && matchesStatus;
     })
-    .sort((a: any, b: any) => {
+    .sort((a, b) => {
       switch (sortBy) {
         case "Oldest":
           return (
@@ -228,29 +315,142 @@ export default function Bookings() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
       }
-    });
+    }), [bookings, search, sortBy, statusFilter]);
+  function formatCompletionDate(value?: string | null): string {
+    if (!value) return "Not available";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat("en-PH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(date);
+  }
+
+  async function openBookingDetails(booking: CustomerBooking) {
+    setSelectedBooking(booking);
+    setCompletionProof(null);
+    setCompletionProofError("");
+
+    const shouldLoadProof =
+      booking.status === "Completed" ||
+      booking.status === "Waiting Customer Confirmation" ||
+      booking.completion_status === "Worker Completed" ||
+      booking.completion_status === "Customer Confirmed";
+
+    if (!shouldLoadProof) {
+      setLoadingCompletionProof(false);
+      return;
+    }
+
+    try {
+      setLoadingCompletionProof(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error("Please sign in again.");
+      }
+
+      const { data: proof, error: proofError } = await supabase
+        .from("booking_completion_proofs")
+        .select(
+          `
+            id,
+            booking_id,
+            worker_id,
+            summary,
+            notes,
+            hours_worked,
+            created_at
+          `,
+        )
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+
+      if (proofError) {
+        throw proofError;
+      }
+
+      if (!proof) {
+        setCompletionProofError(
+          "No completion proof has been submitted for this booking.",
+        );
+        return;
+      }
+
+      const { data: images, error: imagesError } = await supabase
+        .from("booking_completion_images")
+        .select("id, image_url")
+        .eq("proof_id", proof.id)
+        .order("id", { ascending: true });
+
+      if (imagesError) {
+        throw imagesError;
+      }
+
+      setCompletionProof({
+        ...(proof as Omit<CompletionProofData, "images">),
+        images: (images ?? []) as CompletionProofImage[],
+      });
+    } catch (error) {
+      console.error("Load completion proof error:", error);
+
+      setCompletionProofError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load the completion proof.",
+      );
+    } finally {
+      setLoadingCompletionProof(false);
+    }
+  }
+
+  function closeBookingDetails() {
+    setSelectedBooking(null);
+    setCompletionProof(null);
+    setCompletionProofError("");
+    setLoadingCompletionProof(false);
+  }
+
   async function handleCancel(id: number) {
+    if (activeAction) return;
+
     const confirmCancel = await confirmAction(
       "Are you sure you want to cancel this booking?",
     );
-
     if (!confirmCancel) return;
 
+    setActiveAction({ type: "cancel", bookingId: id });
     try {
       await cancelBooking(id);
-
       toast.success("Booking cancelled successfully.");
-
-      loadBookings();
+      await loadBookings();
     } catch (error) {
       console.error(error);
-
       toast.error("Unable to cancel booking.");
+    } finally {
+      setActiveAction(null);
     }
   }
 
   async function handleDelete(id: number) {
-    console.log("Delete button clicked:", id);
+    if (activeAction) return;
 
     const confirmDelete = await confirmAction(
       "Delete this booking from your history?",
@@ -258,6 +458,7 @@ export default function Bookings() {
 
     if (!confirmDelete) return;
 
+    setActiveAction({ type: "delete", bookingId: id });
     try {
       const {
         data: { user },
@@ -316,6 +517,117 @@ export default function Bookings() {
         error instanceof Error ? error.message : "Unknown error occurred.";
 
       toast.error(`Unable to delete booking: ${message}`);
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function handleConfirmRebook() {
+    if (!rebookBooking || activeAction) return;
+    if (!preferredDate || !preferredTime) {
+      toast.warning("Choose an available date and time first.");
+      return;
+    }
+    if (!rebookAddress.trim()) {
+      toast.warning("Service address is required.");
+      return;
+    }
+
+    setActiveAction({ type: "rebook", bookingId: rebookBooking.id });
+    try {
+      const { data: workerProfile, error } = await supabase
+        .from("profiles")
+        .select("last_seen")
+        .eq("id", rebookBooking.worker_id)
+        .eq("role", "worker")
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!isRecentLastSeen(workerProfile?.last_seen)) {
+        toast.warning("This worker is currently offline. Please try again when the worker is online.");
+        return;
+      }
+
+      navigate(`/customer/book/${rebookBooking.worker_id}`, {
+        state: {
+          serviceId: rebookBooking.service_id,
+          preferredDate,
+          preferredTime,
+          notes: rebookNotes.trim(),
+          address: rebookAddress.trim(),
+          latitude: rebookBooking.customer_latitude ?? rebookBooking.latitude ?? null,
+          longitude: rebookBooking.customer_longitude ?? rebookBooking.longitude ?? null,
+          customerLatitude: rebookBooking.customer_latitude ?? rebookBooking.latitude ?? null,
+          customerLongitude: rebookBooking.customer_longitude ?? rebookBooking.longitude ?? null,
+          confirmedLocation: Boolean(
+            (rebookBooking.customer_latitude ?? rebookBooking.latitude) != null &&
+              (rebookBooking.customer_longitude ?? rebookBooking.longitude) != null,
+          ),
+          sourceBookingId: rebookBooking.id,
+        },
+      });
+    } catch (error) {
+      console.error("Rebook validation error:", error);
+      toast.error("Unable to validate this worker right now.");
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewBooking || activeAction) return;
+
+    const ratings = [
+      overallRating,
+      qualityRating,
+      professionalismRating,
+      communicationRating,
+    ];
+    if (ratings.some((rating) => rating < 1 || rating > 5)) {
+      toast.warning("Please select all four ratings before submitting.");
+      return;
+    }
+    if (reviewComment.trim().length < 5) {
+      toast.warning("Please write a short review with at least 5 characters.");
+      return;
+    }
+
+    setActiveAction({ type: "review", bookingId: reviewBooking.id });
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      if (!user) {
+        toast.warning("Please login.");
+        return;
+      }
+
+      const alreadyReviewed = await hasReviewed(reviewBooking.id, user.id);
+      if (alreadyReviewed) {
+        toast.info("You already reviewed this booking.");
+        setReviewBooking(null);
+        await loadBookings();
+        return;
+      }
+
+      await createReview(
+        reviewBooking.id,
+        reviewBooking.worker_id,
+        user.id,
+        overallRating,
+        qualityRating,
+        professionalismRating,
+        communicationRating,
+        reviewComment.trim(),
+      );
+
+      toast.success("Review submitted successfully!");
+      setReviewBooking(null);
+      await loadBookings();
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to submit review.");
+    } finally {
+      setActiveAction(null);
     }
   }
 
@@ -344,6 +656,8 @@ export default function Bookings() {
               <option>All</option>
               <option>Pending</option>
               <option>Approved</option>
+              <option>On Going</option>
+              <option>Waiting Customer Confirmation</option>
               <option>Completed</option>
               <option>Cancelled</option>
             </select>
@@ -481,6 +795,7 @@ export default function Bookings() {
 
                           <button
                             onClick={() => handleCancel(booking.id)}
+                            disabled={Boolean(activeAction)}
                             className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl"
                           >
                             Cancel Booking
@@ -605,7 +920,7 @@ export default function Bookings() {
                       )}
 
                       <button
-                        onClick={() => setSelectedBooking(booking)}
+                        onClick={() => void openBookingDetails(booking)}
                         className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white px-5 py-3 rounded-xl"
                       >
                         <Eye size={18} />
@@ -624,6 +939,7 @@ export default function Bookings() {
                     <div className="border-t mt-6 pt-4 flex justify-end">
                       <button
                         onClick={() => handleDelete(booking.id)}
+                        disabled={Boolean(activeAction)}
                         className="flex items-center gap-2 text-red-600 hover:text-red-700 font-semibold"
                       >
                         <Trash2 size={18} />
@@ -647,7 +963,7 @@ export default function Bookings() {
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto relative">
               {/* Close */}
               <button
-                onClick={() => setSelectedBooking(null)}
+                onClick={closeBookingDetails}
                 className="absolute top-5 right-6 text-4xl text-white hover:text-red-300 z-10"
               >
                 ×
@@ -740,6 +1056,134 @@ export default function Bookings() {
                   </p>
                 </div>
 
+                {/* Completion Proof */}
+
+                {(selectedBooking.status === "Completed" ||
+                  selectedBooking.status ===
+                    "Waiting Customer Confirmation" ||
+                  selectedBooking.completion_status ===
+                    "Worker Completed" ||
+                  selectedBooking.completion_status ===
+                    "Customer Confirmed") && (
+                  <section className="space-y-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                          Worker Completion Proof
+                        </p>
+
+                        <h3 className="mt-1 text-2xl font-bold text-slate-900">
+                          Completed Work Details
+                        </h3>
+                      </div>
+
+                      {completionProof?.created_at && (
+                        <span className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">
+                          Submitted{" "}
+                          {formatCompletionDate(
+                            completionProof.created_at,
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {loadingCompletionProof ? (
+                      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+                        Loading completion proof...
+                      </div>
+                    ) : completionProofError ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
+                        {completionProofError}
+                      </div>
+                    ) : completionProof ? (
+                      <>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="rounded-xl border border-slate-200 bg-white p-5 md:col-span-2">
+                            <p className="text-sm font-semibold text-slate-500">
+                              Work Summary
+                            </p>
+
+                            <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-800">
+                              {completionProof.summary ||
+                                "No work summary provided."}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-5">
+                            <p className="text-sm font-semibold text-slate-500">
+                              Hours Worked
+                            </p>
+
+                            <p className="mt-2 text-2xl font-bold text-blue-700">
+                              {completionProof.hours_worked ?? "Not set"}
+                              {completionProof.hours_worked != null
+                                ? " hour(s)"
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+
+                        {completionProof.notes && (
+                          <div className="rounded-xl border border-slate-200 bg-white p-5">
+                            <p className="text-sm font-semibold text-slate-500">
+                              Worker Notes
+                            </p>
+
+                            <p className="mt-2 whitespace-pre-wrap leading-7 text-slate-800">
+                              {completionProof.notes}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <h4 className="text-lg font-bold text-slate-900">
+                              Proof Images
+                            </h4>
+
+                            <span className="text-sm font-medium text-slate-500">
+                              {completionProof.images.length} image
+                              {completionProof.images.length === 1
+                                ? ""
+                                : "s"}
+                            </span>
+                          </div>
+
+                          {completionProof.images.length > 0 ? (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              {completionProof.images.map(
+                                (image, index) => (
+                                  <a
+                                    key={image.id}
+                                    href={image.image_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                                  >
+                                    <img
+                                      src={image.image_url}
+                                      alt={`Completion proof ${index + 1}`}
+                                      className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
+                                    />
+
+                                    <div className="px-4 py-3 text-sm font-semibold text-blue-700">
+                                      View full image
+                                    </div>
+                                  </a>
+                                ),
+                              )}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
+                              No proof images are available.
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : null}
+                  </section>
+                )}
+
                 {/* Booking Progress */}
 
                 <div>
@@ -831,6 +1275,37 @@ export default function Bookings() {
                     {receiptBooking.payment_status}
                   </span>
                 </div>
+
+                {(receiptBooking.payment_reference ||
+                  receiptBooking.transaction_id ||
+                  receiptBooking.payment_date) && (
+                  <div className="mt-4 space-y-2 border-t pt-4 text-sm">
+                    {receiptBooking.payment_reference && (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-gray-500">Payment Reference</span>
+                        <span className="break-all text-right font-semibold">
+                          {receiptBooking.payment_reference}
+                        </span>
+                      </div>
+                    )}
+                    {receiptBooking.transaction_id && (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-gray-500">Transaction ID</span>
+                        <span className="break-all text-right font-semibold">
+                          {receiptBooking.transaction_id}
+                        </span>
+                      </div>
+                    )}
+                    {receiptBooking.payment_date && (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-gray-500">Payment Date</span>
+                        <span className="text-right font-semibold">
+                          {new Date(receiptBooking.payment_date).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="border-t mt-5 pt-5 flex justify-between">
                   <span className="font-bold text-xl">Total Paid</span>
@@ -1110,26 +1585,16 @@ export default function Bookings() {
 
               <div className="flex justify-end gap-4">
                 <button
-                  disabled={!preferredDate || !preferredTime}
-                  onClick={() => {
-                    navigate(`/customer/book/${rebookBooking.worker_id}`, {
-                      state: {
-                        serviceId: rebookBooking.service_id,
-                        preferredDate,
-                        preferredTime,
-                        notes: rebookNotes,
-                        address: rebookAddress,
-                      },
-                    });
-                  }}
+                  disabled={!preferredDate || !preferredTime || Boolean(activeAction)}
+                  onClick={handleConfirmRebook}
                   className={`rounded-xl px-8 py-3 font-semibold text-white
 ${
-  !preferredDate || !preferredTime
+  !preferredDate || !preferredTime || Boolean(activeAction)
     ? "bg-gray-400 cursor-not-allowed"
     : "bg-blue-600 hover:bg-blue-700"
 }`}
                 >
-                  Confirm Rebook
+                  {isActionLoading("rebook", rebookBooking.id) ? "Checking Worker..." : "Confirm Rebook"}
                 </button>
               </div>
             </div>
@@ -1231,42 +1696,11 @@ ${
                 </button>
 
                 <button
-                  onClick={async () => {
-                    try {
-                      const {
-                        data: { user },
-                      } = await supabase.auth.getUser();
-
-                      if (!user) {
-                        toast.warning("Please login.");
-                        return;
-                      }
-
-                      await createReview(
-                        reviewBooking.id,
-                        reviewBooking.worker_id,
-                        user.id,
-
-                        overallRating,
-                        qualityRating,
-                        professionalismRating,
-                        communicationRating,
-
-                        reviewComment,
-                      );
-                      toast.success("Review submitted successfully!");
-
-                      setReviewBooking(null);
-
-                      await loadBookings();
-                    } catch (error) {
-                      console.error(error);
-                      toast.error("Unable to submit review.");
-                    }
-                  }}
+                  onClick={handleSubmitReview}
+                  disabled={Boolean(activeAction)}
                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl"
                 >
-                  Submit Review
+                  {isActionLoading("review", reviewBooking.id) ? "Submitting..." : "Submit Review"}
                 </button>
               </div>
             </div>

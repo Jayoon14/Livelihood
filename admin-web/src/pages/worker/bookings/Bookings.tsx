@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   CheckCircle2,
@@ -216,6 +216,8 @@ function hasCustomerCoordinates(booking: WorkerBooking): boolean {
 }
 
 export default function Bookings() {
+  const navigate = useNavigate();
+
   const [bookings, setBookings] = useState<WorkerBooking[]>([]);
   const [workerId, setWorkerId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -223,7 +225,6 @@ export default function Bookings() {
   const [selectedBooking, setSelectedBooking] = useState<WorkerBooking | null>(
     null,
   );
-  const [chatBookingId, setChatBookingId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionState, setActionState] = useState<ActionState | null>(null);
@@ -295,15 +296,14 @@ export default function Bookings() {
   }, [loadBookings]);
 
   useEffect(() => {
-    if (!selectedBooking && chatBookingId === null) return;
+    if (!selectedBooking) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (chatBookingId !== null) setChatBookingId(null);
-        else setSelectedBooking(null);
+        setSelectedBooking(null);
       }
     };
 
@@ -313,7 +313,7 @@ export default function Bookings() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [selectedBooking, chatBookingId]);
+  }, [selectedBooking]);
 
   useEffect(() => {
     if (!successMessage && !pageError) return;
@@ -496,7 +496,7 @@ export default function Bookings() {
 
   const openChat = (bookingId: number) => {
     setSelectedBooking(null);
-    setChatBookingId(bookingId);
+    navigate(`/chat/${bookingId}`);
   };
 
   const totalBookings = bookings.length;
@@ -1058,35 +1058,7 @@ export default function Bookings() {
         </div>
       )}
 
-      {chatBookingId !== null && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Booking chat"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setChatBookingId(null);
-          }}
-          className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4 lg:p-6"
-        >
-          <div className="relative h-dvh w-full overflow-hidden bg-white shadow-2xl sm:h-[92dvh] sm:max-w-6xl sm:rounded-3xl">
-            <button
-              type="button"
-              onClick={() => setChatBookingId(null)}
-              aria-label="Close chat"
-              className="absolute right-3 top-3 z-110 flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg hover:bg-red-600"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <iframe
-              key={chatBookingId}
-              title={`Chat for booking ${chatBookingId}`}
-              src={`/chat/${chatBookingId}`}
-              className="h-full w-full border-0"
-              allow="camera; microphone; clipboard-read; clipboard-write"
-            />
-          </div>
-        </div>
-      )}
+
     </WorkerLayout>
   );
 }

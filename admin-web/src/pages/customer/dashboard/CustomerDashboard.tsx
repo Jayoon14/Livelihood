@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -39,18 +39,57 @@ import { getRecentlyViewed } from "../../../services/recentlyViewedService";
 
 import { supabase } from "../../../lib/supabase";
 
+type WorkerPresenceRecord = {
+  id: string;
+  role?: string | null;
+  last_seen?: string | null;
+};
+
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+
+function isWorkerOnline(lastSeen?: string | null): boolean {
+  if (!lastSeen) return false;
+
+  const lastSeenTime = new Date(lastSeen).getTime();
+
+  if (!Number.isFinite(lastSeenTime)) return false;
+
+  const elapsed = Date.now() - lastSeenTime;
+
+  return elapsed >= 0 && elapsed <= ONLINE_TIMEOUT_MS;
+}
+
 const heading = { fontFamily: "'Sora', sans-serif" };
 
-function AvailabilityBadge({ available }: { available: boolean }) {
-  return available ? (
-    <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-      Available Today
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-600 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold">
-      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-      Unavailable
+function AvailabilityBadge({
+  online,
+  available,
+}: {
+  online: boolean;
+  available: boolean;
+}) {
+  if (!online) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 sm:px-3 sm:text-xs">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        Offline
+      </span>
+    );
+  }
+
+  if (!available) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 sm:px-3 sm:text-xs">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Online • Not Available Today
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:px-3 sm:text-xs">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      Online • Available Today
     </span>
   );
 }
@@ -70,6 +109,7 @@ export default function CustomerDashboard() {
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
 
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
+  const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
   const [upcomingBooking, setUpcomingBooking] = useState<any>(null);
 
   const [analytics, setAnalytics] = useState({
@@ -85,6 +125,101 @@ export default function CustomerDashboard() {
     loadDashboard();
     loadRecentWorkers();
   }, []);
+
+  const getVisibleWorkerIds = useCallback((): string[] => {
+    const ids = [
+      ...workers.map((worker) => String(worker.id)),
+      ...recommendedWorkers.map((worker) => String(worker.id)),
+      ...recentWorkers
+        .map((item) => item?.worker?.id)
+        .filter(Boolean)
+        .map(String),
+    ];
+
+    return [...new Set(ids)];
+  }, [workers, recommendedWorkers, recentWorkers]);
+
+  const refreshWorkerStates = useCallback(async (workerIds: string[]) => {
+    const ids = [...new Set(workerIds.filter(Boolean))];
+    if (!ids.length) return;
+
+    try {
+      const [presenceResult, availabilityEntries] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, last_seen")
+          .in("id", ids)
+          .eq("role", "worker"),
+        Promise.all(
+          ids.map(async (workerId) => [
+            workerId,
+            Boolean(await isWorkerAvailable(workerId)),
+          ] as const),
+        ),
+      ]);
+
+      if (presenceResult.error) {
+        throw presenceResult.error;
+      }
+
+      const onlineEntries = ids.map(
+        (workerId) =>
+          [
+            workerId,
+            isWorkerOnline(
+              presenceResult.data?.find(
+                (profile) => String(profile.id) === workerId,
+              )?.last_seen,
+            ),
+          ] as const,
+      );
+
+      setOnlineStatus((current) => ({
+        ...current,
+        ...Object.fromEntries(onlineEntries),
+      }));
+
+      setAvailability((current) => ({
+        ...current,
+        ...Object.fromEntries(availabilityEntries),
+      }));
+    } catch (error) {
+      console.error("Unable to refresh worker availability:", error);
+
+      setOnlineStatus((current) => ({
+        ...current,
+        ...Object.fromEntries(ids.map((workerId) => [workerId, false])),
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("customer-dashboard-worker-presence")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles" },
+        (payload) => {
+          const profile = payload.new as WorkerPresenceRecord;
+          if (profile.role?.toLowerCase() !== "worker") return;
+
+          setOnlineStatus((current) => ({
+            ...current,
+            [profile.id]: isWorkerOnline(profile.last_seen),
+          }));
+        },
+      )
+      .subscribe();
+
+    const expiryTimer = window.setInterval(() => {
+      void refreshWorkerStates(getVisibleWorkerIds());
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(expiryTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [getVisibleWorkerIds, refreshWorkerStates]);
 
   useEffect(() => {
     searchWorkers();
@@ -110,6 +245,7 @@ export default function CustomerDashboard() {
 
       setRatings(temp);
       setAvailability(available);
+      await refreshWorkerStates(workerData.map((worker) => String(worker.id)));
 
       const {
         data: { user },
@@ -136,6 +272,7 @@ export default function CustomerDashboard() {
         const recommended = await getRecommendedWorkers(user.id);
 
         setRecommendedWorkers(recommended);
+        await refreshWorkerStates(recommended.map((worker) => String(worker.id)));
       }
     } catch (error) {
       console.error(error);
@@ -147,6 +284,9 @@ export default function CustomerDashboard() {
       const data = await getRecentlyViewed(5);
 
       setRecentWorkers(data);
+      await refreshWorkerStates(
+        data.map((item: any) => String(item?.worker?.id ?? "")).filter(Boolean),
+      );
     } catch (error) {
       console.error(error);
     }
@@ -162,6 +302,7 @@ export default function CustomerDashboard() {
     const result = await searchDashboard(search);
 
     setWorkers(result);
+    await refreshWorkerStates(result.map((worker) => String(worker.id)));
 
     const temp: Record<string, number> = {};
 
@@ -436,7 +577,10 @@ export default function CustomerDashboard() {
                     </h3>
 
                     <div className="mt-2.5 sm:mt-3">
-                      <AvailabilityBadge available={availability[worker.id]} />
+                      <AvailabilityBadge
+                        online={Boolean(onlineStatus[worker.id])}
+                        available={Boolean(availability[worker.id])}
+                      />
                     </div>
 
                     <button
@@ -526,7 +670,10 @@ export default function CustomerDashboard() {
                   </div>
 
                   <div className="mt-2.5 sm:mt-3">
-                    <AvailabilityBadge available={availability[worker.id]} />
+                    <AvailabilityBadge
+                        online={Boolean(onlineStatus[worker.id])}
+                        available={Boolean(availability[worker.id])}
+                      />
                   </div>
 
                   <div className="flex gap-2 mt-3.5 sm:mt-4">
@@ -582,7 +729,10 @@ export default function CustomerDashboard() {
                     />
 
                     <div className="text-center mt-2 scale-90 origin-center">
-                      <AvailabilityBadge available={availability[worker.id]} />
+                      <AvailabilityBadge
+                        online={Boolean(onlineStatus[worker.id])}
+                        available={Boolean(availability[worker.id])}
+                      />
                     </div>
 
                     <div className="mt-2.5 sm:mt-3 flex flex-col gap-1.5">

@@ -1,22 +1,11 @@
-ADMIN WORKERS FUNCTIONAL AUDIT BATCH
+Replace:
+1. src/pages/worker/navigation/NavigateToCustomer.tsx
+2. src/components/maps/LocationPicker.tsx
 
-Copy these files to the same paths inside admin-web:
-
-1. src/pages/admin/workers/Workers.tsx
-2. src/pages/admin/workers/WorkerDetails.tsx
-3. src/services/workerService.ts
-
-Then run:
-npm run build
-
-Changes:
-- Working server-side name/email search
-- Status filter
-- Client pagination
-- Refresh action
-- Loading, error, retry, and empty states
-- Typed worker list
-- Approve/reject confirmation
-- Action loading and duplicate-click prevention
-- Parallel worker-detail loading
-- Improved Supabase status filtering
+Behavior:
+- Worker cannot change the confirmed customer destination.
+- Search and destination-changing sidebar controls are disabled in navigation mode.
+- Map clicks/search results cannot overwrite the booking destination.
+- Current Location still recenters the worker GPS.
+- Chat Customer opens /chat/:bookingId.
+- Existing getChatContext/getMessages ownership checks restrict the room to the booking customer and assigned worker.

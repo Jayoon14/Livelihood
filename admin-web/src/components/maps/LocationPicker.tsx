@@ -62,6 +62,8 @@ interface Props {
     address: string,
   ) => void;
 
+  onLocationConfirmedChange?: (confirmed: boolean) => void;
+
   showNearbyWorkers?: boolean;
   nearbyWorkerRadiusKilometers?: number;
 
@@ -74,6 +76,7 @@ interface Props {
 }
 export default function LocationPicker({
   onLocationSelect,
+  onLocationConfirmedChange,
   showNearbyWorkers = false,
   nearbyWorkerRadiusKilometers = 20,
   onNearbyWorkerSelect,
@@ -151,6 +154,7 @@ export default function LocationPicker({
     setMouseCoordinates,
   } = useLocationPickerState();
   const [followUser] = useState(true);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   useEffect(() => {
     callbackRef.current = onLocationSelect;
@@ -161,7 +165,7 @@ export default function LocationPicker({
     routeCoordinatesRef,
   });
 
-  const saveLocation = useSaveLocation({
+  const saveLocationBase = useSaveLocation({
     mapRef,
     destinationMarkerRef,
     selectedCoordinatesRef,
@@ -174,6 +178,53 @@ export default function LocationPicker({
     setResults,
     setMessage,
   });
+
+  const saveLocation = useCallback(
+    async (
+      nextLatitude: number,
+      nextLongitude: number,
+      nextAddress?: string,
+      preserveView?: boolean,
+    ) => {
+      if (navigationMode) {
+        const fixedLatitude = initialLocation?.latitude;
+        const fixedLongitude = initialLocation?.longitude;
+
+        const isFixedDestination =
+          typeof fixedLatitude === "number" &&
+          typeof fixedLongitude === "number" &&
+          Math.abs(nextLatitude - fixedLatitude) < 0.0000001 &&
+          Math.abs(nextLongitude - fixedLongitude) < 0.0000001;
+
+        if (!isFixedDestination) {
+          setMessage(
+            "The customer service location is locked and cannot be changed by the worker.",
+          );
+          return;
+        }
+      }
+
+      if (!navigationMode) {
+        setLocationConfirmed(false);
+        onLocationConfirmedChange?.(false);
+      }
+
+      await saveLocationBase(
+        nextLatitude,
+        nextLongitude,
+        nextAddress,
+        preserveView,
+      );
+    },
+    [
+      initialLocation?.latitude,
+      initialLocation?.longitude,
+      navigationMode,
+      onLocationConfirmedChange,
+      saveLocationBase,
+      setMessage,
+    ],
+  );
 
   const getCurrentLocation = useCurrentLocation({
     currentLocationRef,
@@ -384,7 +435,7 @@ const {
   onWorkerSelect: onNearbyWorkerSelect,
 });
 
-  const confirmAddress = useConfirmAddress({
+  const confirmAddressBase = useConfirmAddress({
     editableAddress,
     latitude,
     longitude,
@@ -393,6 +444,21 @@ const {
     setSearchText,
     callback: callbackRef.current,
   });
+
+  const confirmAddress = useCallback(() => {
+    confirmAddressBase();
+    setLocationConfirmed(true);
+    onLocationConfirmedChange?.(true);
+    destinationMarkerRef.current?.setDraggable(false);
+    setMessage("Service location confirmed and locked.");
+  }, [confirmAddressBase, onLocationConfirmedChange, setMessage]);
+
+  const unlockLocation = useCallback(() => {
+    setLocationConfirmed(false);
+    onLocationConfirmedChange?.(false);
+    destinationMarkerRef.current?.setDraggable(true);
+    setMessage("Location unlocked. You may select another service location.");
+  }, [onLocationConfirmedChange, setMessage]);
 
   const clearSearch = useClearSearch({
     setSearchText,
@@ -467,9 +533,22 @@ const layersModalProps = useLayersModalProps({
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.15)]">
       <div className="relative flex h-[520px] w-full overflow-hidden sm:h-[600px]">
-        <MapSidebar {...sidebarProps} />
+        <div className={navigationMode ? "pointer-events-none select-none" : ""}>
+          <MapSidebar {...sidebarProps} />
+        </div>
         <div className="relative flex-1">
           <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
+
+          {navigationMode && (
+            <div className="pointer-events-none absolute left-4 bottom-4 z-20 rounded-xl border border-blue-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+              <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">
+                Customer location locked
+              </p>
+              <p className="mt-1 max-w-64 text-xs text-slate-600">
+                The destination comes from the confirmed booking and cannot be moved by the worker.
+              </p>
+            </div>
+          )}
           {showNearbyWorkers && (
             <div className="pointer-events-none absolute left-4 top-4 z-20">
               <div className="rounded-2xl border border-white/70 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
@@ -495,7 +574,7 @@ const layersModalProps = useLayersModalProps({
 
         <LoadingOverlay visible={!mapReady} />
 
-        <MobileSearch {...mobileSearchProps} />
+        {!navigationMode && <MobileSearch {...mobileSearchProps} />}
 
         <CompassIndicator bearing={bearing} />
 
@@ -524,8 +603,10 @@ const layersModalProps = useLayersModalProps({
           selectedAddress={selectedAddress}
           latitude={latitude}
           longitude={longitude}
+          confirmed={locationConfirmed}
           onAddressChange={setEditableAddress}
           onConfirm={confirmAddress}
+          onChangeLocation={unlockLocation}
         />
       )}
     </div>

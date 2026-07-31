@@ -35,6 +35,7 @@ export interface WorkerProfile {
   role: string;
   status: string | null;
   created_at?: string;
+  last_seen?: string | null;
   [key: string]: unknown;
 }
 
@@ -1122,3 +1123,11 @@ export async function getWorkerReviews(
     };
   });
 }
+
+
+// Worker online presence helpers
+export {
+  getWorkerBookability,
+  getWorkerOnlineStatus,
+  getWorkersOnlineStatus,
+} from "./presenceService";

@@ -435,6 +435,47 @@ export async function startTrip(
   return booking;
 }
 
+async function verifyCompletionProof(
+  bookingId: number,
+  workerId: string,
+): Promise<void> {
+  const { data: proof, error: proofError } = await supabase
+    .from("booking_completion_proofs")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("worker_id", workerId)
+    .maybeSingle();
+
+  if (proofError) {
+    throw new Error(
+      `Unable to verify completion proof: ${proofError.message}`,
+    );
+  }
+
+  if (!proof) {
+    throw new Error(
+      "Upload and submit completion proof before completing this service.",
+    );
+  }
+
+  const { count, error: imageError } = await supabase
+    .from("booking_completion_images")
+    .select("id", { count: "exact", head: true })
+    .eq("proof_id", proof.id);
+
+  if (imageError) {
+    throw new Error(
+      `Unable to verify completion images: ${imageError.message}`,
+    );
+  }
+
+  if (!count || count < 1) {
+    throw new Error(
+      "Upload at least one completion image before completing this service.",
+    );
+  }
+}
+
 /**
  * Worker marks the service as completed.
  *
@@ -446,6 +487,7 @@ export async function completeBooking(
   workerId: string,
 ) {
   await verifyWorkerSession(workerId);
+  await verifyCompletionProof(bookingId, workerId);
 
   const completedAt = new Date().toISOString();
 

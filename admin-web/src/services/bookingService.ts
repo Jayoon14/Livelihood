@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
 import { createSchedule } from "./scheduleService";
+import { getWorkerBookability } from "./presenceService";
 
 export const BOOKING_STATUS = {
   PENDING: "Pending",
@@ -250,6 +251,40 @@ async function rollbackAcceptedBooking(bookingId: number): Promise<void> {
   }
 }
 
+const ACTIVE_DUPLICATE_BOOKING_STATUSES = [
+  "Pending",
+  "Approved",
+  "On Going",
+  "Waiting Customer Confirmation",
+] as const;
+
+async function ensureNoActiveDuplicateBooking(
+  customerId: string,
+  workerId: string,
+  serviceId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id, status")
+    .eq("customer_id", customerId)
+    .eq("worker_id", workerId)
+    .eq("service_id", serviceId)
+    .in("status", [...ACTIVE_DUPLICATE_BOOKING_STATUSES])
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data) {
+    throw new Error(
+      "You already have an active booking for this worker and service. " +
+        "Wait for it to finish or cancel it before booking again.",
+    );
+  }
+}
+
 // =========================
 // CREATE BOOKING
 // =========================
@@ -258,6 +293,28 @@ export async function createBooking(
   booking: CreateBookingRequest,
 ): Promise<BookingRecord> {
   const normalizedBooking = normalizeBookingInput(booking);
+
+  // Fast user-facing check. The database unique index remains the final
+  // protection against simultaneous or repeated booking requests.
+  await ensureNoActiveDuplicateBooking(
+    normalizedBooking.customer_id,
+    normalizedBooking.worker_id,
+    normalizedBooking.service_id,
+  );
+
+  // Final server-facing validation immediately before insertion.
+  // A worker with last_seen = null or an expired heartbeat must not
+  // receive a new booking even if the customer opened the page earlier.
+  const bookability = await getWorkerBookability(
+    normalizedBooking.worker_id,
+  );
+
+  if (!bookability.canBook) {
+    throw new Error(
+      bookability.reason ||
+        "This worker is currently offline and cannot receive bookings.",
+    );
+  }
 
   const available = await isWorkerAvailable(
     normalizedBooking.worker_id,
@@ -275,6 +332,7 @@ export async function createBooking(
     .from("services")
     .select("price")
     .eq("id", normalizedBooking.service_id)
+    .eq("worker_id", normalizedBooking.worker_id)
     .single();
 
   if (serviceError) {
@@ -301,6 +359,13 @@ export async function createBooking(
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      throw new Error(
+        "You already have an active booking for this worker and service. " +
+          "Wait for it to finish or cancel it before booking again.",
+      );
+    }
+
     throw error;
   }
 

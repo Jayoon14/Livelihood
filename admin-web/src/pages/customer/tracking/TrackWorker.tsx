@@ -69,6 +69,8 @@ interface RouteInformation {
 const ROUTE_SOURCE_ID = "customer-worker-route-source";
 const ROUTE_LAYER_ID = "customer-worker-route-layer";
 const STALE_GPS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+const ROUTE_REFRESH_INTERVAL = 12_000; // 12 seconds
+const MIN_ROUTE_MOVEMENT_METERS = 15;
 
 const MAP_STYLE = {
   version: 8 as const,
@@ -154,6 +156,56 @@ function getTrafficStatus(
     className: "bg-red-50 text-red-700",
     dotClassName: "bg-red-500",
   };
+}
+
+function isValidCoordinates(longitude: number, latitude: number) {
+  return (
+    Number.isFinite(longitude) &&
+    Number.isFinite(latitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    latitude >= -90 &&
+    latitude <= 90
+  );
+}
+
+function isFreshWorkerLocation(location: WorkerLocationRow) {
+  const updatedAt = new Date(location.updated_at).getTime();
+
+  return (
+    location.is_online &&
+    Number.isFinite(updatedAt) &&
+    Date.now() - updatedAt <= STALE_GPS_THRESHOLD
+  );
+}
+
+function getDistanceBetweenCoordinates(
+  first: [number, number],
+  second: [number, number],
+) {
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+
+  const firstLatitude = toRadians(first[1]);
+  const secondLatitude = toRadians(second[1]);
+  const latitudeDifference = toRadians(second[1] - first[1]);
+  const longitudeDifference = toRadians(second[0] - first[0]);
+
+  const a =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(firstLatitude) *
+      Math.cos(secondLatitude) *
+      Math.sin(longitudeDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function normalizeRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
 }
 
 function createWorkerMarkerElement() {
@@ -274,6 +326,9 @@ export default function TrackWorker() {
   const workerCoordinatesRef = useRef<[number, number] | null>(null);
   const workerAnimationFrameRef = useRef<number | null>(null);
   const routeRequestNumberRef = useRef(0);
+  const lastRouteRequestAtRef = useRef(0);
+  const lastRouteOriginRef = useRef<[number, number] | null>(null);
+  const customerAddressRef = useRef<string | null>(null);
 
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [workerLocation, setWorkerLocation] =
@@ -303,6 +358,10 @@ export default function TrackWorker() {
 
     return [longitude, latitude];
   }, [booking?.customer_longitude, booking?.customer_latitude]);
+
+  useEffect(() => {
+    customerAddressRef.current = booking?.customer_address ?? null;
+  }, [booking?.customer_address]);
 
   const workerName = [
     booking?.worker?.first_name,
@@ -448,6 +507,27 @@ export default function TrackWorker() {
         },
       });
     }
+  }, []);
+
+  const clearRoute = useCallback(() => {
+    const map = mapRef.current;
+
+    if (!map || !map.isStyleLoaded()) {
+      setRouteInformation(null);
+      return;
+    }
+
+    if (map.getLayer(ROUTE_LAYER_ID)) {
+      map.removeLayer(ROUTE_LAYER_ID);
+    }
+
+    if (map.getSource(ROUTE_SOURCE_ID)) {
+      map.removeSource(ROUTE_SOURCE_ID);
+    }
+
+    setRouteInformation(null);
+    lastRouteOriginRef.current = null;
+    lastRouteRequestAtRef.current = 0;
   }, []);
 
   const requestRoute = useCallback(
@@ -649,11 +729,42 @@ export default function TrackWorker() {
     [drawRoute, tomTomApiKey],
   );
 
+  const requestRouteThrottled = useCallback(
+    (
+      workerCoordinates: [number, number],
+      destinationCoordinates: [number, number],
+      force = false,
+    ) => {
+      const now = Date.now();
+      const lastOrigin = lastRouteOriginRef.current;
+      const movedEnough =
+        !lastOrigin ||
+        getDistanceBetweenCoordinates(lastOrigin, workerCoordinates) >=
+          MIN_ROUTE_MOVEMENT_METERS;
+      const intervalElapsed =
+        now - lastRouteRequestAtRef.current >= ROUTE_REFRESH_INTERVAL;
+
+      if (!force && (!movedEnough || !intervalElapsed)) {
+        return;
+      }
+
+      lastRouteRequestAtRef.current = now;
+      lastRouteOriginRef.current = workerCoordinates;
+      void requestRoute(workerCoordinates, destinationCoordinates);
+    },
+    [requestRoute],
+  );
+
   const displayWorkerLocation = useCallback(
     (location: WorkerLocationRow, fitMap = false) => {
       const map = mapRef.current;
 
       if (!map) {
+        return;
+      }
+
+      if (!isValidCoordinates(location.longitude, location.latitude)) {
+        console.error("Invalid worker coordinates:", location);
         return;
       }
 
@@ -715,14 +826,21 @@ export default function TrackWorker() {
         });
       }
 
-      if (customerCoordinates && !trackingFinished) {
-        void requestRoute(coordinates, customerCoordinates);
+      if (
+        customerCoordinates &&
+        !trackingFinished &&
+        isFreshWorkerLocation(location)
+      ) {
+        requestRouteThrottled(coordinates, customerCoordinates, fitMap);
+      } else if (trackingFinished) {
+        clearRoute();
       }
     },
     [
       animateWorkerMarker,
       customerCoordinates,
-      requestRoute,
+      clearRoute,
+      requestRouteThrottled,
       trackingFinished,
       updateWorkerHeading,
       workerName,
@@ -781,7 +899,16 @@ export default function TrackWorker() {
           throw error;
         }
 
-        setBooking(data as unknown as BookingData);
+        const rawBooking = data as unknown as BookingData & {
+          worker?: BookingData["worker"] | BookingData["worker"][];
+          services?: BookingData["services"] | BookingData["services"][];
+        };
+
+        setBooking({
+          ...rawBooking,
+          worker: normalizeRelation(rawBooking.worker),
+          services: normalizeRelation(rawBooking.services),
+        });
       } catch (error) {
         console.error("Unable to load tracking booking:", error);
 
@@ -837,7 +964,7 @@ export default function TrackWorker() {
                   font-size: 13px;
                 "
               >
-                ${booking?.customer_address ?? "Customer location"}
+                ${customerAddressRef.current ?? "Customer location"}
               </p>
             </div>
           `),
@@ -859,7 +986,7 @@ export default function TrackWorker() {
       customerMarkerRef.current = null;
       mapRef.current = null;
     };
-  }, [booking?.customer_address, customerCoordinates]);
+  }, [customerCoordinates]);
 
   useEffect(() => {
     if (!booking?.worker_id || !mapRef.current || trackingFinished) {
@@ -923,6 +1050,7 @@ export default function TrackWorker() {
             workerMarkerRef.current?.remove();
             workerMarkerRef.current = null;
             workerCoordinatesRef.current = null;
+            clearRoute();
 
             return;
           }
@@ -945,6 +1073,7 @@ export default function TrackWorker() {
   }, [
     booking?.id,
     booking?.worker_id,
+    clearRoute,
     displayWorkerLocation,
     trackingFinished,
   ]);
@@ -985,6 +1114,14 @@ export default function TrackWorker() {
   }, [booking?.id]);
 
   useEffect(() => {
+    if (!trackingFinished) {
+      return;
+    }
+
+    clearRoute();
+  }, [clearRoute, trackingFinished]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       forceRefresh((value) => value + 1);
     }, 30_000);
@@ -1022,19 +1159,9 @@ export default function TrackWorker() {
     );
   }
 
-  const workerOnline = (() => {
-    if (!workerLocation?.is_online) {
-      return false;
-    }
-
-    const lastUpdate = new Date(workerLocation.updated_at).getTime();
-
-    if (!Number.isFinite(lastUpdate)) {
-      return false;
-    }
-
-    return Date.now() - lastUpdate <= STALE_GPS_THRESHOLD;
-  })();
+  const workerOnline = workerLocation
+    ? isFreshWorkerLocation(workerLocation)
+    : false;
   return (
     <CustomerLayout>
       <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">

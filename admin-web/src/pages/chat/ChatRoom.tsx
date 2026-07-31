@@ -459,15 +459,17 @@ export default function ChatRoom() {
 
         initializedRef.current = true;
         scrollToBottom("auto");
-      } catch (caught) {
-        if (!cancelled) {
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Unable to load chat.",
-          );
-        }
-      } finally {
+} catch (caught) {
+  console.error("CHAT ERROR", caught);
+
+  if (!cancelled) {
+    setError(
+      caught instanceof Error
+        ? caught.message
+        : "Unable to load chat.",
+    );
+  }
+} finally {
         if (!cancelled) {
           setLoading(false);
         }

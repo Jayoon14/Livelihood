@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
+import { getWorkerBookability } from "./presenceService";
 
 export type BookingStatus =
   | "Pending"
@@ -103,7 +104,42 @@ const ACTIVE_BOOKING_STATUSES = [
   "Pending",
   "Approved",
   "On Going",
+  "Waiting Customer Confirmation",
 ] as const;
+
+const DUPLICATE_ACTIVE_BOOKING_MESSAGE =
+  "You already have an active booking with this worker for the selected service. " +
+  "Please wait until it is completed or cancelled before booking again.";
+
+type DatabaseErrorLike = {
+  code?: unknown;
+  message?: unknown;
+  details?: unknown;
+  hint?: unknown;
+};
+
+function isDatabaseErrorLike(error: unknown): error is DatabaseErrorLike {
+  return typeof error === "object" && error !== null;
+}
+
+function isDuplicateActiveBookingError(error: unknown): boolean {
+  if (!isDatabaseErrorLike(error)) {
+    return false;
+  }
+
+  const code = typeof error.code === "string" ? error.code : "";
+  const message =
+    typeof error.message === "string" ? error.message.toLowerCase() : "";
+  const details =
+    typeof error.details === "string" ? error.details.toLowerCase() : "";
+
+  return (
+    code === "23505" &&
+    (message.includes("bookings_one_active_customer_worker_service") ||
+      details.includes("bookings_one_active_customer_worker_service") ||
+      message.includes("duplicate key value violates unique constraint"))
+  );
+}
 
 function wrapError(error: unknown, fallbackMessage: string): Error {
   if (error instanceof Error) {
@@ -648,6 +684,16 @@ export async function createBooking(
     data.worker_id,
     "Worker account",
   );
+
+  const bookability = await getWorkerBookability(workerId);
+
+  if (!bookability.canBook) {
+    throw new Error(
+      bookability.reason ||
+        "This worker is currently offline and cannot receive bookings.",
+    );
+  }
+
   const normalizedBookingDate =
     normalizeDateForDatabase(data.booking_date);
   const normalizedBookingTime =
@@ -679,6 +725,32 @@ export async function createBooking(
     workerId,
   );
 
+  // Friendly early check. The unique database index below remains the final
+  // protection against two requests submitted at nearly the same time.
+  const { count: activeDuplicateCount, error: activeDuplicateError } =
+    await supabase
+      .from("bookings")
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
+      .eq("customer_id", customerId)
+      .eq("worker_id", workerId)
+      .eq("service_id", data.service_id)
+      .eq("is_deleted", false)
+      .in("status", [...ACTIVE_BOOKING_STATUSES]);
+
+  if (activeDuplicateError) {
+    throw wrapError(
+      activeDuplicateError,
+      "Unable to check your active bookings.",
+    );
+  }
+
+  if ((activeDuplicateCount ?? 0) > 0) {
+    throw new Error(DUPLICATE_ACTIVE_BOOKING_MESSAGE);
+  }
+
   const available = await isWorkerAvailable(
     workerId,
     data.booking_date,
@@ -688,6 +760,15 @@ export async function createBooking(
   if (!available) {
     throw new Error(
       "The worker is no longer available at the selected date and time. Please choose another schedule.",
+    );
+  }
+
+  const finalBookability = await getWorkerBookability(workerId);
+
+  if (!finalBookability.canBook) {
+    throw new Error(
+      finalBookability.reason ||
+        "This worker went offline before the booking was submitted.",
     );
   }
 
@@ -734,6 +815,10 @@ export async function createBooking(
       .single();
 
   if (bookingError) {
+    if (isDuplicateActiveBookingError(bookingError)) {
+      throw new Error(DUPLICATE_ACTIVE_BOOKING_MESSAGE);
+    }
+
     throw wrapError(bookingError, "Unable to create the booking.");
   }
 
