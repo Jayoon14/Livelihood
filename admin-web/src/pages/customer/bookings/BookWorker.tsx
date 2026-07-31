@@ -268,6 +268,7 @@ export default function BookWorker() {
         customer_id: user.id,
         worker_id: worker.profile.id,
         service_id: selectedService.id,
+        booking_type: "Scheduled" as const,
 
         booking_date: scheduleDate,
         booking_time: scheduleTime,
@@ -376,11 +377,12 @@ export default function BookWorker() {
       <div className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-900">
-            Book Worker
+            Schedule Worker
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Select a service, schedule, and service location.
+            Choose a future date and time. Scheduled requests may be sent even
+            when the worker is currently offline.
           </p>
         </div>
 
@@ -400,6 +402,14 @@ export default function BookWorker() {
               {worker.profile.phone}
             </p>
           )}
+        </div>
+
+        <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <p className="font-semibold">Scheduled booking</p>
+          <p className="mt-1">
+            The worker does not need to be online right now. The selected date
+            and time must still be available.
+          </p>
         </div>
 
         {error && (
@@ -586,8 +596,8 @@ export default function BookWorker() {
             className="flex w-full items-center justify-center rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
             {submitting
-              ? "Submitting booking..."
-              : "Submit Booking"}
+              ? "Submitting schedule..."
+              : "Submit Scheduled Booking"}
           </button>
         </div>
       </div>

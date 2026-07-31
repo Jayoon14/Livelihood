@@ -5,6 +5,7 @@ export type WorkerBookingStatus =
   | "Pending"
   | "Approved"
   | "On Going"
+  | "Waiting Customer Confirmation"
   | "Completed"
   | "Cancelled";
 
@@ -479,8 +480,8 @@ async function verifyCompletionProof(
 /**
  * Worker marks the service as completed.
  *
- * Current application behavior finalizes status as Completed.
- * completion_status records that completion came from the worker.
+ * Worker submission does not finalize the booking.
+ * The customer must review the proof before the booking becomes Completed.
  */
 export async function completeBooking(
   bookingId: number,
@@ -494,7 +495,7 @@ export async function completeBooking(
   const { data, error } = await supabase
     .from("bookings")
     .update({
-      status: "Completed",
+      status: "Waiting Customer Confirmation",
       schedule_status: "Scheduled",
       trip_status: "Completed",
       completion_status: "Worker Completed",
@@ -538,8 +539,8 @@ export async function completeBooking(
   await notifyCustomerSafely(
     booking.customer_id,
     booking.id,
-    "Service Completed",
-    "The worker marked your service as completed. Please review and confirm the completed work.",
+    "Completion Proof Ready",
+    "The worker submitted completion proof. Please review the work and either confirm it or request a revision.",
   );
 
   return booking;

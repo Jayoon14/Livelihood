@@ -30,10 +30,13 @@ export type CompletionStatus =
   | "Customer Confirmed"
   | "Disputed";
 
+export type BookingType = "Immediate" | "Scheduled";
+
 export interface CreateBookingInput {
   customer_id: string;
   worker_id: string;
   service_id: number;
+  booking_type?: BookingType;
   booking_date: string;
   booking_time: string;
   address: string;
@@ -230,6 +233,14 @@ function normalizeTime(time: string): string {
 function validateBookingInput(data: CreateBookingInput): void {
   requireText(data.customer_id, "Customer account");
   requireText(data.worker_id, "Worker account");
+
+  if (
+    data.booking_type !== undefined &&
+    data.booking_type !== "Immediate" &&
+    data.booking_type !== "Scheduled"
+  ) {
+    throw new Error("Please select a valid booking type.");
+  }
 
   if (!Number.isInteger(data.service_id) || data.service_id <= 0) {
     throw new Error("Please select a valid service.");
@@ -685,13 +696,20 @@ export async function createBooking(
     "Worker account",
   );
 
-  const bookability = await getWorkerBookability(workerId);
+  const bookingType: BookingType =
+    data.booking_type === "Immediate"
+      ? "Immediate"
+      : "Scheduled";
 
-  if (!bookability.canBook) {
-    throw new Error(
-      bookability.reason ||
-        "This worker is currently offline and cannot receive bookings.",
-    );
+  if (bookingType === "Immediate") {
+    const bookability = await getWorkerBookability(workerId);
+
+    if (!bookability.canBook) {
+      throw new Error(
+        bookability.reason ||
+          "This worker is currently offline and cannot receive immediate bookings.",
+      );
+    }
   }
 
   const normalizedBookingDate =
@@ -763,19 +781,22 @@ export async function createBooking(
     );
   }
 
-  const finalBookability = await getWorkerBookability(workerId);
+  if (bookingType === "Immediate") {
+    const finalBookability = await getWorkerBookability(workerId);
 
-  if (!finalBookability.canBook) {
-    throw new Error(
-      finalBookability.reason ||
-        "This worker went offline before the booking was submitted.",
-    );
+    if (!finalBookability.canBook) {
+      throw new Error(
+        finalBookability.reason ||
+          "This worker went offline before the immediate booking was submitted.",
+      );
+    }
   }
 
   const bookingPayload = {
     customer_id: customerId,
     worker_id: workerId,
     service_id: data.service_id,
+    booking_type: bookingType,
     service_name: service.service_name,
     category: service.category,
     price: service.price,

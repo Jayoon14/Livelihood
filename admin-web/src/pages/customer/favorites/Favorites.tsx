@@ -200,7 +200,7 @@ export default function Favorites() {
                       alt={workerName || "Worker"}
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/10 to-transparent" />
 
                     <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-sm font-bold text-gray-800 shadow-md backdrop-blur-sm sm:right-4 sm:top-4">
                       <Star

@@ -13,6 +13,7 @@ import {
   CircleCheckBig,
   CircleX,
   Clock3,
+  Hourglass,
   Loader2,
   MessageCircle,
   Navigation,
@@ -37,14 +38,12 @@ type BookingStatus =
   | "Pending"
   | "Approved"
   | "On Going"
+  | "Waiting Customer Confirmation"
   | "Completed"
   | "Cancelled";
 
 type StatusFilter = "All" | BookingStatus;
-type BookingAction =
-  | "accept"
-  | "reject"
-  | "delete";
+type BookingAction = "accept" | "reject" | "delete";
 
 interface CustomerProfile {
   id?: string;
@@ -89,6 +88,7 @@ const STATUS_ORDER: BookingStatus[] = [
   "Pending",
   "Approved",
   "On Going",
+  "Waiting Customer Confirmation",
   "Completed",
   "Cancelled",
 ];
@@ -186,6 +186,8 @@ function getStatusBadgeClass(status: BookingStatus): string {
       return "bg-emerald-100 text-emerald-800";
     case "On Going":
       return "bg-violet-100 text-violet-800";
+    case "Waiting Customer Confirmation":
+      return "bg-cyan-100 text-cyan-800";
     case "Completed":
       return "bg-blue-100 text-blue-800";
     case "Cancelled":
@@ -201,6 +203,8 @@ function getStatusBorderClass(status: BookingStatus): string {
       return "border-emerald-500";
     case "On Going":
       return "border-violet-500";
+    case "Waiting Customer Confirmation":
+      return "border-cyan-500";
     case "Completed":
       return "border-blue-500";
     case "Cancelled":
@@ -331,6 +335,7 @@ export default function Bookings() {
       Pending: 0,
       Approved: 0,
       "On Going": 0,
+      "Waiting Customer Confirmation": 0,
       Completed: 0,
       Cancelled: 0,
     };
@@ -446,7 +451,7 @@ export default function Bookings() {
         return;
       }
 
-      if (!await confirmAction("Reject this booking request?")) return;
+      if (!(await confirmAction("Reject this booking request?"))) return;
 
       await runAction(
         id,
@@ -459,10 +464,9 @@ export default function Bookings() {
     [runAction, workerId],
   );
 
-
   const handleDelete = useCallback(
     async (id: number) => {
-      if (!await confirmAction("Delete this booking from your list?")) return;
+      if (!(await confirmAction("Delete this booking from your list?"))) return;
 
       await runAction(
         id,
@@ -616,7 +620,7 @@ export default function Bookings() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           <StatCard
             label="Total Bookings"
             value={totalBookings}
@@ -643,6 +647,13 @@ export default function Bookings() {
             value={counts["On Going"]}
             icon={<Navigation className="h-8 w-8" />}
             accent="violet"
+            total={totalBookings}
+          />
+          <StatCard
+            label="Awaiting Confirmation"
+            value={counts["Waiting Customer Confirmation"]}
+            icon={<Hourglass className="h-8 w-8" />}
+            accent="cyan"
             total={totalBookings}
           />
           <StatCard
@@ -856,16 +867,16 @@ export default function Bookings() {
                               </button>
                             )}
 
-                          {booking.status === "On Going" &&
-                            booking.trip_status === "On Trip" && (
-                              <Link
-                                to={`/worker/bookings/${booking.id}/complete`}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 sm:col-span-2"
-                              >
-                                <CheckCircle2 className="h-4 w-4" />
-                                Submit Completion Proof
-                              </Link>
-                            )}
+                            {booking.status === "On Going" &&
+                              booking.trip_status === "On Trip" && (
+                                <Link
+                                  to={`/worker/bookings/${booking.id}/complete`}
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 sm:col-span-2"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  Submit Completion Proof
+                                </Link>
+                              )}
                           </div>
                         </div>
                       </article>
@@ -1020,9 +1031,12 @@ export default function Bookings() {
                     </Link>
                   )}
 
-                {["Approved", "On Going", "Completed"].includes(
-                  selectedBooking.status,
-                ) && (
+                {[
+                  "Approved",
+                  "On Going",
+                  "Waiting Customer Confirmation",
+                  "Completed",
+                ].includes(selectedBooking.status) && (
                   <button
                     type="button"
                     onClick={() => openChat(selectedBooking.id)}
@@ -1057,8 +1071,6 @@ export default function Bookings() {
           </div>
         </div>
       )}
-
-
     </WorkerLayout>
   );
 }
@@ -1067,7 +1079,7 @@ interface StatCardProps {
   label: string;
   value: number;
   icon: ReactNode;
-  accent: "blue" | "amber" | "emerald" | "violet" | "sky" | "red";
+  accent: "blue" | "amber" | "emerald" | "violet" | "cyan" | "sky" | "red";
   total: number;
 }
 
@@ -1077,6 +1089,7 @@ function StatCard({ label, value, icon, accent, total }: StatCardProps) {
     amber: "bg-amber-100 text-amber-700",
     emerald: "bg-emerald-100 text-emerald-700",
     violet: "bg-violet-100 text-violet-700",
+    cyan: "bg-cyan-100 text-cyan-700",
     sky: "bg-sky-100 text-sky-700",
     red: "bg-red-100 text-red-700",
   }[accent];
@@ -1084,15 +1097,15 @@ function StatCard({ label, value, icon, accent, total }: StatCardProps) {
   const progress = total ? Math.min((value / total) * 100, 100) : 0;
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg transition hover:-translate-y-1 hover:shadow-xl">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-slate-500">{label}</p>
-          <h2 className="mt-2 text-4xl font-bold text-slate-900">{value}</h2>
+    <div className="flex h-full min-h-44 flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-lg transition hover:-translate-y-1 hover:shadow-xl">
+      <div className="flex min-h-24 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="min-h-12 text-slate-500">{label}</p>
+          <h2 className="mt-1 text-4xl font-bold text-slate-900">{value}</h2>
         </div>
         <div className={`rounded-2xl p-4 ${styles}`}>{icon}</div>
       </div>
-      <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-auto h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           className="h-full rounded-full bg-current text-blue-600 transition-all"
           style={{ width: `${progress}%` }}
@@ -1145,28 +1158,40 @@ function ActionButton({
 function BookingProgress({ status }: { status: BookingStatus }) {
   const step =
     status === "Completed"
-      ? 4
-      : status === "On Going"
-        ? 3
-        : status === "Approved"
-          ? 2
-          : 1;
+      ? 5
+      : status === "Waiting Customer Confirmation"
+        ? 4
+        : status === "On Going"
+          ? 3
+          : status === "Approved"
+            ? 2
+            : 1;
 
-  const steps = ["Submitted", "Approved", "In Progress", "Completed"];
+  const steps = [
+    "Submitted",
+    "Approved",
+    "In Progress",
+    "Awaiting Confirmation",
+    "Completed",
+  ];
 
   return (
     <div className="overflow-x-auto pb-2">
-      <div className="relative min-w-160">
+      <div className="relative min-w-205">
         <div className="absolute left-12 right-12 top-7 h-1 bg-slate-200" />
-        <div className="relative z-10 grid grid-cols-4 gap-4">
+        <div className="relative z-10 grid grid-cols-5 gap-4">
           {steps.map((label, index) => {
             const active = index + 1 <= step && status !== "Cancelled";
+            const current = index + 1 === step && status !== "Cancelled";
+
             return (
               <div key={label} className="text-center">
                 <div
                   className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold shadow-lg ${
                     active
-                      ? "bg-blue-600 text-white"
+                      ? current && status === "Waiting Customer Confirmation"
+                        ? "bg-cyan-600 text-white"
+                        : "bg-blue-600 text-white"
                       : "bg-slate-200 text-slate-500"
                   }`}
                 >

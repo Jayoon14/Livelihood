@@ -341,6 +341,8 @@ export default function TrackWorker() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [lastLocationFetchAt, setLastLocationFetchAt] =
+    useState<string | null>(null);
 
   const [, forceRefresh] = useState(0);
   const customerCoordinates = useMemo<[number, number] | null>(() => {
@@ -988,14 +990,12 @@ export default function TrackWorker() {
     };
   }, [customerCoordinates]);
 
-  useEffect(() => {
-    if (!booking?.worker_id || !mapRef.current || trackingFinished) {
-      return;
-    }
+  const fetchLatestWorkerLocation = useCallback(
+    async (fitMap = false): Promise<void> => {
+      if (!booking?.worker_id || trackingFinished) {
+        return;
+      }
 
-    let active = true;
-
-    async function loadInitialWorkerLocation() {
       const { data, error } = await supabase
         .from("worker_locations")
         .select(
@@ -1011,28 +1011,42 @@ export default function TrackWorker() {
             updated_at
           `,
         )
-        .eq("worker_id", booking!.worker_id)
+        .eq("worker_id", booking.worker_id)
         .maybeSingle();
 
-      if (!active) {
-        return;
-      }
-
       if (error) {
-        console.error("Unable to load worker location:", error);
-
+        console.error(
+          "Unable to load worker location:",
+          error,
+        );
         return;
       }
+
+      setLastLocationFetchAt(
+        new Date().toISOString(),
+      );
 
       if (data) {
-        const location = data as WorkerLocationRow;
+        const location =
+          data as WorkerLocationRow;
 
         setWorkerLocation(location);
-        displayWorkerLocation(location, true);
+        displayWorkerLocation(location, fitMap);
       }
+    },
+    [
+      booking?.worker_id,
+      displayWorkerLocation,
+      trackingFinished,
+    ],
+  );
+
+  useEffect(() => {
+    if (!booking?.worker_id || !mapRef.current || trackingFinished) {
+      return;
     }
 
-    void loadInitialWorkerLocation();
+    void fetchLatestWorkerLocation(true);
 
     const channel = supabase
       .channel(`customer-track-worker-${booking.id}`)
@@ -1067,7 +1081,6 @@ export default function TrackWorker() {
       });
 
     return () => {
-      active = false;
       void supabase.removeChannel(channel);
     };
   }, [
@@ -1075,6 +1088,7 @@ export default function TrackWorker() {
     booking?.worker_id,
     clearRoute,
     displayWorkerLocation,
+    fetchLatestWorkerLocation,
     trackingFinished,
   ]);
 
@@ -1112,6 +1126,31 @@ export default function TrackWorker() {
       void supabase.removeChannel(channel);
     };
   }, [booking?.id]);
+
+  useEffect(() => {
+    if (
+      !booking?.worker_id ||
+      trackingFinished
+    ) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      /*
+       * Realtime normally delivers each update. Polling is a
+       * fallback for temporary websocket interruptions.
+       */
+      void fetchLatestWorkerLocation(false);
+    }, 20_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [
+    booking?.worker_id,
+    fetchLatestWorkerLocation,
+    trackingFinished,
+  ]);
 
   useEffect(() => {
     if (!trackingFinished) {
@@ -1162,6 +1201,13 @@ export default function TrackWorker() {
   const workerOnline = workerLocation
     ? isFreshWorkerLocation(workerLocation)
     : false;
+
+  const workerNearby =
+    !trackingFinished &&
+    workerOnline &&
+    routeInformation !== null &&
+    routeInformation.distanceMeters <= 150;
+
   return (
     <CustomerLayout>
       <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
@@ -1387,6 +1433,16 @@ export default function TrackWorker() {
                     {new Date(workerLocation.updated_at).toLocaleString()}
                   </p>
                 )}
+
+                {!realtimeConnected &&
+                  lastLocationFetchAt && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Realtime is reconnecting. Latest location was refreshed at{" "}
+                      {new Date(
+                        lastLocationFetchAt,
+                      ).toLocaleTimeString()}.
+                    </p>
+                  )}
               </div>
             </section>
 
@@ -1410,6 +1466,18 @@ export default function TrackWorker() {
                 </p>
               </div>
             )}
+            {workerNearby && !workerArrived && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
+                <p className="font-bold">
+                  Worker is nearby
+                </p>
+
+                <p className="mt-1 text-sm">
+                  Your worker is within approximately 150 meters of the service location.
+                </p>
+              </div>
+            )}
+
             {workerArrived && !trackingFinished && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-800">
                 <p className="font-bold">Worker has arrived</p>

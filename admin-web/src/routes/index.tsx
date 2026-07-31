@@ -1,4 +1,4 @@
-  import { lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
   import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
   import PageLoader from "../components/common/PageLoader";
@@ -92,6 +92,9 @@
   );
   const Favorites = lazy(
     () => import("../pages/customer/favorites/Favorites"),
+  );
+  const TrustedWorkers = lazy(
+    () => import("../pages/customer/favorites/TrustedWorkers"),
   );
   const BookingConfirmation = lazy(
     () => import("../pages/customer/bookings/BookingConfirmation"),
@@ -301,6 +304,15 @@
                   element={
                     <ProtectedRoute allowedRoles={["customer"]}>
                       <Favorites />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/customer/trusted-workers"
+                  element={
+                    <ProtectedRoute allowedRoles={["customer"]}>
+                      <TrustedWorkers />
                     </ProtectedRoute>
                   }
                 />

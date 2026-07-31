@@ -23,7 +23,10 @@ import { toast } from "sonner";
 import { confirmAction } from "../../../components/ui/confirmAction";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
-import { createNotification } from "../../../services/notificationService";
+import {
+  confirmCompletedWork,
+  requestCompletionRevision,
+} from "../../../services/completionWorkflowService";
 
 interface WorkerProfile {
   id?: string | null;
@@ -42,6 +45,7 @@ interface CompletionBooking {
   status: string;
   trip_status?: string | null;
   completion_status?: string | null;
+  payment_status?: string | null;
   completed_at?: string | null;
   worker?: WorkerProfile | null;
 }
@@ -154,27 +158,6 @@ function formatSubmittedDate(
   }).format(date);
 }
 
-async function notifyWorkerSafely(
-  workerId: string,
-  bookingId: number,
-  title: string,
-  message: string,
-): Promise<void> {
-  try {
-    await createNotification(
-      workerId,
-      bookingId,
-      title,
-      message,
-    );
-  } catch (error) {
-    console.error(
-      `Booking ${bookingId} updated, but worker notification failed:`,
-      error,
-    );
-  }
-}
-
 export default function CompletionProof() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -265,6 +248,7 @@ export default function CompletionProof() {
               status,
               trip_status,
               completion_status,
+              payment_status,
               completed_at,
               worker:profiles!worker_id(
                 id,
@@ -455,75 +439,31 @@ export default function CompletionProof() {
       setProcessingAction("accept");
       setMessage(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw new Error(
-          `Unable to verify your session: ${authError.message}`,
-        );
-      }
-
-      if (!user) {
-        throw new Error(
-          "Your session has expired. Please sign in again.",
-        );
-      }
-
-      const {
-        data: updatedBooking,
-        error: updateError,
-      } = await supabase
-        .from("bookings")
-        .update({
-          status: "Completed",
-          trip_status: "Completed",
-          completion_status:
-            "Customer Confirmed",
-        })
-        .eq("id", parsedBookingId)
-        .eq("customer_id", user.id)
-        .eq("worker_id", booking.worker_id)
-        .eq("status", "Completed")
-        .eq(
-          "completion_status",
-          "Worker Completed",
-        )
-        .eq("is_deleted", false)
-        .select(
-          "id, worker_id, completion_status",
-        )
-        .maybeSingle();
-
-      if (updateError) {
-        throw new Error(
-          `Unable to confirm completed work: ${updateError.message}`,
-        );
-      }
-
-      if (!updatedBooking) {
-        throw new Error(
-          "The work could not be confirmed because the booking status has changed.",
-        );
-      }
-
-      await notifyWorkerSafely(
-        booking.worker_id,
+      const result = await confirmCompletedWork(
         parsedBookingId,
-        "Work Confirmed",
-        "The customer reviewed and confirmed your completed service.",
+        booking.worker_id,
       );
 
       toast.success(
         "Completed work confirmed successfully.",
       );
 
+      const isPaid =
+        String(result.paymentStatus ?? "")
+          .trim()
+          .toLowerCase() === "paid";
+
       navigate(
-        `/customer/review/${parsedBookingId}`,
+        isPaid
+          ? `/customer/review/${parsedBookingId}`
+          : `/customer/payment/${parsedBookingId}`,
         {
           replace: true,
+          state: {
+            message: isPaid
+              ? "You may now leave a review."
+              : "Please complete payment before leaving a review.",
+          },
         },
       );
     } catch (error) {
@@ -587,99 +527,12 @@ export default function CompletionProof() {
       setProcessingAction("revision");
       setMessage(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw new Error(
-          `Unable to verify your session: ${authError.message}`,
-        );
-      }
-
-      if (!user) {
-        throw new Error(
-          "Your session has expired. Please sign in again.",
-        );
-      }
-
-      /*
-       * The existing schema does not have a dedicated
-       * "Revision Requested" completion status. The booking
-       * is therefore returned to the active service state.
-       */
-      const {
-        data: updatedBooking,
-        error: updateError,
-      } = await supabase
-        .from("bookings")
-        .update({
-          status: "On Going",
-          trip_status: "On Trip",
-          completion_status: "Not Started",
-          completed_at: null,
-        })
-        .eq("id", parsedBookingId)
-        .eq("customer_id", user.id)
-        .eq("worker_id", booking.worker_id)
-        .eq("status", "Completed")
-        .eq(
-          "completion_status",
-          "Worker Completed",
-        )
-        .eq("is_deleted", false)
-        .select("id, worker_id")
-        .maybeSingle();
-
-      if (updateError) {
-        throw new Error(
-          `Unable to request revision: ${updateError.message}`,
-        );
-      }
-
-      if (!updatedBooking) {
-        throw new Error(
-          "A revision can no longer be requested because the booking status has changed.",
-        );
-      }
-
-      /*
-       * Store the revision reason in the proof notes so it is
-       * still available without assuming a new database column.
-       */
-      const existingNotes =
-        proof.notes?.trim();
-
-      const revisedNotes = [
-        existingNotes,
-        `Customer revision request: ${normalizedReason}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-
-      const { error: proofUpdateError } =
-        await supabase
-          .from("booking_completion_proofs")
-          .update({
-            notes: revisedNotes,
-          })
-          .eq("id", proof.id)
-          .eq("booking_id", parsedBookingId)
-          .eq("worker_id", booking.worker_id);
-
-      if (proofUpdateError) {
-        console.error(
-          "Booking returned to ongoing, but revision notes could not be saved:",
-          proofUpdateError,
-        );
-      }
-
-      await notifyWorkerSafely(
-        booking.worker_id,
+      await requestCompletionRevision(
         parsedBookingId,
-        "Revision Requested",
-        `The customer requested changes to your completed work: ${normalizedReason}`,
+        booking.worker_id,
+        proof.id,
+        normalizedReason,
+        proof.notes,
       );
 
       toast.success(
@@ -718,7 +571,9 @@ export default function CompletionProof() {
     "Customer Confirmed";
 
   const canReview =
-    booking?.status === "Completed" &&
+    ["Waiting Customer Confirmation", "Completed"].includes(
+      booking?.status ?? "",
+    ) &&
     booking?.completion_status ===
       "Worker Completed";
 
@@ -1037,14 +892,29 @@ export default function CompletionProof() {
 
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      const isPaid =
+                        String(
+                          booking.payment_status ?? "",
+                        )
+                          .trim()
+                          .toLowerCase() === "paid";
+
                       navigate(
-                        `/customer/review/${booking.id}`,
-                      )
-                    }
+                        isPaid
+                          ? `/customer/review/${booking.id}`
+                          : `/customer/payment/${booking.id}`,
+                      );
+                    }}
                     className="mt-5 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700"
                   >
-                    Leave a Review
+                    {String(
+                      booking.payment_status ?? "",
+                    )
+                      .trim()
+                      .toLowerCase() === "paid"
+                      ? "Leave a Review"
+                      : "Proceed to Payment"}
                   </button>
                 </section>
               ) : canReview ? (

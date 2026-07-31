@@ -6,8 +6,6 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 import { createBooking } from "../../../services/customerBookingService";
 
-const WORKER_ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
-
 type BookingConfirmationState = {
   workerId: string;
   workerName: string;
@@ -22,19 +20,11 @@ type BookingConfirmationState = {
   notes?: string;
 };
 
-function isRecentLastSeen(lastSeen: string | null | undefined): boolean {
-  if (!lastSeen) return false;
-
-  const timestamp = new Date(lastSeen).getTime();
-
-  if (!Number.isFinite(timestamp)) return false;
-
-  const elapsed = Date.now() - timestamp;
-
-  return elapsed >= 0 && elapsed <= WORKER_ONLINE_TIMEOUT_MS;
-}
-
-async function assertWorkerCanReceiveBooking(
+/**
+ * Scheduled bookings do not require the worker to be online.
+ * This check only verifies that the worker exists and is approved.
+ */
+async function assertWorkerCanReceiveScheduledBooking(
   workerId: string,
 ): Promise<void> {
   const normalizedWorkerId = workerId.trim();
@@ -45,7 +35,7 @@ async function assertWorkerCanReceiveBooking(
 
   const { data: worker, error } = await supabase
     .from("profiles")
-    .select("id, role, status, last_seen")
+    .select("id, role, status")
     .eq("id", normalizedWorkerId)
     .eq("role", "worker")
     .maybeSingle();
@@ -67,12 +57,6 @@ async function assertWorkerCanReceiveBooking(
   ) {
     throw new Error(
       "This worker account is currently unavailable.",
-    );
-  }
-
-  if (!isRecentLastSeen(worker.last_seen)) {
-    throw new Error(
-      "This worker is currently offline. Please choose another available worker or try again later.",
     );
   }
 }
@@ -102,9 +86,6 @@ function isExpectedBookingBlock(message: string): boolean {
       "already have an active booking",
     ) ||
     normalizedMessage.includes(
-      "worker is currently offline",
-    ) ||
-    normalizedMessage.includes(
       "worker account is currently unavailable",
     ) ||
     normalizedMessage.includes(
@@ -112,6 +93,9 @@ function isExpectedBookingBlock(message: string): boolean {
     ) ||
     normalizedMessage.includes(
       "time slot has already been booked",
+    ) ||
+    normalizedMessage.includes(
+      "selected date and time",
     )
   );
 }
@@ -203,23 +187,24 @@ function BookingConfirmationContent() {
         );
       }
 
-      await assertWorkerCanReceiveBooking(state.workerId);
+      await assertWorkerCanReceiveScheduledBooking(state.workerId);
 
       await createBooking({
         customer_id: user.id,
         worker_id: state.workerId.trim(),
         service_id: normalizedServiceId,
-        booking_date: state.date,
-        booking_time: state.time,
+        booking_type: "Scheduled",
+        booking_date: state.date.trim(),
+        booking_time: state.time.trim(),
         address: state.address.trim(),
         customer_address: state.address.trim(),
         customer_latitude: normalizedLatitude,
         customer_longitude: normalizedLongitude,
-        notes: state.notes?.trim() ?? "",
+        notes: state.notes?.trim() || null,
       });
 
       toast.success(
-        "Booking submitted successfully. Please wait for the worker's approval.",
+        "Scheduled booking submitted successfully. Please wait for the worker's approval.",
       );
 
       navigate("/customer/bookings", {
@@ -245,9 +230,13 @@ function BookingConfirmationContent() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="mb-8 text-3xl font-bold">
-          Confirm Booking
+        <h1 className="mb-2 text-3xl font-bold">
+          Confirm Scheduled Booking
         </h1>
+
+        <p className="mb-8 text-sm text-slate-500">
+          The worker may be offline now. Your schedule request will be sent for approval.
+        </p>
 
         <div className="space-y-5">
           <div className="flex justify-between gap-6">
@@ -335,8 +324,8 @@ function BookingConfirmationContent() {
             className="rounded-xl bg-blue-600 px-8 py-3 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             {loading
-              ? "Submitting booking..."
-              : "Confirm Booking"}
+              ? "Submitting schedule..."
+              : "Confirm Scheduled Booking"}
           </button>
         </div>
       </div>

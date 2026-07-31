@@ -5,8 +5,9 @@ import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
-import { hasReviewed } from "../../../services/reviewService";
 import { cancelBooking } from "../../../services/bookingService";
+import { createReview, hasReviewed } from "../../../services/reviewService";
+import { addTrustedWorker } from "../../../services/trustedWorkerService";
 import BookingTimeline from "../../../components/customer/BookingTimeline";
 import {
   Calendar,
@@ -18,70 +19,20 @@ import {
   RotateCcw,
   Trash2,
   Navigation,
+  Star,
+  X,
 } from "lucide-react";
 import {
   checkWorkerAvailability,
   getAvailableTimeSlots,
 } from "../../../services/scheduleService";
-import { createReview } from "../../../services/reviewService";
 
-type WorkerSummary = {
-  first_name?: string | null;
-  middle_name?: string | null;
-  last_name?: string | null;
-  profile_picture?: string | null;
-};
-
-type ServiceSummary = {
-  service_name?: string | null;
-};
-
-type CompletionProofImage = {
-  id: number;
-  image_url: string;
-};
-
-type CompletionProofData = {
-  id: number;
-  booking_id: number;
-  worker_id: string;
-  summary: string;
-  notes?: string | null;
-  hours_worked?: number | string | null;
-  created_at?: string | null;
-  images: CompletionProofImage[];
-};
-
-type CustomerBooking = {
-  id: number;
-  customer_id: string;
-  worker_id: string;
-  service_id: number | string;
-  status: string;
-  trip_status?: string | null;
-  completion_status?: string | null;
-  payment_status?: string | null;
-  price?: number | null;
-  booking_date: string;
-  booking_time: string;
-  created_at: string;
-  address?: string | null;
-  customer_address?: string | null;
-  notes?: string | null;
-  customer_latitude?: number | null;
-  customer_longitude?: number | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  payment_reference?: string | null;
-  payment_date?: string | null;
-  transaction_id?: string | null;
-  customer_deleted?: boolean | null;
-  reviewed: boolean;
-  worker?: WorkerSummary | null;
-  services?: ServiceSummary | null;
-};
-
-type BookingAction = "cancel" | "delete" | "review" | "rebook";
+import type { BookingAction, CompletionProofData, CompletionProofImage, CustomerBooking } from "./types";
+import BookingFilters from "./components/BookingFilters";
+import BookingsSkeleton from "./components/BookingsSkeleton";
+import ProofImageGallery from "./components/ProofImageGallery";
+import StatusBadge from "./components/StatusBadge";
+import { formatBookingDate, formatBookingTime, formatDateTime } from "./utils/dateTime";
 
 const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
 
@@ -103,18 +54,18 @@ export default function Bookings() {
   const [loadingCompletionProof, setLoadingCompletionProof] = useState(false);
   const [completionProofError, setCompletionProofError] = useState("");
   const [receiptBooking, setReceiptBooking] = useState<CustomerBooking | null>(null);
-  const [reviewBooking, setReviewBooking] = useState<CustomerBooking | null>(null);
   const [rebookBooking, setRebookBooking] = useState<CustomerBooking | null>(null);
   const [chatBooking, setChatBooking] = useState<CustomerBooking | null>(null);
-  const [preferredDate, setPreferredDate] = useState("");
-  const [preferredTime, setPreferredTime] = useState("");
-  const [rebookNotes, setRebookNotes] = useState("");
-  const [rebookAddress, setRebookAddress] = useState("");
+  const [reviewBooking, setReviewBooking] = useState<CustomerBooking | null>(null);
   const [overallRating, setOverallRating] = useState(0);
   const [qualityRating, setQualityRating] = useState(0);
   const [professionalismRating, setProfessionalismRating] = useState(0);
   const [communicationRating, setCommunicationRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
+  const [rebookNotes, setRebookNotes] = useState("");
+  const [rebookAddress, setRebookAddress] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
   const [availabilityMessage, setAvailabilityMessage] = useState("");
@@ -130,28 +81,6 @@ export default function Bookings() {
   );
 
   const navigate = useNavigate();
-
-  function getStatusColor(status: string) {
-    switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-700";
-
-      case "Approved":
-        return "bg-blue-100 text-blue-700";
-
-      case "On Going":
-        return "bg-purple-100 text-purple-700";
-
-      case "Completed":
-        return "bg-green-100 text-green-700";
-
-      case "Cancelled":
-        return "bg-red-100 text-red-700";
-
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -522,6 +451,101 @@ export default function Bookings() {
     }
   }
 
+  function openReviewModal(booking: CustomerBooking) {
+    if (booking.status !== "Completed") {
+      toast.warning("Only completed bookings can be reviewed.");
+      return;
+    }
+
+    if (booking.payment_status !== "Paid") {
+      toast.warning("Please complete the payment before leaving a review.");
+      navigate(`/customer/payment/${booking.id}`);
+      return;
+    }
+
+    if (booking.reviewed) {
+      toast.info("A review has already been submitted for this booking.");
+      return;
+    }
+
+    setReviewBooking(booking);
+    setOverallRating(0);
+    setQualityRating(0);
+    setProfessionalismRating(0);
+    setCommunicationRating(0);
+    setReviewComment("");
+  }
+
+  function closeReviewModal() {
+    if (reviewBooking && isActionLoading("review", reviewBooking.id)) return;
+
+    setReviewBooking(null);
+    setOverallRating(0);
+    setQualityRating(0);
+    setProfessionalismRating(0);
+    setCommunicationRating(0);
+    setReviewComment("");
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewBooking || activeAction) return;
+
+    if (
+      overallRating < 1 ||
+      qualityRating < 1 ||
+      professionalismRating < 1 ||
+      communicationRating < 1
+    ) {
+      toast.warning("Please select a rating for every category.");
+      return;
+    }
+
+    setActiveAction({ type: "review", bookingId: reviewBooking.id });
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+      if (!user) throw new Error("Please sign in again.");
+
+      await createReview(
+        reviewBooking.id,
+        reviewBooking.worker_id,
+        user.id,
+        overallRating,
+        qualityRating,
+        professionalismRating,
+        communicationRating,
+        reviewComment,
+      );
+
+      await addTrustedWorker(
+        user.id,
+        reviewBooking.worker_id,
+        reviewBooking.id,
+      );
+
+      toast.success("Review submitted successfully!");
+      setReviewBooking(null);
+      setOverallRating(0);
+      setQualityRating(0);
+      setProfessionalismRating(0);
+      setCommunicationRating(0);
+      setReviewComment("");
+      await loadBookings();
+    } catch (error) {
+      console.error("Submit review error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Unable to submit review.",
+      );
+    } finally {
+      setActiveAction(null);
+    }
+  }
+
   async function handleConfirmRebook() {
     if (!rebookBooking || activeAction) return;
     if (!preferredDate || !preferredTime) {
@@ -574,110 +598,30 @@ export default function Bookings() {
     }
   }
 
-  async function handleSubmitReview() {
-    if (!reviewBooking || activeAction) return;
-
-    const ratings = [
-      overallRating,
-      qualityRating,
-      professionalismRating,
-      communicationRating,
-    ];
-    if (ratings.some((rating) => rating < 1 || rating > 5)) {
-      toast.warning("Please select all four ratings before submitting.");
-      return;
-    }
-    if (reviewComment.trim().length < 5) {
-      toast.warning("Please write a short review with at least 5 characters.");
-      return;
-    }
-
-    setActiveAction({ type: "review", bookingId: reviewBooking.id });
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      if (!user) {
-        toast.warning("Please login.");
-        return;
-      }
-
-      const alreadyReviewed = await hasReviewed(reviewBooking.id, user.id);
-      if (alreadyReviewed) {
-        toast.info("You already reviewed this booking.");
-        setReviewBooking(null);
-        await loadBookings();
-        return;
-      }
-
-      await createReview(
-        reviewBooking.id,
-        reviewBooking.worker_id,
-        user.id,
-        overallRating,
-        qualityRating,
-        professionalismRating,
-        communicationRating,
-        reviewComment.trim(),
-      );
-
-      toast.success("Review submitted successfully!");
-      setReviewBooking(null);
-      await loadBookings();
-    } catch (error) {
-      console.error(error);
-      toast.error("Unable to submit review.");
-    } finally {
-      setActiveAction(null);
-    }
-  }
 
   return (
     <CustomerLayout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">My Bookings ({bookings.length})</h1>
 
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-xl font-semibold">Manage Bookings</h2>
-
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="Search booking..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border rounded-lg px-4 py-2 w-64"
-            />
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option>All</option>
-              <option>Pending</option>
-              <option>Approved</option>
-              <option>On Going</option>
-              <option>Waiting Customer Confirmation</option>
-              <option>Completed</option>
-              <option>Cancelled</option>
-            </select>
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option>Newest</option>
-              <option>Oldest</option>
-              <option>Upcoming</option>
-              <option>Completed</option>
-            </select>
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Manage Bookings</h2>
+            <p className="mt-1 text-sm text-slate-500">Track schedules, completion proof, payment, and reviews in one place.</p>
           </div>
+          <BookingFilters
+            search={search}
+            statusFilter={statusFilter}
+            sortBy={sortBy}
+            onSearchChange={setSearch}
+            onStatusChange={setStatusFilter}
+            onSortChange={setSortBy}
+          />
         </div>
 
         <div className="bg-white rounded-2xl shadow overflow-hidden">
           {loading ? (
-            <div className="p-10 text-center">Loading...</div>
+            <BookingsSkeleton />
           ) : filteredBookings.length === 0 ? (
             <div className="p-10 text-center">
               <div className="text-6xl">📅</div>
@@ -740,13 +684,7 @@ export default function Bookings() {
                     </div>
 
                     <div className="text-right">
-                      <span
-                        className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(
-                          booking.status,
-                        )}`}
-                      >
-                        {booking.status}
-                      </span>
+                      <StatusBadge status={booking.status} />
 
                       <p className="text-gray-400 mt-3 text-sm">Total Amount</p>
 
@@ -766,7 +704,7 @@ export default function Bookings() {
                         </p>
 
                         <p className="font-semibold text-lg">
-                          {booking.booking_date}
+                          {formatBookingDate(booking.booking_date)}
                         </p>
                       </div>
 
@@ -776,7 +714,7 @@ export default function Bookings() {
                           Booking Time
                         </p>
                         <p className="font-semibold text-lg">
-                          {booking.booking_time}
+                          {formatBookingTime(booking.booking_time)}
                         </p>
                       </div>
                     </div>
@@ -876,14 +814,7 @@ export default function Bookings() {
                             <>
                               {!booking.reviewed ? (
                                 <button
-                                  onClick={() => {
-                                    setReviewBooking(booking);
-                                    setOverallRating(0);
-                                    setQualityRating(0);
-                                    setProfessionalismRating(0);
-                                    setCommunicationRating(0);
-                                    setReviewComment("");
-                                  }}
+                                  onClick={() => openReviewModal(booking)}
                                   className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-xl"
                                 >
                                   Leave Review
@@ -956,7 +887,6 @@ export default function Bookings() {
 
       {selectedBooking &&
         !receiptBooking &&
-        !reviewBooking &&
         !rebookBooking &&
         !chatBooking && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
@@ -996,13 +926,7 @@ export default function Bookings() {
                         "Service unavailable"}
                     </p>
 
-                    <span
-                      className={`inline-block mt-4 px-4 py-2 rounded-full text-sm font-semibold bg-white ${getStatusColor(
-                        selectedBooking.status,
-                      )}`}
-                    >
-                      {selectedBooking.status}
-                    </span>
+                    <StatusBadge status={selectedBooking.status} className="mt-4 bg-white" />
                   </div>
                 </div>
               </div>
@@ -1025,7 +949,7 @@ export default function Bookings() {
                     <p className="text-gray-500 text-sm">Booking Date</p>
 
                     <h3 className="text-xl font-semibold mt-2">
-                      {selectedBooking.booking_date}
+                      {formatBookingDate(selectedBooking.booking_date)}
                     </h3>
                   </div>
 
@@ -1033,7 +957,7 @@ export default function Bookings() {
                     <p className="text-gray-500 text-sm">Booking Time</p>
 
                     <h3 className="text-xl font-semibold mt-2">
-                      {selectedBooking.booking_time}
+                      {formatBookingTime(selectedBooking.booking_time)}
                     </h3>
                   </div>
                 </div>
@@ -1149,35 +1073,7 @@ export default function Bookings() {
                             </span>
                           </div>
 
-                          {completionProof.images.length > 0 ? (
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                              {completionProof.images.map(
-                                (image, index) => (
-                                  <a
-                                    key={image.id}
-                                    href={image.image_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-                                  >
-                                    <img
-                                      src={image.image_url}
-                                      alt={`Completion proof ${index + 1}`}
-                                      className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
-                                    />
-
-                                    <div className="px-4 py-3 text-sm font-semibold text-blue-700">
-                                      View full image
-                                    </div>
-                                  </a>
-                                ),
-                              )}
-                            </div>
-                          ) : (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-500">
-                              No proof images are available.
-                            </div>
-                          )}
+                          <ProofImageGallery images={completionProof.images} />
                         </div>
                       </>
                     ) : null}
@@ -1248,7 +1144,7 @@ export default function Bookings() {
                   <p className="text-gray-500">Booking Date</p>
 
                   <h3 className="font-semibold">
-                    {receiptBooking.booking_date}
+                    {formatBookingDate(receiptBooking.booking_date)}
                   </h3>
                 </div>
 
@@ -1256,7 +1152,7 @@ export default function Bookings() {
                   <p className="text-gray-500">Booking Time</p>
 
                   <h3 className="font-semibold">
-                    {receiptBooking.booking_time}
+                    {formatBookingTime(receiptBooking.booking_time)}
                   </h3>
                 </div>
               </div>
@@ -1300,7 +1196,7 @@ export default function Bookings() {
                       <div className="flex justify-between gap-4">
                         <span className="text-gray-500">Payment Date</span>
                         <span className="text-right font-semibold">
-                          {new Date(receiptBooking.payment_date).toLocaleString()}
+                          {formatDateTime(receiptBooking.payment_date)}
                         </span>
                       </div>
                     )}
@@ -1337,6 +1233,132 @@ export default function Bookings() {
           </div>
         </div>
       )}
+      {reviewBooking && (
+        <div
+          className="fixed inset-0 z-90 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeReviewModal();
+          }}
+        >
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between bg-amber-400 px-6 py-6 text-white sm:px-8">
+              <div>
+                <h2 className="text-3xl font-bold">Leave Review</h2>
+                <p className="mt-1 text-base font-medium text-white/95">
+                  Share your experience with this worker.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeReviewModal}
+                disabled={isActionLoading("review", reviewBooking.id)}
+                aria-label="Close review modal"
+                className="rounded-full p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <X size={28} />
+              </button>
+            </div>
+
+            <div className="space-y-7 p-6 sm:p-8">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-500">Reviewing</p>
+                <p className="mt-1 text-lg font-bold text-slate-900">
+                  {[
+                    reviewBooking.worker?.first_name,
+                    reviewBooking.worker?.middle_name,
+                    reviewBooking.worker?.last_name,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || "Worker"}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {reviewBooking.services?.service_name || "Service"}
+                </p>
+              </div>
+
+              {[
+                { label: "Overall Rating", value: overallRating, setter: setOverallRating },
+                { label: "Quality of Work", value: qualityRating, setter: setQualityRating },
+                { label: "Professionalism", value: professionalismRating, setter: setProfessionalismRating },
+                { label: "Communication", value: communicationRating, setter: setCommunicationRating },
+              ].map((category) => (
+                <div key={category.label}>
+                  <p className="mb-3 font-semibold text-slate-900">
+                    {category.label}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => category.setter(star)}
+                        disabled={isActionLoading("review", reviewBooking.id)}
+                        aria-label={`${category.label}: ${star} star${star === 1 ? "" : "s"}`}
+                        className="rounded-lg p-1 transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Star
+                          size={34}
+                          className={
+                            star <= category.value
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-700"
+                          }
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <label
+                  htmlFor="review-comment"
+                  className="mb-3 block font-semibold text-slate-900"
+                >
+                  Comment
+                </label>
+                <textarea
+                  id="review-comment"
+                  rows={6}
+                  maxLength={2000}
+                  value={reviewComment}
+                  onChange={(event) => setReviewComment(event.target.value)}
+                  disabled={isActionLoading("review", reviewBooking.id)}
+                  placeholder="Tell us about your experience..."
+                  className="w-full resize-y rounded-2xl border border-slate-300 px-4 py-4 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-200 disabled:bg-slate-100"
+                />
+                <p className="mt-2 text-right text-xs text-slate-500">
+                  {reviewComment.length}/2000
+                </p>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeReviewModal}
+                  disabled={isActionLoading("review", reviewBooking.id)}
+                  className="rounded-xl border border-slate-300 px-7 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleSubmitReview()}
+                  disabled={isActionLoading("review", reviewBooking.id)}
+                  className="rounded-xl bg-amber-400 px-8 py-3 font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isActionLoading("review", reviewBooking.id)
+                    ? "Submitting..."
+                    : "Submit Review"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {chatBooking && (
         <div
           className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:p-4"
@@ -1601,112 +1623,7 @@ ${
           </div>
         </div>
       )}
-      {reviewBooking && (
-        <div className="fixed inset-0 z-90 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden">
-            <div className="bg-yellow-500 p-7 text-white">
-              <h2 className="text-3xl font-bold">Leave Review</h2>
 
-              <p>Share your experience with this worker.</p>
-            </div>
-
-            <div className="p-8 space-y-6">
-              <div>
-                <label className="font-semibold">Overall Rating</label>
-
-                <div className="flex gap-2 mt-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setOverallRating(star)}
-                      className="text-4xl"
-                    >
-                      {overallRating >= star ? "⭐" : "☆"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Quality of Work</label>
-
-                <div className="flex gap-2 mt-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setQualityRating(star)}
-                      className="text-4xl"
-                    >
-                      {qualityRating >= star ? "⭐" : "☆"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Professionalism</label>
-
-                <div className="flex gap-2 mt-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setProfessionalismRating(star)}
-                      className="text-4xl"
-                    >
-                      {professionalismRating >= star ? "⭐" : "☆"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Communication</label>
-
-                <div className="flex gap-2 mt-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setCommunicationRating(star)}
-                      className="text-4xl"
-                    >
-                      {communicationRating >= star ? "⭐" : "☆"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Comment</label>
-
-                <textarea
-                  rows={5}
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Tell us about your experience..."
-                  className="w-full border rounded-xl p-4 mt-2"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setReviewBooking(null)}
-                  className="border px-6 py-3 rounded-xl"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={Boolean(activeAction)}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 rounded-xl"
-                >
-                  {isActionLoading("review", reviewBooking.id) ? "Submitting..." : "Submit Review"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </CustomerLayout>
   );
 }

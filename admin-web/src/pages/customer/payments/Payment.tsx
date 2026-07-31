@@ -18,6 +18,7 @@ import {
   ReceiptText,
   ShieldCheck,
   Smartphone,
+  Star,
   UploadCloud,
   WalletCards,
   X,
@@ -553,14 +554,27 @@ export default function Payment() {
                 No remaining payment is required for this booking.
               </p>
 
-              <button
-                type="button"
-                onClick={() => navigate("/customer/payments")}
-                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
-              >
-                <ReceiptText className="h-4 w-4" />
-                View Payment History
-              </button>
+              <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                {!booking.reviewed && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/customer/review/${booking.id}`)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-amber-600"
+                  >
+                    <Star className="h-4 w-4" />
+                    Leave Review
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/customer/payments")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                >
+                  <ReceiptText className="h-4 w-4" />
+                  View Payment History
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">

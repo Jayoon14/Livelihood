@@ -1,10 +1,11 @@
 import {
-  LayoutDashboard,
-  Users,
   CalendarDays,
   Heart,
-  Wallet,
+  LayoutDashboard,
   MessageCircle,
+  ShieldCheck,
+  Users,
+  Wallet,
   Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -43,6 +44,11 @@ export default function CustomerSidebar({
       path: "/customer/favorites",
     },
     {
+      name: "Trusted Workers",
+      icon: ShieldCheck,
+      path: "/customer/trusted-workers",
+    },
+    {
       name: "Payments",
       icon: Wallet,
       path: "/customer/payments",
@@ -67,14 +73,14 @@ export default function CustomerSidebar({
       {/* Sidebar */}
       <aside
         className={`
-    fixed inset-y-0 left-0 z-50
-    flex h-screen w-64 flex-col
-    overflow-hidden text-white shadow-xl
-    transform transition-transform duration-300 ease-in-out
-    ${isOpen ? "translate-x-0" : "-translate-x-full"}
-    lg:static lg:h-auto lg:min-h-screen
-    lg:translate-x-0 lg:shrink-0
-  `}
+          fixed inset-y-0 left-0 z-50
+          flex h-screen w-64 flex-col
+          overflow-hidden text-white shadow-xl
+          transform transition-transform duration-300 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:static lg:h-auto lg:min-h-screen
+          lg:translate-x-0 lg:shrink-0
+        `}
         style={{
           background:
             "linear-gradient(160deg,#2B3BF5 0%,#5B3DF0 35%,#3B7EF0 70%,#17BFE0 100%)",
@@ -106,7 +112,7 @@ export default function CustomerSidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="relative z-10 flex-1 space-y-1.5 p-5">
+        <nav className="relative z-10 flex-1 space-y-1.5 overflow-y-auto p-5">
           {menus.map((menu) => {
             const Icon = menu.icon;
 
@@ -118,7 +124,7 @@ export default function CustomerSidebar({
                 className={({ isActive }) =>
                   `flex items-center gap-3.5 rounded-xl px-4 py-3.5 transition-colors ${
                     isActive
-                      ? "bg-white text-[#0A1930] font-semibold shadow-sm"
+                      ? "bg-white font-semibold text-[#0A1930] shadow-sm"
                       : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`
                 }
@@ -126,6 +132,7 @@ export default function CustomerSidebar({
                 <Icon size={20} strokeWidth={2} />
 
                 <span className="text-sm">{menu.name}</span>
+
                 {menu.name === "Messages" && unreadMessages > 0 && (
                   <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                     {unreadMessages > 99 ? "99+" : unreadMessages}

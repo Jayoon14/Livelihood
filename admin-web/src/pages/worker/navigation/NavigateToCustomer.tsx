@@ -1,8 +1,18 @@
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, MessageCircle, Navigation, Phone, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  Phone,
+  Radio,
+  User,
+  WifiOff,
+} from "lucide-react";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
@@ -43,6 +53,45 @@ interface BookingData {
   } | null;
 }
 
+
+interface WorkerLocationPayload {
+  worker_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  heading: number | null;
+  speed: number | null;
+  is_online: boolean;
+  is_available: boolean;
+  updated_at: string;
+}
+
+const LOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  maximumAge: 5_000,
+  timeout: 15_000,
+};
+
+const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
+
+function getGeolocationErrorMessage(
+  error: GeolocationPositionError,
+): string {
+  if (error.code === error.PERMISSION_DENIED) {
+    return "Location permission was denied. Enable location access to share your live GPS.";
+  }
+
+  if (error.code === error.POSITION_UNAVAILABLE) {
+    return "Your current GPS location is unavailable.";
+  }
+
+  if (error.code === error.TIMEOUT) {
+    return "GPS request timed out. Move to an open area and try again.";
+  }
+
+  return "Unable to read your current GPS location.";
+}
+
 export default function NavigateToCustomer() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -55,6 +104,182 @@ export default function NavigateToCustomer() {
   const [workerId, setWorkerId] = useState<string | null>(null);
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const watchIdRef = useRef<number | null>(null);
+  const lastSavedAtRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [gpsStarting, setGpsStarting] = useState(false);
+  const [gpsMessage, setGpsMessage] = useState<string | null>(null);
+  const [lastGpsUpdate, setLastGpsUpdate] = useState<string | null>(null);
+
+  const saveWorkerLocation = useCallback(
+    async (
+      position: GeolocationPosition,
+      force = false,
+    ): Promise<void> => {
+      if (!workerId) return;
+
+      const now = Date.now();
+
+      if (
+        !force &&
+        now - lastSavedAtRef.current <
+          MIN_LOCATION_SAVE_INTERVAL_MS
+      ) {
+        return;
+      }
+
+      lastSavedAtRef.current = now;
+
+      const payload: WorkerLocationPayload = {
+        worker_id: workerId,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: Number.isFinite(position.coords.accuracy)
+          ? position.coords.accuracy
+          : null,
+        heading:
+          position.coords.heading !== null &&
+          Number.isFinite(position.coords.heading)
+            ? position.coords.heading
+            : null,
+        speed:
+          position.coords.speed !== null &&
+          Number.isFinite(position.coords.speed)
+            ? position.coords.speed
+            : null,
+        is_online: true,
+        is_available: true,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("worker_locations")
+        .upsert(payload, {
+          onConflict: "worker_id",
+        });
+
+      if (error) {
+        throw new Error(
+          `Unable to share live location: ${error.message}`,
+        );
+      }
+
+      if (mountedRef.current) {
+        setSharingLocation(true);
+        setGpsMessage(null);
+        setLastGpsUpdate(payload.updated_at);
+      }
+    },
+    [workerId],
+  );
+
+  const markLocationOffline = useCallback(async (): Promise<void> => {
+    if (!workerId) return;
+
+    const { error } = await supabase
+      .from("worker_locations")
+      .update({
+        is_online: false,
+        is_available: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("worker_id", workerId);
+
+    if (error) {
+      console.error(
+        "Unable to mark worker location offline:",
+        error,
+      );
+    }
+  }, [workerId]);
+
+  const stopLocationSharing = useCallback(
+    async (markOffline = true): Promise<void> => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(
+          watchIdRef.current,
+        );
+        watchIdRef.current = null;
+      }
+
+      if (mountedRef.current) {
+        setSharingLocation(false);
+        setGpsStarting(false);
+      }
+
+      if (markOffline) {
+        await markLocationOffline();
+      }
+    },
+    [markLocationOffline],
+  );
+
+  const startLocationSharing = useCallback((): void => {
+    if (watchIdRef.current !== null || gpsStarting) {
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      setGpsMessage(
+        "This browser does not support GPS location.",
+      );
+      return;
+    }
+
+    setGpsStarting(true);
+    setGpsMessage("Starting live GPS...");
+
+    watchIdRef.current =
+      navigator.geolocation.watchPosition(
+        (position) => {
+          void saveWorkerLocation(position, false).catch(
+            (error: unknown) => {
+              console.error(
+                "Live worker location update failed:",
+                error,
+              );
+
+              if (mountedRef.current) {
+                setGpsMessage(
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to share live GPS.",
+                );
+              }
+            },
+          );
+
+          if (mountedRef.current) {
+            setGpsStarting(false);
+          }
+        },
+        (error) => {
+          console.error(
+            "Worker geolocation error:",
+            error,
+          );
+
+          if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(
+              watchIdRef.current,
+            );
+            watchIdRef.current = null;
+          }
+
+          if (mountedRef.current) {
+            setGpsStarting(false);
+            setSharingLocation(false);
+            setGpsMessage(
+              getGeolocationErrorMessage(error),
+            );
+          }
+        },
+        LOCATION_OPTIONS,
+      );
+  }, [gpsStarting, saveWorkerLocation]);
 
   useEffect(() => {
     async function loadBooking() {
@@ -75,7 +300,7 @@ export default function NavigateToCustomer() {
 
         setWorkerId(user.id);
 
-        const data = await getBooking(Number(bookingId));
+        const data = await getBooking(Number(bookingId), user.id);
 
         setBooking(data as BookingData);
       } catch (error) {
@@ -93,6 +318,85 @@ export default function NavigateToCustomer() {
 
     void loadBooking();
   }, [bookingId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(
+          watchIdRef.current,
+        );
+        watchIdRef.current = null;
+      }
+
+      void markLocationOffline();
+    };
+  }, [markLocationOffline]);
+
+  useEffect(() => {
+    if (!booking?.id) return;
+
+    const channel = supabase
+      .channel(`worker-navigation-booking-${booking.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bookings",
+          filter: `id=eq.${booking.id}`,
+        },
+        (payload) => {
+          const updated =
+            payload.new as Partial<BookingData>;
+
+          setBooking((current) =>
+            current
+              ? {
+                  ...current,
+                  ...updated,
+                }
+              : current,
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [booking?.id]);
+
+  useEffect(() => {
+    const shouldShare =
+      booking?.status === "Approved" ||
+      booking?.status === "On Going";
+
+    const trackingEnded =
+      booking?.status === "Completed" ||
+      booking?.status === "Cancelled" ||
+      booking?.status ===
+        "Waiting Customer Confirmation" ||
+      booking?.trip_status === "Completed" ||
+      booking?.trip_status === "Cancelled";
+
+    if (shouldShare && !trackingEnded) {
+      startLocationSharing();
+      return;
+    }
+
+    if (trackingEnded) {
+      void stopLocationSharing(true);
+    }
+  }, [
+    booking?.status,
+    booking?.trip_status,
+    startLocationSharing,
+    stopLocationSharing,
+  ]);
 
   async function handleArrived() {
     if (!booking || !workerId || updatingStatus) {
@@ -274,6 +578,63 @@ export default function NavigateToCustomer() {
 
         <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
           <aside className="space-y-5">
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                    Live GPS Sharing
+                  </p>
+
+                  <p
+                    className={`mt-2 inline-flex items-center gap-2 font-bold ${
+                      sharingLocation
+                        ? "text-emerald-700"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    {gpsStarting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : sharingLocation ? (
+                      <Radio className="h-4 w-4" />
+                    ) : (
+                      <WifiOff className="h-4 w-4" />
+                    )}
+
+                    {gpsStarting
+                      ? "Starting GPS..."
+                      : sharingLocation
+                        ? "Sharing live location"
+                        : "GPS sharing stopped"}
+                  </p>
+                </div>
+
+                {!sharingLocation && !gpsStarting && (
+                  <button
+                    type="button"
+                    onClick={startLocationSharing}
+                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+                  >
+                    Start GPS
+                  </button>
+                )}
+              </div>
+
+              {gpsMessage && (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-700">
+                  {gpsMessage}
+                </p>
+              )}
+
+              {lastGpsUpdate && (
+                <p className="mt-3 text-xs text-slate-500">
+                  Last update:{" "}
+                  {new Date(
+                    lastGpsUpdate,
+                  ).toLocaleString()}
+                </p>
+              )}
+            </section>
+
             <div className="rounded-3xl bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">
                 Customer Details
@@ -369,6 +730,19 @@ export default function NavigateToCustomer() {
                       {updatingStatus ? "Completing..." : "Complete Service"}
                     </button>
                   )}
+                {booking.status === "Waiting Customer Confirmation" &&
+                  booking.trip_status === "Completed" && (
+                    <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-center">
+                      <p className="font-bold text-cyan-700">
+                        Waiting for Customer Confirmation
+                      </p>
+
+                      <p className="mt-1 text-sm text-cyan-600">
+                        Your completion proof was submitted. The customer must review it before this booking is finalized.
+                      </p>
+                    </div>
+                  )}
+
                 {booking.status === "Completed" &&
                   booking.trip_status === "Completed" && (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
@@ -377,7 +751,7 @@ export default function NavigateToCustomer() {
                       </p>
 
                       <p className="mt-1 text-sm text-emerald-600">
-                        This booking has been completed successfully.
+                        The customer confirmed the completed work.
                       </p>
                     </div>
                   )}
