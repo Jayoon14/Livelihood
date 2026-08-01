@@ -123,6 +123,51 @@ function formatDuration(durationSeconds: number | null) {
     ? `${hours} hr ${remainingMinutes} min`
     : `${hours} hr`;
 }
+
+function formatSpeed(speedMetersPerSecond: number | null) {
+  if (
+    speedMetersPerSecond === null ||
+    !Number.isFinite(speedMetersPerSecond) ||
+    speedMetersPerSecond < 0
+  ) {
+    return "Unavailable";
+  }
+
+  return `${Math.round(speedMetersPerSecond * 3.6)} km/h`;
+}
+
+function formatRelativeUpdate(value: string | null) {
+  if (!value) {
+    return "No GPS update yet";
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return "Unknown";
+  }
+
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((Date.now() - timestamp) / 1000),
+  );
+
+  if (elapsedSeconds < 10) {
+    return "Just now";
+  }
+
+  if (elapsedSeconds < 60) {
+    return `${elapsedSeconds}s ago`;
+  }
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes}m ago`;
+  }
+
+  return new Date(value).toLocaleString();
+}
 function getTrafficStatus(
   trafficDelaySeconds: number,
   durationSeconds: number,
@@ -329,6 +374,7 @@ export default function TrackWorker() {
   const lastRouteRequestAtRef = useRef(0);
   const lastRouteOriginRef = useRef<[number, number] | null>(null);
   const customerAddressRef = useRef<string | null>(null);
+  const initialDistanceRef = useRef<number | null>(null);
 
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [workerLocation, setWorkerLocation] =
@@ -341,8 +387,9 @@ export default function TrackWorker() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [realtimeConnected, setRealtimeConnected] = useState(false);
-  const [lastLocationFetchAt, setLastLocationFetchAt] =
-    useState<string | null>(null);
+  const [lastLocationFetchAt, setLastLocationFetchAt] = useState<string | null>(
+    null,
+  );
 
   const [, forceRefresh] = useState(0);
   const customerCoordinates = useMemo<[number, number] | null>(() => {
@@ -360,6 +407,62 @@ export default function TrackWorker() {
 
     return [longitude, latitude];
   }, [booking?.customer_longitude, booking?.customer_latitude]);
+
+  const directDistanceMeters = useMemo(() => {
+    if (!workerLocation || !customerCoordinates) {
+      return null;
+    }
+
+    return getDistanceBetweenCoordinates(
+      [workerLocation.longitude, workerLocation.latitude],
+      customerCoordinates,
+    );
+  }, [
+    customerCoordinates,
+    workerLocation?.latitude,
+    workerLocation?.longitude,
+  ]);
+
+  const remainingDistanceMeters = useMemo(() => {
+    const routeDistance = routeInformation?.distanceMeters;
+
+    if (
+      typeof routeDistance === "number" &&
+      Number.isFinite(routeDistance) &&
+      routeDistance > 0
+    ) {
+      return routeDistance;
+    }
+
+    return directDistanceMeters;
+  }, [directDistanceMeters, routeInformation?.distanceMeters]);
+
+  useEffect(() => {
+    if (
+      initialDistanceRef.current === null &&
+      remainingDistanceMeters !== null &&
+      remainingDistanceMeters > 0
+    ) {
+      initialDistanceRef.current = remainingDistanceMeters;
+    }
+  }, [remainingDistanceMeters]);
+
+  const tripProgress = useMemo(() => {
+    const initialDistance = initialDistanceRef.current;
+
+    if (
+      initialDistance === null ||
+      initialDistance <= 0 ||
+      remainingDistanceMeters === null
+    ) {
+      return 0;
+    }
+
+    const rawProgress =
+      ((initialDistance - remainingDistanceMeters) / initialDistance) * 100;
+
+    return Math.min(100, Math.max(0, Math.round(rawProgress)));
+  }, [remainingDistanceMeters]);
 
   useEffect(() => {
     customerAddressRef.current = booking?.customer_address ?? null;
@@ -671,8 +774,28 @@ export default function TrackWorker() {
           throw new Error("TomTom returned a route without summary data.");
         }
 
-        const distanceMeters = Number(summary.lengthInMeters ?? 0);
-        const durationSeconds = Number(summary.travelTimeInSeconds ?? 0);
+        const rawDistanceMeters = Number(summary.lengthInMeters ?? 0);
+        const directDistanceMeters = getDistanceBetweenCoordinates(
+          workerCoordinates,
+          destinationCoordinates,
+        );
+
+        const distanceMeters =
+          Number.isFinite(rawDistanceMeters) && rawDistanceMeters > 0
+            ? rawDistanceMeters
+            : directDistanceMeters;
+
+        const rawDurationSeconds = Number(summary.travelTimeInSeconds ?? 0);
+
+        /*
+         * TomTom can occasionally return a zero summary for very
+         * short routes. Use a conservative local-road fallback so
+         * the UI never displays 0 m while the markers are apart.
+         */
+        const durationSeconds =
+          Number.isFinite(rawDurationSeconds) && rawDurationSeconds > 0
+            ? rawDurationSeconds
+            : Math.max(60, Math.ceil(distanceMeters / 5));
         const trafficDelaySeconds = Math.max(
           0,
           Number(summary.trafficDelayInSeconds ?? 0),
@@ -1015,30 +1138,20 @@ export default function TrackWorker() {
         .maybeSingle();
 
       if (error) {
-        console.error(
-          "Unable to load worker location:",
-          error,
-        );
+        console.error("Unable to load worker location:", error);
         return;
       }
 
-      setLastLocationFetchAt(
-        new Date().toISOString(),
-      );
+      setLastLocationFetchAt(new Date().toISOString());
 
       if (data) {
-        const location =
-          data as WorkerLocationRow;
+        const location = data as WorkerLocationRow;
 
         setWorkerLocation(location);
         displayWorkerLocation(location, fitMap);
       }
     },
-    [
-      booking?.worker_id,
-      displayWorkerLocation,
-      trackingFinished,
-    ],
+    [booking?.worker_id, displayWorkerLocation, trackingFinished],
   );
 
   useEffect(() => {
@@ -1128,10 +1241,7 @@ export default function TrackWorker() {
   }, [booking?.id]);
 
   useEffect(() => {
-    if (
-      !booking?.worker_id ||
-      trackingFinished
-    ) {
+    if (!booking?.worker_id || trackingFinished) {
       return;
     }
 
@@ -1146,11 +1256,7 @@ export default function TrackWorker() {
     return () => {
       window.clearInterval(timer);
     };
-  }, [
-    booking?.worker_id,
-    fetchLatestWorkerLocation,
-    trackingFinished,
-  ]);
+  }, [booking?.worker_id, fetchLatestWorkerLocation, trackingFinished]);
 
   useEffect(() => {
     if (!trackingFinished) {
@@ -1205,8 +1311,9 @@ export default function TrackWorker() {
   const workerNearby =
     !trackingFinished &&
     workerOnline &&
-    routeInformation !== null &&
-    routeInformation.distanceMeters <= 150;
+    remainingDistanceMeters !== null &&
+    remainingDistanceMeters > 0 &&
+    remainingDistanceMeters <= 150;
 
   return (
     <CustomerLayout>
@@ -1344,6 +1451,20 @@ export default function TrackWorker() {
                   </p>
                 </div>
 
+                <div className="rounded-2xl bg-cyan-50 p-4">
+                  <Navigation className="h-5 w-5 text-cyan-600" />
+
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Speed
+                  </p>
+
+                  <p className="mt-1 text-xl font-bold text-slate-900">
+                    {trackingFinished
+                      ? "-"
+                      : formatSpeed(workerLocation?.speed ?? null)}
+                  </p>
+                </div>
+
                 <div className="rounded-2xl bg-orange-50 p-4">
                   <Clock3 className="h-5 w-5 text-orange-600" />
 
@@ -1405,6 +1526,40 @@ export default function TrackWorker() {
                 </div>
               )}
 
+              {!trackingFinished && (
+                <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Arrival Progress
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-slate-900">
+                        {tripProgress}% toward destination
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                      {formatDistance(remainingDistanceMeters)}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all duration-700"
+                      style={{
+                        width: `${tripProgress}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                    <span>Worker</span>
+                    <span>Customer</span>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 rounded-2xl border border-slate-200 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Service Address
@@ -1428,21 +1583,26 @@ export default function TrackWorker() {
                 </p>
 
                 {workerLocation?.updated_at && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Last GPS update:{" "}
-                    {new Date(workerLocation.updated_at).toLocaleString()}
-                  </p>
+                  <div className="mt-2 text-xs text-slate-500">
+                    <p>
+                      Last GPS update:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {formatRelativeUpdate(workerLocation.updated_at)}
+                      </span>
+                    </p>
+
+                    <p className="mt-1">
+                      {new Date(workerLocation.updated_at).toLocaleString()}
+                    </p>
+                  </div>
                 )}
 
-                {!realtimeConnected &&
-                  lastLocationFetchAt && (
-                    <p className="mt-1 text-xs text-amber-600">
-                      Realtime is reconnecting. Latest location was refreshed at{" "}
-                      {new Date(
-                        lastLocationFetchAt,
-                      ).toLocaleTimeString()}.
-                    </p>
-                  )}
+                {!realtimeConnected && lastLocationFetchAt && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Realtime is reconnecting. Latest location was refreshed at{" "}
+                    {new Date(lastLocationFetchAt).toLocaleTimeString()}.
+                  </p>
+                )}
               </div>
             </section>
 
@@ -1468,12 +1628,12 @@ export default function TrackWorker() {
             )}
             {workerNearby && !workerArrived && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
-                <p className="font-bold">
-                  Worker is nearby
-                </p>
+                <p className="font-bold">Worker is nearby</p>
 
                 <p className="mt-1 text-sm">
-                  Your worker is within approximately 150 meters of the service location.
+                  Your worker is approximately{" "}
+                  {formatDistance(remainingDistanceMeters)} from the service
+                  location.
                 </p>
               </div>
             )}
@@ -1510,10 +1670,7 @@ export default function TrackWorker() {
           </aside>
 
           <main className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div
-              ref={mapContainerRef}
-              className="h-155 w-full bg-slate-100"
-            />
+            <div ref={mapContainerRef} className="h-155 w-full bg-slate-100" />
           </main>
         </div>
       </div>

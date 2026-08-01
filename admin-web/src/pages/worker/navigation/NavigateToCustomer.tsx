@@ -53,7 +53,6 @@ interface BookingData {
   } | null;
 }
 
-
 interface WorkerLocationPayload {
   worker_id: string;
   latitude: number;
@@ -74,9 +73,7 @@ const LOCATION_OPTIONS: PositionOptions = {
 
 const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
 
-function getGeolocationErrorMessage(
-  error: GeolocationPositionError,
-): string {
+function getGeolocationErrorMessage(error: GeolocationPositionError): string {
   if (error.code === error.PERMISSION_DENIED) {
     return "Location permission was denied. Enable location access to share your live GPS.";
   }
@@ -91,6 +88,66 @@ function getGeolocationErrorMessage(
 
   return "Unable to read your current GPS location.";
 }
+
+function calculateDistanceMeters(
+  firstLatitude: number,
+  firstLongitude: number,
+  secondLatitude: number,
+  secondLongitude: number,
+): number {
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+
+  const latitudeDifference = toRadians(secondLatitude - firstLatitude);
+  const longitudeDifference = toRadians(secondLongitude - firstLongitude);
+
+  const firstLatitudeRadians = toRadians(firstLatitude);
+  const secondLatitudeRadians = toRadians(secondLatitude);
+
+  const a =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(firstLatitudeRadians) *
+      Math.cos(secondLatitudeRadians) *
+      Math.sin(longitudeDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatRemainingDistance(distanceMeters: number | null): string {
+  if (distanceMeters === null) {
+    return "Calculating...";
+  }
+
+  if (distanceMeters < 1_000) {
+    return `${Math.round(distanceMeters)} m`;
+  }
+
+  return `${(distanceMeters / 1_000).toFixed(1)} km`;
+}
+
+function formatWorkerEta(
+  distanceMeters: number | null,
+  speedMetersPerSecond: number | null,
+): string {
+  if (distanceMeters === null) {
+    return "Calculating...";
+  }
+
+  const effectiveSpeed =
+    speedMetersPerSecond !== null &&
+    Number.isFinite(speedMetersPerSecond) &&
+    speedMetersPerSecond > 1
+      ? speedMetersPerSecond
+      : 5;
+
+  const seconds = Math.max(60, Math.ceil(distanceMeters / effectiveSpeed));
+
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+
+  return `${minutes} min`;
+}
+
+const AUTO_ARRIVAL_DISTANCE_METERS = 20;
 
 export default function NavigateToCustomer() {
   const { bookingId } = useParams();
@@ -108,25 +165,27 @@ export default function NavigateToCustomer() {
   const watchIdRef = useRef<number | null>(null);
   const lastSavedAtRef = useRef(0);
   const mountedRef = useRef(true);
+  const bookingRef = useRef<BookingData | null>(null);
+  const autoArrivalRunningRef = useRef(false);
 
   const [sharingLocation, setSharingLocation] = useState(false);
   const [gpsStarting, setGpsStarting] = useState(false);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
   const [lastGpsUpdate, setLastGpsUpdate] = useState<string | null>(null);
+  const [remainingDistance, setRemainingDistance] = useState<number | null>(
+    null,
+  );
+  const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
 
   const saveWorkerLocation = useCallback(
-    async (
-      position: GeolocationPosition,
-      force = false,
-    ): Promise<void> => {
+    async (position: GeolocationPosition, force = false): Promise<void> => {
       if (!workerId) return;
 
       const now = Date.now();
 
       if (
         !force &&
-        now - lastSavedAtRef.current <
-          MIN_LOCATION_SAVE_INTERVAL_MS
+        now - lastSavedAtRef.current < MIN_LOCATION_SAVE_INTERVAL_MS
       ) {
         return;
       }
@@ -162,9 +221,64 @@ export default function NavigateToCustomer() {
         });
 
       if (error) {
-        throw new Error(
-          `Unable to share live location: ${error.message}`,
+        throw new Error(`Unable to share live location: ${error.message}`);
+      }
+
+      const currentBooking = bookingRef.current;
+
+      if (
+        currentBooking?.customer_latitude != null &&
+        currentBooking.customer_longitude != null
+      ) {
+        const distanceMeters = calculateDistanceMeters(
+          payload.latitude,
+          payload.longitude,
+          currentBooking.customer_latitude,
+          currentBooking.customer_longitude,
         );
+
+        if (mountedRef.current) {
+          setRemainingDistance(distanceMeters);
+          setCurrentSpeed(payload.speed);
+        }
+
+        const canAutoArrive =
+          distanceMeters <= AUTO_ARRIVAL_DISTANCE_METERS &&
+          currentBooking.status === "Approved" &&
+          currentBooking.trip_status === "Accepted" &&
+          !autoArrivalRunningRef.current;
+
+        if (canAutoArrive) {
+          autoArrivalRunningRef.current = true;
+
+          try {
+            const updatedBooking = await markWorkerArrived(
+              currentBooking.id,
+              workerId,
+            );
+
+            if (mountedRef.current) {
+              setBooking((current) =>
+                current
+                  ? {
+                      ...current,
+                      trip_status: updatedBooking.trip_status,
+                      arrived_at:
+                        updatedBooking.arrived_at ?? new Date().toISOString(),
+                    }
+                  : current,
+              );
+
+              toast.success(
+                "You are within 20 meters. Arrival was detected automatically.",
+              );
+            }
+          } catch (arrivalError) {
+            console.error("Automatic arrival detection failed:", arrivalError);
+          } finally {
+            autoArrivalRunningRef.current = false;
+          }
+        }
       }
 
       if (mountedRef.current) {
@@ -189,19 +303,14 @@ export default function NavigateToCustomer() {
       .eq("worker_id", workerId);
 
     if (error) {
-      console.error(
-        "Unable to mark worker location offline:",
-        error,
-      );
+      console.error("Unable to mark worker location offline:", error);
     }
   }, [workerId]);
 
   const stopLocationSharing = useCallback(
     async (markOffline = true): Promise<void> => {
       if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(
-          watchIdRef.current,
-        );
+        navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
 
@@ -223,63 +332,52 @@ export default function NavigateToCustomer() {
     }
 
     if (!("geolocation" in navigator)) {
-      setGpsMessage(
-        "This browser does not support GPS location.",
-      );
+      setGpsMessage("This browser does not support GPS location.");
       return;
     }
 
     setGpsStarting(true);
     setGpsMessage("Starting live GPS...");
 
-    watchIdRef.current =
-      navigator.geolocation.watchPosition(
-        (position) => {
-          void saveWorkerLocation(position, false).catch(
-            (error: unknown) => {
-              console.error(
-                "Live worker location update failed:",
-                error,
-              );
-
-              if (mountedRef.current) {
-                setGpsMessage(
-                  error instanceof Error
-                    ? error.message
-                    : "Unable to share live GPS.",
-                );
-              }
-            },
-          );
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        void saveWorkerLocation(position, false).catch((error: unknown) => {
+          console.error("Live worker location update failed:", error);
 
           if (mountedRef.current) {
-            setGpsStarting(false);
-          }
-        },
-        (error) => {
-          console.error(
-            "Worker geolocation error:",
-            error,
-          );
-
-          if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(
-              watchIdRef.current,
-            );
-            watchIdRef.current = null;
-          }
-
-          if (mountedRef.current) {
-            setGpsStarting(false);
-            setSharingLocation(false);
             setGpsMessage(
-              getGeolocationErrorMessage(error),
+              error instanceof Error
+                ? error.message
+                : "Unable to share live GPS.",
             );
           }
-        },
-        LOCATION_OPTIONS,
-      );
+        });
+
+        if (mountedRef.current) {
+          setGpsStarting(false);
+        }
+      },
+      (error) => {
+        console.error("Worker geolocation error:", error);
+
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+
+        if (mountedRef.current) {
+          setGpsStarting(false);
+          setSharingLocation(false);
+          setGpsMessage(getGeolocationErrorMessage(error));
+        }
+      },
+      LOCATION_OPTIONS,
+    );
   }, [gpsStarting, saveWorkerLocation]);
+
+  useEffect(() => {
+    bookingRef.current = booking;
+  }, [booking]);
 
   useEffect(() => {
     async function loadBooking() {
@@ -326,9 +424,7 @@ export default function NavigateToCustomer() {
       mountedRef.current = false;
 
       if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(
-          watchIdRef.current,
-        );
+        navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
 
@@ -350,8 +446,7 @@ export default function NavigateToCustomer() {
           filter: `id=eq.${booking.id}`,
         },
         (payload) => {
-          const updated =
-            payload.new as Partial<BookingData>;
+          const updated = payload.new as Partial<BookingData>;
 
           setBooking((current) =>
             current
@@ -372,14 +467,12 @@ export default function NavigateToCustomer() {
 
   useEffect(() => {
     const shouldShare =
-      booking?.status === "Approved" ||
-      booking?.status === "On Going";
+      booking?.status === "Approved" || booking?.status === "On Going";
 
     const trackingEnded =
       booking?.status === "Completed" ||
       booking?.status === "Cancelled" ||
-      booking?.status ===
-        "Waiting Customer Confirmation" ||
+      booking?.status === "Waiting Customer Confirmation" ||
       booking?.trip_status === "Completed" ||
       booking?.trip_status === "Cancelled";
 
@@ -481,10 +574,7 @@ export default function NavigateToCustomer() {
       return;
     }
 
-    if (
-      booking.status !== "On Going" ||
-      booking.trip_status !== "On Trip"
-    ) {
+    if (booking.status !== "On Going" || booking.trip_status !== "On Trip") {
       toast.error(
         "Completion proof can only be submitted while the service is ongoing.",
       );
@@ -587,9 +677,7 @@ export default function NavigateToCustomer() {
 
                   <p
                     className={`mt-2 inline-flex items-center gap-2 font-bold ${
-                      sharingLocation
-                        ? "text-emerald-700"
-                        : "text-slate-600"
+                      sharingLocation ? "text-emerald-700" : "text-slate-600"
                     }`}
                   >
                     {gpsStarting ? (
@@ -627,12 +715,36 @@ export default function NavigateToCustomer() {
 
               {lastGpsUpdate && (
                 <p className="mt-3 text-xs text-slate-500">
-                  Last update:{" "}
-                  {new Date(
-                    lastGpsUpdate,
-                  ).toLocaleString()}
+                  Last update: {new Date(lastGpsUpdate).toLocaleString()}
                 </p>
               )}
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+                    Distance
+                  </p>
+
+                  <p className="mt-1 text-lg font-extrabold text-blue-900">
+                    {formatRemainingDistance(remainingDistance)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-violet-600">
+                    ETA
+                  </p>
+
+                  <p className="mt-1 text-lg font-extrabold text-violet-900">
+                    {formatWorkerEta(remainingDistance, currentSpeed)}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-blue-700">
+                Arrival is detected automatically within{" "}
+                {AUTO_ARRIVAL_DISTANCE_METERS} meters.
+              </p>
             </section>
 
             <div className="rounded-3xl bg-white p-6 shadow-sm">
@@ -700,7 +812,9 @@ export default function NavigateToCustomer() {
                     >
                       <MapPin className="h-4 w-4" />
 
-                      {updatingStatus ? "Updating..." : "I Have Arrived"}
+                      {updatingStatus
+                        ? "Updating..."
+                        : "Confirm Arrival Manually"}
                     </button>
                   )}
 
@@ -738,7 +852,8 @@ export default function NavigateToCustomer() {
                       </p>
 
                       <p className="mt-1 text-sm text-cyan-600">
-                        Your completion proof was submitted. The customer must review it before this booking is finalized.
+                        Your completion proof was submitted. The customer must
+                        review it before this booking is finalized.
                       </p>
                     </div>
                   )}

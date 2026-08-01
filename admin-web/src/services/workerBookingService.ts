@@ -44,18 +44,14 @@ function getErrorMessage(error: unknown): string {
   return "An unexpected booking error occurred.";
 }
 
-async function verifyWorkerSession(
-  expectedWorkerId: string,
-): Promise<void> {
+async function verifyWorkerSession(expectedWorkerId: string): Promise<void> {
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
 
   if (error) {
-    throw new Error(
-      `Unable to verify worker account: ${error.message}`,
-    );
+    throw new Error(`Unable to verify worker account: ${error.message}`);
   }
 
   if (!user) {
@@ -76,12 +72,7 @@ async function notifyCustomerSafely(
   message: string,
 ): Promise<void> {
   try {
-    await createNotification(
-      customerId,
-      bookingId,
-      title,
-      message,
-    );
+    await createNotification(customerId, bookingId, title, message);
   } catch (error) {
     /*
      * The booking update has already succeeded.
@@ -134,9 +125,7 @@ export async function getWorkerBookings(workerId: string) {
     });
 
   if (error) {
-    throw new Error(
-      `Unable to load worker bookings: ${error.message}`,
-    );
+    throw new Error(`Unable to load worker bookings: ${error.message}`);
   }
 
   return data ?? [];
@@ -168,15 +157,11 @@ export async function updateBookingStatus(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to update booking status: ${error.message}`,
-    );
+    throw new Error(`Unable to update booking status: ${error.message}`);
   }
 
   if (!data) {
-    throw new Error(
-      "The booking was not found or cannot be updated.",
-    );
+    throw new Error("The booking was not found or cannot be updated.");
   }
 
   return data;
@@ -185,10 +170,7 @@ export async function updateBookingStatus(
 /**
  * Worker accepts a Pending booking.
  */
-export async function acceptBooking(
-  bookingId: number,
-  workerId: string,
-) {
+export async function acceptBooking(bookingId: number, workerId: string) {
   await verifyWorkerSession(workerId);
 
   const acceptedAt = new Date().toISOString();
@@ -222,9 +204,7 @@ export async function acceptBooking(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to accept the booking: ${error.message}`,
-    );
+    throw new Error(`Unable to accept the booking: ${error.message}`);
   }
 
   if (!data) {
@@ -287,9 +267,7 @@ export async function rejectBooking(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to reject the booking: ${error.message}`,
-    );
+    throw new Error(`Unable to reject the booking: ${error.message}`);
   }
 
   if (!data) {
@@ -313,11 +291,54 @@ export async function rejectBooking(
 /**
  * Worker marks that they have arrived at the service location.
  */
-export async function markWorkerArrived(
-  bookingId: number,
-  workerId: string,
-) {
+export async function markWorkerArrived(bookingId: number, workerId: string) {
   await verifyWorkerSession(workerId);
+
+  const { data: currentBooking, error: currentError } = await supabase
+    .from("bookings")
+    .select(
+      `
+          id,
+          customer_id,
+          worker_id,
+          status,
+          trip_status,
+          arrived_at
+        `,
+    )
+    .eq("id", bookingId)
+    .eq("worker_id", workerId)
+    .eq("worker_deleted", false)
+    .eq("is_deleted", false)
+    .maybeSingle();
+
+  if (currentError) {
+    throw new Error(`Unable to verify arrival status: ${currentError.message}`);
+  }
+
+  if (!currentBooking) {
+    throw new Error("The booking was not found or is no longer available.");
+  }
+
+  /*
+   * Idempotent result for repeated GPS callbacks.
+   * This prevents duplicate notifications after automatic arrival.
+   */
+  if (
+    currentBooking.status === "Approved" &&
+    currentBooking.trip_status === "Arrived"
+  ) {
+    return currentBooking as BookingActionResult;
+  }
+
+  if (
+    currentBooking.status !== "Approved" ||
+    currentBooking.trip_status !== "Accepted"
+  ) {
+    throw new Error(
+      "Arrival cannot be recorded. The booking must be approved and currently accepted.",
+    );
+  }
 
   const arrivedAt = new Date().toISOString();
 
@@ -346,14 +367,42 @@ export async function markWorkerArrived(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to mark the worker as arrived: ${error.message}`,
-    );
+    throw new Error(`Unable to mark the worker as arrived: ${error.message}`);
   }
 
   if (!data) {
+    /*
+     * A concurrent GPS callback may have completed the update first.
+     * Read the final state and treat Arrived as success.
+     */
+    const { data: latest, error: latestError } = await supabase
+      .from("bookings")
+      .select(
+        `
+            id,
+            customer_id,
+            worker_id,
+            status,
+            trip_status,
+            arrived_at
+          `,
+      )
+      .eq("id", bookingId)
+      .eq("worker_id", workerId)
+      .maybeSingle();
+
+    if (latestError) {
+      throw new Error(
+        `Unable to verify the final arrival status: ${latestError.message}`,
+      );
+    }
+
+    if (latest?.status === "Approved" && latest.trip_status === "Arrived") {
+      return latest as BookingActionResult;
+    }
+
     throw new Error(
-      "Arrival cannot be recorded. The booking must be approved and currently accepted.",
+      "Arrival cannot be recorded because the booking status changed.",
     );
   }
 
@@ -376,10 +425,7 @@ export async function markWorkerArrived(
  * status = On Going
  * trip_status = On Trip
  */
-export async function startTrip(
-  bookingId: number,
-  workerId: string,
-) {
+export async function startTrip(bookingId: number, workerId: string) {
   await verifyWorkerSession(workerId);
 
   const tripStartedAt = new Date().toISOString();
@@ -413,9 +459,7 @@ export async function startTrip(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to start the service: ${error.message}`,
-    );
+    throw new Error(`Unable to start the service: ${error.message}`);
   }
 
   if (!data) {
@@ -448,9 +492,7 @@ async function verifyCompletionProof(
     .maybeSingle();
 
   if (proofError) {
-    throw new Error(
-      `Unable to verify completion proof: ${proofError.message}`,
-    );
+    throw new Error(`Unable to verify completion proof: ${proofError.message}`);
   }
 
   if (!proof) {
@@ -483,10 +525,7 @@ async function verifyCompletionProof(
  * Worker submission does not finalize the booking.
  * The customer must review the proof before the booking becomes Completed.
  */
-export async function completeBooking(
-  bookingId: number,
-  workerId: string,
-) {
+export async function completeBooking(bookingId: number, workerId: string) {
   await verifyWorkerSession(workerId);
   await verifyCompletionProof(bookingId, workerId);
 
@@ -523,9 +562,7 @@ export async function completeBooking(
   if (error) {
     console.error("Complete service error:", error);
 
-    throw new Error(
-      `Unable to complete the service: ${error.message}`,
-    );
+    throw new Error(`Unable to complete the service: ${error.message}`);
   }
 
   if (!data) {
@@ -551,10 +588,7 @@ export async function completeBooking(
  *
  * Ownership should also be enforced by Supabase RLS.
  */
-export async function getBooking(
-  bookingId: number,
-  workerId?: string,
-) {
+export async function getBooking(bookingId: number, workerId?: string) {
   let query = supabase
     .from("bookings")
     .select(
@@ -592,23 +626,17 @@ export async function getBooking(
   if (workerId) {
     await verifyWorkerSession(workerId);
 
-    query = query
-      .eq("worker_id", workerId)
-      .eq("worker_deleted", false);
+    query = query.eq("worker_id", workerId).eq("worker_deleted", false);
   }
 
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to load booking: ${error.message}`,
-    );
+    throw new Error(`Unable to load booking: ${error.message}`);
   }
 
   if (!data) {
-    throw new Error(
-      "The booking was not found or is no longer available.",
-    );
+    throw new Error("The booking was not found or is no longer available.");
   }
 
   return data;
@@ -617,9 +645,7 @@ export async function getBooking(
 /**
  * Get Pending worker bookings.
  */
-export async function getPendingBookings(
-  workerId: string,
-) {
+export async function getPendingBookings(workerId: string) {
   const { data, error } = await supabase
     .from("bookings")
     .select(
@@ -644,9 +670,7 @@ export async function getPendingBookings(
     });
 
   if (error) {
-    throw new Error(
-      `Unable to load pending bookings: ${error.message}`,
-    );
+    throw new Error(`Unable to load pending bookings: ${error.message}`);
   }
 
   return data ?? [];
@@ -655,9 +679,7 @@ export async function getPendingBookings(
 /**
  * Get Completed worker bookings.
  */
-export async function getCompletedBookings(
-  workerId: string,
-) {
+export async function getCompletedBookings(workerId: string) {
   const { data, error } = await supabase
     .from("bookings")
     .select(
@@ -682,9 +704,7 @@ export async function getCompletedBookings(
     });
 
   if (error) {
-    throw new Error(
-      `Unable to load completed bookings: ${error.message}`,
-    );
+    throw new Error(`Unable to load completed bookings: ${error.message}`);
   }
 
   return data ?? [];
@@ -693,10 +713,7 @@ export async function getCompletedBookings(
 /**
  * Soft-delete a booking from the worker's own list.
  */
-export async function deleteWorkerBooking(
-  bookingId: number,
-  workerId: string,
-) {
+export async function deleteWorkerBooking(bookingId: number, workerId: string) {
   await verifyWorkerSession(workerId);
 
   const { data, error } = await supabase
@@ -711,15 +728,11 @@ export async function deleteWorkerBooking(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to remove the booking: ${error.message}`,
-    );
+    throw new Error(`Unable to remove the booking: ${error.message}`);
   }
 
   if (!data) {
-    throw new Error(
-      "The booking was not found or has already been removed.",
-    );
+    throw new Error("The booking was not found or has already been removed.");
   }
 
   return data;
@@ -728,8 +741,6 @@ export async function deleteWorkerBooking(
 /**
  * Useful helper for pages that need a readable error.
  */
-export function getWorkerBookingErrorMessage(
-  error: unknown,
-): string {
+export function getWorkerBookingErrorMessage(error: unknown): string {
   return getErrorMessage(error);
 }
