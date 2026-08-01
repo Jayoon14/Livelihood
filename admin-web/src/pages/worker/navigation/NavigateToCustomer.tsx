@@ -587,7 +587,17 @@ export default function NavigateToCustomer() {
   if (loading) {
     return (
       <WorkerLayout>
-        <div className="p-10 text-center">Loading customer location...</div>
+        <main className="min-h-screen bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+          <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+            <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
+              Loading customer location
+            </h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Please wait while we prepare your route and live GPS.
+            </p>
+          </section>
+        </main>
       </WorkerLayout>
     );
   }
@@ -600,19 +610,22 @@ export default function NavigateToCustomer() {
   ) {
     return (
       <WorkerLayout>
-        <div className="mx-auto max-w-3xl p-8">
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
-            {errorMessage || "This booking has no saved customer coordinates."}
-          </div>
+        <main className="min-h-screen bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+          <div className="mx-auto max-w-3xl">
+            <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-5 text-red-700 shadow-sm dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200 sm:p-6">
+              {errorMessage ||
+                "This booking has no saved customer coordinates."}
+            </div>
 
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="mt-5 rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white"
-          >
-            Go Back
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-900 px-5 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
+            >
+              Go Back
+            </button>
+          </div>
+        </main>
       </WorkerLayout>
     );
   }
@@ -626,270 +639,283 @@ export default function NavigateToCustomer() {
     .join(" ");
   return (
     <WorkerLayout>
-      <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
-        <div className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to bookings
-            </button>
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-[1500px] space-y-5 sm:space-y-6">
+          <section className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-blue-700 to-cyan-500 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-8">
+            <div className="relative z-10">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mb-5 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to bookings
+              </button>
 
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-                <Navigation className="h-6 w-6" />
-              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white backdrop-blur">
+                  <Navigation className="h-6 w-6" />
+                </div>
 
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  Navigate to Customer
-                </h1>
+                <div className="relative z-10">
+                  <h1 className="text-2xl font-black text-white sm:text-3xl">
+                    Navigate to Customer
+                  </h1>
 
-                <p className="text-sm text-slate-500">
-                  Follow the route to the service location.
-                </p>
+                  <p className="mt-1 text-sm text-blue-100">
+                    Follow the route to the service location.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="rounded-2xl bg-blue-50 px-5 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-              Trip Status
-            </p>
+            <div className="relative z-10 mt-5 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 backdrop-blur lg:absolute lg:right-7 lg:top-1/2 lg:mt-0 lg:-translate-y-1/2">
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-100">
+                Trip Status
+              </p>
 
-            <p className="mt-1 font-bold text-blue-900">
-              {booking.trip_status}
-            </p>
-          </div>
-        </div>
+              <p className="mt-1 font-black text-white">
+                {booking.trip_status}
+              </p>
+            </div>
+          </section>
 
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-          <aside className="space-y-5">
-            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                    Live GPS Sharing
+          <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+            <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+              <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between xl:flex-col xl:items-stretch">
+                  <div className="relative z-10">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                      Live GPS Sharing
+                    </p>
+
+                    <p
+                      className={`mt-2 inline-flex items-center gap-2 font-black ${
+                        sharingLocation
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-slate-600 dark:text-slate-300"
+                      }`}
+                    >
+                      {gpsStarting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : sharingLocation ? (
+                        <Radio className="h-4 w-4" />
+                      ) : (
+                        <WifiOff className="h-4 w-4" />
+                      )}
+
+                      {gpsStarting
+                        ? "Starting GPS..."
+                        : sharingLocation
+                          ? "Sharing live location"
+                          : "GPS sharing stopped"}
+                    </p>
+                  </div>
+
+                  {!sharingLocation && !gpsStarting && (
+                    <button
+                      type="button"
+                      onClick={startLocationSharing}
+                      className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
+                    >
+                      Start GPS
+                    </button>
+                  )}
+                </div>
+
+                {gpsMessage && (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                    {gpsMessage}
                   </p>
+                )}
 
-                  <p
-                    className={`mt-2 inline-flex items-center gap-2 font-bold ${
-                      sharingLocation ? "text-emerald-700" : "text-slate-600"
-                    }`}
-                  >
-                    {gpsStarting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : sharingLocation ? (
-                      <Radio className="h-4 w-4" />
-                    ) : (
-                      <WifiOff className="h-4 w-4" />
+                {lastGpsUpdate && (
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                    Last update: {new Date(lastGpsUpdate).toLocaleString()}
+                  </p>
+                )}
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+                      Distance
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-blue-900 dark:text-blue-200">
+                      {formatRemainingDistance(remainingDistance)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-violet-100 bg-violet-50 p-3 dark:border-violet-500/20 dark:bg-violet-500/10">
+                    <p className="text-xs font-bold uppercase tracking-wide text-violet-600">
+                      ETA
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-violet-900 dark:text-violet-200">
+                      {formatWorkerEta(remainingDistance, currentSpeed)}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs leading-5 text-blue-700 dark:text-blue-300">
+                  Arrival is detected automatically within{" "}
+                  {AUTO_ARRIVAL_DISTANCE_METERS} meters.
+                </p>
+              </section>
+
+              <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  Customer Details
+                </h2>
+
+                <div className="mt-5 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <User className="mt-0.5 h-5 w-5 text-blue-600" />
+
+                    <div className="relative z-10">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Customer
+                      </p>
+
+                      <p className="font-bold text-slate-800 dark:text-slate-200">
+                        {customerName || "Customer"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-5 w-5 text-blue-600" />
+
+                    <div className="relative z-10">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Service Location
+                      </p>
+
+                      <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
+                        {booking.customer_address}
+                      </p>
+                    </div>
+                  </div>
+
+                  {booking.customer?.phone && (
+                    <a
+                      href={`tel:${booking.customer.phone}`}
+                      className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Customer
+                    </a>
+                  )}
+
+                  {booking.customer?.id && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/chat/${booking.id}`)}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-sky-700"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Chat Customer
+                    </button>
+                  )}
+
+                  {booking.status === "Approved" &&
+                    booking.trip_status === "Accepted" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleArrived()}
+                        disabled={updatingStatus}
+                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
+                      >
+                        <MapPin className="h-4 w-4" />
+
+                        {updatingStatus
+                          ? "Updating..."
+                          : "Confirm Arrival Manually"}
+                      </button>
                     )}
 
-                    {gpsStarting
-                      ? "Starting GPS..."
-                      : sharingLocation
-                        ? "Sharing live location"
-                        : "GPS sharing stopped"}
-                  </p>
+                  {booking.status === "Approved" &&
+                    booking.trip_status === "Arrived" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleStartService()}
+                        disabled={updatingStatus}
+                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-violet-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
+                      >
+                        <Navigation className="h-4 w-4" />
+
+                        {updatingStatus ? "Starting..." : "Start Service"}
+                      </button>
+                    )}
+                  {booking.status === "On Going" &&
+                    booking.trip_status === "On Trip" && (
+                      <button
+                        type="button"
+                        onClick={() => void handleCompleteService()}
+                        disabled={updatingStatus}
+                        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
+                      >
+                        <MapPin className="h-4 w-4" />
+
+                        {updatingStatus ? "Completing..." : "Complete Service"}
+                      </button>
+                    )}
+                  {booking.status === "Waiting Customer Confirmation" &&
+                    booking.trip_status === "Completed" && (
+                      <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-center dark:border-cyan-500/20 dark:bg-cyan-500/10">
+                        <p className="font-black text-cyan-700 dark:text-cyan-300">
+                          Waiting for Customer Confirmation
+                        </p>
+
+                        <p className="mt-1 text-sm text-cyan-600 dark:text-cyan-300">
+                          Your completion proof was submitted. The customer must
+                          review it before this booking is finalized.
+                        </p>
+                      </div>
+                    )}
+
+                  {booking.status === "Completed" &&
+                    booking.trip_status === "Completed" && (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                        <p className="font-black text-emerald-700 dark:text-emerald-300">
+                          Service Completed
+                        </p>
+
+                        <p className="mt-1 text-sm text-emerald-600 dark:text-emerald-300">
+                          The customer confirmed the completed work.
+                        </p>
+                      </div>
+                    )}
                 </div>
+              </section>
+            </aside>
 
-                {!sharingLocation && !gpsStarting && (
-                  <button
-                    type="button"
-                    onClick={startLocationSharing}
-                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
-                  >
-                    Start GPS
-                  </button>
-                )}
-              </div>
-
-              {gpsMessage && (
-                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-700">
-                  {gpsMessage}
-                </p>
-              )}
-
-              {lastGpsUpdate && (
-                <p className="mt-3 text-xs text-slate-500">
-                  Last update: {new Date(lastGpsUpdate).toLocaleString()}
-                </p>
-              )}
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
-                    Distance
-                  </p>
-
-                  <p className="mt-1 text-lg font-extrabold text-blue-900">
-                    {formatRemainingDistance(remainingDistance)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-violet-100 bg-violet-50 p-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-violet-600">
-                    ETA
-                  </p>
-
-                  <p className="mt-1 text-lg font-extrabold text-violet-900">
-                    {formatWorkerEta(remainingDistance, currentSpeed)}
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-3 text-xs leading-5 text-blue-700">
-                Arrival is detected automatically within{" "}
-                {AUTO_ARRIVAL_DISTANCE_METERS} meters.
-              </p>
+            <section className="min-h-[560px] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <LocationPicker
+                onLocationSelect={() => {
+                  // Navigation destination is fixed.
+                }}
+                initialLocation={{
+                  latitude: booking.customer_latitude,
+                  longitude: booking.customer_longitude,
+                  address:
+                    booking.customer_address ?? "Customer service location",
+                }}
+                navigationMode
+              />
             </section>
-
-            <div className="rounded-3xl bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900">
-                Customer Details
-              </h2>
-
-              <div className="mt-5 space-y-4">
-                <div className="flex items-start gap-3">
-                  <User className="mt-0.5 h-5 w-5 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Customer
-                    </p>
-
-                    <p className="font-semibold text-slate-800">
-                      {customerName || "Customer"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 text-blue-600" />
-
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Service Location
-                    </p>
-
-                    <p className="text-sm leading-6 text-slate-700">
-                      {booking.customer_address}
-                    </p>
-                  </div>
-                </div>
-
-                {booking.customer?.phone && (
-                  <a
-                    href={`tel:${booking.customer.phone}`}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700"
-                  >
-                    <Phone className="h-4 w-4" />
-                    Call Customer
-                  </a>
-                )}
-
-                {booking.customer?.id && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/chat/${booking.id}`)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Chat Customer
-                  </button>
-                )}
-
-                {booking.status === "Approved" &&
-                  booking.trip_status === "Accepted" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleArrived()}
-                      disabled={updatingStatus}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <MapPin className="h-4 w-4" />
-
-                      {updatingStatus
-                        ? "Updating..."
-                        : "Confirm Arrival Manually"}
-                    </button>
-                  )}
-
-                {booking.status === "Approved" &&
-                  booking.trip_status === "Arrived" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleStartService()}
-                      disabled={updatingStatus}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Navigation className="h-4 w-4" />
-
-                      {updatingStatus ? "Starting..." : "Start Service"}
-                    </button>
-                  )}
-                {booking.status === "On Going" &&
-                  booking.trip_status === "On Trip" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleCompleteService()}
-                      disabled={updatingStatus}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <MapPin className="h-4 w-4" />
-
-                      {updatingStatus ? "Completing..." : "Complete Service"}
-                    </button>
-                  )}
-                {booking.status === "Waiting Customer Confirmation" &&
-                  booking.trip_status === "Completed" && (
-                    <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-center">
-                      <p className="font-bold text-cyan-700">
-                        Waiting for Customer Confirmation
-                      </p>
-
-                      <p className="mt-1 text-sm text-cyan-600">
-                        Your completion proof was submitted. The customer must
-                        review it before this booking is finalized.
-                      </p>
-                    </div>
-                  )}
-
-                {booking.status === "Completed" &&
-                  booking.trip_status === "Completed" && (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-                      <p className="font-bold text-emerald-700">
-                        Service Completed
-                      </p>
-
-                      <p className="mt-1 text-sm text-emerald-600">
-                        The customer confirmed the completed work.
-                      </p>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </aside>
-
-          <main>
-            <LocationPicker
-              onLocationSelect={() => {
-                // Navigation destination is fixed.
-              }}
-              initialLocation={{
-                latitude: booking.customer_latitude,
-                longitude: booking.customer_longitude,
-                address:
-                  booking.customer_address ?? "Customer service location",
-              }}
-              navigationMode
-            />
-          </main>
+          </div>
         </div>
-      </div>
+      </main>
     </WorkerLayout>
   );
 }

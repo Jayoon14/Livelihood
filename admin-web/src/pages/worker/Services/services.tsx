@@ -654,29 +654,38 @@ export default function Services() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-screen bg-slate-50 p-3 pb-24 sm:p-6 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 pb-24 sm:p-5 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={message.type === "error" ? "alert" : "status"}
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "error"
                   ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 {message.type === "error" && (
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 )}
 
-                <span>{message.text}</span>
+                <span className="min-w-0 leading-6">{message.text}</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setMessage(null)}
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -684,20 +693,29 @@ export default function Services() {
             </div>
           )}
 
-          <header className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-700 via-indigo-600 to-violet-700 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
+          <header className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-indigo-700 to-violet-700 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
 
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                   Worker Services
                 </p>
 
-                <h1 className="mt-2 text-2xl font-bold sm:text-4xl">
+                <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                   My Services
                 </h1>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
                   Create and manage the services customers can request from you.
                 </p>
               </div>
@@ -707,7 +725,7 @@ export default function Services() {
                   type="button"
                   onClick={() => void handleRefresh()}
                   disabled={refreshing}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur transition hover:bg-white/25 disabled:opacity-50"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                 >
                   <RefreshCw
                     className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -718,7 +736,7 @@ export default function Services() {
                 <button
                   type="button"
                   onClick={openCreateForm}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-50"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50"
                 >
                   <Plus className="h-4 w-4" />
                   Add Service
@@ -729,7 +747,7 @@ export default function Services() {
 
           <section
             aria-label="Service statistics"
-            className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+            className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
           >
             <StatCard
               label="Total Services"
@@ -760,8 +778,8 @@ export default function Services() {
             />
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="grid gap-3 lg:grid-cols-[1fr_190px_190px]">
+          <section className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+            <div className="grid gap-3 lg:grid-cols-[1fr_210px_210px]">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
@@ -770,14 +788,14 @@ export default function Services() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search services, categories, or descriptions..."
-                  className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                 />
 
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700"
                     aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
@@ -790,7 +808,7 @@ export default function Services() {
                 onChange={(event) =>
                   setStatusFilter(event.target.value as StatusFilter)
                 }
-                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               >
                 <option value="All">All Statuses</option>
                 <option value="Approved">Approved</option>
@@ -801,7 +819,7 @@ export default function Services() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortOption)}
-                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               >
                 <option value="newest">Newest First</option>
                 <option value="name-asc">Name A–Z</option>
@@ -813,23 +831,23 @@ export default function Services() {
           </section>
 
           {loading ? (
-            <section className="grid gap-4 md:grid-cols-2">
+            <section className="grid gap-4 md:grid-cols-2 xl:gap-5">
               {Array.from({
                 length: 6,
               }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-72 animate-pulse rounded-2xl bg-slate-200 sm:rounded-3xl dark:bg-slate-800"
+                  className="h-72 animate-pulse rounded-[1.5rem] bg-slate-200 dark:bg-slate-800"
                 />
               ))}
             </section>
           ) : paginatedServices.length === 0 ? (
-            <section className="rounded-2xl border border-slate-200 bg-white px-5 py-16 text-center shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white px-5 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:py-16">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300 sm:h-24 sm:w-24">
                 <Package className="h-10 w-10" />
               </div>
 
-              <h2 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="mt-6 text-2xl font-black text-slate-900 dark:text-white">
                 No Services Found
               </h2>
 
@@ -843,7 +861,7 @@ export default function Services() {
                 <button
                   type="button"
                   onClick={openCreateForm}
-                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+                  className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
                 >
                   <Plus className="h-4 w-4" />
                   Add First Service
@@ -851,7 +869,7 @@ export default function Services() {
               )}
             </section>
           ) : (
-            <section className="grid gap-4 md:grid-cols-2">
+            <section className="grid gap-4 md:grid-cols-2 xl:gap-5">
               {paginatedServices.map((service) => (
                 <ServiceCard
                   key={service.id}
@@ -865,7 +883,7 @@ export default function Services() {
           )}
 
           {!loading && filteredServices.length > 0 && (
-            <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
+            <footer className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing{" "}
                 <strong className="text-slate-700 dark:text-slate-200">
@@ -886,7 +904,7 @@ export default function Services() {
                   type="button"
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                   disabled={page === 1}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -902,7 +920,7 @@ export default function Services() {
                     setPage((current) => Math.min(totalPages, current + 1))
                   }
                   disabled={page === totalPages}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -915,7 +933,7 @@ export default function Services() {
         <button
           type="button"
           onClick={openCreateForm}
-          className="fixed bottom-5 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl transition hover:bg-blue-700 sm:hidden"
+          className="fixed bottom-5 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/30 transition hover:-translate-y-0.5 hover:bg-blue-700 sm:hidden"
           aria-label="Add service"
         >
           <Plus className="h-6 w-6" />
@@ -951,14 +969,14 @@ function ServiceCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+    <article className="flex h-full flex-col rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:p-6">
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <span className="inline-flex max-w-full rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+          <span className="inline-flex max-w-full rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
             <span className="truncate">{service.category}</span>
           </span>
 
-          <h2 className="mt-3 wrap-break-word text-xl font-bold text-slate-900 dark:text-white">
+          <h2 className="mt-3 break-words text-xl font-black text-slate-900 dark:text-white">
             {service.service_name}
           </h2>
         </div>
@@ -984,16 +1002,16 @@ function ServiceCard({
         {service.description || "No description provided."}
       </p>
 
-      <div className="mt-5 flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
+      <div className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
         <PhilippinePeso className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
 
-        <span className="text-lg font-bold text-slate-900 dark:text-white">
+        <span className="text-lg font-black text-slate-900 dark:text-white">
           {formatCurrency(service.price)}
         </span>
       </div>
 
       {service.status === "Rejected" && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           Edit and resubmit this service for administrator review.
         </div>
       )}
@@ -1003,7 +1021,7 @@ function ServiceCard({
           type="button"
           onClick={onEdit}
           disabled={deleting}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100 disabled:translate-y-0 disabled:opacity-50 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
         >
           <Pencil className="h-4 w-4" />
           Edit
@@ -1013,7 +1031,7 @@ function ServiceCard({
           type="button"
           onClick={onDelete}
           disabled={deleting}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:translate-y-0 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
         >
           {deleting ? (
             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -1063,7 +1081,7 @@ function ServiceFormModal({
         }
       }}
     >
-      <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-2xl sm:rounded-[1.75rem] dark:border-slate-700 dark:bg-slate-900">
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6 dark:border-slate-700">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-300">
@@ -1072,7 +1090,7 @@ function ServiceFormModal({
 
             <h2
               id="service-form-title"
-              className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white"
+              className="mt-1 text-xl font-black text-slate-900 sm:text-2xl dark:text-white"
             >
               {editingService ? "Edit Service" : "Add a Service"}
             </h2>
@@ -1093,7 +1111,7 @@ function ServiceFormModal({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 lg:p-7">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Category" error={errors.category}>
               <input
@@ -1160,7 +1178,7 @@ function ServiceFormModal({
               </div>
             </Field>
 
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
               Editing an approved service changes its status back to Pending so
               an administrator can review it again.
             </div>
@@ -1195,7 +1213,7 @@ function ServiceFormModal({
             type="button"
             onClick={onReset}
             disabled={saving || !hasUnsavedChanges}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <RotateCcw className="h-4 w-4" />
             Reset
@@ -1205,7 +1223,7 @@ function ServiceFormModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-xl border border-slate-300 px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Cancel
           </button>
@@ -1214,7 +1232,7 @@ function ServiceFormModal({
             type="button"
             onClick={onSave}
             disabled={saving || !hasUnsavedChanges}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-36"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:min-w-36"
           >
             {saving ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -1273,10 +1291,10 @@ function CharacterCounter({
 }
 
 function inputClassName(hasError: boolean): string {
-  return `h-12 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-950 dark:text-white ${
+  return `h-12 w-full rounded-2xl border bg-slate-50 px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900 ${
     hasError
-      ? "border-red-400 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-950"
-      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:focus:ring-blue-950"
+      ? "border-red-400 focus:ring-4 focus:ring-red-500/10 dark:focus:ring-red-500/10"
+      : "border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:focus:ring-blue-500/10"
   }`;
 }
 
@@ -1292,19 +1310,19 @@ function StatCard({
   iconClassName: string;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-sm dark:text-slate-400">
             {label}
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-slate-900 sm:text-4xl dark:text-white">
+          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white sm:text-4xl">
             {value}
           </p>
         </div>
 
-        <div className={`hidden rounded-xl p-2.5 sm:block ${iconClassName}`}>
+        <div className={`hidden rounded-xl p-2.5 shadow-sm sm:block ${iconClassName}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

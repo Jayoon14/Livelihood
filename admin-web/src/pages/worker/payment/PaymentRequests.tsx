@@ -535,28 +535,37 @@ export default function PaymentRequests() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-screen bg-slate-50 p-3 sm:p-6 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={message.type === "error" ? "alert" : "status"}
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "error"
                   ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 {message.type === "error" && (
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 )}
-                <span>{message.text}</span>
+                <span className="min-w-0 leading-6">{message.text}</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setMessage(null)}
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -564,20 +573,29 @@ export default function PaymentRequests() {
             </div>
           )}
 
-          <header className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-600 via-indigo-600 to-violet-700 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
+          <header className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-blue-700 to-violet-700 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
 
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                   Payment Verification
                 </p>
 
-                <h1 className="mt-2 text-2xl font-bold sm:text-4xl">
+                <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                   Payment Requests
                 </h1>
 
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100 sm:text-base">
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
                   Review customer payment submissions and verify proof of
                   payment securely.
                 </p>
@@ -587,7 +605,7 @@ export default function PaymentRequests() {
                 type="button"
                 onClick={() => void handleRefresh()}
                 disabled={refreshing || !workerId}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur transition hover:bg-white/25 disabled:opacity-50 sm:w-auto"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:w-auto"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -598,7 +616,7 @@ export default function PaymentRequests() {
             </div>
           </header>
 
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard
               label="Pending"
               value={statistics.pending}
@@ -629,8 +647,8 @@ export default function PaymentRequests() {
             />
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
+          <section className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+            <div className="grid gap-3 lg:grid-cols-[1fr_240px]">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
@@ -639,14 +657,14 @@ export default function PaymentRequests() {
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search customer, booking, or reference..."
-                  className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                 />
 
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700"
                     aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
@@ -659,7 +677,7 @@ export default function PaymentRequests() {
                 onChange={(event) =>
                   setFilter(event.target.value as PaymentFilter)
                 }
-                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               >
                 <option value="All">All Requests</option>
                 <option value="Pending">Pending</option>
@@ -680,17 +698,17 @@ export default function PaymentRequests() {
               }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-96 animate-pulse rounded-2xl bg-slate-200 sm:rounded-3xl dark:bg-slate-800"
+                  className="h-80 animate-pulse rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 sm:h-96"
                 />
               ))}
             </section>
           ) : paginatedPayments.length === 0 ? (
-            <section className="rounded-2xl border border-slate-200 bg-white px-5 py-16 text-center shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white px-5 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:py-16">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300 sm:h-24 sm:w-24">
                 <Wallet className="h-10 w-10" />
               </div>
 
-              <h2 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="mt-6 text-2xl font-black text-slate-900 dark:text-white">
                 No Payment Requests
               </h2>
 
@@ -701,7 +719,7 @@ export default function PaymentRequests() {
               </p>
             </section>
           ) : (
-            <section className="space-y-4 sm:space-y-6">
+            <section className="space-y-4 sm:space-y-5">
               {paginatedPayments.map((payment) => (
                 <PaymentCard
                   key={payment.id}
@@ -717,7 +735,7 @@ export default function PaymentRequests() {
           )}
 
           {!loading && filteredPayments.length > 0 && (
-            <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
+            <footer className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing{" "}
                 <strong className="text-slate-700 dark:text-slate-200">
@@ -738,7 +756,7 @@ export default function PaymentRequests() {
                   type="button"
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                   disabled={page === 1}
-                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Previous
                 </button>
@@ -749,7 +767,7 @@ export default function PaymentRequests() {
                     setPage((current) => Math.min(totalPages, current + 1))
                   }
                   disabled={page === totalPages}
-                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                 >
                   Next
                 </button>
@@ -761,7 +779,7 @@ export default function PaymentRequests() {
 
       {rejectionTransaction && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="reject-payment-title"
@@ -771,12 +789,12 @@ export default function PaymentRequests() {
             }
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+          <div className="w-full max-w-lg rounded-t-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl sm:rounded-[1.75rem] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2
                   id="reject-payment-title"
-                  className="text-xl font-bold text-slate-900 dark:text-white"
+                  className="text-xl font-black text-slate-900 dark:text-white"
                 >
                   Reject Payment
                 </h2>
@@ -790,7 +808,7 @@ export default function PaymentRequests() {
               <button
                 type="button"
                 onClick={() => setRejectionTransaction(null)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="Close rejection dialog"
               >
                 <X className="h-5 w-5" />
@@ -808,7 +826,7 @@ export default function PaymentRequests() {
                 maxLength={300}
                 rows={5}
                 placeholder="Example: The uploaded receipt is unclear or the reference number does not match."
-                className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-red-950"
+                className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-900 outline-none transition focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               />
 
               <span className="mt-1 block text-right text-xs text-slate-400">
@@ -821,7 +839,7 @@ export default function PaymentRequests() {
                 type="button"
                 onClick={() => setRejectionTransaction(null)}
                 disabled={processingId !== null}
-                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
@@ -830,7 +848,7 @@ export default function PaymentRequests() {
                 type="button"
                 onClick={() => void handleReject()}
                 disabled={processingId !== null || !rejectionReason.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-red-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
               >
                 {processingId !== null && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -882,13 +900,13 @@ function PaymentCard({
   const isPending = payment.transaction_status === "Pending";
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-lg sm:rounded-3xl sm:p-7 dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <CustomerAvatar customer={payment.payment?.customer ?? null} />
 
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
+            <h2 className="truncate text-lg font-black text-slate-900 sm:text-xl dark:text-white">
               {customerName}
             </h2>
 
@@ -915,8 +933,8 @@ function PaymentCard({
         </span>
       </header>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_1.15fr_1fr]">
-        <div className="space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5 dark:bg-slate-800/50">
+      <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1.2fr_1fr]">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:p-5">
           <InfoRow
             icon={<Wallet className="h-4 w-4" />}
             label="Amount"
@@ -942,8 +960,8 @@ function PaymentCard({
           />
         </div>
 
-        <div className="rounded-2xl border border-slate-200 p-4 sm:p-5 dark:border-slate-700">
-          <h3 className="font-bold text-slate-900 dark:text-white">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+          <h3 className="font-black text-slate-900 dark:text-white">
             Proof of Payment
           </h3>
 
@@ -954,19 +972,19 @@ function PaymentCard({
                   <button
                     type="button"
                     onClick={() => onOpenProof(payment.proof_of_payment!)}
-                    className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
+                    className="group block w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
                   >
                     <img
                       src={payment.proof_of_payment}
                       alt={`Payment proof from ${customerName}`}
-                      className="h-56 w-full object-contain transition hover:scale-[1.02]"
+                      className="h-52 w-full object-contain transition duration-200 group-hover:scale-[1.02] sm:h-56"
                     />
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onOpenProof(payment.proof_of_payment!)}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                    className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
                   >
                     <Eye className="h-4 w-4" />
                     View Full Image
@@ -977,7 +995,7 @@ function PaymentCard({
                   href={payment.proof_of_payment}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
                 >
                   <Eye className="h-4 w-4" />
                   Open Payment Document
@@ -995,7 +1013,7 @@ function PaymentCard({
           </div>
         </div>
 
-        <div className="space-y-4 rounded-2xl bg-slate-50 p-4 sm:p-5 dark:bg-slate-800/50">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:p-5">
           <InfoRow
             icon={<CreditCard className="h-4 w-4" />}
             label="Method"
@@ -1025,12 +1043,12 @@ function PaymentCard({
       </div>
 
       {isPending && (
-        <footer className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-end">
+        <footer className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-200 pt-5 sm:flex sm:justify-end dark:border-slate-700">
           <button
             type="button"
             onClick={onReject}
             disabled={processing}
-            className="rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+            className="min-h-11 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-600 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
           >
             Reject
           </button>
@@ -1039,7 +1057,7 @@ function PaymentCard({
             type="button"
             onClick={onApprove}
             disabled={processing}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
           >
             {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
             Approve
@@ -1089,14 +1107,14 @@ function CustomerAvatar({
         alt={`${fullName || "Customer"} profile`}
         loading="lazy"
         onError={() => setImageError(true)}
-        className="h-14 w-14 shrink-0 rounded-full border border-slate-200 bg-slate-100 object-cover sm:h-16 sm:w-16 dark:border-slate-700 dark:bg-slate-800"
+        className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 bg-slate-100 object-cover shadow-sm sm:h-16 sm:w-16 dark:border-slate-700 dark:bg-slate-800"
       />
     );
   }
 
   return (
     <div
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-600 sm:h-16 sm:w-16 dark:bg-blue-500/15 dark:text-blue-300"
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-base font-black text-blue-600 shadow-sm sm:h-16 sm:w-16 dark:bg-blue-500/15 dark:text-blue-300"
       aria-label={`${fullName || "Customer"} profile fallback`}
     >
       {initials || <UserRound className="h-6 w-6" />}
@@ -1122,7 +1140,7 @@ function InfoRow({
           {label}
         </p>
 
-        <div className="mt-1 wrap-break-word text-sm font-semibold text-slate-800 dark:text-slate-200">
+        <div className="mt-1 break-words text-sm font-semibold text-slate-800 dark:text-slate-200">
           {value}
         </div>
       </div>
@@ -1144,15 +1162,15 @@ function StatCard({
   compact?: boolean;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-sm dark:text-slate-400">
             {label}
           </p>
 
           <p
-            className={`mt-2 truncate font-bold text-slate-900 dark:text-white ${
+            className={`mt-2 truncate font-black text-slate-900 dark:text-white ${
               compact ? "text-xl sm:text-3xl" : "text-2xl sm:text-4xl"
             }`}
           >
@@ -1160,7 +1178,7 @@ function StatCard({
           </p>
         </div>
 
-        <div className={`hidden rounded-xl p-2.5 sm:block ${iconClassName}`}>
+        <div className={`hidden rounded-xl p-2.5 shadow-sm sm:block ${iconClassName}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -1189,12 +1207,12 @@ function ProofViewer({
 }) {
   return (
     <div
-      className="fixed inset-0 z-60 flex flex-col bg-slate-950/95"
+      className="fixed inset-0 z-60 flex flex-col bg-slate-950/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Payment proof viewer"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-slate-950/80 p-3 backdrop-blur sm:p-4">
         <div className="flex flex-wrap gap-2">
           <ViewerButton label="Zoom in" onClick={onZoomIn}>
             <ZoomIn className="h-5 w-5" />
@@ -1225,7 +1243,7 @@ function ProofViewer({
           style={{
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
           }}
-          className="max-h-[75vh] max-w-full rounded-xl object-contain transition-transform duration-200"
+          className="max-h-[78vh] max-w-full rounded-xl object-contain shadow-2xl transition-transform duration-200"
         />
       </div>
     </div>
@@ -1245,7 +1263,7 @@ function ViewerButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-10 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-semibold text-white transition hover:bg-white/20"
+      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 px-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/20"
       aria-label={label}
       title={label}
     >

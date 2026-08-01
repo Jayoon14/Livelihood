@@ -5,10 +5,12 @@ import {
   Bell,
   CalendarCheck,
   CheckCircle2,
+  ChevronRight,
   Clock,
   Heart,
   MapPin,
   Search,
+  Loader2,
   Sparkles,
   Star,
   Wallet,
@@ -129,7 +131,7 @@ function AvailabilityBadge({
 }) {
   if (!online) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
         <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
         Offline
       </span>
@@ -138,7 +140,7 @@ function AvailabilityBadge({
 
   if (!available) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         Busy today
       </span>
@@ -146,7 +148,7 @@ function AvailabilityBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
       Available today
     </span>
@@ -155,16 +157,16 @@ function AvailabilityBadge({
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-48 rounded-3xl bg-slate-200" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="space-y-5 animate-pulse sm:space-y-6">
+      <div className="h-48 rounded-[1.75rem] bg-slate-200 dark:bg-slate-800 sm:h-56" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="h-32 rounded-2xl bg-slate-200" />
+          <div key={index} className="h-32 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800" />
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
-        <div className="h-80 rounded-3xl bg-slate-200" />
-        <div className="h-80 rounded-3xl bg-slate-200" />
+      <div className="grid gap-5 xl:grid-cols-[1.45fr_0.9fr]">
+        <div className="h-80 rounded-[1.75rem] bg-slate-200 dark:bg-slate-800" />
+        <div className="h-80 rounded-[1.75rem] bg-slate-200 dark:bg-slate-800" />
       </div>
     </div>
   );
@@ -185,6 +187,9 @@ export default function CustomerDashboard() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [customerName, setCustomerName] = useState("Customer");
   const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -422,36 +427,91 @@ export default function CustomerDashboard() {
     };
   }, [getVisibleWorkerIds, refreshWorkerStates]);
 
-  const filteredWorkers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return workers;
+  const filteredWorkers = useMemo(() => workers, [workers]);
 
-    return workers.filter((worker) => {
-      const text = [
-        worker.first_name,
-        worker.middle_name,
-        worker.last_name,
-        worker.services?.[0]?.category,
-        worker.services?.[0]?.service_name,
+  function getWorkerDisplayName(worker: any): string {
+    return (
+      [worker.first_name, worker.middle_name, worker.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      worker.email ||
+      "LivelihoodGo Worker"
+    );
+  }
+
+  function getWorkerImage(worker: any): string | null {
+    return (
+      worker.profile_picture?.trim?.() ||
+      worker.profile_image?.trim?.() ||
+      worker.avatar_url?.trim?.() ||
+      null
+    );
+  }
+
+  function getMatchingServices(worker: any): any[] {
+    const keyword = search.trim().toLowerCase();
+    const services = Array.isArray(worker.services) ? worker.services : [];
+
+    if (!keyword) {
+      return services.slice(0, 3);
+    }
+
+    const matching = services.filter((service: any) =>
+      [
+        service.service_name,
+        service.category,
+        service.description,
       ]
         .filter(Boolean)
         .join(" ")
-        .toLowerCase();
-      return text.includes(keyword);
+        .toLowerCase()
+        .includes(keyword),
+    );
+
+    return (matching.length > 0 ? matching : services).slice(0, 3);
+  }
+
+  function openWorkerProfile(workerId: string, serviceId?: string | number) {
+    setShowSearchResults(false);
+
+    navigate(`/customer/workers/${workerId}`, {
+      state: serviceId
+        ? {
+            selectedServiceId: serviceId,
+          }
+        : undefined,
     });
-  }, [search, workers]);
+  }
 
   async function submitSearch() {
     const keyword = search.trim();
-    if (!keyword) return;
+
+    if (!keyword) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
 
     try {
+      setSearching(true);
+      setError(null);
+
       const result = await searchDashboard(keyword);
-      setWorkers(result);
-      await refreshWorkerStates(result.map((worker) => String(worker.id)));
+
+      setSearchResults(result);
+      setShowSearchResults(true);
+
+      await refreshWorkerStates(
+        result.map((worker) => String(worker.id)),
+      );
     } catch (caughtError) {
       console.error(caughtError);
+      setSearchResults([]);
+      setShowSearchResults(true);
       setError("Unable to search workers right now.");
+    } finally {
+      setSearching(false);
     }
   }
 
@@ -524,76 +584,275 @@ export default function CustomerDashboard() {
   return (
     <CustomerLayout>
       <div
-        className="space-y-6 pb-8"
+        className="relative space-y-5 pb-8 sm:space-y-6"
         style={{ fontFamily: "'Inter', sans-serif" }}
       >
         {error && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50/95 p-4 text-sm font-semibold text-rose-700 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-200 sm:flex-row sm:items-center sm:justify-between">
             <span>{error}</span>
             <button
               onClick={() => void loadDashboard()}
-              className="font-semibold underline underline-offset-4"
+              className="font-bold underline underline-offset-4"
             >
               Try again
             </button>
           </div>
         )}
 
-        <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-[#1f2bd7] via-[#4f37e8] to-[#1687db] px-5 py-7 text-white shadow-xl shadow-indigo-200/50 sm:px-8 sm:py-9 lg:px-10">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, white 0 1px, transparent 1.5px)",
-              backgroundSize: "22px 22px",
-            }}
-          />
-          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <section className="relative z-30 overflow-visible rounded-[1.75rem] bg-linear-to-br from-[#1f2bd7] via-[#4f37e8] to-[#1687db] px-5 py-7 text-white shadow-[0_24px_70px_rgba(79,55,232,0.24)] sm:px-8 sm:py-9 lg:px-10">
+          {/* Decorative background stays clipped while search results can extend below the hero. */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.75rem]">
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 20% 20%, white 0 1px, transparent 1.5px)",
+                backgroundSize: "22px 22px",
+              }}
+            />
+            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
+          </div>
+
+          <div className="relative z-10 grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-blue-100">
+              <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                 Customer dashboard
               </p>
               <h1
-                className="mt-3 text-3xl font-extrabold sm:text-4xl"
+                className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl"
                 style={heading}
               >
                 Welcome back, {customerName} 👋
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
                 Find trusted workers, manage active bookings, and keep track of
                 every service from one place.
               </p>
 
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submitSearch();
-                }}
-                className="mt-6 flex max-w-2xl flex-col gap-2 rounded-2xl bg-white/10 p-2 backdrop-blur sm:flex-row"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-4">
-                  <Search className="h-5 w-5 shrink-0 text-slate-400" />
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search workers or services"
-                    className="h-12 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="h-12 rounded-xl bg-amber-400 px-6 text-sm font-bold text-slate-900 transition hover:bg-amber-300"
+              <div className="relative z-50 mt-6 max-w-2xl">
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submitSearch();
+                  }}
+                  className="flex flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 backdrop-blur-xl sm:flex-row"
                 >
-                  Find service
-                </button>
-              </form>
+                  <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-4 shadow-sm dark:bg-slate-900">
+                    <Search className="h-5 w-5 shrink-0 text-slate-400" />
+
+                    <input
+                      value={search}
+                      onChange={(event) => {
+                        setSearch(event.target.value);
+
+                        if (!event.target.value.trim()) {
+                          setSearchResults([]);
+                          setShowSearchResults(false);
+                        }
+                      }}
+                      placeholder="Search workers or services"
+                      className="h-12 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+                    />
+
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearch("");
+                          setSearchResults([]);
+                          setShowSearchResults(false);
+                        }}
+                        aria-label="Clear search"
+                        className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={searching || !search.trim()}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 text-sm font-black text-slate-900 shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 hover:bg-amber-300 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
+                  >
+                    {searching ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      "Find service"
+                    )}
+                  </button>
+                </form>
+
+                {showSearchResults && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-[100] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.28)] dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-5">
+                      <div>
+                        <p className="text-sm font-black">
+                          Search results
+                        </p>
+
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          {searchResults.length}{" "}
+                          {searchResults.length === 1 ? "worker" : "workers"} found
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowSearchResults(false)}
+                        aria-label="Close search results"
+                        className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                      >
+                        <XCircle className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {searchResults.length === 0 ? (
+                      <div className="px-5 py-9 text-center">
+                        <Search className="mx-auto h-8 w-8 text-slate-300" />
+
+                        <h3 className="mt-3 font-black text-slate-800 dark:text-white">
+                          No matching workers
+                        </h3>
+
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          Try another worker name, service, or category.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="max-h-[420px] overflow-y-auto overscroll-contain p-2 [scrollbar-width:thin]">
+                        {searchResults.map((worker) => {
+                          const workerId = String(worker.id);
+                          const workerName = getWorkerDisplayName(worker);
+                          const workerImage = getWorkerImage(worker);
+                          const matchingServices = getMatchingServices(worker);
+
+                          return (
+                            <article
+                              key={workerId}
+                              className="rounded-2xl border border-transparent p-3 transition hover:border-indigo-100 hover:bg-indigo-50/60 dark:hover:border-indigo-500/20 dark:hover:bg-indigo-500/10 sm:p-4"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => openWorkerProfile(workerId)}
+                                className="flex w-full items-center gap-3 text-left"
+                              >
+                                {workerImage ? (
+                                  <img
+                                    src={workerImage}
+                                    alt={workerName}
+                                    className="h-13 w-13 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                                  />
+                                ) : (
+                                  <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-lg font-black text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                                    {workerName.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="truncate font-black text-slate-900 dark:text-white">
+                                      {workerName}
+                                    </h3>
+
+                                    <AvailabilityBadge
+                                      online={Boolean(onlineStatus[workerId])}
+                                      available={Boolean(availability[workerId])}
+                                    />
+                                  </div>
+
+                                  <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                                    <span className="font-bold text-slate-700 dark:text-slate-200">
+                                      {Number(
+                                        worker.average_rating ??
+                                          ratings[workerId] ??
+                                          0,
+                                      ).toFixed(1)}
+                                    </span>
+                                    <span>rating</span>
+                                  </div>
+                                </div>
+
+                                <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+                              </button>
+
+                              <div className="mt-3 flex flex-wrap gap-2 pl-0 sm:pl-16">
+                                {matchingServices.length > 0 ? (
+                                  matchingServices.map((service: any) => (
+                                    <button
+                                      key={String(service.id)}
+                                      type="button"
+                                      onClick={() =>
+                                        openWorkerProfile(
+                                          workerId,
+                                          service.id,
+                                        )
+                                      }
+                                      className="inline-flex max-w-full items-center gap-2 rounded-xl border border-indigo-100 bg-white px-3 py-2 text-left text-xs font-bold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-500/20 dark:bg-slate-800 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
+                                    >
+                                      <span className="truncate">
+                                        {service.service_name ||
+                                          service.category ||
+                                          "View service"}
+                                      </span>
+
+                                      {Number.isFinite(
+                                        Number(service.price),
+                                      ) && (
+                                        <span className="shrink-0 text-slate-500 dark:text-slate-400">
+                                          {formatMoney(Number(service.price))}
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => openWorkerProfile(workerId)}
+                                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                  >
+                                    View worker profile
+                                  </button>
+                                )}
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {searchResults.length > 0 && (
+                      <div className="border-t border-slate-200 p-3 dark:border-slate-700">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSearchResults(false);
+                            navigate(
+                              `/customer/workers?search=${encodeURIComponent(
+                                search.trim(),
+                              )}`,
+                            );
+                          }}
+                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-black text-white transition hover:bg-indigo-700"
+                        >
+                          View all matching workers
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => navigate("/customer/workers")}
-                className="rounded-2xl border border-white/15 bg-white/10 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                className="rounded-2xl border border-white/15 bg-white/10 p-4 text-left backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/15"
               >
                 <Zap className="h-6 w-6 text-amber-300" />
                 <p className="mt-5 font-bold">Book a worker</p>
@@ -603,7 +862,7 @@ export default function CustomerDashboard() {
               </button>
               <button
                 onClick={() => navigate("/customer/bookings")}
-                className="rounded-2xl border border-white/15 bg-white/10 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/15"
+                className="rounded-2xl border border-white/15 bg-white/10 p-4 text-left backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/15"
               >
                 <CalendarCheck className="h-6 w-6 text-emerald-300" />
                 <p className="mt-5 font-bold">My bookings</p>
@@ -615,29 +874,29 @@ export default function CustomerDashboard() {
           </div>
         </section>
 
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
+        <section className="relative z-0 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
           {analyticsCards.map((card) => {
             const Icon = card.icon;
             return (
               <article
                 key={card.label}
-                className="min-h-37.5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"
+                className="min-h-37.5 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:p-5"
               >
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconClass}`}
                 >
                   <Icon className="h-5 w-5" />
                 </div>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-400">
                   {card.label}
                 </p>
                 <p
-                  className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl"
+                  className="mt-1 text-xl font-black text-slate-900 dark:text-white sm:text-2xl"
                   style={heading}
                 >
                   {card.value}
                 </p>
-                <p className="mt-2 hidden text-xs text-slate-500 sm:block">
+                <p className="mt-2 hidden text-xs leading-5 text-slate-500 dark:text-slate-400 sm:block">
                   {card.note}
                 </p>
               </article>
@@ -645,44 +904,44 @@ export default function CustomerDashboard() {
           })}
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.4fr_0.85fr]">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+        <section className="grid gap-5 xl:grid-cols-[1.4fr_0.85fr]">
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
                   Next appointment
                 </p>
                 <h2
-                  className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl"
+                  className="mt-2 text-xl font-black text-slate-900 dark:text-white sm:text-2xl"
                   style={heading}
                 >
                   Upcoming booking
                 </h2>
               </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
                 <Bell className="h-5 w-5" />
               </div>
             </div>
 
             {upcomingBooking ? (
-              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50">
                 <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
                     <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
                       {upcomingBooking.status || "Scheduled"}
                     </span>
                     <h3
-                      className="mt-4 text-lg font-extrabold text-slate-900"
+                      className="mt-4 text-lg font-black text-slate-900 dark:text-white"
                       style={heading}
                     >
                       {upcomingBooking.service?.service_name ||
                         "Booked service"}
                     </h3>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                       With {upcomingBooking.worker?.first_name || "your worker"}{" "}
                       {upcomingBooking.worker?.last_name || ""}
                     </p>
-                    <div className="mt-4 flex flex-wrap gap-3 text-xs font-medium text-slate-500">
+                    <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
                       <span className="inline-flex items-center gap-1.5">
                         <Clock className="h-4 w-4 text-indigo-500" />
                         {formatSchedule(
@@ -702,7 +961,7 @@ export default function CustomerDashboard() {
                     onClick={() =>
                       navigate(`/customer/bookings/${upcomingBooking.id}`)
                     }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white transition hover:bg-indigo-700"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-700"
                   >
                     View booking
                     <ArrowRight className="h-4 w-4" />
@@ -710,17 +969,17 @@ export default function CustomerDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
                 <CalendarCheck className="mx-auto h-8 w-8 text-slate-300" />
-                <h3 className="mt-3 font-bold text-slate-800">
+                <h3 className="mt-3 font-black text-slate-800 dark:text-white">
                   No upcoming booking
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Book a trusted worker when you need a service.
                 </p>
                 <button
                   onClick={() => navigate("/customer/workers")}
-                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white"
+                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-700"
                 >
                   Browse workers
                 </button>
@@ -728,17 +987,17 @@ export default function CustomerDashboard() {
             )}
           </div>
 
-          <aside className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+          <aside className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
             <div className="flex items-center justify-between">
               <h2
-                className="text-xl font-extrabold text-slate-900"
+                className="text-xl font-black text-slate-900 dark:text-white"
                 style={heading}
               >
                 Recent activity
               </h2>
               <button
                 onClick={() => navigate("/customer/bookings")}
-                className="text-xs font-bold text-indigo-600 hover:underline"
+                className="text-xs font-black text-indigo-600 hover:underline dark:text-indigo-400"
               >
                 View all
               </button>
@@ -746,7 +1005,7 @@ export default function CustomerDashboard() {
 
             <div className="mt-6 space-y-5">
               {activities.length === 0 ? (
-                <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">
+                <p className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
                   Your latest booking updates will appear here.
                 </p>
               ) : (
@@ -757,7 +1016,7 @@ export default function CustomerDashboard() {
                     className="group flex w-full gap-3 text-left"
                   >
                     <div className="relative flex flex-col items-center">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 ring-4 ring-white">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-4 ring-white dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-slate-900">
                         {item.status?.toLowerCase() === "cancelled" ? (
                           <XCircle className="h-4 w-4 text-rose-500" />
                         ) : (
@@ -765,20 +1024,20 @@ export default function CustomerDashboard() {
                         )}
                       </span>
                       {index < activities.length - 1 && (
-                        <span className="mt-1 h-8 w-px bg-slate-200" />
+                        <span className="mt-1 h-8 w-px bg-slate-200 dark:bg-slate-700" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1 pb-1">
-                      <p className="text-sm font-bold text-slate-800 group-hover:text-indigo-600">
+                      <p className="text-sm font-black text-slate-800 transition group-hover:text-indigo-600 dark:text-slate-200 dark:group-hover:text-indigo-400">
                         {activityLabel(item)}
                       </p>
-                      <p className="mt-1 truncate text-xs text-slate-500">
+                      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                         {item.service?.service_name || "Service booking"}
                         {item.worker?.first_name
                           ? ` • ${item.worker.first_name} ${item.worker.last_name || ""}`
                           : ""}
                       </p>
-                      <p className="mt-1 text-[11px] text-slate-400">
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                         {timeAgo(item.created_at)}
                       </p>
                     </div>
@@ -790,17 +1049,17 @@ export default function CustomerDashboard() {
         </section>
 
         {recommendedWorkers.length > 0 && (
-          <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="flex items-center gap-2 text-indigo-600">
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
                   <Sparkles className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-[0.18em]">
+                  <span className="text-xs font-black uppercase tracking-[0.14em]">
                     Personalized
                   </span>
                 </div>
                 <h2
-                  className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl"
+                  className="mt-2 text-xl font-black text-slate-900 dark:text-white sm:text-2xl"
                   style={heading}
                 >
                   Recommended for you
@@ -808,7 +1067,7 @@ export default function CustomerDashboard() {
               </div>
               <button
                 onClick={() => navigate("/customer/workers")}
-                className="text-sm font-bold text-indigo-600 hover:underline"
+                className="text-sm font-black text-indigo-600 hover:underline dark:text-indigo-400"
               >
                 Explore all workers
               </button>
@@ -818,9 +1077,9 @@ export default function CustomerDashboard() {
               {recommendedWorkers.slice(0, 3).map((worker) => (
                 <article
                   key={worker.id}
-                  className="overflow-hidden rounded-2xl border border-slate-100 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                  className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900"
                 >
-                  <div className="relative h-44 bg-slate-100">
+                  <div className="relative h-44 overflow-hidden bg-slate-100 dark:bg-slate-800">
                     <img
                       src={
                         worker.profile?.profile_picture ||
@@ -839,25 +1098,25 @@ export default function CustomerDashboard() {
                   </div>
                   <div className="p-5">
                     <h3
-                      className="font-extrabold text-slate-900"
+                      className="font-black text-slate-900 dark:text-white"
                       style={heading}
                     >
                       {[worker.first_name, worker.last_name]
                         .filter(Boolean)
                         .join(" ") || "Worker"}
                     </h3>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                       {worker.services?.[0]?.category ||
                         worker.services?.[0]?.service_name ||
                         "Professional service"}
                     </p>
-                    <div className="mt-3 flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                    <div className="mt-3 flex items-center gap-1.5 text-sm font-black text-slate-700 dark:text-slate-300">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                       {ratings[worker.id] ?? 0}
                     </div>
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="mt-5 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-600"
+                      className="mt-5 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-slate-700 dark:hover:bg-indigo-600"
                     >
                       View profile
                     </button>
@@ -868,7 +1127,7 @@ export default function CustomerDashboard() {
           </section>
         )}
 
-        <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+        <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2
@@ -877,13 +1136,13 @@ export default function CustomerDashboard() {
               >
                 Featured workers
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Trusted professionals ready to help.
               </p>
             </div>
             <button
               onClick={() => navigate("/customer/workers")}
-              className="shrink-0 text-sm font-bold text-indigo-600 hover:underline"
+              className="shrink-0 text-sm font-black text-indigo-600 hover:underline dark:text-indigo-400"
             >
               View all
             </button>
@@ -893,9 +1152,9 @@ export default function CustomerDashboard() {
             {filteredWorkers.map((worker) => (
               <article
                 key={worker.id}
-                className="group overflow-hidden rounded-2xl border border-slate-100 bg-white transition hover:-translate-y-1 hover:shadow-lg"
+                className="group overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900"
               >
-                <div className="relative h-40 overflow-hidden bg-slate-100">
+                <div className="relative h-40 overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img
                     src={
                       worker.profile_picture || "https://placehold.co/600x400"
@@ -906,7 +1165,7 @@ export default function CustomerDashboard() {
                   <button
                     onClick={() => void toggleFavorite(String(worker.id))}
                     aria-label="Toggle favorite worker"
-                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md transition hover:scale-105"
+                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-md transition hover:-translate-y-0.5 dark:bg-slate-900"
                   >
                     <Heart
                       className={`h-4 w-4 ${
@@ -921,7 +1180,7 @@ export default function CustomerDashboard() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3
-                        className="truncate font-extrabold text-slate-900"
+                        className="truncate font-black text-slate-900 dark:text-white"
                         style={heading}
                       >
                         {[
@@ -937,7 +1196,7 @@ export default function CustomerDashboard() {
                           "Professional service"}
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-bold text-slate-700">
+                    <span className="inline-flex items-center gap-1 text-sm font-black text-slate-700 dark:text-slate-300">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                       {ratings[worker.id] ?? 0}
                     </span>
@@ -951,7 +1210,7 @@ export default function CustomerDashboard() {
                   <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
+                      className="rounded-xl bg-indigo-600 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-700"
                     >
                       View profile
                     </button>
@@ -959,7 +1218,7 @@ export default function CustomerDashboard() {
                       onClick={() =>
                         navigate(`/customer/compare?worker=${worker.id}`)
                       }
-                      className="rounded-xl bg-slate-100 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+                      className="rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       Compare
                     </button>
@@ -971,14 +1230,14 @@ export default function CustomerDashboard() {
         </section>
 
         {recentWorkers.length > 0 && (
-          <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
             <h2
-              className="text-xl font-extrabold text-slate-900"
+              className="text-xl font-black text-slate-900 dark:text-white"
               style={heading}
             >
               Recently viewed
             </h2>
-            <div className="mt-5 flex gap-3 overflow-x-auto pb-2">
+            <div className="mt-5 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
               {recentWorkers.map((item: any) => {
                 const worker = item.worker;
                 if (!worker) return null;
@@ -986,7 +1245,7 @@ export default function CustomerDashboard() {
                   <button
                     key={worker.id}
                     onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                    className="flex min-w-55 items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/40"
+                    className="flex min-w-55 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-indigo-500/10"
                   >
                     <img
                       src={
@@ -996,12 +1255,12 @@ export default function CustomerDashboard() {
                       className="h-12 w-12 rounded-xl object-cover"
                     />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-800">
+                      <p className="truncate text-sm font-black text-slate-800 dark:text-slate-200">
                         {[worker.first_name, worker.last_name]
                           .filter(Boolean)
                           .join(" ") || "Worker"}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {onlineStatus[worker.id]
                           ? "Online now"
                           : "View profile"}

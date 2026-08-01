@@ -696,13 +696,22 @@ export default function ChatRoom() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-lg">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative flex w-full max-w-md flex-col items-center gap-3 rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-500/15 dark:text-blue-300">
             <LoaderCircle className="h-7 w-7 animate-spin text-blue-600" />
           </div>
 
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
             Loading conversation...
           </p>
         </div>
@@ -712,17 +721,26 @@ export default function ChatRoom() {
 
   if (!context) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 p-5">
-        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
             <MessageCircleIcon />
           </div>
 
-          <h1 className="mt-5 text-xl font-bold text-slate-900">
+          <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
             Chat unavailable
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
             {error ||
               "This conversation could not be opened."}
           </p>
@@ -730,7 +748,7 @@ export default function ChatRoom() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="mt-6 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="mt-6 min-h-11 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
           >
             Go back
           </button>
@@ -740,15 +758,24 @@ export default function ChatRoom() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-0 sm:p-3">
-      <div className="mx-auto flex h-screen w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[calc(100vh-1.5rem)] sm:rounded-[28px] sm:border sm:border-slate-200/80">
+    <div className="relative min-h-screen overflow-hidden bg-slate-100 p-0 dark:bg-slate-950 sm:p-3">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 hidden opacity-[0.03] dark:opacity-[0.018] sm:block"
+        style={{
+          backgroundImage:
+            "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+          backgroundSize: "42px 42px",
+        }}
+      />
+      <div className="relative mx-auto flex h-dvh w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-950 sm:h-[calc(100dvh-1.5rem)] sm:rounded-[2rem] sm:border sm:border-slate-200/80 dark:sm:border-slate-800">
         {/* Chat Header */}
-        <header className="relative z-20 flex min-h-20.5 items-center gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-6">
+        <header className="relative z-20 flex min-h-[76px] items-center gap-3 border-b border-slate-200/80 bg-white/95 px-3 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 lg:px-6">
           <button
             type="button"
             onClick={() => navigate(-1)}
             aria-label="Go back"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -757,11 +784,11 @@ export default function ChatRoom() {
             <img
               src={profilePicture}
               alt={otherName}
-              className="h-12 w-12 rounded-full border border-white object-cover shadow-sm ring-2 ring-slate-100"
+              className="h-12 w-12 rounded-2xl border border-white object-cover shadow-sm ring-2 ring-slate-100 dark:border-slate-900 dark:ring-slate-700"
             />
 
             <span
-              className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white ${
+              className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-slate-900 ${
                 otherOnline
                   ? "bg-emerald-500"
                   : "bg-slate-400"
@@ -771,7 +798,7 @@ export default function ChatRoom() {
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <h1 className="truncate text-[15px] font-bold text-slate-900 sm:text-base">
+              <h1 className="truncate text-[15px] font-black text-slate-900 dark:text-white sm:text-base">
                 {otherName}
               </h1>
 
@@ -786,7 +813,7 @@ export default function ChatRoom() {
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
                   </span>
 
-                  <p className="truncate text-xs font-medium text-blue-600">
+                  <p className="truncate text-xs font-bold text-blue-600 dark:text-blue-300">
                     typing...
                   </p>
                 </>
@@ -794,12 +821,12 @@ export default function ChatRoom() {
                 <>
                   <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500" />
 
-                  <p className="truncate text-xs font-medium text-emerald-600">
+                  <p className="truncate text-xs font-bold text-emerald-600 dark:text-emerald-300">
                     Active now
                   </p>
                 </>
               ) : (
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                   {formatLastSeen(otherLastSeen)}
                 </p>
               )}
@@ -810,7 +837,7 @@ export default function ChatRoom() {
             <button
               type="button"
               aria-label="Search conversation"
-              className="hidden h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 sm:flex"
+              className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 sm:flex"
             >
               <Search className="h-5 w-5" />
             </button>
@@ -818,7 +845,7 @@ export default function ChatRoom() {
             <button
               type="button"
               aria-label="Start voice call"
-              className="hidden h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 md:flex"
+              className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 md:flex"
             >
               <Phone className="h-5 w-5" />
             </button>
@@ -826,7 +853,7 @@ export default function ChatRoom() {
             <button
               type="button"
               aria-label="Start video call"
-              className="hidden h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 md:flex"
+              className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 md:flex"
             >
               <Video className="h-5 w-5" />
             </button>
@@ -834,7 +861,7 @@ export default function ChatRoom() {
             <button
               type="button"
               aria-label="Conversation options"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               <MoreVertical className="h-5 w-5" />
             </button>
@@ -842,38 +869,38 @@ export default function ChatRoom() {
         </header>
 
         {/* Booking Information */}
-        <div className="flex items-center justify-between border-b border-slate-200/70 bg-blue-50/60 px-4 py-2 sm:px-6">
+        <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/70 px-4 py-2.5 dark:border-blue-500/20 dark:bg-blue-500/10 sm:px-6">
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-blue-700">
+            <p className="truncate text-xs font-black uppercase tracking-wide text-blue-700 dark:text-blue-300">
               Booking #{context.id}
             </p>
           </div>
 
-          <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold capitalize text-blue-700">
+          <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-black capitalize text-blue-700 shadow-sm dark:border-blue-500/30 dark:bg-slate-900 dark:text-blue-300">
             {context.status}
           </span>
         </div>
 
         {/* Messages */}
         <main
-          className="flex-1 overflow-y-auto px-3 py-5 sm:px-6"
+          className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-width:thin] sm:px-6 sm:py-5"
           style={{
             backgroundImage:
               "radial-gradient(circle at top left, rgba(59,130,246,0.06), transparent 30%), radial-gradient(circle at bottom right, rgba(99,102,241,0.05), transparent 35%)",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "transparent",
           }}
         >
           {messages.length === 0 ? (
             <div className="mx-auto flex min-h-[55vh] max-w-sm flex-col items-center justify-center text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 shadow-sm">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 shadow-sm dark:bg-blue-500/15 dark:text-blue-300">
                 <Send className="h-7 w-7" />
               </div>
 
-              <h2 className="mt-5 text-lg font-bold text-slate-900">
+              <h2 className="mt-5 text-lg font-black text-slate-900 dark:text-white">
                 Start your conversation
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                 Ask questions, send booking details, or
                 share important files with {otherName}.
               </p>
@@ -915,15 +942,15 @@ export default function ChatRoom() {
                 <div key={item.id}>
                   {showDay && (
                     <div className="my-6 flex items-center gap-3">
-                      <div className="h-px flex-1 bg-slate-200" />
+                      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
 
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                         {formatDay(
                           item.created_at,
                         )}
                       </span>
 
-                      <div className="h-px flex-1 bg-slate-200" />
+                      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                     </div>
                   )}
 
@@ -944,7 +971,7 @@ export default function ChatRoom() {
                           <img
                             src={profilePicture}
                             alt={otherName}
-                            className="h-8 w-8 rounded-full border border-white object-cover shadow-sm"
+                            className="h-8 w-8 rounded-xl border border-white object-cover shadow-sm dark:border-slate-900"
                           />
                         )}
                       </div>
@@ -959,7 +986,7 @@ export default function ChatRoom() {
                     >
                       {!mine &&
                         !sameSenderAsPrevious && (
-                          <p className="mb-1 ml-1 text-[11px] font-semibold text-slate-500">
+                          <p className="mb-1 ml-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
                             {otherName}
                           </p>
                         )}
@@ -972,7 +999,7 @@ export default function ChatRoom() {
                                   ? "rounded-2xl rounded-br-md"
                                   : "rounded-2xl rounded-br-md"
                               }`
-                            : `border border-slate-200 bg-white text-slate-800 ${
+                            : `border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${
                                 sameSenderAsNext
                                   ? "rounded-2xl rounded-bl-md"
                                   : "rounded-2xl rounded-bl-md"
@@ -995,7 +1022,7 @@ export default function ChatRoom() {
                         )}
 
                         {item.message && (
-                          <p className="whitespace-pre-wrap wrap-break-word px-4 pt-3 text-sm leading-6">
+                          <p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">
                             {item.message}
                           </p>
                         )}
@@ -1008,21 +1035,21 @@ export default function ChatRoom() {
                             className={`m-2 flex min-w-57.5 items-center gap-3 rounded-xl p-3 transition ${
                               mine
                                 ? "bg-white/15 hover:bg-white/20"
-                                : "bg-slate-100 hover:bg-slate-200"
+                                : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                             }`}
                           >
                             <div
                               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                                 mine
                                   ? "bg-white/15"
-                                  : "bg-white text-blue-600 shadow-sm"
+                                  : "bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-300"
                               }`}
                             >
                               <FileText className="h-5 w-5" />
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold">
+                              <p className="truncate text-sm font-bold">
                                 {item.file_name ||
                                   "Attachment"}
                               </p>
@@ -1087,10 +1114,10 @@ export default function ChatRoom() {
               <img
                 src={profilePicture}
                 alt=""
-                className="h-8 w-8 rounded-full border border-white object-cover shadow-sm"
+                className="h-8 w-8 rounded-xl border border-white object-cover shadow-sm dark:border-slate-900"
               />
 
-              <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
@@ -1102,17 +1129,17 @@ export default function ChatRoom() {
         </main>
 
         {/* Message Composer */}
-        <footer className="border-t border-slate-200/80 bg-white px-3 py-3 sm:px-5 sm:py-4">
+        <footer className="border-t border-slate-200/80 bg-white/95 px-3 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 sm:py-4">
           {error && (
-            <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-sm font-medium text-red-700">
+            <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/30">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-300">
                 {error}
               </p>
 
               <button
                 type="button"
                 onClick={() => setError("")}
-                className="shrink-0 text-xs font-bold text-red-600 hover:text-red-800"
+                className="shrink-0 text-xs font-bold text-red-600 hover:text-red-800 dark:text-red-300 dark:hover:text-red-200"
               >
                 Close
               </button>
@@ -1120,7 +1147,7 @@ export default function ChatRoom() {
           )}
 
           {uploading && (
-            <div className="mb-3 flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
               <LoaderCircle className="h-4 w-4 animate-spin" />
               Uploading attachment...
             </div>
@@ -1130,7 +1157,7 @@ export default function ChatRoom() {
             <div className="flex shrink-0 items-center">
               <label
                 aria-label="Upload image"
-                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 ${
+                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
                   uploading
                     ? "pointer-events-none opacity-50"
                     : ""
@@ -1149,7 +1176,7 @@ export default function ChatRoom() {
 
               <label
                 aria-label="Upload file"
-                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 ${
+                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
                   uploading
                     ? "pointer-events-none opacity-50"
                     : ""
@@ -1167,7 +1194,7 @@ export default function ChatRoom() {
               </label>
             </div>
 
-            <div className="flex min-h-12 flex-1 items-end rounded-2xl border border-slate-300 bg-slate-50 px-4 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-100/70">
+            <div className="flex min-h-12 flex-1 items-end rounded-2xl border border-slate-200 bg-slate-50 px-4 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:bg-slate-900">
               <textarea
                 ref={textareaRef}
                 value={message}
@@ -1178,7 +1205,7 @@ export default function ChatRoom() {
                 rows={1}
                 maxLength={2000}
                 placeholder={`Message ${otherName}...`}
-                className="max-h-32 min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="max-h-32 min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
               />
 
               {message.length > 0 && (
@@ -1197,7 +1224,7 @@ export default function ChatRoom() {
               }
               onClick={() => void handleSend()}
               aria-label="Send message"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 transition hover:scale-105 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:bg-none disabled:bg-slate-300 disabled:shadow-none disabled:hover:scale-100"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-none disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
             >
               {sending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" />
@@ -1207,7 +1234,7 @@ export default function ChatRoom() {
             </button>
           </div>
 
-          <p className="mt-2 hidden pl-24 text-[10px] text-slate-400 sm:block">
+          <p className="mt-2 hidden pl-24 text-[10px] font-medium text-slate-400 dark:text-slate-500 sm:block">
             Enter to send · Shift + Enter for a new
             line
           </p>

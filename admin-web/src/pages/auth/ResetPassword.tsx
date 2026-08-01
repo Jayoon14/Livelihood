@@ -32,33 +32,21 @@ export default function ResetPassword() {
   useEffect(() => {
     let active = true;
 
-    async function checkSession() {
+    async function checkRecoverySession() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (active) {
-        setValidRecoverySession(Boolean(session));
-        setCheckingSession(false);
-      }
-    }
-
-    void checkSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
 
-      if (event === "PASSWORD_RECOVERY" || session) {
-        setValidRecoverySession(true);
-        setCheckingSession(false);
-      }
-    });
+      setValidRecoverySession(Boolean(session));
+      setCheckingSession(false);
+    }
+
+    void checkRecoverySession();
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, []);
 
@@ -95,6 +83,8 @@ export default function ResetPassword() {
       setSuccess(true);
       toast.success("Password updated successfully.");
 
+      await supabase.auth.signOut();
+
       window.setTimeout(() => {
         navigate("/", { replace: true });
       }, 1800);
@@ -119,7 +109,7 @@ export default function ResetPassword() {
           secure password.
         </>
       }
-      heroDescription="Protect your LivelihoodGo account with a password that is unique and difficult to guess."
+      heroDescription="Your recovery code was verified. Create a new password for your LivelihoodGo account."
       features={[
         {
           icon: ShieldCheck,
@@ -130,12 +120,14 @@ export default function ResetPassword() {
           text: "Use a password you do not use on another account.",
         },
       ]}
+      desktopBackgroundImage="/auth/workshop-login-background.png"
+      floatingCard
     >
       {checkingSession ? (
         <div className="py-14 text-center">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" />
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-            Verifying your reset link...
+            Verifying your recovery session...
           </p>
         </div>
       ) : !validRecoverySession ? (
@@ -148,29 +140,31 @@ export default function ResetPassword() {
             className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
             style={{ fontFamily: "'Sora', sans-serif" }}
           >
-            Reset link expired
+            Verification required
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            This reset link is invalid, expired, or has already been used.
+            Verify the recovery code first before creating a new password.
           </p>
 
           <Link
             to="/forgot-password"
             className="mt-7 flex h-12 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700"
           >
-            Request another link
+            Request recovery code
           </Link>
         </div>
       ) : success ? (
         <div className="py-8 text-center">
           <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
+
           <h1
             className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
             style={{ fontFamily: "'Sora', sans-serif" }}
           >
             Password updated
           </h1>
+
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
             Redirecting you to the login page...
           </p>
@@ -183,7 +177,7 @@ export default function ResetPassword() {
             </div>
 
             <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
-              Account security
+              Recovery verified
             </p>
 
             <h1
@@ -224,6 +218,7 @@ export default function ResetPassword() {
                 <span className="font-semibold text-slate-700 dark:text-slate-200">
                   Password strength
                 </span>
+
                 <span
                   className={`font-bold ${
                     strength === "Strong"
@@ -358,7 +353,11 @@ function Requirement({ ok, text }: { ok: boolean; text: string }) {
           ok ? "bg-emerald-500/15" : "bg-slate-500/10"
         }`}
       >
-        {ok ? <Check size={13} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+        {ok ? (
+          <Check size={13} />
+        ) : (
+          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        )}
       </span>
       {text}
     </div>

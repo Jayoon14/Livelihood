@@ -117,6 +117,7 @@ const WORKER_WITH_SERVICES_SELECT = `
     id,
     category,
     service_name,
+    description,
     price
   )
 `;
@@ -623,23 +624,17 @@ export async function searchDashboard(
     throw new Error("Minimum price cannot be greater than maximum price.");
   }
 
-  let query = supabase
+  /*
+   * Fetch approved workers with their services first. Supabase/PostgREST
+   * cannot reliably apply a profile-level OR filter to nested service
+   * fields in the same expression, so the combined profile and service
+   * search is performed safely after the records are loaded.
+   */
+  const { data, error } = await supabase
     .from("profiles")
     .select(WORKER_WITH_SERVICES_SELECT)
     .eq("role", "worker")
     .eq("status", WORKER_STATUS.APPROVED);
-
-  const normalizedKeyword = keyword.trim();
-
-  if (normalizedKeyword) {
-    const escapedKeyword = normalizedKeyword.replace(/[%(),]/g, "");
-
-    query = query.or(
-      `first_name.ilike.%${escapedKeyword}%,last_name.ilike.%${escapedKeyword}%,email.ilike.%${escapedKeyword}%`,
-    );
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     throw error;
@@ -647,12 +642,46 @@ export async function searchDashboard(
 
   let workers = (data ?? []).map(normalizeWorkerWithServices);
 
-  const normalizedCategory = category.trim();
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase();
+
+  if (normalizedKeyword) {
+    workers = workers.filter((worker) => {
+      const profileSearchText = [
+        worker.first_name,
+        worker.middle_name,
+        worker.last_name,
+        worker.email,
+      ]
+        .filter((value): value is string => typeof value === "string")
+        .join(" ")
+        .toLocaleLowerCase();
+
+      const profileMatches = profileSearchText.includes(normalizedKeyword);
+
+      const serviceMatches = worker.services.some((service) => {
+        const serviceSearchText = [
+          service.service_name,
+          service.category,
+          service.description,
+        ]
+          .filter((value): value is string => typeof value === "string")
+          .join(" ")
+          .toLocaleLowerCase();
+
+        return serviceSearchText.includes(normalizedKeyword);
+      });
+
+      return profileMatches || serviceMatches;
+    });
+  }
+
+  const normalizedCategory = category.trim().toLocaleLowerCase();
 
   if (normalizedCategory) {
     workers = workers.filter((worker) =>
       worker.services.some(
-        (service) => service.category === normalizedCategory,
+        (service) =>
+          service.category?.trim().toLocaleLowerCase() === normalizedCategory,
       ),
     );
   }

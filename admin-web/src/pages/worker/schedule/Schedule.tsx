@@ -727,9 +727,18 @@ export default function Schedule() {
   if (loading) {
     return (
       <WorkerLayout>
-        <main className="min-h-screen bg-slate-50 p-3 sm:p-6 lg:p-8 dark:bg-slate-950">
-          <div className="mx-auto max-w-7xl animate-pulse space-y-6">
-            <div className="h-44 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+        <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+              backgroundSize: "42px 42px",
+            }}
+          />
+          <div className="relative mx-auto max-w-7xl animate-pulse space-y-5 sm:space-y-6">
+            <div className="h-48 rounded-[1.75rem] bg-slate-200 dark:bg-slate-800 sm:h-56" />
 
             <div className="grid gap-4 md:grid-cols-2">
               {Array.from({
@@ -737,7 +746,7 @@ export default function Schedule() {
               }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-48 rounded-2xl bg-slate-200 dark:bg-slate-800"
+                  className="h-44 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 sm:h-48"
                 />
               ))}
             </div>
@@ -749,8 +758,17 @@ export default function Schedule() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-screen bg-slate-50 p-3 pb-28 sm:p-6 sm:pb-8 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 pb-32 sm:p-5 sm:pb-10 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={
@@ -758,13 +776,13 @@ export default function Schedule() {
                   ? "alert"
                   : "status"
               }
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "success"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
                   : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 {message.type ===
                 "success" ? (
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -772,7 +790,7 @@ export default function Schedule() {
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 )}
 
-                <span>{message.text}</span>
+                <span className="min-w-0 leading-6">{message.text}</span>
               </div>
 
               <button
@@ -780,7 +798,7 @@ export default function Schedule() {
                 onClick={() =>
                   setMessage(null)
                 }
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -788,26 +806,35 @@ export default function Schedule() {
             </div>
           )}
 
-          <header className="relative overflow-hidden rounded-2xl bg-linear-to-r from-blue-600 via-blue-500 to-indigo-600 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-white/10" />
+          <header className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-blue-700 to-indigo-600 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
 
-            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="hidden rounded-2xl bg-white/15 p-4 backdrop-blur sm:block">
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="hidden rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur sm:block">
                   <CalendarDays className="h-8 w-8" />
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100 sm:text-sm">
+                  <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                     Availability Management
                   </p>
 
-                  <h1 className="mt-2 text-2xl font-bold sm:text-4xl">
+                  <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                     My Schedule
                   </h1>
 
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
                     Set your weekly working hours
                     and block dates when you are
                     unavailable.
@@ -815,13 +842,13 @@ export default function Schedule() {
                 </div>
               </div>
 
-              <div className="flex w-full items-center justify-between gap-4 rounded-2xl bg-white/15 p-4 backdrop-blur sm:w-auto sm:min-w-56 sm:p-5">
+              <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-xl sm:w-auto sm:min-w-64 sm:p-5">
                 <div>
                   <p className="text-sm text-blue-100">
                     Active Days
                   </p>
 
-                  <p className="mt-1 text-3xl font-bold">
+                  <p className="mt-1 text-3xl font-black">
                     {activeDays}/7
                   </p>
                 </div>
@@ -834,7 +861,7 @@ export default function Schedule() {
                   disabled={
                     refreshing || busy
                   }
-                  className="rounded-xl bg-white/15 p-3 transition hover:bg-white/25 disabled:opacity-50"
+                  className="rounded-xl border border-white/15 bg-white/10 p-3 transition hover:-translate-y-0.5 hover:bg-white/20 disabled:translate-y-0 disabled:opacity-50"
                   aria-label="Refresh schedule"
                 >
                   <RefreshCw
@@ -849,10 +876,10 @@ export default function Schedule() {
             </div>
           </header>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-8 dark:border-slate-700 dark:bg-slate-900">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6 lg:p-8">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+                <h2 className="text-xl font-black text-slate-900 sm:text-2xl dark:text-white">
                   Weekly Availability
                 </h2>
 
@@ -863,7 +890,7 @@ export default function Schedule() {
               </div>
 
               {hasUnsavedChanges && (
-                <span className="self-start rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                <span className="self-start rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                   Unsaved changes
                 </span>
               )}
@@ -874,14 +901,14 @@ export default function Schedule() {
                 (item, index) => (
                   <article
                     key={item.day_of_week}
-                    className={`rounded-2xl border p-4 transition sm:p-5 ${
+                    className={`rounded-[1.5rem] border p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-5 ${
                       item.is_available
                         ? "border-blue-200 bg-blue-50/40 dark:border-blue-500/30 dark:bg-blue-950/20"
                         : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
+                      <div className="relative z-10 flex items-center gap-3">
                         <div
                           className={`rounded-xl p-2.5 ${
                             item.is_available
@@ -893,7 +920,7 @@ export default function Schedule() {
                         </div>
 
                         <div>
-                          <h3 className="font-bold text-slate-900 dark:text-white">
+                          <h3 className="font-black text-slate-900 dark:text-white">
                             {item.day_of_week}
                           </h3>
 
@@ -934,7 +961,7 @@ export default function Schedule() {
                             },
                           )
                         }
-                        className={`relative h-8 w-14 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 ${
+                        className={`relative h-8 w-14 rounded-full transition focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:opacity-50 ${
                           item.is_available
                             ? "bg-blue-600"
                             : "bg-slate-300 dark:bg-slate-600"
@@ -1000,7 +1027,7 @@ export default function Schedule() {
                   !hasUnsavedChanges ||
                   busy
                 }
-                className="rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="min-h-11 rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Reset
               </button>
@@ -1014,7 +1041,7 @@ export default function Schedule() {
                   !hasUnsavedChanges ||
                   busy
                 }
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
               >
                 <Save className="h-4 w-4" />
 
@@ -1025,15 +1052,24 @@ export default function Schedule() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-            <header className="bg-linear-to-r from-red-500 to-pink-500 px-5 py-6 text-white sm:px-8">
+          <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <header className="relative overflow-hidden bg-linear-to-br from-red-600 via-rose-600 to-pink-500 px-5 py-6 text-white sm:px-8 sm:py-7">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-[0.08]"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                  backgroundSize: "34px 34px",
+                }}
+              />
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/15 p-2.5">
                   <CalendarDays className="h-6 w-6" />
                 </div>
 
                 <div>
-                  <h2 className="text-xl font-bold sm:text-2xl">
+                  <h2 className="text-xl font-black sm:text-2xl">
                     Unavailable Dates
                   </h2>
 
@@ -1063,7 +1099,7 @@ export default function Schedule() {
                         event.target.value,
                       )
                     }
-                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-red-950"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                   />
                 </label>
 
@@ -1105,7 +1141,7 @@ export default function Schedule() {
                   disabled={
                     busy || !newDate
                   }
-                  className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 self-end rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
                 >
                   <Plus className="h-4 w-4" />
                   {addingDate
@@ -1115,12 +1151,12 @@ export default function Schedule() {
               </div>
 
               {dates.length === 0 ? (
-                <div className="mt-8 rounded-2xl border border-dashed border-slate-300 px-5 py-12 text-center dark:border-slate-700">
-                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-500/15 dark:text-red-300">
+                <div className="mt-8 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50/60 px-5 py-12 text-center dark:border-slate-700 dark:bg-slate-800/30">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-red-50 text-red-500 dark:bg-red-500/15 dark:text-red-300">
                     <CalendarDays className="h-9 w-9" />
                   </div>
 
-                  <h3 className="mt-5 text-xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
                     No Unavailable Dates
                   </h3>
 
@@ -1135,16 +1171,16 @@ export default function Schedule() {
                   {dates.map((item) => (
                     <article
                       key={item.id}
-                      className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50"
+                      className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/50"
                     >
                       <div className="min-w-0">
-                        <h3 className="font-bold text-slate-900 dark:text-white">
+                        <h3 className="font-black text-slate-900 dark:text-white">
                           {formatDate(
                             item.unavailable_date,
                           )}
                         </h3>
 
-                        <p className="mt-1 wrap-break-word text-sm text-slate-500 dark:text-slate-400">
+                        <p className="mt-1 break-words text-sm leading-6 text-slate-500 dark:text-slate-400">
                           {item.reason?.trim() ||
                             "No reason provided"}
                         </p>
@@ -1158,7 +1194,7 @@ export default function Schedule() {
                           )
                         }
                         disabled={busy}
-                        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-600 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-600 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:translate-y-0 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
                         aria-label={`Delete unavailable date ${item.unavailable_date}`}
                       >
                         {deletingDateId ===
@@ -1177,13 +1213,13 @@ export default function Schedule() {
         </div>
 
         {hasUnsavedChanges && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur sm:hidden dark:border-slate-700 dark:bg-slate-900/95">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-12px_35px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:hidden dark:border-slate-700 dark:bg-slate-900/95">
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={handleReset}
                 disabled={busy}
-                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200"
+                className="min-h-12 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
               >
                 Reset
               </button>
@@ -1194,7 +1230,7 @@ export default function Schedule() {
                   void handleSave()
                 }
                 disabled={busy}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
 
@@ -1223,11 +1259,11 @@ function TimeField({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </span>
 
-      <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:ring-blue-950">
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:bg-slate-900">
         <Clock3 className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
 
         <input

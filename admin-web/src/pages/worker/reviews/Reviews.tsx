@@ -437,26 +437,35 @@ export default function Reviews() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-screen bg-slate-50 p-3 sm:p-6 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#f59e0b 1px,transparent 1px),linear-gradient(90deg,#f59e0b 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={message.type === "error" ? "alert" : "status"}
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "error"
                   ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
                   : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{message.text}</span>
+                <span className="min-w-0 leading-6">{message.text}</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setMessage(null)}
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -464,21 +473,30 @@ export default function Reviews() {
             </div>
           )}
 
-          <header className="relative overflow-hidden rounded-2xl bg-linear-to-r from-amber-500 via-orange-500 to-red-500 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
-            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
-            <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-white/10" />
+          <header className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-amber-600 via-orange-600 to-red-500 p-5 text-white shadow-[0_24px_70px_rgba(234,88,12,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
 
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-100 sm:text-sm">
+                <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-orange-100 backdrop-blur">
                   Worker Performance
                 </p>
 
-                <h1 className="mt-2 text-2xl font-bold sm:text-4xl">
+                <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                   Customer Reviews
                 </h1>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-orange-100 sm:text-base">
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-orange-100 sm:text-base sm:leading-7">
                   Read customer feedback, monitor service quality, and improve
                   your performance.
                 </p>
@@ -488,7 +506,7 @@ export default function Reviews() {
                 type="button"
                 onClick={() => void handleRefresh()}
                 disabled={refreshing || !workerId}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur transition hover:bg-white/25 disabled:opacity-50 sm:w-auto"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:w-auto"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -501,7 +519,7 @@ export default function Reviews() {
 
           <section
             aria-label="Review statistics"
-            className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4"
+            className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
           >
             <StatCard
               label="Average Rating"
@@ -532,8 +550,8 @@ export default function Reviews() {
             />
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-900">
-            <div className="grid gap-4 lg:grid-cols-[1fr_190px_190px]">
+          <section className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+            <div className="grid gap-3 lg:grid-cols-[1fr_210px_210px]">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
@@ -542,14 +560,14 @@ export default function Reviews() {
                   placeholder="Search customer, service, booking, or review..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-orange-950"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                 />
 
                 {search && (
                   <button
                     type="button"
                     onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700"
                     aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
@@ -562,7 +580,7 @@ export default function Reviews() {
                 onChange={(event) =>
                   setRatingFilter(Number(event.target.value) as RatingFilter)
                 }
-                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-orange-950"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               >
                 <option value={0}>All Ratings</option>
                 <option value={5}>5 Stars</option>
@@ -575,7 +593,7 @@ export default function Reviews() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortOption)}
-                className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-orange-950"
+                className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none transition focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -585,14 +603,14 @@ export default function Reviews() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-8 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="text-center lg:text-left">
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
+            <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-center">
+              <div className="rounded-3xl border border-amber-100 bg-amber-50/70 p-5 text-center dark:border-amber-500/20 dark:bg-amber-500/10 lg:text-left">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
                   Overall Rating
                 </p>
 
-                <p className="mt-2 text-5xl font-bold text-amber-500 sm:text-6xl">
+                <p className="mt-3 text-5xl font-black text-amber-500 sm:text-6xl">
                   {statistics.average.toFixed(1)}
                 </p>
 
@@ -602,31 +620,31 @@ export default function Reviews() {
                   className="mt-4 justify-center lg:justify-start"
                 />
 
-                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Based on {reviews.length} customer{" "}
                   {reviews.length === 1 ? "review" : "reviews"}
                 </p>
               </div>
 
-              <div className="w-full max-w-xl space-y-3">
+              <div className="w-full space-y-3 rounded-3xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40 sm:p-5">
                 {([5, 4, 3, 2, 1] as const).map((rating) => {
                   const percentage = getRatingPercentage(rating);
 
                   return (
                     <div
                       key={rating}
-                      className="grid grid-cols-[24px_1fr_50px] items-center gap-3"
+                      className="grid grid-cols-[28px_1fr_52px] items-center gap-3"
                     >
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
                         {rating}
                       </span>
 
-                      <div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                      <div className="h-3 overflow-hidden rounded-full bg-slate-200 shadow-inner dark:bg-slate-700">
                         <div
                           style={{
                             width: `${percentage}%`,
                           }}
-                          className="h-full rounded-full bg-amber-400 transition-all"
+                          className="h-full rounded-full bg-linear-to-r from-amber-400 to-orange-500 transition-all"
                         />
                       </div>
 
@@ -647,17 +665,17 @@ export default function Reviews() {
               }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-72 animate-pulse rounded-2xl bg-slate-200 sm:rounded-3xl dark:bg-slate-800"
+                  className="h-64 animate-pulse rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 sm:h-72"
                 />
               ))}
             </section>
           ) : paginatedReviews.length === 0 ? (
-            <section className="rounded-2xl border border-slate-200 bg-white px-5 py-16 text-center shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white px-5 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:py-16">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300 sm:h-24 sm:w-24">
                 <MessageSquare className="h-10 w-10" />
               </div>
 
-              <h2 className="mt-6 text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="mt-6 text-2xl font-black text-slate-900 dark:text-white">
                 No Reviews Found
               </h2>
 
@@ -668,7 +686,7 @@ export default function Reviews() {
               </p>
             </section>
           ) : (
-            <section className="space-y-4 sm:space-y-6">
+            <section className="space-y-4 sm:space-y-5">
               {paginatedReviews.map((review) => (
                 <ReviewCard key={review.id} review={review} />
               ))}
@@ -676,7 +694,7 @@ export default function Reviews() {
           )}
 
           {!loading && filteredReviews.length > 0 && (
-            <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
+            <footer className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing{" "}
                 <strong className="text-slate-700 dark:text-slate-200">
@@ -698,7 +716,7 @@ export default function Reviews() {
                   type="button"
                   onClick={() => setPage((current) => Math.max(1, current - 1))}
                   disabled={page === 1}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Previous
@@ -710,7 +728,7 @@ export default function Reviews() {
                     setPage((current) => Math.min(totalPages, current + 1))
                   }
                   disabled={page === totalPages}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-orange-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />
@@ -729,18 +747,18 @@ function ReviewCard({ review }: { review: WorkerReview }) {
   const overallRating = normalizeRating(review.overall_rating ?? review.rating);
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-lg sm:rounded-3xl sm:p-7 dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:p-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <CustomerAvatar customer={review.customer} />
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-base font-bold text-slate-900 sm:text-lg dark:text-white">
+              <h2 className="truncate text-base font-black text-slate-900 sm:text-lg dark:text-white">
                 {customerName}
               </h2>
 
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 Verified Booking
               </span>
             </div>
@@ -751,17 +769,17 @@ function ReviewCard({ review }: { review: WorkerReview }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Stars rating={overallRating} />
 
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
             {overallRating.toFixed(1)}
           </span>
         </div>
       </header>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-800/50">
           <CalendarDays className="h-5 w-5 shrink-0 text-orange-500" />
 
           <div className="min-w-0">
@@ -775,7 +793,7 @@ function ReviewCard({ review }: { review: WorkerReview }) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-800/50">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
             Service Date
           </p>
@@ -786,11 +804,11 @@ function ReviewCard({ review }: { review: WorkerReview }) {
         </div>
       </div>
 
-      <blockquote className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-700 sm:p-5 sm:text-base dark:bg-slate-800/60 dark:text-slate-200">
+      <blockquote className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 sm:p-5 sm:text-base">
         “{getReviewText(review)}”
       </blockquote>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <RatingRow
           label="Overall"
           rating={normalizeRating(review.overall_rating ?? review.rating)}
@@ -821,13 +839,13 @@ function CustomerAvatar({ customer }: { customer: ReviewProfile | null }) {
       <img
         src={customer.profile_picture}
         alt={`${getCustomerName(customer)} profile`}
-        className="h-14 w-14 shrink-0 rounded-full border border-slate-200 object-cover sm:h-16 sm:w-16 dark:border-slate-700"
+        className="h-14 w-14 shrink-0 rounded-2xl border border-slate-200 object-cover shadow-sm sm:h-16 sm:w-16 dark:border-slate-700"
       />
     );
   }
 
   return (
-    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-500 text-lg font-bold text-white sm:h-16 sm:w-16">
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-lg font-black text-white shadow-sm sm:h-16 sm:w-16">
       {getCustomerInitials(customer) || <UserRound className="h-6 w-6" />}
     </div>
   );
@@ -835,9 +853,9 @@ function CustomerAvatar({ customer }: { customer: ReviewProfile | null }) {
 
 function RatingRow({ label, rating }: { label: string; rating: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4 dark:border-slate-700 dark:bg-slate-800/50">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50 sm:p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-slate-600 sm:text-sm dark:text-slate-300">
+        <p className="text-xs font-bold text-slate-600 sm:text-sm dark:text-slate-300">
           {label}
         </p>
 
@@ -895,19 +913,19 @@ function StatCard({
   iconClassName: string;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-sm dark:text-slate-400">
             {label}
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-slate-900 sm:text-4xl dark:text-white">
+          <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white sm:text-4xl">
             {value}
           </p>
         </div>
 
-        <div className={`hidden rounded-xl p-2.5 sm:block ${iconClassName}`}>
+        <div className={`hidden rounded-xl p-2.5 shadow-sm sm:block ${iconClassName}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

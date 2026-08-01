@@ -129,6 +129,10 @@ import { lazy, Suspense } from "react";
   const WorkerProfile = lazy(
     () => import("../pages/worker/profile/Profile"),
   );
+
+  const WorkerSettings = lazy(
+    () => import("../pages/worker/settings/WorkerSettings"),
+  );
   const WorkerSchedule = lazy(
     () => import("../pages/worker/schedule/Schedule"),
   );
@@ -531,6 +535,15 @@ import { lazy, Suspense } from "react";
                   element={
                     <ProtectedRoute allowedRoles={["worker"]} requireApproved>
                       <WorkerProfile />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/worker/settings"
+                  element={
+                    <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                      <WorkerSettings />
                     </ProtectedRoute>
                   }
                 />

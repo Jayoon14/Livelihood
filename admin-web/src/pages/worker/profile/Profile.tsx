@@ -456,13 +456,23 @@ export default function Profile() {
   if (loading) {
     return (
       <WorkerLayout>
-        <main className="mx-auto max-w-5xl p-3 sm:p-6 lg:p-8">
-          <section className="animate-pulse overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-            <div className="h-44 bg-slate-200 dark:bg-slate-800" />
+        <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+              backgroundSize: "42px 42px",
+            }}
+          />
+          <div className="relative mx-auto max-w-5xl">
+          <section className="animate-pulse overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="h-48 bg-slate-200 dark:bg-slate-800 sm:h-56" />
 
             <div className="p-5 sm:p-8">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <div className="h-28 w-28 rounded-full bg-slate-200 dark:bg-slate-700" />
+                <div className="h-28 w-28 rounded-3xl bg-slate-200 dark:bg-slate-700 sm:h-32 sm:w-32" />
 
                 <div className="space-y-3">
                   <div className="h-7 w-56 rounded bg-slate-200 dark:bg-slate-700" />
@@ -484,6 +494,7 @@ export default function Profile() {
               <div className="mt-4 h-28 rounded-xl bg-slate-200 dark:bg-slate-700" />
             </div>
           </section>
+          </div>
         </main>
       </WorkerLayout>
     );
@@ -492,11 +503,21 @@ export default function Profile() {
   if (!profile) {
     return (
       <WorkerLayout>
-        <main className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
-          <section className="rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm sm:rounded-3xl sm:p-8 dark:border-red-900/50 dark:bg-slate-900">
+        <main className="relative min-h-screen overflow-hidden bg-slate-50 p-4 sm:p-6 lg:p-8 dark:bg-slate-950">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+              backgroundSize: "42px 42px",
+            }}
+          />
+          <div className="relative mx-auto max-w-3xl">
+          <section className="rounded-[1.75rem] border border-red-200 bg-white p-6 text-center shadow-sm dark:border-red-900/50 dark:bg-slate-900 sm:p-8">
             <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
 
-            <h1 className="mt-4 text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="mt-4 text-2xl font-black text-slate-900 dark:text-white">
               Unable to load profile
             </h1>
 
@@ -507,12 +528,13 @@ export default function Profile() {
             <button
               type="button"
               onClick={() => void loadProfile()}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
+              className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
             >
               <RefreshCw className="h-4 w-4" />
               Try Again
             </button>
           </section>
+          </div>
         </main>
       </WorkerLayout>
     );
@@ -520,52 +542,71 @@ export default function Profile() {
 
   return (
     <WorkerLayout>
-      <main className="mx-auto max-w-5xl p-3 pb-28 sm:p-6 sm:pb-8 lg:p-8">
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-3xl dark:border-slate-700 dark:bg-slate-900">
-          <header className="relative overflow-hidden bg-linear-to-r from-blue-600 via-blue-500 to-cyan-500 px-5 py-7 text-white sm:px-8 sm:py-9">
-            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-white/10" />
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 pb-28 sm:p-5 sm:pb-10 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+        <div className="relative mx-auto max-w-6xl">
+        <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <header className="relative overflow-hidden bg-linear-to-br from-blue-800 via-blue-700 to-cyan-500 px-5 py-7 text-white sm:px-8 sm:py-10 lg:px-10">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
+            <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
 
-            <div className="relative">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100 sm:text-sm">
+            <div className="relative z-10">
+              <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                 Worker Account
               </p>
 
-              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+              <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                 My Profile
               </h1>
 
-              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
                 Keep your personal and contact information accurate so customers
                 can identify and reach you.
               </p>
             </div>
           </header>
 
-          <div className="p-4 sm:p-8">
+          <div className="p-4 sm:p-7 lg:p-8">
             {message && (
               <div
                 role={message.type === "error" ? "alert" : "status"}
-                className={`mb-6 flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-medium ${
+                className={`mb-6 flex items-start justify-between gap-3 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                   message.type === "success"
                     ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
                     : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
                 }`}
               >
-                <div className="flex items-start gap-2">
+                <div className="flex min-w-0 items-start gap-2">
                   {message.type === "success" ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   ) : (
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   )}
 
-                  <span>{message.text}</span>
+                  <span className="min-w-0 leading-6">{message.text}</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setMessage(null)}
-                  className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                  className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                   aria-label="Dismiss message"
                 >
                   <X className="h-4 w-4" />
@@ -573,23 +614,23 @@ export default function Profile() {
               </div>
             )}
 
-            <section className="flex flex-col gap-6 border-b border-slate-200 pb-8 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
-              <div className="flex flex-col items-center gap-4 sm:flex-row">
-                <div className="relative">
+            <section className="flex flex-col gap-6 rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row">
+                <div className="relative z-10">
                   {profile.profile_picture ? (
                     <img
                       src={profile.profile_picture}
                       alt={`${fullName || "Worker"} profile`}
-                      className="h-28 w-28 rounded-full border-4 border-white object-cover shadow-lg ring-2 ring-blue-100 sm:h-32 sm:w-32 dark:border-slate-900 dark:ring-blue-500/30"
+                      className="h-28 w-28 rounded-3xl border-4 border-white object-cover shadow-xl ring-2 ring-blue-100 sm:h-32 sm:w-32 dark:border-slate-900 dark:ring-blue-500/30"
                     />
                   ) : (
-                    <div className="flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-blue-100 text-3xl font-bold text-blue-700 shadow-lg ring-2 ring-blue-100 sm:h-32 sm:w-32 sm:text-4xl dark:border-slate-900 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/30">
+                    <div className="flex h-28 w-28 items-center justify-center rounded-3xl border-4 border-white bg-blue-100 text-3xl font-black text-blue-700 shadow-xl ring-2 ring-blue-100 sm:h-32 sm:w-32 sm:text-4xl dark:border-slate-900 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/30">
                       {initials}
                     </div>
                   )}
 
                   {busy && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/60 px-2 text-center text-xs font-semibold text-white">
+                    <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-slate-900/65 px-2 text-center text-xs font-bold text-white backdrop-blur-sm">
                       {uploading
                         ? "Uploading..."
                         : removingAvatar
@@ -600,7 +641,7 @@ export default function Profile() {
                 </div>
 
                 <div className="text-center sm:text-left">
-                  <h2 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+                  <h2 className="text-xl font-black text-slate-900 sm:text-2xl dark:text-white">
                     {fullName || "Worker Profile"}
                   </h2>
 
@@ -622,7 +663,7 @@ export default function Profile() {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50"
                     >
                       <Camera className="h-4 w-4" />
                       {uploading ? "Uploading..." : "Change Photo"}
@@ -633,7 +674,7 @@ export default function Profile() {
                         type="button"
                         onClick={() => void handleRemoveAvatar()}
                         disabled={busy}
-                        className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
                       >
                         <Trash2 className="h-4 w-4" />
                         Remove
@@ -651,7 +692,7 @@ export default function Profile() {
                 type="button"
                 onClick={() => void handleEditToggle()}
                 disabled={busy}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 sm:w-auto"
               >
                 {editing ? (
                   <>
@@ -667,14 +708,14 @@ export default function Profile() {
               </button>
             </section>
 
-            <section className="mt-8">
+            <section className="mt-7 rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-xl bg-blue-100 p-2 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                   <UserRound className="h-5 w-5" />
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">
+                  <h3 className="font-black text-slate-900 dark:text-white">
                     Personal Information
                   </h3>
 
@@ -684,7 +725,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 sm:gap-5">
                 <ProfileField
                   label="First Name"
                   required
@@ -755,10 +796,10 @@ export default function Profile() {
                   onChange={(event) =>
                     updateFormField("address", event.target.value)
                   }
-                  className={`min-h-28 w-full resize-y rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
+                  className={`min-h-28 w-full resize-y rounded-2xl border bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900 dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
                     fieldErrors.address
                       ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-950"
-                      : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:focus:ring-blue-950"
+                      : "border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:focus:ring-blue-500/10"
                   }`}
                   rows={4}
                   placeholder="Complete Address"
@@ -781,7 +822,7 @@ export default function Profile() {
               </label>
             </section>
 
-            <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 dark:border-slate-700 dark:bg-slate-800/40">
+            <section className="mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/40 sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
                   <div className="rounded-xl bg-violet-100 p-2 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
@@ -789,7 +830,7 @@ export default function Profile() {
                   </div>
 
                   <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white">
+                    <h3 className="font-black text-slate-900 dark:text-white">
                       Account Security
                     </h3>
 
@@ -802,7 +843,7 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => navigate("/worker/settings")}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Open Settings
                 </button>
@@ -815,7 +856,7 @@ export default function Profile() {
                   type="button"
                   onClick={() => void cancelEditing()}
                   disabled={saving}
-                  className="rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Cancel
                 </button>
@@ -826,7 +867,7 @@ export default function Profile() {
                   disabled={
                     saving || uploading || removingAvatar || !hasUnsavedChanges
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                 >
                   <Save className="h-4 w-4" />
                   {saving ? "Saving Changes..." : "Save Changes"}
@@ -837,13 +878,13 @@ export default function Profile() {
         </section>
 
         {editing && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur sm:hidden dark:border-slate-700 dark:bg-slate-900/95">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-12px_35px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:hidden dark:border-slate-700 dark:bg-slate-900/95">
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => void cancelEditing()}
                 disabled={saving}
-                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+                className="min-h-12 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
               >
                 Cancel
               </button>
@@ -854,7 +895,7 @@ export default function Profile() {
                 disabled={
                   saving || uploading || removingAvatar || !hasUnsavedChanges
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
                 {saving ? "Saving..." : "Save"}
@@ -862,6 +903,7 @@ export default function Profile() {
             </div>
           </div>
         )}
+        </div>
       </main>
     </WorkerLayout>
   );
@@ -900,10 +942,10 @@ function ProfileField({
         disabled={disabled}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
-        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-950 dark:text-white dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
+        className={`w-full rounded-2xl border bg-slate-50 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900 dark:disabled:bg-slate-800 dark:disabled:text-slate-400 ${
           error
             ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-950"
-            : "border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:focus:ring-blue-950"
+            : "border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:focus:ring-blue-500/10"
         }`}
         placeholder={placeholder}
         aria-invalid={Boolean(error)}

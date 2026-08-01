@@ -269,21 +269,30 @@ export default function PaymentInformation() {
   if (loading) {
     return (
       <WorkerLayout>
-        <main className="flex min-h-[75vh] items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
-          <div className="text-center">
+        <main className="relative flex min-h-[78vh] items-center justify-center overflow-hidden bg-slate-50 px-4 dark:bg-slate-950">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+            style={{
+              backgroundImage:
+                "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+              backgroundSize: "42px 42px",
+            }}
+          />
+
+          <section className="relative w-full max-w-xl rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
               <LoaderCircle className="h-7 w-7 animate-spin" />
             </div>
 
-            <h1 className="mt-5 text-xl font-bold text-slate-900 dark:text-white">
+            <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
               Loading payment information
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Please wait while your saved payment
-              methods are retrieved.
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Please wait while your saved payment methods are retrieved.
             </p>
-          </div>
+          </section>
         </main>
       </WorkerLayout>
     );
@@ -291,8 +300,18 @@ export default function PaymentInformation() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-screen bg-slate-50 p-3 pb-32 sm:p-6 sm:pb-32 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 pb-36 sm:p-5 sm:pb-36 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={
@@ -300,18 +319,18 @@ export default function PaymentInformation() {
                   ? "alert"
                   : "status"
               }
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "error"
-                  ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                  ? "border-red-200 bg-red-50/95 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                  : "border-emerald-200 bg-emerald-50/95 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex min-w-0 items-start gap-2">
                 {message.type ===
                   "error" && (
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 )}
-                <span>{message.text}</span>
+                <span className="min-w-0 leading-6">{message.text}</span>
               </div>
 
               <button
@@ -319,7 +338,7 @@ export default function PaymentInformation() {
                 onClick={() =>
                   setMessage(null)
                 }
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -327,42 +346,49 @@ export default function PaymentInformation() {
             </div>
           )}
 
-          <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 p-5 text-white shadow-xl sm:rounded-3xl sm:p-8">
-            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+          <header className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-600 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
 
-            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur">
                   <WalletCards className="h-7 w-7" />
                 </div>
 
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-100">
+                <div className="min-w-0">
+                  <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
                     Worker Settings
                   </p>
 
-                  <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+                  <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                     Payment Information
                   </h1>
 
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
-                    Configure the payment methods
-                    customers can use for your
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
+                    Configure the payment methods customers can use for your
                     services.
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:flex">
-                <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-100">
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-xl sm:min-w-40">
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-100">
                     Active Methods
                   </p>
 
-                  <p className="mt-1 text-2xl font-bold">
-                    {
-                      activePaymentMethods.length
-                    }
+                  <p className="mt-1 text-3xl font-black">
+                    {activePaymentMethods.length}
                   </p>
                 </div>
 
@@ -374,7 +400,7 @@ export default function PaymentInformation() {
                     )
                   }
                   disabled={refreshing || saving}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold backdrop-blur transition hover:bg-white/25 disabled:opacity-50"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                 >
                   <RefreshCw
                     className={`h-4 w-4 ${
@@ -389,40 +415,44 @@ export default function PaymentInformation() {
             </div>
           </header>
 
-          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-950/30">
+          <section className="rounded-[1.5rem] border border-blue-200 bg-blue-50/95 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/30 sm:p-5">
             <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-300" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-300">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
 
               <div>
-                <h2 className="font-bold text-blue-900 dark:text-blue-100">
+                <h2 className="font-black text-blue-900 dark:text-blue-100">
                   Keep your payment details accurate
                 </h2>
 
                 <p className="mt-1 text-sm leading-6 text-blue-700 dark:text-blue-300">
-                  Never enter card PINs, CVVs,
-                  one-time passwords, or card
-                  expiration details. Only provide
-                  payment-receiving information.
+                  Never enter card PINs, CVVs, one-time passwords, or card
+                  expiration details. Only provide payment-receiving
+                  information.
                 </p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-600 dark:text-blue-400">
+                  Payment Availability
+                </p>
+
+                <h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white sm:text-2xl">
                   Available Payment Methods
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Enabled methods are shown to
-                  customers during payment.
+                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  Enabled methods are shown to customers during payment.
                 </p>
               </div>
 
               <span
-                className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
+                className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${
                   activePaymentMethods.length > 0
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                     : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
@@ -469,7 +499,7 @@ export default function PaymentInformation() {
             </div>
           </section>
 
-          <div className="space-y-6">
+          <section className="space-y-5 sm:space-y-6">
             <CashSection
               acceptCash={form.accept_cash}
               onChange={(value) =>
@@ -533,13 +563,13 @@ export default function PaymentInformation() {
                 )
               }
             />
-          </div>
+          </section>
         </div>
 
-        <section className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:pl-[var(--worker-sidebar-width,0px)] dark:border-slate-700 dark:bg-slate-900/95">
+        <section className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-12px_35px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:pl-[var(--worker-sidebar-width,0px)] dark:border-slate-700 dark:bg-slate-900/95">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="hidden sm:block">
-              <p className="font-bold text-slate-900 dark:text-white">
+              <p className="font-black text-slate-900 dark:text-white">
                 {hasUnsavedChanges
                   ? "You have unsaved changes"
                   : "Payment settings are saved"}
@@ -558,7 +588,7 @@ export default function PaymentInformation() {
                   saving ||
                   !hasUnsavedChanges
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 <RotateCcw className="h-4 w-4" />
                 Reset
@@ -573,7 +603,7 @@ export default function PaymentInformation() {
                   saving ||
                   !hasUnsavedChanges
                 }
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 disabled:shadow-none"
               >
                 {saving ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -604,28 +634,30 @@ function MethodStatus({
 }) {
   return (
     <div
-      className={`rounded-xl border p-3 sm:p-4 ${
+      className={`rounded-2xl border p-3.5 transition sm:p-4 ${
         enabled
           ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30"
           : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
       }`}
     >
       <div className="flex items-center gap-2">
-        <Icon
-          className={`h-4 w-4 ${
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
             enabled
-              ? "text-emerald-600 dark:text-emerald-300"
-              : "text-slate-400"
+              ? "bg-white text-emerald-600 shadow-sm dark:bg-slate-900 dark:text-emerald-300"
+              : "bg-white text-slate-400 shadow-sm dark:bg-slate-900"
           }`}
-        />
+        >
+          <Icon className="h-4 w-4" />
+        </div>
 
-        <span className="truncate text-sm font-bold text-slate-800 dark:text-slate-200">
+        <span className="min-w-0 truncate text-sm font-black text-slate-800 dark:text-slate-200">
           {label}
         </span>
       </div>
 
       <p
-        className={`mt-2 text-xs font-semibold ${
+        className={`mt-3 text-xs font-bold ${
           enabled
             ? "text-emerald-700 dark:text-emerald-300"
             : "text-slate-400"

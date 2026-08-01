@@ -160,17 +160,17 @@ function formatMessageDay(value: string) {
 function getStatusClasses(status: string) {
   switch (status) {
     case "Approved":
-      return "bg-blue-50 text-blue-700 ring-blue-200";
+      return "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/20";
     case "On Going":
-      return "bg-violet-50 text-violet-700 ring-violet-200";
+      return "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/20";
     case "Completed":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+      return "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20";
     case "Pending":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
+      return "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20";
     case "Cancelled":
-      return "bg-rose-50 text-rose-700 ring-rose-200";
+      return "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20";
     default:
-      return "bg-slate-100 text-slate-700 ring-slate-200";
+      return "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700";
   }
 }
 
@@ -225,27 +225,27 @@ function Avatar({
           )}&background=DBEAFE&color=1D4ED8&bold=true`
         }
         alt={name}
-        className={`${dimensions} rounded-full object-cover ring-2 ring-white shadow-sm`}
+        className={`${dimensions} rounded-2xl object-cover ring-2 ring-white shadow-sm dark:ring-slate-900`}
       />
 
-      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-emerald-500" />
+      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-emerald-500 dark:border-slate-900" />
     </div>
   );
 }
 
 function EmptyChat() {
   return (
-    <div className="flex h-full items-center justify-center bg-linear-to-br from-slate-50 to-blue-50/60 p-8 text-center">
+    <div className="flex h-full items-center justify-center bg-linear-to-br from-slate-50 to-blue-50/60 p-8 text-center dark:from-slate-950 dark:to-blue-950/30">
       <div>
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] bg-blue-600 text-white shadow-xl shadow-blue-600/25">
           <MessageCircle className="h-9 w-9" />
         </div>
 
-        <h2 className="mt-6 text-2xl font-black text-slate-900">
+        <h2 className="mt-6 text-2xl font-black text-slate-900 dark:text-white">
           Select a conversation
         </h2>
 
-        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
           Choose a person from the left side to view and send messages directly.
         </p>
       </div>
@@ -762,20 +762,20 @@ export default function ChatList() {
     : "Conversation";
 
   return (
-    <main className="fixed inset-0 z-50 h-screen w-screen overflow-hidden bg-white">
-      <section className="flex h-full w-full overflow-hidden bg-white">
+    <main className="fixed inset-0 z-50 h-dvh w-screen overflow-hidden bg-slate-100 dark:bg-slate-950">
+      <section className="mx-auto flex h-full w-full max-w-[1800px] overflow-hidden bg-white shadow-2xl dark:bg-slate-950">
         <aside
-          className={`w-full shrink-0 border-r border-slate-200 bg-white lg:w-97.5 ${
+          className={`w-full shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:w-[390px] ${
             showMobileChat ? "hidden lg:flex" : "flex"
           } flex-col`}
         >
-          <div className="border-b border-slate-200 px-4 pb-4 pt-5 sm:px-5">
+          <div className="border-b border-slate-200 bg-white/95 px-4 pb-4 pt-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 sm:pt-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                   aria-label="Go back"
                   title="Go back"
                 >
@@ -783,11 +783,11 @@ export default function ChatList() {
                 </button>
 
                 <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-black text-slate-900">
+                  <h1 className="truncate text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                     Messages
                   </h1>
 
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     {conversations.length} conversation
                     {conversations.length === 1 ? "" : "s"}
                   </p>
@@ -795,8 +795,8 @@ export default function ChatList() {
               </div>
 
               {unreadTotal > 0 && (
-                <div className="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-center text-white shadow-lg shadow-blue-600/20">
-                  <p className="text-[10px] font-semibold uppercase">
+                <div className="shrink-0 rounded-2xl bg-blue-600 px-3 py-2 text-center text-white shadow-lg shadow-blue-600/25">
+                  <p className="text-[10px] font-black uppercase tracking-wide">
                     Unread
                   </p>
                   <p className="text-lg font-black">{unreadTotal}</p>
@@ -811,14 +811,14 @@ export default function ChatList() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search conversations..."
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-11 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-11 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
               />
 
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700"
                   aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
@@ -830,10 +830,10 @@ export default function ChatList() {
               <button
                 type="button"
                 onClick={() => setFilter("all")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                className={`rounded-xl px-4 py-2 text-sm font-black transition ${
                   filter === "all"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
                 All
@@ -842,10 +842,10 @@ export default function ChatList() {
               <button
                 type="button"
                 onClick={() => setFilter("unread")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+                className={`rounded-xl px-4 py-2 text-sm font-black transition ${
                   filter === "unread"
-                    ? "bg-blue-600 text-white"
-                    : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15"
                 }`}
               >
                 Unread
@@ -853,18 +853,18 @@ export default function ChatList() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
             {listLoading ? (
               <div className="space-y-3 p-4">
                 {[1, 2, 3, 4, 5].map((item) => (
                   <div
                     key={item}
-                    className="flex animate-pulse items-center gap-3 rounded-2xl p-3"
+                    className="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
                   >
-                    <div className="h-14 w-14 rounded-full bg-slate-200" />
+                    <div className="h-14 w-14 rounded-2xl bg-slate-200 dark:bg-slate-700" />
                     <div className="flex-1">
-                      <div className="h-4 w-1/2 rounded bg-slate-200" />
-                      <div className="mt-3 h-3 w-4/5 rounded bg-slate-100" />
+                      <div className="h-4 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
+                      <div className="mt-3 h-3 w-4/5 rounded bg-slate-100 dark:bg-slate-800" />
                     </div>
                   </div>
                 ))}
@@ -872,7 +872,7 @@ export default function ChatList() {
             ) : listError ? (
               <div className="p-8 text-center">
                 <MessageCircle className="mx-auto h-10 w-10 text-red-300" />
-                <p className="mt-3 text-sm font-semibold text-red-600">
+                <p className="mt-3 text-sm font-bold text-red-600 dark:text-red-300">
                   {listError}
                 </p>
               </div>
@@ -880,11 +880,11 @@ export default function ChatList() {
               <div className="p-10 text-center">
                 <Inbox className="mx-auto h-10 w-10 text-slate-300" />
 
-                <h2 className="mt-3 font-black text-slate-800">
+                <h2 className="mt-3 font-black text-slate-800 dark:text-white">
                   No conversations found
                 </h2>
 
-                <p className="mt-1 text-sm leading-6 text-slate-500">
+                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Try another search or wait for an active booking
                   conversation.
                 </p>
@@ -902,10 +902,10 @@ export default function ChatList() {
                     key={conversation.user.id}
                     type="button"
                     onClick={() => selectConversation(conversation)}
-                    className={`flex w-full items-start gap-3 border-b border-slate-100 p-4 text-left transition ${
+                    className={`flex w-full items-start gap-3 border-b border-slate-100 p-4 text-left transition-colors dark:border-slate-800 ${
                       selected
-                        ? "bg-blue-50"
-                        : "bg-white hover:bg-slate-50"
+                        ? "bg-blue-50 dark:bg-blue-500/10"
+                        : "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/70"
                     }`}
                   >
                     <Avatar user={conversation.user} />
@@ -913,7 +913,7 @@ export default function ChatList() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
                         <h3
-                          className={`truncate text-sm text-slate-900 ${
+                          className={`truncate text-sm text-slate-900 dark:text-white ${
                             conversation.unreadCount > 0
                               ? "font-black"
                               : "font-bold"
@@ -925,8 +925,8 @@ export default function ChatList() {
                         <span
                           className={`shrink-0 text-[11px] ${
                             conversation.unreadCount > 0
-                              ? "font-bold text-blue-600"
-                              : "text-slate-400"
+                              ? "font-black text-blue-600 dark:text-blue-300"
+                              : "text-slate-400 dark:text-slate-500"
                           }`}
                         >
                           {formatListTime(
@@ -937,7 +937,7 @@ export default function ChatList() {
 
                       <div className="mt-1 flex items-center gap-2">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ring-inset ${getStatusClasses(
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ring-inset ${getStatusClasses(
                             latest.status,
                           )}`}
                         >
@@ -945,7 +945,7 @@ export default function ChatList() {
                         </span>
 
                         {conversation.bookings.length > 1 && (
-                          <span className="text-[10px] font-semibold text-slate-400">
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
                             {conversation.bookings.length} bookings
                           </span>
                         )}
@@ -955,8 +955,8 @@ export default function ChatList() {
                         <p
                           className={`min-w-0 flex-1 truncate text-sm ${
                             conversation.unreadCount > 0
-                              ? "font-semibold text-slate-900"
-                              : "text-slate-500"
+                              ? "font-bold text-slate-900 dark:text-white"
+                              : "text-slate-500 dark:text-slate-400"
                           }`}
                         >
                           {isMine && latest.lastMessage ? "You: " : ""}
@@ -980,7 +980,7 @@ export default function ChatList() {
         </aside>
 
         <section
-          className={`min-h-0 min-w-0 flex-1 flex-col bg-slate-50 ${
+          className={`min-h-0 min-w-0 flex-1 flex-col bg-slate-50 dark:bg-slate-950 ${
             showMobileChat ? "flex" : "hidden lg:flex"
           }`}
         >
@@ -988,11 +988,11 @@ export default function ChatList() {
             <EmptyChat />
           ) : (
             <>
-              <header className="flex min-h-19 items-center gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-5">
+              <header className="flex min-h-[76px] items-center gap-3 border-b border-slate-200 bg-white/95 px-3 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:px-5">
                 <button
                   type="button"
                   onClick={() => setShowMobileChat(false)}
-                  className="rounded-full p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
                   aria-label="Back to conversations"
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -1001,11 +1001,11 @@ export default function ChatList() {
                 <Avatar user={selectedConversation.user} size="small" />
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate font-black text-slate-900">
+                  <h2 className="truncate font-black text-slate-900 dark:text-white">
                     {getName(selectedConversation.user)}
                   </h2>
 
-                  <p className="text-xs font-medium text-emerald-600">
+                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">
                     ● Available
                   </p>
                 </div>
@@ -1016,7 +1016,7 @@ export default function ChatList() {
                     onChange={(event) =>
                       setSelectedBookingId(Number(event.target.value))
                     }
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:bg-slate-900"
                     aria-label="Select booking conversation"
                   >
                     {selectedConversation.bookings.map((booking) => (
@@ -1032,7 +1032,7 @@ export default function ChatList() {
               </header>
 
               <div className="relative flex min-h-0 flex-1 flex-col">
-                <main className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,#eff6ff,#f8fafc_45%,#f8fafc)] px-3 py-5 sm:px-6">
+                <main className="flex-1 overflow-y-auto overscroll-contain bg-[radial-gradient(circle_at_top,#eff6ff,#f8fafc_45%,#f8fafc)] px-3 py-5 dark:bg-[radial-gradient(circle_at_top,#172554,#020617_45%,#020617)] sm:px-6 [scrollbar-width:thin]">
                   {chatLoading ? (
                     <div className="flex h-full items-center justify-center">
                       <LoaderCircle className="h-8 w-8 animate-spin text-blue-600" />
@@ -1041,22 +1041,22 @@ export default function ChatList() {
                     <div className="flex h-full items-center justify-center p-6 text-center">
                       <div>
                         <MessageCircle className="mx-auto h-10 w-10 text-red-300" />
-                        <p className="mt-3 font-semibold text-red-600">
+                        <p className="mt-3 font-bold text-red-600 dark:text-red-300">
                           {chatError}
                         </p>
                       </div>
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="mx-auto mt-24 max-w-sm text-center">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
                         <Send className="h-7 w-7" />
                       </div>
 
-                      <h3 className="mt-4 font-black text-slate-900">
+                      <h3 className="mt-4 font-black text-slate-900 dark:text-white">
                         Start your conversation
                       </h3>
 
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                         Send a message about Booking #{selectedBookingId}.
                       </p>
                     </div>
@@ -1074,7 +1074,7 @@ export default function ChatList() {
                         <div key={item.id}>
                           {showDay && (
                             <div className="my-5 text-center">
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200">
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-700">
                                 {formatMessageDay(item.created_at)}
                               </span>
                             </div>
@@ -1093,8 +1093,8 @@ export default function ChatList() {
                               <div
                                 className={`overflow-hidden rounded-2xl shadow-sm ${
                                   mine
-                                    ? "rounded-br-md bg-blue-600 text-white"
-                                    : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                                    ? "rounded-br-md bg-blue-600 text-white shadow-blue-600/10"
+                                    : "rounded-bl-md border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                                 }`}
                               >
                                 {item.image_url && (
@@ -1112,7 +1112,7 @@ export default function ChatList() {
                                 )}
 
                                 {item.message && (
-                                  <p className="whitespace-pre-wrap wrap-break-word px-4 pt-3 text-sm leading-6">
+                                  <p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">
                                     {item.message}
                                   </p>
                                 )}
@@ -1125,7 +1125,7 @@ export default function ChatList() {
                                     className={`m-2 flex items-center gap-3 rounded-xl p-3 text-sm font-semibold ${
                                       mine
                                         ? "bg-blue-500"
-                                        : "bg-slate-100"
+                                        : "bg-slate-100 dark:bg-slate-800"
                                     }`}
                                   >
                                     <FileText className="h-5 w-5 shrink-0" />
@@ -1158,7 +1158,7 @@ export default function ChatList() {
 
                   {otherTyping && (
                     <div className="mb-3 flex justify-start">
-                      <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500 shadow-sm">
+                      <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                         {otherName} is typing...
                       </div>
                     </div>
@@ -1167,15 +1167,15 @@ export default function ChatList() {
                   <div ref={bottomRef} />
                 </main>
 
-                <footer className="border-t border-slate-200 bg-white p-3 sm:p-4">
+                <footer className="border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:p-4">
                   {chatError && context && (
-                    <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <p className="mb-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
                       {chatError}
                     </p>
                   )}
 
                   <div className="flex items-end gap-1.5 sm:gap-2">
-                    <label className="cursor-pointer rounded-full p-2.5 text-blue-600 transition hover:bg-blue-50">
+                    <label className="cursor-pointer rounded-xl p-2.5 text-blue-600 transition hover:-translate-y-0.5 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10">
                       <ImagePlus className="h-5 w-5" />
 
                       <input
@@ -1187,7 +1187,7 @@ export default function ChatList() {
                       />
                     </label>
 
-                    <label className="cursor-pointer rounded-full p-2.5 text-blue-600 transition hover:bg-blue-50">
+                    <label className="cursor-pointer rounded-xl p-2.5 text-blue-600 transition hover:-translate-y-0.5 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10">
                       <Paperclip className="h-5 w-5" />
 
                       <input
@@ -1210,7 +1210,7 @@ export default function ChatList() {
                       placeholder={`Message ${getName(
                         selectedConversation.user,
                       )}...`}
-                      className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                      className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
                     />
 
                     <button
@@ -1219,7 +1219,7 @@ export default function ChatList() {
                         !message.trim() || sending || uploading
                       }
                       onClick={() => void handleSend()}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
                       aria-label="Send message"
                     >
                       {sending || uploading ? (

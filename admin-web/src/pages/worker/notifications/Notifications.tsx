@@ -751,23 +751,33 @@ export default function Notifications() {
 
   return (
     <WorkerLayout>
-      <main className="min-h-full bg-slate-50 p-3 sm:p-6 lg:p-8 dark:bg-slate-950">
-        <div className="mx-auto max-w-6xl space-y-5">
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]"
+          style={{
+            backgroundImage:
+              "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
+          }}
+        />
+
+        <div className="relative mx-auto max-w-7xl space-y-5 sm:space-y-6">
           {message && (
             <div
               role={message.type === "error" ? "alert" : "status"}
-              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              className={`flex items-start justify-between gap-4 rounded-2xl border px-4 py-3.5 text-sm font-semibold shadow-sm ${
                 message.type === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
-                  : "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                  ? "border-emerald-200 bg-emerald-50/95 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200"
+                  : "border-red-200 bg-red-50/95 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
               }`}
             >
-              <span>{message.text}</span>
+              <span className="min-w-0 leading-6">{message.text}</span>
 
               <button
                 type="button"
                 onClick={() => setMessage(null)}
-                className="rounded-lg p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1.5 transition hover:bg-black/5 dark:hover:bg-white/10"
                 aria-label="Dismiss message"
               >
                 <X className="h-4 w-4" />
@@ -775,90 +785,107 @@ export default function Notifications() {
             </div>
           )}
 
-          <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
+          <section className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-blue-700 to-cyan-500 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-9">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-[0.09]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+                backgroundSize: "38px 38px",
+              }}
+            />
 
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+
+            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-blue-100 backdrop-blur">
+                      Worker Center
+                    </p>
+
+                    {globalUnreadCount > 0 && (
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-blue-700">
+                        {globalUnreadCount} unread
+                      </span>
+                    )}
+                  </div>
+
+                  <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                     Notifications
                   </h1>
 
-                  {globalUnreadCount > 0 && (
-                    <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white">
-                      {globalUnreadCount}
-                    </span>
-                  )}
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base sm:leading-7">
+                    Stay updated with bookings, payments, reviews, and customer
+                    messages.
+                  </p>
                 </div>
+              </div>
 
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Stay updated with bookings, payments, reviews, and messages.
-                </p>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteRead()}
+                  disabled={deletingRead || globalReadCount === 0}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/20 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:px-4"
+                >
+                  {deletingRead ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Delete Read</span>
+                  <span className="sm:hidden">Clear Read</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleMarkAllAsRead()}
+                  disabled={markingAll || globalUnreadCount === 0}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:px-4"
+                >
+                  {markingAll ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCheck className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Mark All as Read</span>
+                  <span className="sm:hidden">Mark All</span>
+                </button>
               </div>
             </div>
+          </section>
 
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              <button
-                type="button"
-                onClick={() => void handleDeleteRead()}
-                disabled={deletingRead || globalReadCount === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 dark:border-red-900/50 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/30"
-              >
-                {deletingRead ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-
-                <span className="hidden sm:inline">Delete Read</span>
-                <span className="sm:hidden">Clear Read</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void handleMarkAllAsRead()}
-                disabled={markingAll || globalUnreadCount === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
-              >
-                {markingAll ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCheck className="h-4 w-4" />
-                )}
-
-                <span className="hidden sm:inline">Mark All as Read</span>
-                <span className="sm:hidden">Mark All</span>
-              </button>
-            </div>
-          </header>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
             <div className="flex flex-col gap-4">
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                   <input
                     type="search"
                     value={searchText}
                     onChange={(event) => setSearchText(event.target.value)}
                     placeholder="Search notifications..."
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-blue-950"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                   />
 
                   {searchText && (
                     <button
                       type="button"
                       onClick={() => setSearchText("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700"
                       aria-label="Clear search"
                     >
                       <X className="h-4 w-4" />
@@ -870,7 +897,7 @@ export default function Notifications() {
                   type="button"
                   onClick={() => void handleRefresh()}
                   disabled={refreshing}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                   aria-label="Refresh notifications"
                 >
                   <RefreshCw
@@ -879,7 +906,7 @@ export default function Notifications() {
                 </button>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
                 {FILTER_OPTIONS.map((filter) => {
                   const active = selectedFilter === filter.value;
 
@@ -888,9 +915,9 @@ export default function Notifications() {
                       key={filter.value}
                       type="button"
                       onClick={() => setSelectedFilter(filter.value)}
-                      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
                         active
-                          ? "border-blue-600 bg-blue-600 text-white"
+                          ? "border-blue-600 bg-blue-600 text-white shadow-sm"
                           : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500/40 dark:hover:bg-blue-950/30 dark:hover:text-blue-300"
                       }`}
                     >
@@ -912,7 +939,7 @@ export default function Notifications() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
             {loading ? (
               <div className="space-y-3 p-4 sm:p-6">
                 {Array.from({ length: 5 }).map((_, index) => (
@@ -924,11 +951,11 @@ export default function Notifications() {
               </div>
             ) : visibleNotifications.length === 0 ? (
               <div className="flex min-h-80 flex-col items-center justify-center px-6 py-12 text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
                   <ShieldCheck className="h-9 w-9" />
                 </div>
 
-                <h2 className="mt-5 text-xl font-bold text-slate-900 dark:text-white">
+                <h2 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
                   No notifications found
                 </h2>
 
@@ -950,7 +977,7 @@ export default function Notifications() {
                   return (
                     <article
                       key={item.id}
-                      className={`group relative transition hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
+                      className={`group relative transition-colors hover:bg-blue-50/40 dark:hover:bg-slate-800/55 ${
                         item.is_read
                           ? "bg-white dark:bg-slate-900"
                           : "bg-blue-50/60 dark:bg-blue-950/20"
@@ -975,29 +1002,27 @@ export default function Notifications() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h2
-                                className={`wrap-break-word text-sm text-slate-900 sm:text-base dark:text-white ${
-                                  item.is_read ? "font-semibold" : "font-bold"
+                                className={`break-words text-sm text-slate-900 sm:text-base dark:text-white ${
+                                  item.is_read ? "font-semibold" : "font-black"
                                 }`}
                               >
                                 {item.title}
                               </h2>
 
                               {!item.is_read && (
-                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                                   New
                                 </span>
                               )}
                             </div>
 
-                            <p className="mt-1 wrap-break-word text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            <p className="mt-1 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
                               {item.message}
                             </p>
 
                             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                               <span>{timeAgo(item.created_at)}</span>
-
                               <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-
                               <span>
                                 {formatNotificationDate(item.created_at)}
                               </span>
@@ -1011,7 +1036,7 @@ export default function Notifications() {
                               type="button"
                               onClick={() => void handleRead(item.id)}
                               disabled={processing}
-                              className="hidden rounded-lg border border-blue-200 bg-white p-2 text-blue-600 transition hover:bg-blue-50 disabled:opacity-50 sm:block dark:border-blue-900/50 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                              className="hidden rounded-lg border border-blue-200 bg-white p-2 text-blue-600 transition hover:-translate-y-0.5 hover:bg-blue-50 disabled:translate-y-0 disabled:opacity-50 sm:block dark:border-blue-900/50 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-950/30"
                               aria-label={`Mark ${item.title} as read`}
                             >
                               {processing ? (
@@ -1026,7 +1051,7 @@ export default function Notifications() {
                             type="button"
                             onClick={() => void handleDelete(item)}
                             disabled={processing}
-                            className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                            className="rounded-lg p-2 text-slate-400 transition hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-600 disabled:translate-y-0 disabled:opacity-50 dark:hover:bg-red-950/30 dark:hover:text-red-300"
                             aria-label={`Delete ${item.title}`}
                           >
                             {processing ? (
@@ -1043,7 +1068,7 @@ export default function Notifications() {
                           type="button"
                           onClick={() => void handleRead(item.id)}
                           disabled={processing}
-                          className="mx-4 mb-4 inline-flex w-[calc(100%-2rem)] items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white py-2.5 text-xs font-semibold text-blue-600 disabled:opacity-50 sm:hidden dark:border-blue-900/50 dark:bg-slate-900 dark:text-blue-300"
+                          className="mx-4 mb-4 inline-flex min-h-10 w-[calc(100%-2rem)] items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white py-2.5 text-xs font-bold text-blue-600 disabled:opacity-50 sm:hidden dark:border-blue-900/50 dark:bg-slate-900 dark:text-blue-300"
                         >
                           {processing ? (
                             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -1084,7 +1109,7 @@ export default function Notifications() {
                     type="button"
                     onClick={() => void handleLoadMore()}
                     disabled={loadingMore}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     {loadingMore && (
                       <LoaderCircle className="h-4 w-4 animate-spin" />
