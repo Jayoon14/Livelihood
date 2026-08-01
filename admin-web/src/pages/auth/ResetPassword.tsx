@@ -1,15 +1,20 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
+  Check,
   CheckCircle2,
   Eye,
   EyeOff,
+  KeyRound,
   Loader2,
   LockKeyhole,
+  ShieldCheck,
+  X,
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import AuthSplitLayout from "../../components/auth/AuthSplitLayout";
 import { supabase } from "../../lib/supabase";
 
 export default function ResetPassword() {
@@ -17,263 +22,345 @@ export default function ResetPassword() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [validRecoverySession, setValidRecoverySession] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const checks = {
-    length: password.length >= 8,
-    upper: /[A-Z]/.test(password),
-    lower: /[a-z]/.test(password),
-    number: /\d/.test(password),
-    match: password !== "" && password === confirmPassword,
-  };
+  useEffect(() => {
+    let active = true;
 
-  const passedChecks = Object.values(checks).filter(Boolean).length;
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  function strength() {
-    if (passedChecks <= 2) return "Weak";
-    if (passedChecks <= 4) return "Medium";
-    return "Strong";
-  }
-
-  async function handleSave(e: FormEvent) {
-    e.preventDefault();
-
-    if (!checks.length) {
-      toast.warning("Password must be at least 8 characters.");
-      return;
+      if (active) {
+        setValidRecoverySession(Boolean(session));
+        setCheckingSession(false);
+      }
     }
 
-    if (!checks.upper) {
-      toast.warning("Password must contain an uppercase letter.");
-      return;
-    }
+    void checkSession();
 
-    if (!checks.lower) {
-      toast.warning("Password must contain a lowercase letter.");
-      return;
-    }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
 
-    if (!checks.number) {
-      toast.warning("Password must contain a number.");
-      return;
-    }
+      if (event === "PASSWORD_RECOVERY" || session) {
+        setValidRecoverySession(true);
+        setCheckingSession(false);
+      }
+    });
 
-    if (!checks.match) {
-      toast.warning("Passwords do not match.");
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const checks = useMemo(
+    () => ({
+      length: password.length >= 8,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+      match: password.length > 0 && password === confirmPassword,
+    }),
+    [password, confirmPassword],
+  );
+
+  const score = Object.values(checks).filter(Boolean).length;
+  const strength = score <= 2 ? "Weak" : score <= 4 ? "Medium" : "Strong";
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!Object.values(checks).every(Boolean)) {
+      toast.warning("Complete all password requirements.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.updateUser({
-        password,
-      });
+      const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
 
+      setSuccess(true);
       toast.success("Password updated successfully.");
 
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
+      window.setTimeout(() => {
+        navigate("/", { replace: true });
+      }, 1800);
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to update password.",
+          : "Unable to update your password.",
       );
     } finally {
       setLoading(false);
     }
   }
 
-  const Check = ({
-    ok,
-    text,
-  }: {
-    ok: boolean;
-    text: string;
-  }) => (
-    <div
-      className={`flex items-center gap-2 text-sm ${
-        ok ? "text-green-600" : "text-slate-500"
-      }`}
-    >
-      <CheckCircle2 size={16} />
-      {text}
-    </div>
-  );
-
   return (
-    <main className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-10">
-      <section className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 p-8">
-
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-          <LockKeyhole className="text-blue-600 w-8 h-8" />
+    <AuthSplitLayout
+      heroIcon={KeyRound}
+      heroTitle={
+        <>
+          Create a strong,
+          <br />
+          secure password.
+        </>
+      }
+      heroDescription="Protect your LivelihoodGo account with a password that is unique and difficult to guess."
+      features={[
+        {
+          icon: ShieldCheck,
+          text: "Your new password is encrypted and protected.",
+        },
+        {
+          icon: LockKeyhole,
+          text: "Use a password you do not use on another account.",
+        },
+      ]}
+    >
+      {checkingSession ? (
+        <div className="py-14 text-center">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" />
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            Verifying your reset link...
+          </p>
         </div>
-
-        <h1 className="text-center text-3xl font-black mt-6 text-slate-900">
-          Reset Password
-        </h1>
-
-        <p className="text-center text-slate-500 mt-3 text-sm leading-6">
-          Create a new secure password for your account.
-        </p>
-
-        <form onSubmit={handleSave} className="mt-8 space-y-5">
-
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              New Password
-            </label>
-
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                disabled={loading}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-12 rounded-xl border border-slate-300 px-4 pr-12 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none"
-                placeholder="Enter new password"
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-3 text-slate-500"
-              >
-                {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-              </button>
-            </div>
+      ) : !validRecoverySession ? (
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500 text-white">
+            <X className="h-8 w-8" />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Confirm Password
-            </label>
-
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                disabled={loading}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-12 rounded-xl border border-slate-300 px-4 pr-12 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none"
-                placeholder="Confirm password"
-              />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowConfirmPassword(!showConfirmPassword)
-                }
-                className="absolute right-4 top-3 text-slate-500"
-              >
-                {showConfirmPassword ? (
-                  <EyeOff size={20}/>
-                ) : (
-                  <Eye size={20}/>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-
-            <div className="flex justify-between mb-2 text-sm">
-              <span>Password Strength</span>
-
-              <span
-                className={`font-semibold ${
-                  strength() === "Strong"
-                    ? "text-green-600"
-                    : strength() === "Medium"
-                    ? "text-amber-600"
-                    : "text-red-600"
-                }`}
-              >
-                {strength()}
-              </span>
-            </div>
-
-            <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
-
-              <div
-                style={{
-                  width: `${passedChecks * 20}%`,
-                }}
-                className={`h-full transition-all ${
-                  strength() === "Strong"
-                    ? "bg-green-500"
-                    : strength() === "Medium"
-                    ? "bg-amber-500"
-                    : "bg-red-500"
-                }`}
-              />
-
-            </div>
-
-          </div>
-
-          <div className="space-y-2 pt-2">
-
-            <Check
-              ok={checks.length}
-              text="At least 8 characters"
-            />
-
-            <Check
-              ok={checks.upper}
-              text="Contains uppercase letter"
-            />
-
-            <Check
-              ok={checks.lower}
-              text="Contains lowercase letter"
-            />
-
-            <Check
-              ok={checks.number}
-              text="Contains a number"
-            />
-
-            <Check
-              ok={checks.match}
-              text="Passwords match"
-            />
-
-          </div>
-
-          <button
-            disabled={loading}
-            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold flex items-center justify-center gap-2 transition"
+          <h1
+            className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
+            style={{ fontFamily: "'Sora', sans-serif" }}
           >
-            {loading ? (
-              <>
-                <Loader2 className="animate-spin w-5 h-5"/>
-                Updating Password...
-              </>
-            ) : (
-              "Save Password"
-            )}
-          </button>
+            Reset link expired
+          </h1>
 
-        </form>
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            This reset link is invalid, expired, or has already been used.
+          </p>
 
+          <Link
+            to="/forgot-password"
+            className="mt-7 flex h-12 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-700"
+          >
+            Request another link
+          </Link>
+        </div>
+      ) : success ? (
+        <div className="py-8 text-center">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
+          <h1
+            className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
+            style={{ fontFamily: "'Sora', sans-serif" }}
+          >
+            Password updated
+          </h1>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Redirecting you to the login page...
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2937f0] via-[#523cf0] to-[#3784ed] text-white shadow-lg shadow-indigo-500/25">
+              <LockKeyhole className="h-8 w-8" />
+            </div>
+
+            <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
+              Account security
+            </p>
+
+            <h1
+              className="mt-3 text-3xl font-black text-slate-900 dark:text-white"
+              style={{ fontFamily: "'Sora', sans-serif" }}
+            >
+              Reset your password
+            </h1>
+
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Create a new secure password for your account.
+            </p>
+          </div>
+
+          <form onSubmit={handleSave} className="mt-8 space-y-5">
+            <PasswordInput
+              id="new-password"
+              label="New password"
+              value={password}
+              show={showPassword}
+              loading={loading}
+              onChange={setPassword}
+              onToggle={() => setShowPassword((value) => !value)}
+            />
+
+            <PasswordInput
+              id="confirm-password"
+              label="Confirm password"
+              value={confirmPassword}
+              show={showConfirmPassword}
+              loading={loading}
+              onChange={setConfirmPassword}
+              onToggle={() => setShowConfirmPassword((value) => !value)}
+            />
+
+            <div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  Password strength
+                </span>
+                <span
+                  className={`font-bold ${
+                    strength === "Strong"
+                      ? "text-emerald-500"
+                      : strength === "Medium"
+                        ? "text-amber-500"
+                        : "text-rose-500"
+                  }`}
+                >
+                  {strength}
+                </span>
+              </div>
+
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    strength === "Strong"
+                      ? "bg-emerald-500"
+                      : strength === "Medium"
+                        ? "bg-amber-500"
+                        : "bg-rose-500"
+                  }`}
+                  style={{ width: `${Math.max(12, (score / 6) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60 sm:grid-cols-2">
+              <Requirement ok={checks.length} text="At least 8 characters" />
+              <Requirement ok={checks.upper} text="Uppercase letter" />
+              <Requirement ok={checks.lower} text="Lowercase letter" />
+              <Requirement ok={checks.number} text="Number" />
+              <Requirement ok={checks.special} text="Special character" />
+              <Requirement ok={checks.match} text="Passwords match" />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !Object.values(checks).every(Boolean)}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Updating password...
+                </>
+              ) : (
+                <>
+                  <LockKeyhole className="h-5 w-5" />
+                  Save password
+                </>
+              )}
+            </button>
+          </form>
+        </>
+      )}
+
+      <div className="mt-7 border-t border-slate-200 pt-6 text-center dark:border-slate-700">
         <Link
           to="/"
-          className="flex justify-center items-center gap-2 mt-6 text-blue-600 hover:text-blue-700 font-semibold"
+          className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
         >
-          <ArrowLeft size={18}/>
-          Back to Login
+          <ArrowLeft className="h-4 w-4" />
+          Back to login
         </Link>
+      </div>
+    </AuthSplitLayout>
+  );
+}
 
-      </section>
-    </main>
+function PasswordInput({
+  id,
+  label,
+  value,
+  show,
+  loading,
+  onChange,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  show: boolean;
+  loading: boolean;
+  onChange: (value: string) => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="text-sm font-semibold text-slate-700 dark:text-slate-200"
+      >
+        {label}
+      </label>
+
+      <div className="mt-2 flex h-13 items-center rounded-xl border border-slate-200 bg-white px-4 transition focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800">
+        <LockKeyhole className="h-5 w-5 shrink-0 text-slate-400" />
+
+        <input
+          id={id}
+          type={show ? "text" : "password"}
+          autoComplete="new-password"
+          value={value}
+          disabled={loading}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm text-slate-900 outline-none dark:text-white"
+        />
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white"
+          aria-label={show ? "Hide password" : "Show password"}
+        >
+          {show ? <EyeOff size={19} /> : <Eye size={19} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Requirement({ ok, text }: { ok: boolean; text: string }) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-xs font-semibold ${
+        ok ? "text-emerald-500" : "text-slate-500 dark:text-slate-400"
+      }`}
+    >
+      <span
+        className={`flex h-5 w-5 items-center justify-center rounded-full ${
+          ok ? "bg-emerald-500/15" : "bg-slate-500/10"
+        }`}
+      >
+        {ok ? <Check size={13} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      </span>
+      {text}
+    </div>
   );
 }

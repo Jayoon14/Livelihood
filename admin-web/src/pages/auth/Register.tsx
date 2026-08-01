@@ -2,7 +2,15 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useRegisterStore } from "../../store/registerStore";
 import { submitWorkerRegistration } from "../../services/registerWorkerService";
-import { Wrench, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BriefcaseBusiness,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  Wrench,
+} from "lucide-react";
 
 import StepIndicator from "../../components/StepIndicator";
 
@@ -350,92 +358,229 @@ export default function Register() {
   }
 
 return (
-  <div
-    className="min-h-screen bg-slate-50 flex justify-center items-center p-6 md:p-8"
+  <main
+    className="relative min-h-dvh overflow-hidden bg-[linear-gradient(135deg,#f8faff_0%,#eef3ff_46%,#f8fbff_100%)] text-slate-900 dark:bg-[linear-gradient(135deg,#020617_0%,#07111f_46%,#020617_100%)] dark:text-white"
     style={{ fontFamily: "'Inter', sans-serif" }}
   >
-    <div className="w-full max-w-7xl overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-[0_20px_70px_rgba(79,70,229,.15)]">
-      {/* HEADER */}
-
+    {/* PAGE BACKGROUND */}
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 overflow-hidden"
+    >
       <div
-        className="relative px-8 md:px-10 py-9 overflow-hidden"
+        className="absolute inset-0 opacity-[0.055] dark:opacity-[0.025]"
         style={{
-          background:
-            "linear-gradient(135deg,#2937F0 0%,#5B3DF1 52%,#3292EC 100%)",
+          backgroundImage:
+            "linear-gradient(#2937f0 1px,transparent 1px),linear-gradient(90deg,#2937f0 1px,transparent 1px)",
+          backgroundSize: "44px 44px",
         }}
-      >
+      />
+
+      <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-indigo-300/25 blur-3xl dark:bg-indigo-700/10" />
+      <div className="absolute -right-24 top-16 h-96 w-96 rounded-full bg-blue-300/25 blur-3xl dark:bg-blue-700/10" />
+      <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-700/10" />
+
+      <div className="absolute left-[4%] top-40 hidden h-28 w-28 rotate-12 rounded-[2rem] border border-indigo-200/50 bg-white/30 backdrop-blur lg:block dark:border-indigo-500/10 dark:bg-white/5" />
+
+      <div className="absolute bottom-24 right-[4%] hidden h-24 w-24 -rotate-12 rounded-[1.75rem] border border-blue-200/50 bg-white/30 backdrop-blur lg:block dark:border-blue-500/10 dark:bg-white/5" />
+    </div>
+
+    {/* TOP NAVIGATION */}
+    <header className="relative z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
+      <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="flex min-w-0 items-center gap-3 text-left"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 shadow-sm">
+            <Wrench className="h-5 w-5 text-slate-950" />
+          </span>
+
+          <span className="min-w-0">
+            <span
+              className="block truncate text-base font-black leading-none text-slate-950 dark:text-white sm:text-lg"
+              style={{ fontFamily: "'Sora', sans-serif" }}
+            >
+              LivelihoodGo
+            </span>
+
+            <span className="mt-1 block truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
+              Trusted local services
+            </span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/register-choice")}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Account type</span>
+          <span className="sm:hidden">Back</span>
+        </button>
+      </div>
+    </header>
+
+    <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {/* HERO */}
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-[linear-gradient(135deg,#2937F0_0%,#5B3DF1_52%,#3292EC_100%)] px-5 py-6 text-white shadow-[0_24px_70px_rgba(41,55,240,0.24)] sm:px-8 sm:py-8 lg:px-10 lg:py-9">
         <div
-          className="absolute inset-0 opacity-[0.05]"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-[0.09]"
           style={{
             backgroundImage:
               "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
-            backgroundSize: "38px 38px",
+            backgroundSize: "40px 40px",
           }}
         />
 
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-amber-500 shadow-lg shadow-amber-400/30 flex items-center justify-center shrink-0">
-            <Wrench className="w-5 h-5 text-[#0A1930]" />
+        <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
+
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300 backdrop-blur sm:text-xs">
+              <Sparkles className="h-4 w-4" />
+              Worker registration
+            </div>
+
+            <h1
+              className="mt-3 max-w-3xl text-3xl font-black leading-[1.08] sm:text-4xl lg:text-5xl"
+              style={{ fontFamily: "'Sora', sans-serif" }}
+            >
+              Build your professional worker profile.
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+              Complete each registration step to showcase your skills,
+              experience, and credentials to nearby customers.
+            </p>
           </div>
 
-          <span
-            className="text-lg font-bold text-white"
-            style={{ fontFamily: "'Sora', sans-serif" }}
-          >
-            Livelihood
-          </span>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:w-[30rem]">
+            {[
+              {
+                icon: ShieldCheck,
+                title: "Secure",
+                text: "Protected application",
+              },
+              {
+                icon: BriefcaseBusiness,
+                title: "Professional",
+                text: "Complete work profile",
+              },
+              {
+                icon: Check,
+                title: "Verified",
+                text: "Credential review",
+              },
+            ].map(({ icon: Icon, title, text }) => (
+              <div
+                key={title}
+                className="flex min-w-0 flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2 py-3 text-center backdrop-blur-sm sm:items-start sm:rounded-2xl sm:p-4 sm:text-left"
+              >
+                <Icon className="h-4 w-4 shrink-0 text-amber-300 sm:h-5 sm:w-5" />
+
+                <p className="mt-2 truncate text-[11px] font-black sm:mt-3 sm:text-sm">
+                  {title}
+                </p>
+
+                <p className="mt-1 hidden text-xs text-blue-100/80 sm:block">
+                  {text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* REGISTRATION SHELL */}
+      <section className="relative -mt-4 overflow-hidden rounded-[2rem] border border-white/90 bg-white/96 shadow-[0_30px_90px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/96 sm:-mt-6">
+        <div className="border-b border-slate-200 px-4 py-5 dark:border-slate-800 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#2937F0] dark:text-indigo-400">
+                Worker application
+              </p>
+
+              <h2
+                className="mt-1 text-2xl font-black text-slate-950 dark:text-white"
+                style={{ fontFamily: "'Sora', sans-serif" }}
+              >
+                Complete your registration
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Review each section carefully before submitting your profile.
+              </p>
+            </div>
+
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-[#2937F0] dark:bg-indigo-500/10 dark:text-indigo-300">
+              <ShieldCheck className="h-4 w-4" />
+              Secure application
+            </div>
+          </div>
         </div>
 
-        <h1
-          className="relative z-10 text-3xl md:text-4xl font-bold text-white mt-7"
-          style={{ fontFamily: "'Sora', sans-serif" }}
-        >
-          Worker Registration
-        </h1>
+        <div className="p-3 sm:p-5 md:p-7 lg:p-8">
+          <StepIndicator
+            currentStep={step}
+            completedSteps={completedSteps}
+          />
 
-        <p className="relative z-10 mt-2 text-blue-100">
-          Complete your profile to apply for livelihood services.
-        </p>
-      </div>
+          <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] sm:p-6 lg:p-8">
+            <div className="min-h-[500px]">
+              {step === 1 && <PersonalInformation />}
+              {step === 2 && <EducationalBackground />}
+              {step === 3 && <WorkExperience />}
+              {step === 4 && <SkillsCertification />}
+              {step === 5 && <Documents />}
+              {step === 6 && <Confirmation />}
+            </div>
+          </div>
 
-      <div className="p-8 md:p-10">
-        <StepIndicator currentStep={step} completedSteps={completedSteps} />
+          <div className="mt-6 flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                Step {step} of 6
+              </p>
 
-        <div className="mt-8 min-h-[500px]">
-          {step === 1 && <PersonalInformation />}
-          {step === 2 && <EducationalBackground />}
-          {step === 3 && <WorkExperience />}
-          {step === 4 && <SkillsCertification />}
-          {step === 5 && <Documents />}
-          {step === 6 && <Confirmation />}
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Use Previous or Next to review every section.
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                type="button"
+                disabled={step === 1}
+                onClick={prevStep}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
+              >
+                <ArrowLeft className="h-4.5 w-4.5" />
+                Previous
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNext}
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-8 py-3.5 font-semibold text-white shadow-lg shadow-indigo-400/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 sm:w-auto"
+              >
+                {step === 6 ? "Submit Application" : "Continue"}
+
+                {step === 6 ? (
+                  <Check className="h-4.5 w-4.5" />
+                ) : (
+                  <ArrowRight className="h-4.5 w-4.5 transition-transform group-hover:translate-x-1" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div className="flex justify-between mt-8 pt-8 border-t border-indigo-100">
-          <button
-            type="button"
-            disabled={step === 1}
-            onClick={prevStep}
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl border border-slate-200 font-semibold text-slate-700 hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-          >
-            <ArrowLeft className="w-4.5 h-4.5" />
-            Previous
-          </button>
-
-          <button
-            type="button"
-            onClick={handleNext}
-            className="group inline-flex items-center gap-2 rounded-2xl bg-linear-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-10 py-3.5 font-semibold text-white transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:from-[#2430D9] hover:via-[#4F35D8] hover:to-[#287FD2] hover:shadow-xl"
-          >
-            {step === 6 ? "Submit" : "Next"}
-            {step === 6 ? (
-              <Check className="w-4.5 h-4.5" />
-            ) : (
-              <ArrowRight className="w-4.5 h-4.5 transition-transform group-hover:translate-x-1" />
-            )}
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
-  </div>
+  </main>
 );
 }

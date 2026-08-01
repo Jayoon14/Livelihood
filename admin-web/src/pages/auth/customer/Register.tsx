@@ -12,6 +12,8 @@ import {
   Camera,
   Wrench,
   CheckCircle2,
+  ShieldCheck,
+  ArrowLeft,
 } from "lucide-react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -19,14 +21,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { registerUser } from "../../../services/authService";
 
 const inputWrap =
-  "flex items-center gap-3 border border-slate-200 rounded-2xl px-4 bg-white transition-colors focus-within:border-[#2937f0] focus-within:ring-2 focus-within:ring-[#2937f0]/10";
+  "flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition focus-within:border-[#2937f0] focus-within:ring-4 focus-within:ring-[#2937f0]/10 dark:border-slate-700 dark:bg-slate-800";
 
-const inputBase = "w-full py-3.5 outline-none text-slate-900 placeholder:text-slate-400 bg-transparent";
+const inputBase = "w-full bg-transparent py-3.5 text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:text-white";
 
 const selectBase =
-  "w-full border border-slate-200 rounded-2xl px-4 py-3.5 mt-2 outline-none text-slate-900 bg-white transition-colors focus:border-[#2937f0] focus:ring-2 focus:ring-[#2937f0]/10";
+  "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-slate-900 dark:text-white outline-none transition focus:border-[#2937f0] focus:ring-4 focus:ring-[#2937f0]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 
-const label = "text-sm font-semibold text-slate-700";
+const label = "text-sm font-semibold text-slate-700 dark:text-slate-200";
 
 export default function CustomerRegister() {
   const navigate = useNavigate();
@@ -138,22 +140,62 @@ export default function CustomerRegister() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 flex items-center justify-center p-3 sm:p-6"
+    <main
+      className="min-h-dvh bg-[linear-gradient(180deg,#eef2ff_0%,#f8fafc_34%,#f8fafc_100%)] text-slate-900 dark:bg-[linear-gradient(180deg,#111827_0%,#020617_40%,#020617_100%)] dark:text-white"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      <div className="w-full max-w-6xl bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-[0_20px_70px_rgba(15,23,42,.10)] overflow-hidden">
-        {/* HEADER */}
-
+      {/* BACKGROUND */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
-          className="relative px-5 sm:px-8 md:px-10 py-6 sm:py-10 overflow-hidden"
+          className="absolute inset-x-0 top-0 h-[32rem] opacity-[0.06] dark:opacity-[0.035]"
           style={{
-            background:
-              "linear-gradient(135deg,#2937f0 0%,#5b3df1 55%,#3292ec 100%)",
+            backgroundImage:
+              "linear-gradient(#2937f0 1px,transparent 1px),linear-gradient(90deg,#2937f0 1px,transparent 1px)",
+            backgroundSize: "42px 42px",
           }}
-        >
+        />
+
+        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-[#5b3df1]/20 blur-3xl" />
+        <div className="absolute -right-24 top-20 h-96 w-96 rounded-full bg-[#3292ec]/20 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#2937f0]/10 blur-3xl" />
+      </div>
+
+      {/* TOP BAR */}
+      <header className="relative z-20 border-b border-white/70 bg-white/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 shadow-sm">
+              <Wrench className="h-5 w-5 text-slate-950" />
+            </div>
+
+            <div>
+              <p
+                className="font-black leading-none text-slate-950 dark:text-white"
+                style={{ fontFamily: "'Sora', sans-serif" }}
+              >
+                LivelihoodGo
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                Trusted local services
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            to="/register-choice"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-600 transition hover:border-[#2937f0]/40 hover:bg-indigo-50 hover:text-[#2937f0] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Account type
+          </Link>
+        </div>
+      </header>
+
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        {/* HERO */}
+        <section className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-[linear-gradient(135deg,#2937f0_0%,#5b3df1_55%,#3292ec_100%)] px-5 py-6 text-white shadow-[0_24px_70px_rgba(41,55,240,0.24)] sm:px-8 sm:py-8 lg:px-10 lg:py-9">
           <div
-            className="absolute inset-0 opacity-[0.08]"
+            className="pointer-events-none absolute inset-0 opacity-[0.09]"
             style={{
               backgroundImage:
                 "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
@@ -161,147 +203,189 @@ export default function CustomerRegister() {
             }}
           />
 
-          <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 right-0 h-64 w-64 rounded-full bg-amber-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
 
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5 text-slate-900" />
+          <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300 backdrop-blur sm:text-xs">
+                Customer registration
+              </div>
+
+              <h1
+                className="mt-3 max-w-3xl text-3xl font-black leading-[1.08] sm:text-4xl lg:text-5xl"
+                style={{ fontFamily: "'Sora', sans-serif" }}
+              >
+                Create your customer account.
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+                Complete your information once, then book trusted workers,
+                manage services, and track every request from one account.
+              </p>
             </div>
 
-            <span
-              className="text-base sm:text-lg font-bold text-white"
-              style={{ fontFamily: "'Sora', sans-serif" }}
-            >
-              Livelihood
-            </span>
-          </div>
+            {/* Compact on mobile, cards on larger screens */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:w-[30rem]">
+              {[
+                {
+                  icon: ShieldCheck,
+                  title: "Secure",
+                  text: "Protected registration",
+                },
+                {
+                  icon: CheckCircle2,
+                  title: "Verified",
+                  text: "Trusted professionals",
+                },
+                {
+                  icon: MapPin,
+                  title: "Local",
+                  text: "Nearby services",
+                },
+              ].map(({ icon: Icon, title, text }) => (
+                <div
+                  key={title}
+                  className="flex min-w-0 flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2 py-3 text-center backdrop-blur-sm sm:items-start sm:rounded-2xl sm:p-4 sm:text-left"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-amber-300 sm:h-5 sm:w-5" />
 
-          <div className="relative z-10 mt-6 sm:mt-8">
-            <h1
-              className="text-2xl sm:text-3xl md:text-4xl font-bold text-white"
-              style={{ fontFamily: "'Sora', sans-serif" }}
-            >
-              Customer Registration
-            </h1>
+                  <p className="mt-2 truncate text-[11px] font-black sm:mt-3 sm:text-sm">
+                    {title}
+                  </p>
 
-            <p className="text-blue-100 mt-2 text-sm sm:text-base">
-              Create your customer account to start hiring trusted professionals.
-            </p>
-          </div>
-        </div>
-
-        <div className="p-4 sm:p-6 md:p-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-14 gap-y-8 sm:gap-y-10">
-            {/* LEFT SIDE — PERSONAL INFO */}
-
-            <div>
-              <div className="flex items-center gap-3 mb-6 sm:mb-7">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-slate-100">
-                  <User className="w-5 h-5 text-blue-600" strokeWidth={2} />
+                  <p className="mt-1 hidden text-xs text-blue-100/80 sm:block">
+                    {text}
+                  </p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FORM SHELL */}
+        <section className="relative -mt-5 overflow-hidden rounded-[2rem] border border-white/90 bg-white/96 shadow-[0_28px_90px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/96 sm:-mt-7">
+          <div className="border-b border-slate-200 px-5 py-5 dark:border-slate-800 sm:px-7 lg:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-[#2937f0] dark:text-indigo-400">
+                  Customer profile
+                </p>
 
                 <h2
-                  className="text-lg sm:text-xl font-bold text-slate-900"
+                  className="mt-1 text-2xl font-black text-slate-950 dark:text-white"
                   style={{ fontFamily: "'Sora', sans-serif" }}
                 >
-                  Personal Information
+                  Registration details
                 </h2>
+
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Complete the required fields to create your account.
+                </p>
               </div>
 
-              {/* First Name */}
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-[#2937f0] dark:bg-indigo-500/10 dark:text-indigo-300">
+                <ShieldCheck className="h-4 w-4" />
+                Secure form
+              </div>
+            </div>
+          </div>
 
-              <div className="mb-5">
-                <label className={label}>First Name</label>
+          <div className="grid gap-6 p-5 sm:p-7 xl:grid-cols-2 xl:p-8">
+            {/* PERSONAL INFORMATION */}
+            <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-800/45 sm:p-6">
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-300">
+                  <User className="h-5 w-5" />
+                </div>
 
-                <div className={`${inputWrap} mt-2`}> 
-                  <User className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Enter first name"
-                    className={inputBase}
-                  />
+                <div>
+                  <h3
+                    className="text-lg font-black text-slate-950 dark:text-white"
+                    style={{ fontFamily: "'Sora', sans-serif" }}
+                  >
+                    Personal information
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Basic details used for your customer profile.
+                  </p>
                 </div>
               </div>
 
-              {/* Middle Name */}
-
-              <div className="mb-5">
-                <label className={label}>Middle Name</label>
-
-                <div className={`${inputWrap} mt-2`}>
-                  <User className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type="text"
-                    value={middleName}
-                    onChange={(e) => setMiddleName(e.target.value)}
-                    placeholder="Enter middle name"
-                    className={inputBase}
-                  />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className={label}>First Name</label>
+                  <div className={`${inputWrap} mt-2`}>
+                    <User className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(event) => setFirstName(event.target.value)}
+                      placeholder="Enter first name"
+                      className={inputBase}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Last Name */}
-
-              <div className="mb-5">
-                <label className={label}>Last Name</label>
-
-                <div className={`${inputWrap} mt-2`}>
-                  <User className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Enter last name"
-                    className={inputBase}
-                  />
+                <div>
+                  <label className={label}>Middle Name</label>
+                  <div className={`${inputWrap} mt-2`}>
+                    <User className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+                    <input
+                      type="text"
+                      value={middleName}
+                      onChange={(event) => setMiddleName(event.target.value)}
+                      placeholder="Optional"
+                      className={inputBase}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Gender + Civil Status */}
+                <div className="sm:col-span-2">
+                  <label className={label}>Last Name</label>
+                  <div className={`${inputWrap} mt-2`}>
+                    <User className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(event) => setLastName(event.target.value)}
+                      placeholder="Enter last name"
+                      className={inputBase}
+                    />
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="mb-5">
+                <div>
                   <label className={label}>Gender</label>
-
                   <select
                     value={gender}
-                    onChange={(e) => setGender(e.target.value)}
+                    onChange={(event) => setGender(event.target.value)}
                     className={selectBase}
                   >
-                    <option value="">Select</option>
+                    <option value="">Select gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
 
-                <div className="mb-5">
+                <div>
                   <label className={label}>Birth Date</label>
-
                   <input
                     type="date"
                     value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
+                    onChange={(event) => setBirthDate(event.target.value)}
                     className={selectBase}
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="mb-5">
+                <div>
                   <label className={label}>Civil Status</label>
-
                   <select
                     value={civilStatus}
-                    onChange={(e) => setCivilStatus(e.target.value)}
+                    onChange={(event) => setCivilStatus(event.target.value)}
                     className={selectBase}
                   >
-                    <option value="">Select</option>
+                    <option value="">Select status</option>
                     <option value="Single">Single</option>
                     <option value="Married">Married</option>
                     <option value="Widowed">Widowed</option>
@@ -309,284 +393,309 @@ export default function CustomerRegister() {
                   </select>
                 </div>
 
-                <div className="mb-5">
+                <div>
                   <label className={label}>Religion</label>
-
                   <input
                     type="text"
                     value={religion}
-                    onChange={(e) => setReligion(e.target.value)}
+                    onChange={(event) => setReligion(event.target.value)}
                     placeholder="Optional"
                     className={selectBase}
                   />
                 </div>
               </div>
+            </section>
 
-              {/* Email */}
+            {/* ADDRESS INFORMATION */}
+            <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-800/45 sm:p-6">
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                  <MapPin className="h-5 w-5" />
+                </div>
 
-              <div className="mb-5">
-                <label className={label}>Email</label>
-
-                <div className={`${inputWrap} mt-2`}>
-                  <Mail className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className={inputBase}
-                  />
+                <div>
+                  <h3
+                    className="text-lg font-black text-slate-950 dark:text-white"
+                    style={{ fontFamily: "'Sora', sans-serif" }}
+                  >
+                    Address information
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Helps us show relevant services near you.
+                  </p>
                 </div>
               </div>
 
-              {/* Phone */}
-
-              <div>
-                <label className={label}>Phone Number</label>
-
-                <div className={`${inputWrap} mt-2`}>
-                  <Phone className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="09XX XXX XXXX"
-                    className={inputBase}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT SIDE — ADDRESS + PROFILE */}
-
-            <div>
-              <div className="flex items-center gap-3 mb-6 sm:mb-7">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-slate-100">
-                  <MapPin className="w-5 h-5 text-amber-600" strokeWidth={2} />
-                </div>
-
-                <h2
-                  className="text-lg sm:text-xl font-bold text-slate-900"
-                  style={{ fontFamily: "'Sora', sans-serif" }}
-                >
-                  Address Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="mb-4">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
                   <label className={label}>House No.</label>
-
                   <input
                     type="text"
                     value={houseNo}
-                    onChange={(e) => setHouseNo(e.target.value)}
-                    placeholder="House Number"
+                    onChange={(event) => setHouseNo(event.target.value)}
+                    placeholder="House number"
                     className={selectBase}
                   />
                 </div>
 
-                <div className="mb-4">
+                <div>
                   <label className={label}>Street</label>
-
                   <input
                     type="text"
                     value={street}
-                    onChange={(e) => setStreet(e.target.value)}
+                    onChange={(event) => setStreet(event.target.value)}
                     placeholder="Street"
                     className={selectBase}
                   />
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <label className={label}>Barangay</label>
+                <div className="sm:col-span-2">
+                  <label className={label}>Barangay</label>
+                  <input
+                    type="text"
+                    value={barangay}
+                    onChange={(event) => setBarangay(event.target.value)}
+                    placeholder="Barangay"
+                    className={selectBase}
+                  />
+                </div>
 
-                <input
-                  type="text"
-                  value={barangay}
-                  onChange={(e) => setBarangay(e.target.value)}
-                  placeholder="Barangay"
-                  className={selectBase}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="mb-4">
+                <div>
                   <label className={label}>Municipality</label>
-
                   <input
                     type="text"
                     value={municipality}
-                    onChange={(e) => setMunicipality(e.target.value)}
+                    onChange={(event) => setMunicipality(event.target.value)}
                     placeholder="Municipality"
                     className={selectBase}
                   />
                 </div>
 
-                <div className="mb-4">
+                <div>
                   <label className={label}>Province</label>
-
                   <input
                     type="text"
                     value={province}
-                    onChange={(e) => setProvince(e.target.value)}
+                    onChange={(event) => setProvince(event.target.value)}
                     placeholder="Province"
                     className={selectBase}
                   />
                 </div>
               </div>
+            </section>
 
-              {/* PROFILE PICTURE */}
-
-              <div className="mt-8 sm:mt-9">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-slate-100">
-                    <Camera className="w-5 h-5 text-blue-600" strokeWidth={2} />
-                  </div>
-
-                  <h2
-                    className="text-lg sm:text-xl font-bold text-slate-900"
-                    style={{ fontFamily: "'Sora', sans-serif" }}
-                  >
-                    Profile Picture
-                  </h2>
+            {/* CONTACT DETAILS */}
+            <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-800/45 sm:p-6">
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
+                  <Mail className="h-5 w-5" />
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5">
-                  {profilePicture ? (
-                    <img
-                      src={URL.createObjectURL(profilePicture)}
-                      alt="Profile Preview"
-                      className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md shrink-0"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center text-2xl font-bold text-blue-600 border border-slate-100 shrink-0">
-                      {firstName ? firstName.charAt(0).toUpperCase() : "?"}
-                    </div>
-                  )}
+                <div>
+                  <h3
+                    className="text-lg font-black text-slate-950 dark:text-white"
+                    style={{ fontFamily: "'Sora', sans-serif" }}
+                  >
+                    Contact details
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Used for sign-in, updates, and booking communication.
+                  </p>
+                </div>
+              </div>
 
-                  <div className="flex-1 text-center sm:text-left">
-                    <label
-                      htmlFor="profile-upload"
-                      className="inline-flex items-center gap-2 cursor-pointer text-sm font-semibold text-[#2937f0] bg-white border border-slate-200 rounded-xl px-4 py-2.5 hover:border-[#2937f0] transition-colors"
-                    >
-                      <Camera className="w-4 h-4" />
-                      Choose photo
-                    </label>
-
+              <div className="grid gap-5">
+                <div>
+                  <label className={label}>Email Address</label>
+                  <div className={`${inputWrap} mt-2`}>
+                    <Mail className="h-4.5 w-4.5 shrink-0 text-slate-400" />
                     <input
-                      id="profile-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        setProfilePicture(e.target.files?.[0] || null)
-                      }
-                      className="hidden"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      className={inputBase}
                     />
+                  </div>
+                </div>
 
-                    <p className="text-xs text-slate-400 mt-2">
-                      PNG or JPG, up to 5MB.
+                <div>
+                  <label className={label}>Phone Number</label>
+                  <div className={`${inputWrap} mt-2`}>
+                    <Phone className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="09XX XXX XXXX"
+                      className={inputBase}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* PROFILE PICTURE */}
+            <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-800/45 sm:p-6">
+              <div className="mb-6 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-300">
+                  <Camera className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <h3
+                    className="text-lg font-black text-slate-950 dark:text-white"
+                    style={{ fontFamily: "'Sora', sans-serif" }}
+                  >
+                    Profile picture
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Optional, but recommended for easy recognition.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex min-h-44 flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-center dark:border-slate-600 dark:bg-slate-900 sm:flex-row sm:justify-start sm:text-left">
+                {profilePicture ? (
+                  <img
+                    src={URL.createObjectURL(profilePicture)}
+                    alt="Profile preview"
+                    className="h-24 w-24 shrink-0 rounded-full border-4 border-white object-cover shadow-lg dark:border-slate-800"
+                  />
+                ) : (
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-3xl font-black text-[#2937f0] ring-1 ring-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-500/20">
+                    {firstName ? firstName.charAt(0).toUpperCase() : "?"}
+                  </div>
+                )}
+
+                <div>
+                  <label
+                    htmlFor="profile-upload"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-[#2937f0] shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-indigo-300"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Choose photo
+                  </label>
+
+                  <input
+                    id="profile-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) =>
+                      setProfilePicture(event.target.files?.[0] || null)
+                    }
+                    className="hidden"
+                  />
+
+                  <p className="mt-2 text-xs text-slate-400">
+                    PNG or JPG, up to 5MB.
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {/* ACCOUNT SECURITY */}
+          <section className="border-t border-slate-200 bg-[linear-gradient(135deg,#eef2ff_0%,#f8fafc_100%)] px-5 py-6 dark:border-slate-800 dark:bg-[linear-gradient(135deg,rgba(49,46,129,.18),rgba(15,23,42,.85))] sm:px-7 sm:py-7 lg:px-8">
+            <div className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-end">
+              <div>
+                <div className="mb-5 flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-[#2937f0] dark:text-indigo-300">
+                    <Lock className="h-5 w-5" />
+                  </div>
+
+                  <div>
+                    <h3
+                      className="text-lg font-black text-slate-950 dark:text-white"
+                      style={{ fontFamily: "'Sora', sans-serif" }}
+                    >
+                      Account security
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Create a password with at least 6 characters.
                     </p>
                   </div>
                 </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label className={label}>Password</label>
+                    <div className={`${inputWrap} mt-2`}>
+                      <Lock className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Enter password"
+                        className={inputBase}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-white"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4.5 w-4.5" />
+                        ) : (
+                          <Eye className="h-4.5 w-4.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={label}>Confirm Password</label>
+                    <div className={`${inputWrap} mt-2`}>
+                      <Lock className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(event) =>
+                          setConfirmPassword(event.target.value)
+                        }
+                        placeholder="Confirm password"
+                        className={inputBase}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  Use at least 6 characters.
+                </p>
               </div>
-            </div>
-          </div>
 
-          {/* PASSWORD */}
-
-          <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-slate-100">
-            <div className="flex items-center gap-3 mb-6 sm:mb-7">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center border border-slate-100">
-                <Lock className="w-5 h-5 text-amber-600" strokeWidth={2} />
-              </div>
-
-              <h2
-                className="text-lg sm:text-xl font-bold text-slate-900"
-                style={{ fontFamily: "'Sora', sans-serif" }}
-              >
-                Set Your Password
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className={label}>Password</label>
+                <button
+                  type="button"
+                  onClick={handleRegister}
+                  disabled={loading}
+                  className="flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
+                >
+                  {loading ? "Creating Account..." : "Create Customer Account"}
+                </button>
 
-                <div className={`${inputWrap} mt-2`}>
-                  <Lock className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className={inputBase}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="shrink-0 text-slate-400 hover:text-slate-600"
+                <p className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
+                  Already registered?{" "}
+                  <Link
+                    to="/"
+                    className="font-bold text-[#2937f0] hover:underline dark:text-indigo-400"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-4.5 h-4.5" />
-                    ) : (
-                      <Eye className="w-4.5 h-4.5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className={label}>Confirm Password</label>
-
-                <div className={`${inputWrap} mt-2`}>
-                  <Lock className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm password"
-                    className={inputBase}
-                  />
-                </div>
+                    Back to login
+                  </Link>
+                </p>
               </div>
             </div>
-
-            <p className="flex items-center gap-2 text-xs text-slate-400 mt-3">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Use at least 6 characters.
-            </p>
-
-            {/* REGISTER BUTTON */}
-
-            <button
-              onClick={handleRegister}
-              disabled={loading}
-              className="w-full mt-8 bg-linear-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] hover:-translate-y-0.5 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:translate-y-0 text-white py-4 rounded-2xl font-semibold text-base transition-all duration-300 shadow-lg shadow-indigo-400/30 hover:shadow-xl hover:shadow-indigo-400/40 disabled:shadow-none"
-            >
-              {loading ? "Creating Account..." : "Create Account"}
-            </button>
-
-            {/* LOGIN LINK */}
-
-            <p className="text-center mt-6 text-slate-500">
-              Already have an account?{" "}
-              <Link
-                to="/"
-                className="text-indigo-600 font-semibold hover:underline"
-              >
-                Back to Login
-              </Link>
-            </p>
-          </div>
-        </div>
+          </section>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

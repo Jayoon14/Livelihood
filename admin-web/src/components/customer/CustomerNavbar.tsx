@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  UserCircle,
   ChevronDown,
-  User,
-  Settings,
   LogOut,
   Menu,
+  Settings,
+  User,
+  UserCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -18,13 +18,13 @@ interface CustomerNavbarProps {
   onMenuClick: () => void;
 }
 
-export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
+export default function CustomerNavbar({
+  onMenuClick,
+}: CustomerNavbarProps) {
   const navigate = useNavigate();
-
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
-
   const { profile } = useProfile();
 
   useEffect(() => {
@@ -37,16 +37,24 @@ export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
       }
     }
 
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
   async function handleLogout() {
     await logout();
-    navigate("/");
+    navigate("/", { replace: true });
   }
 
   const fullName = profile
@@ -54,125 +62,132 @@ export default function CustomerNavbar({ onMenuClick }: CustomerNavbarProps) {
     : "Customer";
 
   const email = profile?.email ?? "";
-
   const avatar = profile?.profile_picture || "";
 
   return (
-    <header
-      className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 sm:px-6 lg:px-8"
-      style={{ fontFamily: "'Inter', sans-serif" }}
-    >
-      {/* LEFT */}
-      <div className="flex items-center">
-        {/* Mobile Menu Button */}
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="mr-3 rounded-xl p-2 transition-colors hover:bg-slate-100 lg:hidden"
-          aria-label="Open sidebar"
-        >
-          <Menu size={22} className="text-[#0A1930]" />
-        </button>
-
-        <div>
-          <h1
-            className="text-xl font-bold text-slate-900"
-            style={{ fontFamily: "'Sora', sans-serif" }}
-          >
-            Customer Dashboard
-          </h1>
-
-          <p className="hidden text-sm text-slate-500 sm:block">
-            Welcome back, {fullName}
-          </p>
-        </div>
-      </div>
-
-      {/* RIGHT */}
-      <div className="flex items-center gap-3">
-        {/* Theme */}
-        <ThemeDropdown />
-
-        {/* Notifications */}
-        <NotificationDropdown role="customer" />
-
-        {/* Profile */}
-        <div className="relative" ref={dropdownRef}>
+    <header className="sticky top-0 z-30 border-b border-(--app-border) bg-(--app-surface)/95 shadow-sm backdrop-blur-xl transition-colors duration-300">
+      <div className="mx-auto flex min-h-16 w-full max-w-[1800px] items-center justify-between gap-3 px-3 sm:min-h-20 sm:px-5 lg:px-7 xl:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={() => setOpen((current) => !current)}
-            className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-slate-100"
+            onClick={onMenuClick}
+            aria-label="Open sidebar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--app-border) bg-(--app-surface-soft) text-(--app-text) transition hover:bg-(--app-hover) lg:hidden"
           >
-            {avatar ? (
-              <img
-                src={avatar}
-                alt="Profile"
-                className="h-10 w-10 rounded-full border-2 border-[#0A1930] object-cover"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 border border-slate-100">
-                <UserCircle size={24} className="text-blue-600" />
-              </div>
-            )}
-
-            <div className="hidden text-left md:block">
-              <p className="text-sm font-semibold text-slate-900">{fullName}</p>
-
-              <p className="text-xs text-slate-500">{email}</p>
-            </div>
-
-            <ChevronDown
-              size={16}
-              className={`text-slate-400 transition-transform ${
-                open ? "rotate-180" : ""
-              }`}
-            />
+            <Menu size={21} />
           </button>
 
-          {open && (
-            <div className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,.12)] dark:border-slate-700 dark:bg-slate-900">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  navigate("/customer/profile");
-                }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-                  <User size={16} className="text-blue-600" />
-                </div>
-                My Profile
-              </button>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-extrabold text-(--app-text) sm:text-xl">
+              Customer Dashboard
+            </h1>
+            <p className="hidden truncate text-sm text-(--app-text-muted) sm:block">
+              Welcome back, {fullName}
+            </p>
+          </div>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  navigate("/customer/settings");
-                }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-                  <Settings size={16} className="text-amber-600" />
-                </div>
-                Settings
-              </button>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <ThemeDropdown />
+          <NotificationDropdown role="customer" />
 
-              <hr className="border-slate-100" />
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50">
-                  <LogOut size={16} className="text-rose-600" />
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setOpen((current) => !current)}
+              aria-expanded={open}
+              aria-haspopup="menu"
+              className="flex max-w-48 items-center gap-2 rounded-2xl border border-transparent px-1.5 py-1.5 transition hover:border-(--app-border) hover:bg-(--app-hover) sm:px-2"
+            >
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt={fullName}
+                  className="h-9 w-9 shrink-0 rounded-full border-2 border-blue-500 object-cover sm:h-10 sm:w-10"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-(--app-border) bg-(--app-surface-soft) sm:h-10 sm:w-10">
+                  <UserCircle size={23} className="text-blue-500" />
                 </div>
-                Logout
-              </button>
-            </div>
-          )}
+              )}
+
+              <div className="hidden min-w-0 text-left md:block">
+                <p className="truncate text-sm font-bold text-(--app-text)">
+                  {fullName}
+                </p>
+                <p className="max-w-40 truncate text-xs text-(--app-text-muted)">
+                  {email}
+                </p>
+              </div>
+
+              <ChevronDown
+                size={16}
+                className={`hidden shrink-0 text-(--app-text-muted) transition-transform sm:block ${
+                  open ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {open && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-3 w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-(--app-border) bg-(--app-surface) p-2 shadow-2xl shadow-slate-950/15"
+              >
+                <div className="border-b border-(--app-border) px-3 py-3 md:hidden">
+                  <p className="truncate text-sm font-bold text-(--app-text)">
+                    {fullName}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-(--app-text-muted)">
+                    {email}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    navigate("/customer/profile");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-(--app-text) transition hover:bg-(--app-hover)"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10">
+                    <User size={17} className="text-blue-500" />
+                  </span>
+                  My Profile
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    navigate("/customer/settings");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-(--app-text) transition hover:bg-(--app-hover)"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10">
+                    <Settings size={17} className="text-amber-500" />
+                  </span>
+                  Settings
+                </button>
+
+                <div className="my-1 border-t border-(--app-border)" />
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void handleLogout()}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-rose-500 transition hover:bg-rose-500/10"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/10">
+                    <LogOut size={17} />
+                  </span>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

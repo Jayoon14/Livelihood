@@ -1,22 +1,237 @@
 @import "tailwindcss";
 
+/* Tailwind CSS v4 class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================
+   GLOBAL THEME TOKENS
+   ========================================================= */
+
+:root {
+  color-scheme: light;
+
+  --app-bg: #f1f5f9;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
+  --app-surface-elevated: #ffffff;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-border: #e2e8f0;
+  --app-hover: #f1f5f9;
+  --app-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --app-bg: #08111f;
+  --app-surface: #0f172a;
+  --app-surface-soft: #111c2f;
+  --app-surface-elevated: #162033;
+  --app-text: #f8fafc;
+  --app-text-muted: #94a3b8;
+  --app-border: #263449;
+  --app-hover: #18243a;
+  --app-shadow: 0 18px 45px rgba(0, 0, 0, 0.3);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background: var(--app-bg);
+  transition:
+    background-color 250ms ease,
+    color 250ms ease;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition:
+    background-color 250ms ease,
+    color 250ms ease;
+}
+
+#root {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+/* =========================================================
+   REUSABLE APPLICATION CLASSES
+   ========================================================= */
+
+.app-page {
+  min-height: 100%;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.app-card {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+
+.app-card-soft {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
+.app-muted {
+  color: var(--app-text-muted);
+}
+
+.app-input {
+  width: 100%;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.app-input::placeholder {
+  color: var(--app-text-muted);
+}
+
+.app-input:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(59 130 246 / 12%);
+}
+
+/* =========================================================
+   DARK MODE COMPATIBILITY FOR EXISTING PAGES
+   ========================================================= */
+
+html.dark .bg-white {
+  background-color: var(--app-surface) !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-gray-50 {
+  background-color: var(--app-surface-soft) !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-gray-100 {
+  background-color: var(--app-bg) !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-black {
+  color: var(--app-text) !important;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: var(--app-text-muted) !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-b,
+html.dark .border {
+  border-color: var(--app-border) !important;
+}
+
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-slate-100:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: var(--app-hover) !important;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  border-color: var(--app-border);
+  background-color: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: var(--app-text-muted);
+}
+
+html.dark table {
+  color: var(--app-text);
+}
+
+html.dark thead {
+  background: var(--app-surface-soft);
+}
+
+html.dark tbody tr {
+  border-color: var(--app-border);
+}
+
+html.dark tbody tr:hover {
+  background: var(--app-hover);
+}
+
+/* =========================================================
+   GENERAL UX
+   ========================================================= */
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   COMMON ANIMATIONS
+   ========================================================= */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
 
 .animate-fadeIn {
-  animation: fadeIn .25s ease;
+  animation: fadeIn 0.25s ease;
 }
 
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(.95);
+    transform: scale(0.95);
   }
 
   to {
@@ -26,8 +241,9 @@
 }
 
 .animate-scaleIn {
-  animation: scaleIn .25s ease;
+  animation: scaleIn 0.25s ease;
 }
+
 @keyframes slideIn {
   from {
     transform: translateX(120%);
@@ -39,6 +255,10 @@
     opacity: 1;
   }
 }
+
+/* =========================================================
+   RADAR LOADER
+   ========================================================= */
 
 .radar-loader {
   isolation: isolate;
@@ -130,6 +350,10 @@
   }
 }
 
+/* =========================================================
+   LOADING DOTS
+   ========================================================= */
+
 .loading-dot {
   display: block;
   width: 0.45rem;
@@ -161,95 +385,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .radar-pulse,
-  .radar-sweep,
-  .radar-center-glow,
-  .loading-dot {
-    animation: none;
-  }
-}
-/* ========================================
-   GLOBAL LIGHT / DARK / AUTO THEME
-======================================== */
-@custom-variant dark (&:where(.dark, .dark *));
-
-html {
-  background: #f8fafc;
-  transition: background-color 220ms ease, color 220ms ease;
-}
-
-html.dark {
-  background: #020617;
-}
-
-html.dark body,
-html.dark #root {
-  background-color: #020617;
-  color: #e2e8f0;
-}
-
-/* These compatibility rules theme existing pages even before every component
-   has dedicated dark: utility classes. */
-html.dark .bg-white {
-  background-color: #0f172a !important;
-}
-
-html.dark .bg-slate-50,
-html.dark .bg-gray-50 {
-  background-color: #111827 !important;
-}
-
-html.dark .bg-slate-100,
-html.dark .bg-gray-100 {
-  background-color: #1e293b !important;
-}
-
-html.dark .text-slate-900,
-html.dark .text-slate-800,
-html.dark .text-gray-900,
-html.dark .text-gray-800 {
-  color: #f8fafc !important;
-}
-
-html.dark .text-slate-700,
-html.dark .text-gray-700 {
-  color: #e2e8f0 !important;
-}
-
-html.dark .text-slate-600,
-html.dark .text-slate-500,
-html.dark .text-gray-600,
-html.dark .text-gray-500 {
-  color: #94a3b8 !important;
-}
-
-html.dark .border-slate-100,
-html.dark .border-slate-200,
-html.dark .border-gray-100,
-html.dark .border-gray-200,
-html.dark .border-b {
-  border-color: #334155 !important;
-}
-
-html.dark input,
-html.dark textarea,
-html.dark select {
-  background-color: #0f172a;
-  border-color: #334155;
-  color: #f8fafc;
-}
-
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: #64748b;
-}
-
-html.dark .hover\:bg-slate-50:hover,
-html.dark .hover\:bg-slate-100:hover,
-html.dark .hover\:bg-gray-100:hover {
-  background-color: #1e293b !important;
-}
+/* =========================================================
+   THEME DROPDOWN ANIMATIONS
+   ========================================================= */
 
 .theme-menu-enter {
   transform-origin: top right;
@@ -267,7 +405,7 @@ html.dark .hover\:bg-gray-100:hover {
 @keyframes theme-menu-in {
   from {
     opacity: 0;
-    transform: translateY(-6px) scale(.96);
+    transform: translateY(-6px) scale(0.96);
   }
 
   to {
@@ -279,7 +417,7 @@ html.dark .hover\:bg-gray-100:hover {
 @keyframes theme-check-in {
   from {
     opacity: 0;
-    transform: scale(.55) rotate(-20deg);
+    transform: scale(0.55) rotate(-20deg);
   }
 
   to {
@@ -288,12 +426,105 @@ html.dark .hover\:bg-gray-100:hover {
   }
 }
 
+/* =========================================================
+   NOTIFICATION BELL ANIMATIONS
+   ========================================================= */
+
+.notification-trigger {
+  transform-origin: center;
+}
+
+.notification-trigger:hover .notification-bell {
+  transform: scale(1.12) rotate(12deg);
+}
+
+.notification-bell-wrap.has-unread .notification-bell {
+  transform-origin: 50% 10%;
+  animation: bell-shake 1.8s ease-in-out infinite;
+}
+
+.notification-pulse {
+  animation: notification-pulse 1.8s ease-out infinite;
+}
+
+.notification-badge {
+  animation: notification-badge-pop 1.6s ease-in-out infinite;
+}
+
+@keyframes bell-shake {
+  0%,
+  58%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  8% {
+    transform: rotate(16deg);
+  }
+
+  16% {
+    transform: rotate(-14deg);
+  }
+
+  24% {
+    transform: rotate(11deg);
+  }
+
+  32% {
+    transform: rotate(-8deg);
+  }
+
+  40% {
+    transform: rotate(5deg);
+  }
+
+  48% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes notification-pulse {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.65);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+
+@keyframes notification-badge-pop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  45% {
+    transform: translateY(-2px) scale(1.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .radar-pulse,
+  .radar-sweep,
+  .radar-center-glow,
+  .loading-dot,
   .theme-menu-enter,
   .theme-check-enter,
   .theme-option-icon,
-  .theme-settings-button {
+  .theme-settings-button,
+  .notification-bell,
+  .notification-pulse,
+  .notification-badge {
     animation: none !important;
     transition: none !important;
   }
+
+  .notification-trigger:hover .notification-bell {
+    transform: none;
+  }
 }
+
