@@ -11,7 +11,7 @@ import {
 
 import { supabase } from "../lib/supabase";
 
-interface WorkerLocation {
+export interface WorkerLocation {
   latitude: number;
   longitude: number;
   accuracy: number | null;
@@ -22,13 +22,10 @@ interface WorkerLocation {
 
 interface WorkerLocationContextValue {
   workerLocation: WorkerLocation | null;
-
   isOnline: boolean;
   isTracking: boolean;
   locating: boolean;
-
   message: string;
-
   goOnline: () => Promise<void>;
   goOffline: () => Promise<void>;
 }
@@ -37,35 +34,110 @@ interface WorkerLocationProviderProps {
   children: ReactNode;
 }
 
+interface PendingWorkerLocation {
+  workerId: string;
+  location: WorkerLocation;
+}
+
 const WorkerLocationContext =
   createContext<WorkerLocationContextValue | null>(null);
 
 const WORKER_ONLINE_STORAGE_KEY = "livelihoodgo_worker_online";
+const PENDING_LOCATION_STORAGE_KEY =
+  "livelihoodgo_pending_worker_location";
+
+const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
+const INITIAL_LOCATION_TIMEOUT_MS = 20_000;
+const WATCH_LOCATION_TIMEOUT_MS = 20_000;
 
 /*
- * Magbibigay lang ng warning kapag napakahina ng location accuracy.
- * Hindi nito tuluyang iba-block ang worker dahil puwedeng coarse location
- * muna ang unang ibigay ng browser.
+ * Desktop browsers may initially return a coarse network location.
+ * Do not upload extremely inaccurate readings because they create
+ * incorrect routes. A phone with Precise Location normally returns
+ * readings below 100 metres.
  */
-const LOW_ACCURACY_THRESHOLD_METERS = 1_000;
+const MAX_USABLE_ACCURACY_METERS = 100_000;
+const LOW_ACCURACY_WARNING_METERS = 100;
+
+const GEOLOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  maximumAge: 0,
+  timeout: INITIAL_LOCATION_TIMEOUT_MS,
+};
+
+function normalizePosition(position: GeolocationPosition): WorkerLocation {
+  return {
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: Number.isFinite(position.coords.accuracy)
+      ? position.coords.accuracy
+      : null,
+    heading:
+      typeof position.coords.heading === "number" &&
+      Number.isFinite(position.coords.heading)
+        ? position.coords.heading
+        : null,
+    speed:
+      typeof position.coords.speed === "number" &&
+      Number.isFinite(position.coords.speed)
+        ? position.coords.speed
+        : null,
+    updatedAt: new Date(position.timestamp || Date.now()).toISOString(),
+  };
+}
+
+function getGeolocationMessage(error: GeolocationPositionError): string {
+  switch (error.code) {
+    case error.PERMISSION_DENIED:
+      return "Location permission was denied. Open your browser site settings and set Location to Allow.";
+
+    case error.POSITION_UNAVAILABLE:
+      return "Your location is unavailable. Enable device Location Services or GPS, then try again.";
+
+    case error.TIMEOUT:
+      return "GPS request timed out. Move near a window or outdoors, then press Go Online again.";
+
+    default:
+      return error.message || "Unable to get your current GPS location.";
+  }
+}
+
+function validateLocation(location: WorkerLocation): void {
+  if (
+    !Number.isFinite(location.latitude) ||
+    !Number.isFinite(location.longitude) ||
+    location.latitude < -90 ||
+    location.latitude > 90 ||
+    location.longitude < -180 ||
+    location.longitude > 180
+  ) {
+    throw new Error("The browser returned invalid GPS coordinates.");
+  }
+
+  if (
+    location.accuracy !== null &&
+    location.accuracy > MAX_USABLE_ACCURACY_METERS
+  ) {
+    throw new Error(
+      `The browser returned an unusable location (${Math.round(
+        location.accuracy,
+      )} metres). Enable device Location Services and try again.`,
+    );
+  }
+}
 
 export function WorkerLocationProvider({
   children,
 }: WorkerLocationProviderProps) {
   const watchIdRef = useRef<number | null>(null);
   const workerIdRef = useRef<string | null>(null);
-  const startingRef = useRef(false);
-
-  /*
-   * Binabago ito sa bawat start/stop.
-   * Ginagamit para hindi makapag-set ng online state ang lumang async request
-   * pagkatapos pindutin ang Go Offline.
-   */
+  const startPromiseRef = useRef<Promise<void> | null>(null);
   const trackingSessionRef = useRef(0);
+  const lastSavedAtRef = useRef(0);
+  const mountedRef = useRef(true);
 
   const [workerLocation, setWorkerLocation] =
     useState<WorkerLocation | null>(null);
-
   const [isOnline, setIsOnline] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -83,40 +155,69 @@ export function WorkerLocationProvider({
     }
 
     const role =
-      typeof data?.role === "string" ? data.role.trim().toLowerCase() : "";
+      typeof data?.role === "string"
+        ? data.role.trim().toLowerCase()
+        : "";
 
     if (role !== "worker") {
-      throw new Error("GPS tracking is only available for worker accounts.");
+      throw new Error(
+        "GPS availability is only available for worker accounts.",
+      );
     }
   }, []);
 
-  const saveWorkerLocation = useCallback(
-    async (workerId: string, location: WorkerLocation) => {
-      const { error } = await supabase.from("worker_locations").upsert(
-        {
-          worker_id: workerId,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          accuracy: location.accuracy,
-          heading: location.heading,
-          speed: location.speed,
-          is_online: true,
-          is_available: true,
-          updated_at: location.updatedAt,
-        },
-        {
-          onConflict: "worker_id",
-        },
-      );
+  const cachePendingLocation = useCallback(
+    (workerId: string, location: WorkerLocation) => {
+      const pending: PendingWorkerLocation = {
+        workerId,
+        location,
+      };
 
-      if (error) {
-        throw error;
-      }
+      localStorage.setItem(
+        PENDING_LOCATION_STORAGE_KEY,
+        JSON.stringify(pending),
+      );
     },
     [],
   );
 
-  const updateOfflineStatus = useCallback(async (workerId: string) => {
+  const clearPendingLocation = useCallback(() => {
+    localStorage.removeItem(PENDING_LOCATION_STORAGE_KEY);
+  }, []);
+
+  const upsertWorkerLocation = useCallback(
+    async (workerId: string, location: WorkerLocation) => {
+      validateLocation(location);
+
+      const { error } = await supabase
+        .from("worker_locations")
+        .upsert(
+          {
+            worker_id: workerId,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            heading: location.heading,
+            speed: location.speed,
+            is_online: true,
+            is_available: true,
+            updated_at: location.updatedAt,
+          },
+          {
+            onConflict: "worker_id",
+          },
+        );
+
+      if (error) {
+        throw new Error(`Unable to sync GPS: ${error.message}`);
+      }
+
+      clearPendingLocation();
+    },
+    [clearPendingLocation],
+  );
+
+  const setDatabaseOffline = useCallback(async (workerId: string) => {
     const { error } = await supabase
       .from("worker_locations")
       .update({
@@ -127,14 +228,11 @@ export function WorkerLocationProvider({
       .eq("worker_id", workerId);
 
     if (error) {
-      throw error;
+      throw new Error(`Unable to update offline status: ${error.message}`);
     }
   }, []);
 
-  const stopBrowserTracking = useCallback(() => {
-    /*
-     * Ini-invalidate ang anumang pending GPS save.
-     */
+  const clearWatch = useCallback(() => {
     trackingSessionRef.current += 1;
 
     if (watchIdRef.current !== null) {
@@ -142,269 +240,275 @@ export function WorkerLocationProvider({
       watchIdRef.current = null;
     }
 
-    startingRef.current = false;
-
-    setIsTracking(false);
+    startPromiseRef.current = null;
     setLocating(false);
+    setIsTracking(false);
   }, []);
 
-  const clearLocalTrackingState = useCallback(() => {
-    stopBrowserTracking();
+  const applySyncedLocation = useCallback(
+    (location: WorkerLocation) => {
+      if (!mountedRef.current) return;
 
-    workerIdRef.current = null;
+      setWorkerLocation(location);
+      setIsOnline(true);
+      setIsTracking(true);
+      setLocating(false);
 
-    setWorkerLocation(null);
-    setIsOnline(false);
-    setIsTracking(false);
-    setLocating(false);
-    setMessage("");
+      localStorage.setItem(WORKER_ONLINE_STORAGE_KEY, "true");
 
-    localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
-  }, [stopBrowserTracking]);
-
-  const startBrowserTracking = useCallback(async () => {
-    if (startingRef.current || watchIdRef.current !== null) {
-      return;
-    }
-
-    if (!navigator.geolocation) {
-      setMessage("Geolocation is not supported by this browser.");
-      return;
-    }
-
-    startingRef.current = true;
-    setLocating(true);
-    setMessage("");
-
-    /*
-     * Bagong tracking session.
-     */
-    trackingSessionRef.current += 1;
-    const currentTrackingSession = trackingSessionRef.current;
-
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
+      if (
+        location.accuracy !== null &&
+        location.accuracy > LOW_ACCURACY_WARNING_METERS
+      ) {
+        setMessage(
+          `GPS is online, but accuracy is about ${Math.round(
+            location.accuracy,
+          )} metres. Enable Precise Location for better navigation.`,
+        );
+      } else {
+        setMessage("");
       }
+    },
+    [],
+  );
 
-      if (!user) {
-        throw new Error("Worker account is not authenticated.");
-      }
+  const syncPosition = useCallback(
+    async (
+      workerId: string,
+      position: GeolocationPosition,
+      sessionId: number,
+      force = false,
+    ): Promise<void> => {
+      if (sessionId !== trackingSessionRef.current) return;
 
-      /*
-       * Mahalaga ito para hindi makagamit ng worker GPS ang customer/admin.
-       */
-      await verifyWorkerAccount(user.id);
+      const location = normalizePosition(position);
+      validateLocation(location);
 
-      if (currentTrackingSession !== trackingSessionRef.current) {
+      const now = Date.now();
+
+      if (
+        !force &&
+        now - lastSavedAtRef.current < MIN_LOCATION_SAVE_INTERVAL_MS
+      ) {
         return;
       }
 
+      lastSavedAtRef.current = now;
+      setWorkerLocation(location);
+      setIsTracking(true);
+
+      if (!navigator.onLine) {
+        cachePendingLocation(workerId, location);
+        setIsOnline(false);
+        setLocating(false);
+        setMessage(
+          "Offline mode: GPS is active. The latest location will sync automatically when internet returns.",
+        );
+        return;
+      }
+
+      try {
+        await upsertWorkerLocation(workerId, location);
+
+        if (sessionId !== trackingSessionRef.current) return;
+
+        applySyncedLocation(location);
+      } catch (error) {
+        if (sessionId !== trackingSessionRef.current) return;
+
+        cachePendingLocation(workerId, location);
+        setIsOnline(false);
+        setIsTracking(true);
+        setLocating(false);
+        setMessage(
+          error instanceof Error
+            ? `${error.message} The GPS reading was saved locally and will retry when online.`
+            : "Unable to sync GPS. The reading was saved locally.",
+        );
+      }
+    },
+    [
+      applySyncedLocation,
+      cachePendingLocation,
+      upsertWorkerLocation,
+    ],
+  );
+
+  const getInitialPosition = useCallback(
+    (): Promise<GeolocationPosition> =>
+      new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          GEOLOCATION_OPTIONS,
+        );
+      }),
+    [],
+  );
+
+  const startBrowserTracking = useCallback(async (): Promise<void> => {
+    if (startPromiseRef.current) {
+      return startPromiseRef.current;
+    }
+
+    if (watchIdRef.current !== null && isTracking) {
+      return;
+    }
+
+    const startPromise = (async () => {
+      if (!window.isSecureContext && location.hostname !== "localhost") {
+        throw new Error(
+          "GPS requires HTTPS. Open the deployed HTTPS website or localhost.",
+        );
+      }
+
+      if (!("geolocation" in navigator)) {
+        throw new Error(
+          "This browser or device does not support geolocation.",
+        );
+      }
+
+      clearWatch();
+      setLocating(true);
+      setMessage("Requesting GPS permission and current location...");
+
+      const sessionId = trackingSessionRef.current;
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) throw authError;
+      if (!user) throw new Error("Worker account is not authenticated.");
+
+      await verifyWorkerAccount(user.id);
+
+      if (sessionId !== trackingSessionRef.current) return;
+
       workerIdRef.current = user.id;
+
+      /*
+       * Obtain one deterministic initial fix first. This makes Go Online
+       * reliable on browsers that do not immediately call watchPosition().
+       */
+      let initialPosition: GeolocationPosition;
+
+      try {
+        initialPosition = await getInitialPosition();
+      } catch (error) {
+        throw error;
+      }
+
+      if (sessionId !== trackingSessionRef.current) return;
+
+      await syncPosition(user.id, initialPosition, sessionId, true);
+
+      if (sessionId !== trackingSessionRef.current) return;
 
       const watchId = navigator.geolocation.watchPosition(
         (position) => {
-          const location: WorkerLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-
-            accuracy: Number.isFinite(position.coords.accuracy)
-              ? position.coords.accuracy
-              : null,
-
-            heading:
-              typeof position.coords.heading === "number" &&
-              Number.isFinite(position.coords.heading)
-                ? position.coords.heading
-                : null,
-
-            speed:
-              typeof position.coords.speed === "number" &&
-              Number.isFinite(position.coords.speed)
-                ? position.coords.speed
-                : null,
-
-            updatedAt: new Date(position.timestamp).toISOString(),
-          };
-
-          console.log("GPS Update:", location);
-
-          /*
-           * Huwag munang mag-online.
-           * I-save muna nang successful ang GPS sa Supabase.
-           */
-          void saveWorkerLocation(user.id, location)
-            .then(() => {
-              /*
-               * Kapag nag-Go Offline habang nagsa-save ang GPS,
-               * huwag nang ibalik sa online ang UI.
-               */
+          void syncPosition(user.id, position, sessionId, false).catch(
+            (error: unknown) => {
               if (
-                currentTrackingSession !== trackingSessionRef.current ||
-                watchIdRef.current === null
-              ) {
-                return;
-              }
-
-              setWorkerLocation(location);
-              setIsOnline(true);
-              setIsTracking(true);
-              setLocating(false);
-
-              localStorage.setItem(WORKER_ONLINE_STORAGE_KEY, "true");
-
-              if (
-                location.accuracy !== null &&
-                location.accuracy > LOW_ACCURACY_THRESHOLD_METERS
+                mountedRef.current &&
+                sessionId === trackingSessionRef.current
               ) {
                 setMessage(
-                  `GPS is connected, but accuracy is currently about ${Math.round(
-                    location.accuracy,
-                  )} meters. Enable precise location or move outdoors.`,
+                  error instanceof Error
+                    ? error.message
+                    : "Unable to process the latest GPS location.",
                 );
-              } else {
-                setMessage("");
               }
-            })
-            .catch((locationError) => {
-              console.error(
-                "Unable to sync worker location:",
-                locationError,
-              );
-
-              if (currentTrackingSession !== trackingSessionRef.current) {
-                return;
-              }
-
-              setIsOnline(false);
-              setIsTracking(false);
-              setLocating(false);
-
-              localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
-
-              setMessage(
-                "GPS location was received, but it could not be synced. Please check your internet connection and try again.",
-              );
-            });
+            },
+          );
         },
-
-        (geolocationError) => {
-          if (currentTrackingSession !== trackingSessionRef.current) {
+        (error) => {
+          if (
+            !mountedRef.current ||
+            sessionId !== trackingSessionRef.current
+          ) {
             return;
           }
 
+          /*
+           * A temporary watch error should not remove an already-synced
+           * location. Keep the last position visible and allow retry.
+           */
           setLocating(false);
+          setMessage(getGeolocationMessage(error));
 
-          switch (geolocationError.code) {
-            case geolocationError.PERMISSION_DENIED: {
-              setMessage(
-                "Location permission was denied. Please allow location access in your browser settings.",
-              );
-
-              const currentWorkerId = workerIdRef.current;
-
-              stopBrowserTracking();
-
-              setWorkerLocation(null);
-              setIsOnline(false);
-
-              localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
-
-              if (currentWorkerId) {
-                void updateOfflineStatus(currentWorkerId).catch(
-                  (offlineError) => {
-                    console.error(
-                      "Unable to update worker status after permission denial:",
-                      offlineError,
-                    );
-                  },
-                );
-              }
-
-              break;
-            }
-
-            case geolocationError.POSITION_UNAVAILABLE:
-              setMessage(
-                "Your current location is temporarily unavailable. Make sure GPS or location services are enabled.",
-              );
-              break;
-
-            case geolocationError.TIMEOUT:
-              setMessage(
-                "Location update timed out. GPS will continue retrying automatically.",
-              );
-              break;
-
-            default:
-              setMessage("Unable to track your current location.");
+          if (error.code === error.PERMISSION_DENIED) {
+            clearWatch();
+            setIsOnline(false);
+            setIsTracking(false);
+            localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
           }
-
-          console.warn(
-            "Worker geolocation warning:",
-            geolocationError.message,
-          );
         },
-
         {
           enableHighAccuracy: true,
-          timeout: 20_000,
           maximumAge: 5_000,
+          timeout: WATCH_LOCATION_TIMEOUT_MS,
         },
       );
 
       watchIdRef.current = watchId;
-    } catch (error) {
-      console.error("Unable to start worker tracking:", error);
-
-      stopBrowserTracking();
-
-      workerIdRef.current = null;
-
-      setWorkerLocation(null);
-      setIsOnline(false);
-      setIsTracking(false);
+      setIsTracking(true);
       setLocating(false);
+    })()
+      .catch((error: unknown) => {
+        clearWatch();
+        setWorkerLocation(null);
+        setIsOnline(false);
+        setIsTracking(false);
+        setLocating(false);
+        localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
 
-      localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
+        if (
+          typeof GeolocationPositionError !== "undefined" &&
+          error instanceof GeolocationPositionError
+        ) {
+          setMessage(getGeolocationMessage(error));
+        } else {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to start GPS tracking.",
+          );
+        }
+      })
+      .finally(() => {
+        startPromiseRef.current = null;
+      });
 
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to start GPS tracking.",
-      );
-    } finally {
-      startingRef.current = false;
-    }
+    startPromiseRef.current = startPromise;
+    return startPromise;
   }, [
-    saveWorkerLocation,
-    stopBrowserTracking,
-    updateOfflineStatus,
+    clearWatch,
+    getInitialPosition,
+    isTracking,
+    syncPosition,
     verifyWorkerAccount,
   ]);
 
   const goOnline = useCallback(async () => {
-    /*
-     * Hindi tayo magse-set ng isOnline at localStorage dito.
-     * Magiging online lang pagkatapos:
-     *
-     * 1. Ma-verify na worker ang account
-     * 2. Makakuha ng valid GPS
-     * 3. Successful na ma-save sa Supabase
-     */
+    if (locating) {
+      /*
+       * Pressing the loading button acts as Cancel, so it can never feel
+       * permanently disabled.
+       */
+      clearWatch();
+      setMessage("GPS request cancelled. Press Go Online to try again.");
+      return;
+    }
+
     await startBrowserTracking();
-  }, [startBrowserTracking]);
+  }, [clearWatch, locating, startBrowserTracking]);
 
   const goOffline = useCallback(async () => {
-    const currentWorkerId = workerIdRef.current;
+    const knownWorkerId = workerIdRef.current;
 
-    stopBrowserTracking();
-
+    clearWatch();
     setWorkerLocation(null);
     setIsOnline(false);
     setIsTracking(false);
@@ -412,21 +516,14 @@ export function WorkerLocationProvider({
     setMessage("");
 
     localStorage.removeItem(WORKER_ONLINE_STORAGE_KEY);
+    clearPendingLocation();
 
-    let workerId = currentWorkerId;
+    let workerId = knownWorkerId;
 
     if (!workerId) {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error(
-          "Unable to retrieve worker while going offline:",
-          userError,
-        );
-      }
 
       workerId = user?.id ?? null;
     }
@@ -437,133 +534,119 @@ export function WorkerLocationProvider({
     }
 
     try {
-      /*
-       * Siguraduhing worker account bago mag-update ng worker_locations.
-       */
       await verifyWorkerAccount(workerId);
-      await updateOfflineStatus(workerId);
+      await setDatabaseOffline(workerId);
     } catch (error) {
-      console.error("Unable to set worker offline:", error);
-
       setMessage(
-        "Tracking stopped, but the offline status could not be synced.",
+        error instanceof Error
+          ? error.message
+          : "Tracking stopped, but the offline status could not be synced.",
       );
     } finally {
       workerIdRef.current = null;
     }
   }, [
-    stopBrowserTracking,
-    updateOfflineStatus,
+    clearPendingLocation,
+    clearWatch,
+    setDatabaseOffline,
     verifyWorkerAccount,
   ]);
 
-  /*
-   * Restore tracking pagkatapos ng browser refresh.
-   * Tatakbo lang ito kapag:
-   *
-   * - may authenticated account;
-   * - worker ang role;
-   * - naka-save na online dati.
-   */
+  useEffect(() => {
+    const flushPending = async () => {
+      if (!navigator.onLine) return;
+
+      const raw = localStorage.getItem(PENDING_LOCATION_STORAGE_KEY);
+
+      if (!raw) return;
+
+      try {
+        const pending = JSON.parse(raw) as PendingWorkerLocation;
+
+        if (!pending.workerId || !pending.location) {
+          clearPendingLocation();
+          return;
+        }
+
+        validateLocation(pending.location);
+        await upsertWorkerLocation(
+          pending.workerId,
+          pending.location,
+        );
+
+        workerIdRef.current = pending.workerId;
+        applySyncedLocation(pending.location);
+        setMessage("Connection restored. Latest GPS location synced.");
+
+        window.setTimeout(() => {
+          if (mountedRef.current) setMessage("");
+        }, 3_000);
+      } catch (error) {
+        console.error("Unable to sync pending GPS:", error);
+      }
+    };
+
+    const handleOffline = () => {
+      if (!mountedRef.current) return;
+
+      if (workerLocation && workerIdRef.current) {
+        cachePendingLocation(
+          workerIdRef.current,
+          workerLocation,
+        );
+      }
+
+      setIsOnline(false);
+      setMessage(
+        "Internet connection lost. GPS remains active and will sync when reconnected.",
+      );
+    };
+
+    window.addEventListener("online", flushPending);
+    window.addEventListener("offline", handleOffline);
+
+    void flushPending();
+
+    return () => {
+      window.removeEventListener("online", flushPending);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [
+    applySyncedLocation,
+    cachePendingLocation,
+    clearPendingLocation,
+    upsertWorkerLocation,
+    workerLocation,
+  ]);
+
   useEffect(() => {
     let active = true;
 
-    async function restoreWorkerTracking() {
+    async function restoreTracking() {
       const shouldRestore =
         localStorage.getItem(WORKER_ONLINE_STORAGE_KEY) === "true";
 
-      if (!shouldRestore) {
-        return;
-      }
+      if (!shouldRestore || !active) return;
 
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          throw userError;
-        }
-
-        if (!user || !active) {
-          clearLocalTrackingState();
-          return;
-        }
-
-        await verifyWorkerAccount(user.id);
-
-        if (!active) {
-          return;
-        }
-
-        await startBrowserTracking();
-      } catch (error) {
-        console.error("Unable to restore worker GPS tracking:", error);
-
-        if (active) {
-          clearLocalTrackingState();
-        }
-      }
+      await startBrowserTracking();
     }
 
-    void restoreWorkerTracking();
+    void restoreTracking();
 
     return () => {
       active = false;
     };
-  }, [
-    clearLocalTrackingState,
-    startBrowserTracking,
-    verifyWorkerAccount,
-  ]);
+  }, [startBrowserTracking]);
 
-  /*
-   * Automatic cleanup kapag na-sign out ang account.
-   *
-   * Tandaan:
-   * Ang database offline update ay dapat tawagin muna sa worker logout
-   * gamit ang goOffline() bago ang supabase.auth.signOut().
-   */
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session?.user) {
-        clearLocalTrackingState();
-        return;
-      }
-
-      if (
-        event === "SIGNED_IN" &&
-        localStorage.getItem(WORKER_ONLINE_STORAGE_KEY) === "true"
-      ) {
-        /*
-         * Ilagay sa susunod na event loop para hindi magsabay ang Supabase
-         * auth callback at database verification.
-         */
-        window.setTimeout(() => {
-          void startBrowserTracking();
-        }, 0);
-      }
-    });
+    mountedRef.current = true;
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, [clearLocalTrackingState, startBrowserTracking]);
-
-  /*
-   * Provider unmount cleanup.
-   * Hindi nito binabago ang database dahil puwedeng route/app teardown lamang.
-   */
-  useEffect(() => {
-    return () => {
+      mountedRef.current = false;
       trackingSessionRef.current += 1;
 
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
       }
     };
   }, []);

@@ -16,6 +16,7 @@ import {
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
+import { useWorkerLocation } from "../../../context/WorkerLocationProvider";
 
 import { supabase } from "../../../lib/supabase";
 
@@ -53,41 +54,6 @@ interface BookingData {
   } | null;
 }
 
-interface WorkerLocationPayload {
-  worker_id: string;
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  heading: number | null;
-  speed: number | null;
-  is_online: boolean;
-  is_available: boolean;
-  updated_at: string;
-}
-
-const LOCATION_OPTIONS: PositionOptions = {
-  enableHighAccuracy: true,
-  maximumAge: 5_000,
-  timeout: 15_000,
-};
-
-const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
-
-function getGeolocationErrorMessage(error: GeolocationPositionError): string {
-  if (error.code === error.PERMISSION_DENIED) {
-    return "Location permission was denied. Enable location access to share your live GPS.";
-  }
-
-  if (error.code === error.POSITION_UNAVAILABLE) {
-    return "Your current GPS location is unavailable.";
-  }
-
-  if (error.code === error.TIMEOUT) {
-    return "GPS request timed out. Move to an open area and try again.";
-  }
-
-  return "Unable to read your current GPS location.";
-}
 
 function calculateDistanceMeters(
   firstLatitude: number,
@@ -162,218 +128,31 @@ export default function NavigateToCustomer() {
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const watchIdRef = useRef<number | null>(null);
-  const lastSavedAtRef = useRef(0);
   const mountedRef = useRef(true);
   const bookingRef = useRef<BookingData | null>(null);
   const autoArrivalRunningRef = useRef(false);
 
-  const [sharingLocation, setSharingLocation] = useState(false);
-  const [gpsStarting, setGpsStarting] = useState(false);
-  const [gpsMessage, setGpsMessage] = useState<string | null>(null);
-  const [lastGpsUpdate, setLastGpsUpdate] = useState<string | null>(null);
+  const {
+    workerLocation,
+    isOnline,
+    isTracking,
+    locating: gpsStarting,
+    message: workerLocationMessage,
+    goOnline,
+  } = useWorkerLocation();
+
+  const sharingLocation = isOnline && isTracking;
+  const gpsMessage = workerLocationMessage || null;
+  const lastGpsUpdate = workerLocation?.updatedAt ?? null;
+  const currentSpeed = workerLocation?.speed ?? null;
+
   const [remainingDistance, setRemainingDistance] = useState<number | null>(
     null,
   );
-  const [currentSpeed, setCurrentSpeed] = useState<number | null>(null);
-
-  const saveWorkerLocation = useCallback(
-    async (position: GeolocationPosition, force = false): Promise<void> => {
-      if (!workerId) return;
-
-      const now = Date.now();
-
-      if (
-        !force &&
-        now - lastSavedAtRef.current < MIN_LOCATION_SAVE_INTERVAL_MS
-      ) {
-        return;
-      }
-
-      lastSavedAtRef.current = now;
-
-      const payload: WorkerLocationPayload = {
-        worker_id: workerId,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: Number.isFinite(position.coords.accuracy)
-          ? position.coords.accuracy
-          : null,
-        heading:
-          position.coords.heading !== null &&
-          Number.isFinite(position.coords.heading)
-            ? position.coords.heading
-            : null,
-        speed:
-          position.coords.speed !== null &&
-          Number.isFinite(position.coords.speed)
-            ? position.coords.speed
-            : null,
-        is_online: true,
-        is_available: true,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from("worker_locations")
-        .upsert(payload, {
-          onConflict: "worker_id",
-        });
-
-      if (error) {
-        throw new Error(`Unable to share live location: ${error.message}`);
-      }
-
-      const currentBooking = bookingRef.current;
-
-      if (
-        currentBooking?.customer_latitude != null &&
-        currentBooking.customer_longitude != null
-      ) {
-        const distanceMeters = calculateDistanceMeters(
-          payload.latitude,
-          payload.longitude,
-          currentBooking.customer_latitude,
-          currentBooking.customer_longitude,
-        );
-
-        if (mountedRef.current) {
-          setRemainingDistance(distanceMeters);
-          setCurrentSpeed(payload.speed);
-        }
-
-        const canAutoArrive =
-          distanceMeters <= AUTO_ARRIVAL_DISTANCE_METERS &&
-          currentBooking.status === "Approved" &&
-          currentBooking.trip_status === "Accepted" &&
-          !autoArrivalRunningRef.current;
-
-        if (canAutoArrive) {
-          autoArrivalRunningRef.current = true;
-
-          try {
-            const updatedBooking = await markWorkerArrived(
-              currentBooking.id,
-              workerId,
-            );
-
-            if (mountedRef.current) {
-              setBooking((current) =>
-                current
-                  ? {
-                      ...current,
-                      trip_status: updatedBooking.trip_status,
-                      arrived_at:
-                        updatedBooking.arrived_at ?? new Date().toISOString(),
-                    }
-                  : current,
-              );
-
-              toast.success(
-                "You are within 20 meters. Arrival was detected automatically.",
-              );
-            }
-          } catch (arrivalError) {
-            console.error("Automatic arrival detection failed:", arrivalError);
-          } finally {
-            autoArrivalRunningRef.current = false;
-          }
-        }
-      }
-
-      if (mountedRef.current) {
-        setSharingLocation(true);
-        setGpsMessage(null);
-        setLastGpsUpdate(payload.updated_at);
-      }
-    },
-    [workerId],
-  );
-
-  const markLocationOffline = useCallback(async (): Promise<void> => {
-    if (!workerId) return;
-
-    const { error } = await supabase
-      .from("worker_locations")
-      .update({
-        is_online: false,
-        is_available: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("worker_id", workerId);
-
-    if (error) {
-      console.error("Unable to mark worker location offline:", error);
-    }
-  }, [workerId]);
-
-  const stopLocationSharing = useCallback(
-    async (markOffline = true): Promise<void> => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-
-      if (mountedRef.current) {
-        setSharingLocation(false);
-        setGpsStarting(false);
-      }
-
-      if (markOffline) {
-        await markLocationOffline();
-      }
-    },
-    [markLocationOffline],
-  );
 
   const startLocationSharing = useCallback((): void => {
-    if (watchIdRef.current !== null || gpsStarting) {
-      return;
-    }
-
-    if (!("geolocation" in navigator)) {
-      setGpsMessage("This browser does not support GPS location.");
-      return;
-    }
-
-    setGpsStarting(true);
-    setGpsMessage("Starting live GPS...");
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        void saveWorkerLocation(position, false).catch((error: unknown) => {
-          console.error("Live worker location update failed:", error);
-
-          if (mountedRef.current) {
-            setGpsMessage(
-              error instanceof Error
-                ? error.message
-                : "Unable to share live GPS.",
-            );
-          }
-        });
-
-        if (mountedRef.current) {
-          setGpsStarting(false);
-        }
-      },
-      (error) => {
-        console.error("Worker geolocation error:", error);
-
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-
-        if (mountedRef.current) {
-          setGpsStarting(false);
-          setSharingLocation(false);
-          setGpsMessage(getGeolocationErrorMessage(error));
-        }
-      },
-      LOCATION_OPTIONS,
-    );
-  }, [gpsStarting, saveWorkerLocation]);
+    void goOnline();
+  }, [goOnline]);
 
   useEffect(() => {
     bookingRef.current = booking;
@@ -422,15 +201,8 @@ export default function NavigateToCustomer() {
 
     return () => {
       mountedRef.current = false;
-
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-
-      void markLocationOffline();
     };
-  }, [markLocationOffline]);
+  }, []);
 
   useEffect(() => {
     if (!booking?.id) return;
@@ -476,19 +248,91 @@ export default function NavigateToCustomer() {
       booking?.trip_status === "Completed" ||
       booking?.trip_status === "Cancelled";
 
-    if (shouldShare && !trackingEnded) {
-      startLocationSharing();
-      return;
-    }
-
-    if (trackingEnded) {
-      void stopLocationSharing(true);
+    if (shouldShare && !trackingEnded && !isOnline && !gpsStarting) {
+      void goOnline();
     }
   }, [
     booking?.status,
     booking?.trip_status,
-    startLocationSharing,
-    stopLocationSharing,
+    goOnline,
+    gpsStarting,
+    isOnline,
+  ]);
+
+  useEffect(() => {
+    const currentBooking = bookingRef.current;
+
+    if (
+      !workerLocation ||
+      !currentBooking ||
+      currentBooking.customer_latitude == null ||
+      currentBooking.customer_longitude == null
+    ) {
+      setRemainingDistance(null);
+      return;
+    }
+
+    const distanceMeters = calculateDistanceMeters(
+      workerLocation.latitude,
+      workerLocation.longitude,
+      currentBooking.customer_latitude,
+      currentBooking.customer_longitude,
+    );
+
+    setRemainingDistance(distanceMeters);
+
+    const hasPreciseArrivalLocation =
+      workerLocation.accuracy === null || workerLocation.accuracy <= 100;
+
+    const canAutoArrive =
+      hasPreciseArrivalLocation &&
+      distanceMeters <= AUTO_ARRIVAL_DISTANCE_METERS &&
+      currentBooking.status === "Approved" &&
+      currentBooking.trip_status === "Accepted" &&
+      !autoArrivalRunningRef.current &&
+      Boolean(workerId);
+
+    if (!canAutoArrive || !workerId) {
+      return;
+    }
+
+    autoArrivalRunningRef.current = true;
+
+    void markWorkerArrived(currentBooking.id, workerId)
+      .then((updatedBooking) => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setBooking((current) =>
+          current
+            ? {
+                ...current,
+                trip_status: updatedBooking.trip_status,
+                arrived_at:
+                  updatedBooking.arrived_at ?? new Date().toISOString(),
+              }
+            : current,
+        );
+
+        toast.success(
+          "You are within 20 meters. Arrival was detected automatically.",
+        );
+      })
+      .catch((arrivalError) => {
+        console.error("Automatic arrival detection failed:", arrivalError);
+      })
+      .finally(() => {
+        autoArrivalRunningRef.current = false;
+      });
+  }, [
+    booking?.customer_latitude,
+    booking?.customer_longitude,
+    booking?.status,
+    booking?.trip_status,
+    booking?.id,
+    workerId,
+    workerLocation,
   ]);
 
   async function handleArrived() {

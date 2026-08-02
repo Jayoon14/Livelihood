@@ -599,7 +599,7 @@ export default function CustomerDashboard() {
           </div>
         )}
 
-        <section className="relative z-30 overflow-visible rounded-[1.75rem] bg-linear-to-br from-[#1f2bd7] via-[#4f37e8] to-[#1687db] px-5 py-7 text-white shadow-[0_24px_70px_rgba(79,55,232,0.24)] sm:px-8 sm:py-9 lg:px-10">
+        <section className="relative z-0 overflow-visible rounded-[1.75rem] bg-linear-to-br from-[#1f2bd7] via-[#4f37e8] to-[#1687db] px-5 py-7 text-white shadow-[0_24px_70px_rgba(79,55,232,0.24)] sm:px-8 sm:py-9 lg:px-10">
           {/* Decorative background stays clipped while search results can extend below the hero. */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[1.75rem]">
             <div
@@ -629,7 +629,7 @@ export default function CustomerDashboard() {
                 every service from one place.
               </p>
 
-              <div className="relative z-50 mt-6 max-w-2xl">
+              <div className="relative z-20 mt-6 max-w-2xl">
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -641,6 +641,10 @@ export default function CustomerDashboard() {
                     <Search className="h-5 w-5 shrink-0 text-slate-400" />
 
                     <input
+                      id="customer-dashboard-search"
+                      name="customer-dashboard-search"
+                      type="search"
+                      autoComplete="off"
                       value={search}
                       onChange={(event) => {
                         setSearch(event.target.value);
@@ -687,7 +691,7 @@ export default function CustomerDashboard() {
                 </form>
 
                 {showSearchResults && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-[100] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.28)] dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                  <div className="absolute left-0 right-0 top-[calc(100%+0.65rem)] z-[70] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.28)] dark:border-slate-700 dark:bg-slate-900 dark:text-white">
                     <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700 sm:px-5">
                       <div>
                         <p className="text-sm font-black">
@@ -1148,11 +1152,15 @@ export default function CustomerDashboard() {
             </button>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <p className="mt-3 text-xs font-semibold text-slate-400 sm:hidden">
+            Swipe sideways to browse workers
+          </p>
+
+          <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 pr-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
             {filteredWorkers.map((worker) => (
               <article
                 key={worker.id}
-                className="group overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900"
+                className="group w-[82vw] max-w-sm shrink-0 snap-start overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:w-[360px] lg:w-[380px]"
               >
                 <div className="relative h-40 overflow-hidden bg-slate-100 dark:bg-slate-800">
                   <img

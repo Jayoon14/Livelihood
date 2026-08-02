@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Clock3,
   LocateFixed,
+  Layers,
   MapPin,
   Navigation,
   Radio,
@@ -21,7 +22,12 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+import LayersModal from "../../../components/maps/components/LayersModal";
+import { SATELLITE_STYLE, STYLES } from "../../../components/maps/mapStyles";
+import { useMapStyle } from "../../../components/maps/hooks/useMapStyle";
+import type { StyleKey } from "../../../components/maps/types";
 import { supabase } from "../../../lib/supabase";
+import { calculateOsrmRoute } from "../../../services/osrmRoutingService";
 
 interface BookingData {
   id: number;
@@ -217,6 +223,11 @@ function isValidCoordinates(longitude: number, latitude: number) {
 function isFreshWorkerLocation(location: WorkerLocationRow) {
   const updatedAt = new Date(location.updated_at).getTime();
 
+  /*
+   * Online/offline status must depend on the database flag and freshness,
+   * not GPS accuracy. Desktop browsers may report an approximate location
+   * such as 50,000 metres while the worker is still actively online.
+   */
   return (
     location.is_online &&
     Number.isFinite(updatedAt) &&
@@ -360,7 +371,6 @@ function createCustomerMarkerElement() {
 export default function TrackWorker() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
-  const tomTomApiKey = import.meta.env.VITE_TOMTOM_API_KEY;
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -371,6 +381,7 @@ export default function TrackWorker() {
   const workerCoordinatesRef = useRef<[number, number] | null>(null);
   const workerAnimationFrameRef = useRef<number | null>(null);
   const routeRequestNumberRef = useRef(0);
+  const routeCoordinatesRef = useRef<[number, number][]>([]);
   const lastRouteRequestAtRef = useRef(0);
   const lastRouteOriginRef = useRef<[number, number] | null>(null);
   const customerAddressRef = useRef<string | null>(null);
@@ -384,6 +395,9 @@ export default function TrackWorker() {
     useState<RouteInformation | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapStyleKey, setMapStyleKey] = useState<StyleKey>("standard");
+  const [layersOpen, setLayersOpen] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [realtimeConnected, setRealtimeConnected] = useState(false);
@@ -564,6 +578,8 @@ export default function TrackWorker() {
   );
 
   const drawRoute = useCallback((routeCoordinates: [number, number][]) => {
+    routeCoordinatesRef.current = routeCoordinates;
+
     const map = mapRef.current;
 
     if (!map || !map.isStyleLoaded()) {
@@ -615,6 +631,8 @@ export default function TrackWorker() {
   }, []);
 
   const clearRoute = useCallback(() => {
+    routeCoordinatesRef.current = [];
+
     const map = mapRef.current;
 
     if (!map || !map.isStyleLoaded()) {
@@ -645,175 +663,23 @@ export default function TrackWorker() {
       try {
         setRouteLoading(true);
 
-        const apiKey = tomTomApiKey?.trim();
-
-        if (!apiKey) {
-          throw new Error(
-            "TomTom API key is missing. Add VITE_TOMTOM_API_KEY to your environment file.",
-          );
-        }
-
-        const [workerLongitude, workerLatitude] = workerCoordinates;
-        const [customerLongitude, customerLatitude] = destinationCoordinates;
-
-        const coordinatesAreValid =
-          Number.isFinite(workerLatitude) &&
-          Number.isFinite(workerLongitude) &&
-          Number.isFinite(customerLatitude) &&
-          Number.isFinite(customerLongitude) &&
-          workerLatitude >= -90 &&
-          workerLatitude <= 90 &&
-          customerLatitude >= -90 &&
-          customerLatitude <= 90 &&
-          workerLongitude >= -180 &&
-          workerLongitude <= 180 &&
-          customerLongitude >= -180 &&
-          customerLongitude <= 180;
-
-        if (!coordinatesAreValid) {
-          throw new Error("Worker or customer coordinates are invalid.");
-        }
-
-        const routePoints =
-          `${workerLatitude},${workerLongitude}:` +
-          `${customerLatitude},${customerLongitude}`;
-
-        const query = new URLSearchParams({
-          key: apiKey,
-          traffic: "true",
-          travelMode: "car",
-          routeType: "fastest",
-          computeTravelTimeFor: "all",
-        });
-
-        const routeUrl =
-          `https://api.tomtom.com/routing/1/calculateRoute/` +
-          `${routePoints}/json?${query.toString()}`;
-
-        const response = await fetch(routeUrl, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          const responseBody = await response.text();
-
-          console.error("TomTom route request failed:", {
-            status: response.status,
-            statusText: response.statusText,
-            responseBody,
-            worker: {
-              latitude: workerLatitude,
-              longitude: workerLongitude,
-            },
-            customer: {
-              latitude: customerLatitude,
-              longitude: customerLongitude,
-            },
-          });
-
-          throw new Error(
-            responseBody
-              ? `Unable to calculate route (${response.status}): ${responseBody}`
-              : `Unable to calculate route (${response.status} ${response.statusText}).`,
-          );
-        }
-
-        const routeData = (await response.json()) as {
-          routes?: Array<{
-            summary?: {
-              lengthInMeters?: number;
-              travelTimeInSeconds?: number;
-              trafficDelayInSeconds?: number;
-              noTrafficTravelTimeInSeconds?: number;
-              trafficLengthInMeters?: number;
-            };
-            legs?: Array<{
-              points?: Array<{
-                latitude: number;
-                longitude: number;
-              }>;
-            }>;
-          }>;
-        };
+        const route = await calculateOsrmRoute(
+          workerCoordinates,
+          destinationCoordinates,
+        );
 
         if (currentRequestNumber !== routeRequestNumberRef.current) {
           return;
         }
 
-        const route = routeData.routes?.[0];
-
-        if (!route) {
-          throw new Error("TomTom did not return a route.");
-        }
-
-        const coordinates: [number, number][] = [];
-
-        for (const leg of route.legs ?? []) {
-          for (const point of leg.points ?? []) {
-            if (
-              Number.isFinite(point.longitude) &&
-              Number.isFinite(point.latitude)
-            ) {
-              coordinates.push([point.longitude, point.latitude]);
-            }
-          }
-        }
-
-        if (coordinates.length < 2) {
-          throw new Error("TomTom returned an empty route geometry.");
-        }
-
-        drawRoute(coordinates);
-
-        const summary = route.summary;
-
-        if (!summary) {
-          throw new Error("TomTom returned a route without summary data.");
-        }
-
-        const rawDistanceMeters = Number(summary.lengthInMeters ?? 0);
-        const directDistanceMeters = getDistanceBetweenCoordinates(
-          workerCoordinates,
-          destinationCoordinates,
-        );
-
-        const distanceMeters =
-          Number.isFinite(rawDistanceMeters) && rawDistanceMeters > 0
-            ? rawDistanceMeters
-            : directDistanceMeters;
-
-        const rawDurationSeconds = Number(summary.travelTimeInSeconds ?? 0);
-
-        /*
-         * TomTom can occasionally return a zero summary for very
-         * short routes. Use a conservative local-road fallback so
-         * the UI never displays 0 m while the markers are apart.
-         */
-        const durationSeconds =
-          Number.isFinite(rawDurationSeconds) && rawDurationSeconds > 0
-            ? rawDurationSeconds
-            : Math.max(60, Math.ceil(distanceMeters / 5));
-        const trafficDelaySeconds = Math.max(
-          0,
-          Number(summary.trafficDelayInSeconds ?? 0),
-        );
-        const noTrafficDurationSeconds = Number(
-          summary.noTrafficTravelTimeInSeconds ?? durationSeconds,
-        );
-        const trafficLengthMeters = Math.max(
-          0,
-          Number(summary.trafficLengthInMeters ?? 0),
-        );
+        drawRoute(route.coordinates);
 
         setRouteInformation({
-          distanceMeters,
-          durationSeconds,
-          trafficDelaySeconds,
-          noTrafficDurationSeconds,
-          trafficLengthMeters,
+          distanceMeters: route.distanceMeters,
+          durationSeconds: route.durationSeconds,
+          trafficDelaySeconds: route.trafficDelaySeconds,
+          noTrafficDurationSeconds: route.noTrafficDurationSeconds,
+          trafficLengthMeters: route.trafficLengthMeters,
         });
 
         const map = mapRef.current;
@@ -821,7 +687,9 @@ export default function TrackWorker() {
         if (map) {
           const bounds = new LngLatBounds();
 
-          coordinates.forEach((coordinate) => bounds.extend(coordinate));
+          route.coordinates.forEach((coordinate) => {
+            bounds.extend(coordinate);
+          });
 
           map.fitBounds(bounds, {
             padding: {
@@ -842,7 +710,7 @@ export default function TrackWorker() {
         setRouteInformation(null);
 
         console.error(
-          "Unable to calculate TomTom route:",
+          "Unable to calculate OSRM route:",
           error instanceof Error ? error.message : error,
         );
       } finally {
@@ -851,7 +719,7 @@ export default function TrackWorker() {
         }
       }
     },
-    [drawRoute, tomTomApiKey],
+    [drawRoute],
   );
 
   const requestRouteThrottled = useCallback(
@@ -971,6 +839,26 @@ export default function TrackWorker() {
       workerName,
     ],
   );
+
+  const selectedMapStyle =
+    mapStyleKey === "satellite"
+      ? SATELLITE_STYLE
+      : STYLES[mapStyleKey];
+
+  useMapStyle({
+    mapRef,
+    mapReady,
+    mapStyle: selectedMapStyle,
+    pitch: mapStyleKey === "threeD" ? 55 : 0,
+    onStyleLoaded: () => {
+      const coordinates = routeCoordinatesRef.current;
+
+      if (coordinates.length >= 2) {
+        drawRoute(coordinates);
+      }
+    },
+  });
+
   useEffect(() => {
     async function loadBooking() {
       if (!bookingId) {
@@ -1064,7 +952,15 @@ export default function TrackWorker() {
 
     mapRef.current = map;
 
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize();
+    });
+
+    resizeObserver.observe(mapContainerRef.current);
+
     map.on("load", () => {
+      map.resize();
+      setMapReady(true);
       const customerMarkerElement = createCustomerMarkerElement();
 
       customerMarkerRef.current = new Marker({
@@ -1105,6 +1001,8 @@ export default function TrackWorker() {
       workerMarkerRef.current?.remove();
       customerMarkerRef.current?.remove();
 
+      resizeObserver.disconnect();
+      setMapReady(false);
       map.remove();
 
       workerMarkerRef.current = null;
@@ -1155,7 +1053,7 @@ export default function TrackWorker() {
   );
 
   useEffect(() => {
-    if (!booking?.worker_id || !mapRef.current || trackingFinished) {
+    if (!booking?.worker_id || !mapReady || trackingFinished) {
       return;
     }
 
@@ -1202,6 +1100,7 @@ export default function TrackWorker() {
     clearRoute,
     displayWorkerLocation,
     fetchLatestWorkerLocation,
+    mapReady,
     trackingFinished,
   ]);
 
@@ -1317,8 +1216,8 @@ export default function TrackWorker() {
 
   return (
     <CustomerLayout>
-      <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
-        <header className="rounded-3xl bg-white p-6 shadow-sm">
+      <div className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-5 lg:space-y-6 lg:p-8">
+        <header className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
           <button
             type="button"
             onClick={() => navigate("/customer/bookings")}
@@ -1384,8 +1283,8 @@ export default function TrackWorker() {
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
-          <aside className="space-y-5">
+        <div className="grid gap-4 xl:grid-cols-[350px_minmax(0,1fr)] xl:gap-6">
+          <aside className="order-2 space-y-4 xl:order-1 xl:space-y-5">
             <section className="rounded-3xl bg-white p-6 shadow-sm">
               <div className="flex items-center gap-4">
                 <img
@@ -1669,8 +1568,27 @@ export default function TrackWorker() {
             )}
           </aside>
 
-          <main className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div ref={mapContainerRef} className="h-155 w-full bg-slate-100" />
+          <main className="relative order-1 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 xl:order-2">
+            <div
+              ref={mapContainerRef}
+              className="h-[62dvh] min-h-[430px] w-full bg-slate-100 sm:h-[68dvh] xl:h-[720px]"
+            />
+
+            <button
+              type="button"
+              onClick={() => setLayersOpen(true)}
+              className="absolute left-3 top-3 z-30 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 text-sm font-bold text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
+            >
+              <Layers className="h-4 w-4" />
+              Layers
+            </button>
+
+            <LayersModal
+              visible={layersOpen}
+              style={mapStyleKey}
+              onClose={() => setLayersOpen(false)}
+              onStyleChange={setMapStyleKey}
+            />
           </main>
         </div>
       </div>

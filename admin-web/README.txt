@@ -1,19 +1,22 @@
-REGISTER CHOICE — FULL 45/55 VERSION
+LIVELIHOODGO STYLE_OPTIONS FIX
 
-Desktop:
-- Exact 45% left blue panel
-- Exact 55% right content panel
-- Diagonal blue visual overlap
-- Workshop background on the right
-- Register Choice card remains readable
+Replace:
 
-Mobile/tablet:
-- No workshop background
-- No floating negative-margin card because floatingCard={false}
-- Normal content flow below the blue header
+1. src/components/maps/mapStyles.ts
+2. src/components/maps/components/LayersModal.tsx
 
-Install:
-1. Replace src/components/auth/AuthSplitLayout.tsx
-2. Replace src/pages/auth/RegisterChoice.tsx
-3. Ensure public/auth/workshop-login-background.png exists
-4. Run npm run build
+Fixes:
+- Restores the missing STYLE_OPTIONS export.
+- Adds the MapStyleOption type.
+- Removes implicit any from the option callback.
+- Keeps DEFAULT_CENTER, STYLES, and SATELLITE_STYLE exports.
+- Removes accidental duplicate LayersModal code.
+- Adds proper dark mode and modal accessibility behavior.
+
+After replacing:
+
+npm run build
+npm run dev
+
+Then hard refresh:
+Ctrl + Shift + R

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Layers3, LoaderCircle, Navigation } from "lucide-react";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -531,20 +532,20 @@ const layersModalProps = useLayersModalProps({
 });
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.15)]">
-      <div className="relative flex h-130 w-full overflow-hidden sm:h-150">
-        <div className={navigationMode ? "pointer-events-none select-none" : ""}>
+    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.15)] dark:border-slate-700 dark:bg-slate-900 sm:rounded-[1.75rem]">
+      <div className="relative flex h-[68dvh] min-h-[460px] max-h-[760px] w-full overflow-hidden sm:h-[72dvh] lg:h-[650px]">
+        <div>
           <MapSidebar {...sidebarProps} />
         </div>
         <div className="relative flex-1">
           <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
 
           {navigationMode && (
-            <div className="pointer-events-none absolute left-4 bottom-4 z-20 rounded-xl border border-blue-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="pointer-events-none absolute bottom-20 left-3 right-3 z-20 rounded-xl border border-blue-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:bottom-4 sm:left-4 sm:right-auto sm:px-4 sm:py-3">
               <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">
                 Customer location locked
               </p>
-              <p className="mt-1 max-w-64 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-slate-600 sm:max-w-64">
                 The destination comes from the confirmed booking and cannot be moved by the worker.
               </p>
             </div>
@@ -570,6 +571,32 @@ const layersModalProps = useLayersModalProps({
               </div>
             </div>
           )}
+        </div>
+
+
+        <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setShowLayers(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
+          >
+            <Layers3 className="h-4 w-4" />
+            Layers
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void getDirections()}
+            disabled={routing}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {routing ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Navigation className="h-4 w-4" />
+            )}
+            Route
+          </button>
         </div>
 
         <LoadingOverlay visible={!mapReady} />

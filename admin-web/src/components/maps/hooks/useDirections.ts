@@ -2,10 +2,8 @@ import { useCallback } from "react";
 import { LngLatBounds } from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 
-import type {
-  Coordinates,
-  RouteResult,
-} from "../types";
+import { calculateOsrmRoute } from "../../../services/osrmRoutingService";
+import type { Coordinates } from "../types";
 
 interface UseDirectionsProps {
   mapRef: React.MutableRefObject<MapLibreMap | null>;
@@ -51,96 +49,45 @@ export function useDirections({
     const origin = currentLocationRef.current;
     const destination = selectedCoordinatesRef.current;
 
-    console.log("Directions coordinates:", {
-      origin,
-      destination,
-    });
-
-    const longitudeDifference = Math.abs(
-      origin[0] - destination[0],
-    );
-
-    const latitudeDifference = Math.abs(
-      origin[1] - destination[1],
-    );
-
-    if (
-      longitudeDifference < 0.000001 &&
-      latitudeDifference < 0.000001
-    ) {
-      setMessage(
-        "Worker and customer locations are currently the same.",
-      );
-
-      return;
-    }
-
     setRouting(true);
     setMessage("");
 
     try {
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?overview=full&geometries=geojson`,
-      );
+      const route = await calculateOsrmRoute(origin, destination);
 
-      if (!response.ok) {
-        throw new Error("Routing failed.");
+      drawRoute(route.coordinates);
+      setDistance(route.distanceMeters);
+      setDuration(route.durationSeconds);
+      setShowDirections(true);
+
+      const map = mapRef.current;
+
+      if (!map) {
+        throw new Error("Map is not available.");
       }
 
-      const data = (await response.json()) as RouteResult;
+      const bounds = new LngLatBounds();
 
-      console.log("OSRM route response:", data);
+      route.coordinates.forEach((point) => {
+        bounds.extend(point);
+      });
 
-      const route = data.routes?.[0];
+      window.setTimeout(() => {
+        map.resize();
 
-      if (!route) {
-        throw new Error("No route found.");
-      }
-
-      drawRoute(route.geometry.coordinates);
-
-setDistance(route.distance);
-setDuration(route.duration);
-setShowDirections(true);
-
-const map = mapRef.current;
-
-if (!map) {
-  throw new Error("Map is not available.");
-}
-
-const routeCoordinates = route.geometry.coordinates;
-
-const bounds = new LngLatBounds();
-
-routeCoordinates.forEach((point) => {
-  bounds.extend(point);
-});
-
-console.log("Fitting route bounds:", {
-  origin,
-  destination,
-  coordinateCount: routeCoordinates.length,
-  southwest: bounds.getSouthWest(),
-  northeast: bounds.getNorthEast(),
-});
-
-window.setTimeout(() => {
-  map.resize();
-
-  map.fitBounds(bounds, {
-    padding: {
-      top: 100,
-      right: 100,
-      bottom: 100,
-      left: 100,
-    },
-    duration: 1200,
-    maxZoom: 17,
-  });
-}, 100);
+        map.fitBounds(bounds, {
+          padding: {
+            top: 100,
+            right: 100,
+            bottom: 100,
+            left: 100,
+          },
+          duration: 1200,
+          maxZoom: 17,
+        });
+      }, 100);
     } catch (error) {
-      console.error("Directions error:", error);
+      console.error("OSRM directions error:", error);
 
       setMessage(
         error instanceof Error
