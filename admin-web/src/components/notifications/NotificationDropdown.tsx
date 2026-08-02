@@ -521,44 +521,17 @@ export default function NotificationDropdown({
           setOpen((current) => !current);
           void requestBrowserNotificationPermission();
         }}
-        className={`notification-trigger group relative flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-300 ${
-          open
-            ? "border-blue-200 bg-blue-50 shadow-lg shadow-blue-500/15 dark:border-blue-500/30 dark:bg-blue-500/10"
-            : "border-transparent bg-transparent hover:-translate-y-0.5 hover:scale-105 hover:border-blue-200 hover:bg-blue-50 hover:shadow-xl hover:shadow-blue-500/15 active:translate-y-0 active:scale-95 dark:hover:border-blue-500/30 dark:hover:bg-blue-500/10"
-        }`}
-        aria-label={
-          unreadCount > 0
-            ? `Open notifications. ${unreadCount} unread.`
-            : "Open notifications"
-        }
+        className="relative rounded-full p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+        aria-label="Open notifications"
         aria-expanded={open}
       >
-        <span
-          className={`notification-bell-wrap relative flex h-8 w-8 items-center justify-center rounded-full ${
-            unreadCount > 0 ? "has-unread" : ""
-          }`}
-        >
-          <Bell
-            className={`notification-bell h-6 w-6 transition-all duration-300 ${
-              open
-                ? "text-blue-600 dark:text-blue-300"
-                : "text-slate-700 group-hover:text-blue-600 dark:text-slate-200 dark:group-hover:text-blue-300"
-            }`}
-          />
+        <Bell className="h-6 w-6 text-slate-700 dark:text-slate-200" />
 
-          {unreadCount > 0 && (
-            <>
-              <span
-                aria-hidden="true"
-                className="notification-pulse absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-rose-500/35"
-              />
-
-              <span className="notification-badge absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-red-600 px-1 text-[10px] font-extrabold leading-none text-white shadow-lg shadow-rose-500/35 ring-2 ring-white transition-transform duration-300 group-hover:scale-110 dark:ring-slate-900">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            </>
-          )}
-        </span>
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {open && (

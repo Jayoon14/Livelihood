@@ -791,7 +791,7 @@ export default function CompleteJob() {
           }}
         />
 
-        <div className="relative mx-auto max-w-6xl space-y-5 sm:space-y-6">
+        <div className="relative mx-auto w-full max-w-[1500px] space-y-5 sm:space-y-6">
           <button
             type="button"
             onClick={() => navigate("/worker/bookings")}
@@ -911,7 +911,7 @@ export default function CompleteJob() {
                 </div>
               </section>
 
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,.85fr)]">
+              <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,.9fr)]">
                 <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-7 dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
@@ -928,7 +928,7 @@ export default function CompleteJob() {
                     </div>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
                     {Array.from({ length: MAX_IMAGES }).map((_, index) => {
                       const selectedImage = selectedImages[index];
 
@@ -1136,7 +1136,7 @@ export default function CompleteJob() {
                 </div>
               </section>
 
-              <div className="sticky bottom-3 z-20 grid gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:static sm:grid-cols-2 sm:bg-transparent sm:p-0 sm:shadow-none dark:border-slate-700 dark:bg-slate-900/95 sm:dark:bg-transparent">
+              <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:static sm:grid-cols-2 sm:bg-transparent sm:p-0 sm:shadow-none dark:border-slate-700 dark:bg-slate-900/95 sm:dark:bg-transparent">
                 <button
                   type="button"
                   onClick={() => navigate("/worker/bookings")}

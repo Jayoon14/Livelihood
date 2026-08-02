@@ -1,20 +1,24 @@
-LIVELIHOODGO STYLE_OPTIONS FIX
+LIVELIHOODGO NEARBY WORKERS REALTIME FULL FIX
 
 Replace:
+1. src/components/maps/hooks/useNearbyWorkers.ts
+2. src/pages/customer/workers/components/NearbyWorkersModal.tsx
 
-1. src/components/maps/mapStyles.ts
-2. src/components/maps/components/LayersModal.tsx
-
-Fixes:
-- Restores the missing STYLE_OPTIONS export.
-- Adds the MapStyleOption type.
-- Removes implicit any from the option callback.
-- Keeps DEFAULT_CENTER, STYLES, and SATELLITE_STYLE exports.
-- Removes accidental duplicate LayersModal code.
-- Adds proper dark mode and modal accessibility behavior.
+Fixed:
+- Removed duplicate realtime useEffect.
+- Exactly one realtime channel is created per mounted hook.
+- All postgres_changes callbacks are registered before subscribe().
+- Unique realtime channel name prevents channel collisions.
+- NearbyWorker.profile has one consistent WorkerProfile type with required id.
+- Modal no longer performs a second profile query.
+- New workers added through realtime also load their profile.
+- Worker markers move smoothly on realtime location updates.
+- Marker click always uses the latest worker data.
+- Proper cleanup of channel, markers, animation frames, and click handlers.
+- 30-second polling fallback remains active.
+- Responsive mobile worker details panel.
 
 After replacing:
-
 npm run build
 npm run dev
 

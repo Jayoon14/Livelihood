@@ -18,7 +18,9 @@ interface NearbyWorkersModalProps {
   onClose: () => void;
 }
 
-function formatDistance(distanceMeters: number | null) {
+function formatDistance(
+  distanceMeters: number | null,
+): string {
   if (distanceMeters === null) {
     return "Distance unavailable";
   }
@@ -27,16 +29,25 @@ function formatDistance(distanceMeters: number | null) {
     return `${Math.round(distanceMeters)} m away`;
   }
 
-  return `${(distanceMeters / 1_000).toFixed(1)} km away`;
+  return `${(distanceMeters / 1_000).toFixed(
+    1,
+  )} km away`;
 }
 
-function getWorkerName(worker: NearbyWorker) {
+function getWorkerName(
+  worker: NearbyWorker,
+): string {
   return [
     worker.profile?.first_name,
     worker.profile?.middle_name,
     worker.profile?.last_name,
   ]
-    .filter(Boolean)
+    .filter(
+      (value): value is string =>
+        typeof value === "string" &&
+        value.trim().length > 0,
+    )
+    .map((value) => value.trim())
     .join(" ") || "Available Worker";
 }
 
@@ -55,26 +66,39 @@ export default function NearbyWorkersModal({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (selectedWorker) {
-          setSelectedWorker(null);
-          return;
-        }
-
-        onClose();
+    const handleEscape = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key !== "Escape") {
+        return;
       }
+
+      if (selectedWorker) {
+        setSelectedWorker(null);
+        return;
+      }
+
+      onClose();
     };
 
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener(
+      "keydown",
+      handleEscape,
+    );
 
     return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow =
+        previousOverflow;
+
+      window.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
     };
   }, [open, onClose, selectedWorker]);
 
@@ -92,47 +116,36 @@ export default function NearbyWorkersModal({
 
   return (
     <div
-      className="
-        fixed inset-0 z-[200]
-        flex items-center justify-center
-        bg-slate-950/60
-        p-3 backdrop-blur-sm
-        sm:p-6
-      "
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 p-2 backdrop-blur-sm sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="nearby-workers-title"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (
+          event.target === event.currentTarget
+        ) {
           onClose();
         }
       }}
     >
-      <div
-        className="
-          relative flex
-          max-h-[94vh] w-full max-w-7xl
-          flex-col overflow-hidden
-          rounded-[28px] bg-white
-          shadow-[0_30px_100px_rgba(15,23,42,0.40)]
-        "
-      >
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-7">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-              <MapPinned size={22} />
+      <div className="relative flex h-[95dvh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-[0_30px_100px_rgba(15,23,42,0.40)] sm:h-auto sm:max-h-[94vh] sm:rounded-[28px] dark:bg-slate-900">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-7 sm:py-4 dark:border-slate-700">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
+              <MapPinned size={21} />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <h2
                 id="nearby-workers-title"
-                className="text-lg font-bold text-slate-900 sm:text-xl"
+                className="truncate text-base font-bold text-slate-900 sm:text-xl dark:text-white"
               >
                 Nearby Workers
               </h2>
 
-              <p className="text-sm text-slate-500">
-                Select an online worker to view their details.
+              <p className="hidden text-sm text-slate-500 sm:block dark:text-slate-400">
+                Select an online worker to view
+                their details.
               </p>
             </div>
           </div>
@@ -141,23 +154,20 @@ export default function NearbyWorkersModal({
             type="button"
             onClick={onClose}
             aria-label="Close nearby workers"
-            className="
-              flex h-10 w-10 items-center justify-center
-              rounded-full text-slate-500
-              transition hover:bg-slate-100 hover:text-slate-900
-              focus:outline-none focus:ring-2 focus:ring-blue-500
-            "
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <X size={22} />
           </button>
         </header>
 
-        <div className="relative flex-1 overflow-hidden bg-slate-50">
-          <div className="h-full overflow-y-auto p-3 sm:p-5">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950">
+          <div className="h-full overflow-y-auto p-2 sm:p-5">
             <LocationPicker
               showNearbyWorkers
               nearbyWorkerRadiusKilometers={20}
-              onNearbyWorkerSelect={setSelectedWorker}
+              onNearbyWorkerSelect={
+                setSelectedWorker
+              }
               onLocationSelect={() => {
                 // Map-only worker discovery.
               }}
@@ -165,52 +175,47 @@ export default function NearbyWorkersModal({
           </div>
 
           <aside
-            className={`
-              absolute inset-y-0 right-0 z-30
-              w-full max-w-sm
-              border-l border-slate-200 bg-white
-              shadow-[-20px_0_60px_rgba(15,23,42,0.18)]
-              transition-transform duration-300 ease-out
-              ${
-                selectedWorker
-                  ? "translate-x-0"
-                  : "translate-x-full"
-              }
-            `}
+            className={`absolute inset-y-0 right-0 z-30 w-full border-l border-slate-200 bg-white shadow-[-20px_0_60px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-out sm:max-w-sm dark:border-slate-700 dark:bg-slate-900 ${
+              selectedWorker
+                ? "translate-x-0"
+                : "translate-x-full"
+            }`}
           >
             {selectedWorker && (
               <div className="flex h-full flex-col">
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-300">
                       Selected Worker
                     </p>
 
-                    <h3 className="mt-1 text-lg font-bold text-slate-900">
+                    <h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">
                       Worker Details
                     </h3>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => setSelectedWorker(null)}
+                    onClick={() =>
+                      setSelectedWorker(null)
+                    }
                     aria-label="Close worker details"
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
                     <X size={20} />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5">
-                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                    <div className="relative h-52 bg-slate-100">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                    <div className="relative h-52 bg-slate-100 dark:bg-slate-800">
                       <img
                         src={profilePicture}
                         alt={workerName}
                         className="h-full w-full object-cover"
                       />
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent" />
 
                       <div className="absolute bottom-4 left-4 right-4">
                         <h3 className="text-xl font-bold text-white">
@@ -225,7 +230,7 @@ export default function NearbyWorkersModal({
                     </div>
 
                     <div className="space-y-4 p-5">
-                      <div className="flex items-center gap-3 rounded-2xl bg-blue-50 p-4 text-blue-700">
+                      <div className="flex items-center gap-3 rounded-2xl bg-blue-50 p-4 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                         <Navigation size={20} />
 
                         <div>
@@ -242,94 +247,75 @@ export default function NearbyWorkersModal({
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl border border-slate-200 p-4">
+                        <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
                           <BadgeCheck
                             size={20}
-                            className="text-blue-600"
+                            className="text-emerald-600"
                           />
-
-                          <p className="mt-2 text-xs text-slate-500">
+                          <p className="mt-2 text-xs font-semibold text-slate-500">
                             Status
                           </p>
-
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-bold text-slate-900 dark:text-white">
                             Verified
                           </p>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 p-4">
+                        <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
                           <BriefcaseBusiness
                             size={20}
-                            className="text-emerald-600"
+                            className="text-blue-600"
                           />
-
-                          <p className="mt-2 text-xs text-slate-500">
+                          <p className="mt-2 text-xs font-semibold text-slate-500">
                             Availability
                           </p>
-
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-bold text-slate-900 dark:text-white">
                             Available
                           </p>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-slate-200 p-4">
-                        <div className="flex items-center gap-2">
-                          <MapPin
-                            size={18}
-                            className="text-slate-500"
-                          />
-
-                          <p className="text-sm font-semibold text-slate-900">
-                            Live Location
+                      <div className="flex items-start gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+                        <MapPin
+                          size={20}
+                          className="mt-0.5 shrink-0 text-rose-500"
+                        />
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500">
+                            Live GPS
+                          </p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            Location recently updated
                           </p>
                         </div>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          This worker is currently sharing an active GPS
-                          location.
-                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3 border-t border-slate-200 bg-white p-5">
+                <div className="grid grid-cols-2 gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() =>
-                      navigate(
-                        `/customer/workers/${selectedWorker.worker_id}`,
-                      )
+                      setSelectedWorker(null)
                     }
-                    className="
-                      inline-flex w-full items-center justify-center gap-2
-                      rounded-2xl border border-slate-300
-                      px-5 py-3.5 font-semibold text-slate-700
-                      transition hover:border-slate-900 hover:bg-slate-50
-                    "
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     <UserRound size={18} />
-                    View Profile
+                    Back
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      onClose();
                       navigate(
-                        `/customer/workers/${selectedWorker.worker_id}?book=true#booking-section`,
-                      )
-                    }
-                    className="
-                      inline-flex w-full items-center justify-center gap-2
-                      rounded-2xl bg-blue-600
-                      px-5 py-3.5 font-semibold text-white
-                      shadow-lg shadow-blue-600/20
-                      transition hover:bg-blue-700
-                    "
+                        `/customer/workers/${selectedWorker.worker_id}`,
+                      );
+                    }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700"
                   >
-                    <BriefcaseBusiness size={18} />
-                    Book Now
+                    View Profile
+                    <Navigation size={18} />
                   </button>
                 </div>
               </div>

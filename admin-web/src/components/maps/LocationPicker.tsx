@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Layers3, LoaderCircle, Navigation } from "lucide-react";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -420,6 +419,14 @@ useMapStyle({
   mapRef,
   mapReady,
   mapStyle: selectedMapStyle,
+  pitch: style === "threeD" ? 55 : 0,
+  onStyleLoaded: () => {
+    const routeCoordinates = routeCoordinatesRef.current;
+
+    if (routeCoordinates.length >= 2) {
+      drawRoute(routeCoordinates);
+    }
+  },
 });
 
 
@@ -430,11 +437,31 @@ const {
   refreshNearbyWorkers,
 } = useNearbyWorkers({
   mapRef,
-  currentLocationRef,
+  currentLocationRef:
+    navigationMode ? currentLocationRef : selectedCoordinatesRef,
   enabled: showNearbyWorkers && mapReady,
   radiusKilometers: nearbyWorkerRadiusKilometers,
   onWorkerSelect: onNearbyWorkerSelect,
 });
+
+useEffect(() => {
+  if (!showNearbyWorkers || !mapReady || navigationMode) {
+    return;
+  }
+
+  const timeoutId = window.setTimeout(() => {
+    refreshNearbyWorkers();
+  }, 200);
+
+  return () => window.clearTimeout(timeoutId);
+}, [
+  latitude,
+  longitude,
+  mapReady,
+  navigationMode,
+  refreshNearbyWorkers,
+  showNearbyWorkers,
+]);
 
   const confirmAddressBase = useConfirmAddress({
     editableAddress,
@@ -532,32 +559,32 @@ const layersModalProps = useLayersModalProps({
 });
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.15)] dark:border-slate-700 dark:bg-slate-900 sm:rounded-[1.75rem]">
-      <div className="relative flex h-[68dvh] min-h-[460px] max-h-[760px] w-full overflow-hidden sm:h-[72dvh] lg:h-[650px]">
-        <div>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:rounded-[28px]">
+      <div className="relative flex h-[68dvh] min-h-[500px] max-h-[760px] w-full overflow-hidden sm:h-[650px]">
+        <div className="hidden w-[320px] shrink-0 lg:block">
           <MapSidebar {...sidebarProps} />
         </div>
         <div className="relative flex-1">
           <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
 
           {navigationMode && (
-            <div className="pointer-events-none absolute bottom-20 left-3 right-3 z-20 rounded-xl border border-blue-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:bottom-4 sm:left-4 sm:right-auto sm:px-4 sm:py-3">
+            <div className="pointer-events-none absolute left-4 bottom-4 z-20 rounded-xl border border-blue-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
               <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">
                 Customer location locked
               </p>
-              <p className="mt-1 text-xs text-slate-600 sm:max-w-64">
+              <p className="mt-1 max-w-64 text-xs text-slate-600">
                 The destination comes from the confirmed booking and cannot be moved by the worker.
               </p>
             </div>
           )}
           {showNearbyWorkers && (
-            <div className="pointer-events-none absolute left-4 top-4 z-20">
-              <div className="rounded-2xl border border-white/70 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="pointer-events-none absolute left-3 top-20 z-20 sm:left-4 sm:top-4">
+              <div className="rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Nearby Workers
                 </p>
 
-                <p className="mt-1 text-lg font-bold text-slate-900">
+                <p className="mt-1 text-sm font-bold text-slate-900 sm:text-lg">
                   {loadingWorkers
                     ? "Loading..."
                     : `${nearbyWorkersCount} available`}
@@ -573,29 +600,23 @@ const layersModalProps = useLayersModalProps({
           )}
         </div>
 
-
+        {/* Mobile map actions */}
         <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 gap-2 lg:hidden">
           <button
             type="button"
             onClick={() => setShowLayers(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
+            className="min-h-11 rounded-xl border border-slate-200 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-lg backdrop-blur"
           >
-            <Layers3 className="h-4 w-4" />
             Layers
           </button>
 
           <button
             type="button"
             onClick={() => void getDirections()}
-            disabled={routing}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={routing || !currentLocationRef.current}
+            className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {routing ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <Navigation className="h-4 w-4" />
-            )}
-            Route
+            {routing ? "Routing..." : "Route"}
           </button>
         </div>
 

@@ -1216,7 +1216,7 @@ export default function TrackWorker() {
 
   return (
     <CustomerLayout>
-      <div className="mx-auto max-w-7xl space-y-4 p-3 sm:space-y-5 sm:p-5 lg:space-y-6 lg:p-8">
+      <div className="mx-auto w-full max-w-[1650px] space-y-4 p-2 sm:space-y-5 sm:p-4 lg:space-y-6 lg:p-6">
         <header className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
           <button
             type="button"
@@ -1283,8 +1283,8 @@ export default function TrackWorker() {
           </div>
         </header>
 
-        <div className="grid gap-4 xl:grid-cols-[350px_minmax(0,1fr)] xl:gap-6">
-          <aside className="order-2 space-y-4 xl:order-1 xl:space-y-5">
+        <div className="grid min-w-0 gap-4 2xl:grid-cols-[320px_minmax(0,1fr)] 2xl:gap-5">
+          <aside className="order-2 space-y-4 2xl:order-1 2xl:space-y-5">
             <section className="rounded-3xl bg-white p-6 shadow-sm">
               <div className="flex items-center gap-4">
                 <img
@@ -1568,20 +1568,46 @@ export default function TrackWorker() {
             )}
           </aside>
 
-          <main className="relative order-1 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 xl:order-2">
+          <main className="relative order-1 min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 2xl:order-2">
             <div
               ref={mapContainerRef}
-              className="h-[62dvh] min-h-[430px] w-full bg-slate-100 sm:h-[68dvh] xl:h-[720px]"
+              className="h-[72dvh] min-h-[520px] w-full bg-slate-100 sm:h-[74dvh] 2xl:h-[760px]"
             />
 
-            <button
-              type="button"
-              onClick={() => setLayersOpen(true)}
-              className="absolute left-3 top-3 z-30 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 text-sm font-bold text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200"
-            >
-              <Layers className="h-4 w-4" />
-              Layers
-            </button>
+            <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    mapRef.current &&
+                    workerCoordinatesRef.current &&
+                    customerCoordinates
+                  ) {
+                    const bounds = new LngLatBounds();
+                    bounds.extend(workerCoordinatesRef.current);
+                    bounds.extend(customerCoordinates);
+                    mapRef.current.fitBounds(bounds, {
+                      padding: 70,
+                      maxZoom: 15,
+                      duration: 700,
+                    });
+                  }
+                }}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95"
+              >
+                <Navigation className="h-4 w-4" />
+                Fit route
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLayersOpen(true)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <Layers className="h-4 w-4" />
+                Layers
+              </button>
+            </div>
 
             <LayersModal
               visible={layersOpen}

@@ -11,19 +11,24 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { BarChart3, PieChartIcon } from "lucide-react";
+import {
+  BarChart3,
+  PieChartIcon,
+} from "lucide-react";
 
-type BookingStatus =
+export type BookingStatus =
   | "Pending"
   | "Approved"
   | "Accepted"
+  | "On Going"
+  | "Waiting Customer Confirmation"
   | "Completed"
   | "Cancelled"
   | "Canceled"
   | "Rejected"
   | string;
 
-interface WorkerBooking {
+export interface WorkerAnalyticsBooking {
   id: number | string;
   booking_date?: string | null;
   created_at?: string | null;
@@ -32,7 +37,7 @@ interface WorkerBooking {
 }
 
 interface WorkerAnalyticsProps {
-  bookings: WorkerBooking[];
+  bookings: WorkerAnalyticsBooking[];
 }
 
 interface WeeklyBookingData {
@@ -52,14 +57,20 @@ const STATUS_COLORS = {
   pending: "#FACC15",
   cancelled: "#EF4444",
   approved: "#10B981",
-};
+} as const;
 
-function normalizeStatus(value?: string | null): string {
+function normalizeStatus(
+  value?: string | null,
+): string {
   return value?.trim().toLowerCase() ?? "";
 }
 
-function getBookingDate(booking: WorkerBooking): Date | null {
-  const value = booking.booking_date ?? booking.created_at;
+function getBookingDate(
+  booking: WorkerAnalyticsBooking,
+): Date | null {
+  const value =
+    booking.booking_date ??
+    booking.created_at;
 
   if (!value) {
     return null;
@@ -70,58 +81,93 @@ function getBookingDate(booking: WorkerBooking): Date | null {
       ? new Date(`${value}T00:00:00`)
       : new Date(value);
 
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime())
+    ? null
+    : date;
 }
 
 function getLocalDateKey(date: Date): string {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+  const day = String(date.getDate()).padStart(
+    2,
+    "0",
+  );
 
   return `${year}-${month}-${day}`;
 }
 
 function createWeeklyBookingData(
-  bookings: WorkerBooking[],
+  bookings: WorkerAnalyticsBooking[],
 ): WeeklyBookingData[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (6 - index));
+  const totalsByDate = new Map<
+    string,
+    number
+  >();
 
-    const dateKey = getLocalDateKey(date);
+  for (const booking of bookings) {
+    const bookingDate =
+      getBookingDate(booking);
 
-    const total = bookings.filter((booking) => {
-      const bookingDate = getBookingDate(booking);
+    if (!bookingDate) {
+      continue;
+    }
 
-      if (!bookingDate) {
-        return false;
-      }
+    const dateKey =
+      getLocalDateKey(bookingDate);
 
-      return getLocalDateKey(bookingDate) === dateKey;
-    }).length;
+    totalsByDate.set(
+      dateKey,
+      (totalsByDate.get(dateKey) ?? 0) + 1,
+    );
+  }
 
-    return {
-      date: dateKey,
-      day: date.toLocaleDateString("en-PH", {
-        weekday: "short",
-      }),
-      bookings: total,
-    };
-  });
+  return Array.from(
+    { length: 7 },
+    (_, index) => {
+      const date = new Date(today);
+      date.setDate(
+        today.getDate() - (6 - index),
+      );
+
+      const dateKey = getLocalDateKey(date);
+
+      return {
+        date: dateKey,
+        day: date.toLocaleDateString(
+          "en-PH",
+          {
+            weekday: "short",
+          },
+        ),
+        bookings:
+          totalsByDate.get(dateKey) ?? 0,
+      };
+    },
+  );
 }
 
-function createStatusData(bookings: WorkerBooking[]): StatusChartData[] {
+function createStatusData(
+  bookings: WorkerAnalyticsBooking[],
+): StatusChartData[] {
   let completed = 0;
   let pending = 0;
   let cancelled = 0;
   let approved = 0;
 
   for (const booking of bookings) {
-    const status = normalizeStatus(booking.status);
-    const completionStatus = normalizeStatus(booking.completion_status);
+    const status = normalizeStatus(
+      booking.status,
+    );
+    const completionStatus =
+      normalizeStatus(
+        booking.completion_status,
+      );
 
     if (
       status === "completed" ||
@@ -143,7 +189,10 @@ function createStatusData(bookings: WorkerBooking[]): StatusChartData[] {
     if (
       status === "approved" ||
       status === "accepted" ||
-      status === "confirmed"
+      status === "confirmed" ||
+      status === "on going" ||
+      status ===
+        "waiting customer confirmation"
     ) {
       approved += 1;
       continue;
@@ -159,7 +208,7 @@ function createStatusData(bookings: WorkerBooking[]): StatusChartData[] {
       color: STATUS_COLORS.completed,
     },
     {
-      name: "Approved",
+      name: "Approved / Active",
       value: approved,
       color: STATUS_COLORS.approved,
     },
@@ -196,14 +245,21 @@ function AnalyticsTooltip({
   }
 
   const item = payload[0];
-  const title = item.payload?.name ?? label ?? "Bookings";
+  const title =
+    item.payload?.name ??
+    label ??
+    "Bookings";
+  const value = item.value ?? 0;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+        {title}
+      </p>
 
-      <p className="mt-1 text-sm text-slate-600">
-        {item.value ?? 0} booking{item.value === 1 ? "" : "s"}
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        {value} booking
+        {value === 1 ? "" : "s"}
       </p>
     </div>
   );
@@ -212,75 +268,95 @@ function AnalyticsTooltip({
 export default function WorkerAnalytics({
   bookings,
 }: WorkerAnalyticsProps) {
+  const safeBookings =
+    Array.isArray(bookings)
+      ? bookings
+      : [];
+
   const weeklyData = useMemo(
-    () => createWeeklyBookingData(bookings),
-    [bookings],
+    () =>
+      createWeeklyBookingData(
+        safeBookings,
+      ),
+    [safeBookings],
   );
 
   const statusData = useMemo(
-    () => createStatusData(bookings),
-    [bookings],
-  );
-
-  const totalBookings = bookings.length;
-
-  const totalWeeklyBookings = useMemo(
     () =>
-      weeklyData.reduce(
-        (total, item) => total + item.bookings,
-        0,
-      ),
-    [weeklyData],
+      createStatusData(safeBookings),
+    [safeBookings],
   );
 
-  const visibleStatusData = useMemo(
-    () => statusData.filter((item) => item.value > 0),
-    [statusData],
-  );
+  const totalBookings =
+    safeBookings.length;
+
+  const totalWeeklyBookings =
+    useMemo(
+      () =>
+        weeklyData.reduce(
+          (total, item) =>
+            total + item.bookings,
+          0,
+        ),
+      [weeklyData],
+    );
+
+  const visibleStatusData =
+    useMemo(
+      () =>
+        statusData.filter(
+          (item) => item.value > 0,
+        ),
+      [statusData],
+    );
 
   return (
-    <section className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-2 xl:gap-8">
-      <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-        <div className="mb-7 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
+    <section className="mt-8 grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2 xl:gap-6">
+      <article className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-6 lg:p-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
               Weekly Bookings
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Bookings received during the last seven days
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Bookings received during the last
+              seven days
             </p>
           </div>
 
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-            <BarChart3 className="h-6 w-6" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300 sm:h-12 sm:w-12">
+            <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
 
         <div className="mb-5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">
               Last 7 Days
             </p>
 
-            <p className="mt-2 text-2xl font-bold text-slate-900">
+            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
               {totalWeeklyBookings}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-blue-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+          <div className="rounded-2xl bg-blue-50 p-3 dark:bg-blue-500/10 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-300 sm:text-xs">
               All Bookings
             </p>
 
-            <p className="mt-2 text-2xl font-bold text-blue-700">
+            <p className="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-300">
               {totalBookings}
             </p>
           </div>
         </div>
 
-        <div className="h-72 w-full sm:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-64 min-w-0 w-full sm:h-72 lg:h-80">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+          >
             <LineChart
               data={weeklyData}
               margin={{
@@ -316,7 +392,11 @@ export default function WorkerAnalytics({
                 }}
               />
 
-              <Tooltip content={<AnalyticsTooltip />} />
+              <Tooltip
+                content={
+                  <AnalyticsTooltip />
+                }
+              />
 
               <Line
                 type="monotone"
@@ -339,45 +419,52 @@ export default function WorkerAnalytics({
         </div>
       </article>
 
-      <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-        <div className="mb-7 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
+      <article className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:p-6 lg:p-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
               Booking Status
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Current distribution of your bookings
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Current distribution of your
+              bookings
             </p>
           </div>
 
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
-            <PieChartIcon className="h-6 w-6" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300 sm:h-12 sm:w-12">
+            <PieChartIcon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
 
         {totalBookings === 0 ? (
-          <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 px-5 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 px-5 text-center dark:border-slate-700">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
               <PieChartIcon className="h-9 w-9" />
             </div>
 
-            <h3 className="mt-5 text-lg font-bold text-slate-900">
+            <h3 className="mt-5 text-lg font-bold text-slate-900 dark:text-white">
               No Analytics Yet
             </h3>
 
-            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-              Booking status analytics will appear after you receive your
-              first booking.
+            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Booking analytics will appear
+              after you receive your first
+              booking.
             </p>
           </div>
         ) : (
           <>
-            <div className="relative h-72 w-full sm:h-80">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="relative h-64 min-w-0 w-full sm:h-72 lg:h-80">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <PieChart>
                   <Pie
-                    data={visibleStatusData}
+                    data={
+                      visibleStatusData
+                    }
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
@@ -387,24 +474,30 @@ export default function WorkerAnalytics({
                     paddingAngle={3}
                     stroke="none"
                   >
-                    {visibleStatusData.map((item) => (
-                      <Cell
-                        key={item.name}
-                        fill={item.color}
-                      />
-                    ))}
+                    {visibleStatusData.map(
+                      (item) => (
+                        <Cell
+                          key={item.name}
+                          fill={item.color}
+                        />
+                      ),
+                    )}
                   </Pie>
 
-                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Tooltip
+                    content={
+                      <AnalyticsTooltip />
+                    }
+                  />
                 </PieChart>
               </ResponsiveContainer>
 
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-slate-900">
+                <span className="text-3xl font-bold text-slate-900 dark:text-white">
                   {totalBookings}
                 </span>
 
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-slate-500 dark:text-slate-400">
                   Total bookings
                 </span>
               </div>
@@ -414,22 +507,23 @@ export default function WorkerAnalytics({
               {statusData.map((item) => (
                 <div
                   key={item.name}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center"
+                  className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-slate-700 dark:bg-slate-800/70"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span
-                      className="h-3 w-3 rounded-full"
+                      className="h-3 w-3 shrink-0 rounded-full"
                       style={{
-                        backgroundColor: item.color,
+                        backgroundColor:
+                          item.color,
                       }}
                     />
 
-                    <span className="text-xs font-semibold text-slate-600">
+                    <span className="truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
                       {item.name}
                     </span>
                   </div>
 
-                  <p className="mt-2 text-xl font-bold text-slate-900">
+                  <p className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
                     {item.value}
                   </p>
                 </div>
