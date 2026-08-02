@@ -54,7 +54,6 @@ interface BookingData {
   } | null;
 }
 
-
 function calculateDistanceMeters(
   firstLatitude: number,
   firstLongitude: number,
@@ -114,6 +113,8 @@ function formatWorkerEta(
 }
 
 const AUTO_ARRIVAL_DISTANCE_METERS = 20;
+const MAX_AUTO_ARRIVAL_ACCURACY_METERS = 100;
+const MAX_AUTO_ARRIVAL_LOCATION_AGE_MS = 30_000;
 
 export default function NavigateToCustomer() {
   const { bookingId } = useParams();
@@ -158,43 +159,63 @@ export default function NavigateToCustomer() {
     bookingRef.current = booking;
   }, [booking]);
 
-  useEffect(() => {
-    async function loadBooking() {
+  const loadBooking = useCallback(
+    async (background = false) => {
       if (!bookingId) {
         setErrorMessage("Booking ID is missing.");
         setLoading(false);
         return;
       }
 
+      if (!background) {
+        setLoading(true);
+      }
+
       try {
         const {
           data: { user },
+          error: authError,
         } = await supabase.auth.getUser();
+
+        if (authError) {
+          throw authError;
+        }
 
         if (!user) {
           throw new Error("Worker account is not authenticated.");
         }
 
-        setWorkerId(user.id);
-
         const data = await getBooking(Number(bookingId), user.id);
 
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setWorkerId(user.id);
         setBooking(data as BookingData);
+        setErrorMessage("");
       } catch (error) {
         console.error("Unable to load navigation booking:", error);
 
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to load booking location.",
-        );
+        if (mountedRef.current && !background) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Unable to load booking location.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (mountedRef.current && !background) {
+          setLoading(false);
+        }
       }
-    }
+    },
+    [bookingId],
+  );
 
+  useEffect(() => {
     void loadBooking();
-  }, [bookingId]);
+  }, [loadBooking]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -205,7 +226,17 @@ export default function NavigateToCustomer() {
   }, []);
 
   useEffect(() => {
-    if (!booking?.id) return;
+    if (!booking?.id) {
+      return;
+    }
+
+    let active = true;
+
+    const refreshBooking = () => {
+      if (active && mountedRef.current) {
+        void loadBooking(true);
+      }
+    };
 
     const channel = supabase
       .channel(`worker-navigation-booking-${booking.id}`)
@@ -218,6 +249,10 @@ export default function NavigateToCustomer() {
           filter: `id=eq.${booking.id}`,
         },
         (payload) => {
+          if (!active || !mountedRef.current) {
+            return;
+          }
+
           const updated = payload.new as Partial<BookingData>;
 
           setBooking((current) =>
@@ -230,12 +265,44 @@ export default function NavigateToCustomer() {
           );
         },
       )
-      .subscribe();
+      .subscribe((subscriptionStatus) => {
+        if (!active || !mountedRef.current) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error("Worker navigation booking realtime channel error.");
+          refreshBooking();
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error(
+            "Worker navigation booking realtime connection timed out.",
+          );
+          refreshBooking();
+        }
+      });
+
+    const handleOnline = () => {
+      refreshBooking();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshBooking();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      active = false;
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       void supabase.removeChannel(channel);
     };
-  }, [booking?.id]);
+  }, [booking?.id, loadBooking]);
 
   useEffect(() => {
     const shouldShare =
@@ -251,13 +318,7 @@ export default function NavigateToCustomer() {
     if (shouldShare && !trackingEnded && !isOnline && !gpsStarting) {
       void goOnline();
     }
-  }, [
-    booking?.status,
-    booking?.trip_status,
-    goOnline,
-    gpsStarting,
-    isOnline,
-  ]);
+  }, [booking?.status, booking?.trip_status, goOnline, gpsStarting, isOnline]);
 
   useEffect(() => {
     const currentBooking = bookingRef.current;
@@ -281,10 +342,26 @@ export default function NavigateToCustomer() {
 
     setRemainingDistance(distanceMeters);
 
+    const locationUpdatedAt = new Date(workerLocation.updatedAt).getTime();
+
+    const hasFreshArrivalLocation =
+      Number.isFinite(locationUpdatedAt) &&
+      Date.now() - locationUpdatedAt >= 0 &&
+      Date.now() - locationUpdatedAt <= MAX_AUTO_ARRIVAL_LOCATION_AGE_MS;
+
+    /*
+     * Automatic arrival must only use a recent GPS reading with known,
+     * acceptable accuracy. Unknown or stale accuracy can incorrectly mark a
+     * worker as arrived while they are still far from the customer.
+     */
     const hasPreciseArrivalLocation =
-      workerLocation.accuracy === null || workerLocation.accuracy <= 100;
+      typeof workerLocation.accuracy === "number" &&
+      Number.isFinite(workerLocation.accuracy) &&
+      workerLocation.accuracy >= 0 &&
+      workerLocation.accuracy <= MAX_AUTO_ARRIVAL_ACCURACY_METERS;
 
     const canAutoArrive =
+      hasFreshArrivalLocation &&
       hasPreciseArrivalLocation &&
       distanceMeters <= AUTO_ARRIVAL_DISTANCE_METERS &&
       currentBooking.status === "Approved" &&

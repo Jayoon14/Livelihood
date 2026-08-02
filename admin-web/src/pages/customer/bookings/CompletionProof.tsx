@@ -370,8 +370,115 @@ export default function CompletionProof() {
   );
 
   useEffect(() => {
+    if (!parsedBookingId) {
+      void loadProof();
+      return;
+    }
+
+    let mounted = true;
+
     void loadProof();
-  }, [loadProof]);
+
+    const channel = supabase
+      .channel(`customer-completion-proof-${parsedBookingId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `id=eq.${parsedBookingId}`,
+        },
+        () => {
+          if (mounted) {
+            void loadProof(true);
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "booking_completion_proofs",
+          filter: `booking_id=eq.${parsedBookingId}`,
+        },
+        () => {
+          if (mounted) {
+            void loadProof(true);
+          }
+        },
+      )
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error(
+            "Customer completion proof realtime channel error.",
+          );
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error(
+            "Customer completion proof realtime connection timed out.",
+          );
+        }
+      });
+
+    return () => {
+      mounted = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [loadProof, parsedBookingId]);
+
+  useEffect(() => {
+    if (!proof?.id) {
+      return;
+    }
+
+    let mounted = true;
+
+    const channel = supabase
+      .channel(`customer-completion-images-${proof.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "booking_completion_images",
+          filter: `proof_id=eq.${proof.id}`,
+        },
+        () => {
+          if (mounted) {
+            void loadProof(true);
+          }
+        },
+      )
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error(
+            "Customer completion images realtime channel error.",
+          );
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error(
+            "Customer completion images realtime connection timed out.",
+          );
+        }
+      });
+
+    return () => {
+      mounted = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [loadProof, proof?.id]);
 
   useEffect(() => {
     if (!selectedImage) {

@@ -1,6 +1,6 @@
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -30,10 +30,7 @@ import {
   markAsRead,
 } from "../../../services/notificationService";
 
-import type {
-  RealtimeChannel,
-  RealtimePostgresChangesPayload,
-} from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type NotificationItem = {
   id: number;
@@ -87,6 +84,8 @@ export default function Notifications() {
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
 
   const [searchText, setSearchText] = useState("");
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((item) => !item.is_read).length;
@@ -146,8 +145,24 @@ export default function Notifications() {
 
   useEffect(() => {
     let cancelled = false;
-
     let channel: RealtimeChannel | null = null;
+    let currentUserId = "";
+
+    const scheduleRealtimeRefresh = () => {
+      if (!currentUserId || cancelled) {
+        return;
+      }
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (!cancelled) {
+          void loadNotifications(currentUserId);
+        }
+      }, 300);
+    };
 
     async function initialize() {
       try {
@@ -165,28 +180,43 @@ export default function Notifications() {
           return;
         }
 
-        await loadNotifications(user.id);
+        currentUserId = user.id;
+
+        await loadNotifications(currentUserId);
 
         if (cancelled) {
           return;
         }
 
         channel = supabase
-          .channel(`customer-notifications-${user.id}`)
+          .channel(`customer-notifications-${currentUserId}`)
           .on(
             "postgres_changes",
             {
               event: "*",
               schema: "public",
               table: "notifications",
-              filter: `user_id=eq.${user.id}`,
+              filter: `user_id=eq.${currentUserId}`,
             },
-
-            (_payload: RealtimePostgresChangesPayload<NotificationItem>) => {
-              void loadNotifications(user.id);
-            },
+            scheduleRealtimeRefresh,
           )
-          .subscribe();
+          .subscribe((subscriptionStatus) => {
+            if (cancelled) {
+              return;
+            }
+
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error("Customer notifications realtime channel error.");
+              scheduleRealtimeRefresh();
+            }
+
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error(
+                "Customer notifications realtime connection timed out.",
+              );
+              scheduleRealtimeRefresh();
+            }
+          });
       } catch (error) {
         console.error("Initialize notification error:", error);
 
@@ -196,14 +226,34 @@ export default function Notifications() {
       }
     }
 
+    const handleOnline = () => {
+      scheduleRealtimeRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRealtimeRefresh();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     void initialize();
 
     return () => {
       cancelled = true;
 
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
       if (channel) {
         void supabase.removeChannel(channel);
-
         channel = null;
       }
     };
@@ -358,6 +408,18 @@ export default function Notifications() {
       }
 
       const title = notification.title.toLowerCase();
+      const message = notification.message.toLowerCase();
+      const securityText = `${title} ${message}`;
+
+      if (
+        securityText.includes("security") ||
+        securityText.includes("sign-in attempt") ||
+        securityText.includes("another device") ||
+        securityText.includes("password")
+      ) {
+        navigate("/customer/settings");
+        return;
+      }
 
       if (title.includes("payment") || title.includes("receipt")) {
         navigate("/customer/payments");
@@ -381,7 +443,7 @@ export default function Notifications() {
         return;
       }
 
-      navigate("/customer/bookings");
+      navigate("/customer/notifications");
     } catch (error) {
       console.error("Open notification error:", error);
     }

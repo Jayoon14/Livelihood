@@ -13,16 +13,8 @@ import {
   ShieldCheck,
   Video,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import type {
-  ChangeEvent,
-  KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import {
@@ -37,15 +29,9 @@ import {
   uploadChatFile,
   uploadChatImage,
 } from "../../services/chatService";
-import type {
-  ChatContext,
-  ChatMessage,
-} from "../../services/chatService";
+import type { ChatContext, ChatMessage } from "../../services/chatService";
 
-function upsertMessage(
-  list: ChatMessage[],
-  incoming: ChatMessage,
-) {
+function upsertMessage(list: ChatMessage[], incoming: ChatMessage) {
   const index = list.findIndex(
     (item) => String(item.id) === String(incoming.id),
   );
@@ -85,10 +71,7 @@ function formatDay(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    year:
-      date.getFullYear() === today.getFullYear()
-        ? undefined
-        : "numeric",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
   }).format(date);
 }
 
@@ -104,10 +87,7 @@ function formatLastSeen(value: string | null) {
   }
 
   const now = new Date();
-  const difference = Math.max(
-    0,
-    now.getTime() - date.getTime(),
-  );
+  const difference = Math.max(0, now.getTime() - date.getTime());
 
   const seconds = Math.floor(difference / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -123,15 +103,11 @@ function formatLastSeen(value: string | null) {
   }
 
   if (minutes < 60) {
-    return `Last seen ${minutes} minute${
-      minutes === 1 ? "" : "s"
-    } ago`;
+    return `Last seen ${minutes} minute${minutes === 1 ? "" : "s"} ago`;
   }
 
   if (hours < 24) {
-    return `Last seen ${hours} hour${
-      hours === 1 ? "" : "s"
-    } ago`;
+    return `Last seen ${hours} hour${hours === 1 ? "" : "s"} ago`;
   }
 
   if (days === 1) {
@@ -171,36 +147,30 @@ export default function ChatRoom() {
 
   const [otherTyping, setOtherTyping] = useState(false);
   const [otherOnline, setOtherOnline] = useState(false);
-  const [otherLastSeen, setOtherLastSeen] = useState<
-    string | null
-  >(null);
+  const [otherLastSeen, setOtherLastSeen] = useState<string | null>(null);
 
   const [error, setError] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const typingChannel =
-    useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingChannel = useRef<ReturnType<typeof supabase.channel> | null>(
+    null,
+  );
 
-  const typingTimer =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const heartbeatTimer =
-    useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const initializedRef = useRef(false);
 
-  const scrollToBottom = useCallback(
-    (behavior: ScrollBehavior = "smooth") => {
-      requestAnimationFrame(() => {
-        bottomRef.current?.scrollIntoView({
-          behavior,
-        });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior,
       });
-    },
-    [],
-  );
+    });
+  }, []);
 
   useEffect(() => {
     if (!Number.isFinite(bookingId)) {
@@ -211,36 +181,25 @@ export default function ChatRoom() {
 
     let cancelled = false;
 
-    let messageChannel:
-      | ReturnType<typeof supabase.channel>
-      | null = null;
+    let messageChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    let presenceChannel:
-      | ReturnType<typeof supabase.channel>
-      | null = null;
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    let profileChannel:
-      | ReturnType<typeof supabase.channel>
-      | null = null;
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
 
     async function initialize() {
       setLoading(true);
       setError("");
 
       try {
-        const {
-          data,
-          error: authError,
-        } = await supabase.auth.getUser();
+        const { data, error: authError } = await supabase.auth.getUser();
 
         if (authError) {
           throw authError;
         }
 
         if (!data.user) {
-          throw new Error(
-            "Please sign in to open this chat.",
-          );
+          throw new Error("Please sign in to open this chat.");
         }
 
         if (cancelled) {
@@ -268,32 +227,21 @@ export default function ChatRoom() {
             ? chatContext.worker_id
             : chatContext.customer_id;
 
-        const {
-          data: otherProfile,
-          error: otherProfileError,
-        } = await supabase
+        const { data: otherProfile, error: otherProfileError } = await supabase
           .from("profiles")
           .select("last_seen")
           .eq("id", chatOtherUserId)
           .maybeSingle();
 
         if (otherProfileError) {
-          console.error(
-            "Unable to load last seen:",
-            otherProfileError,
-          );
+          console.error("Unable to load last seen:", otherProfileError);
         }
 
         if (!cancelled) {
-          setOtherLastSeen(
-            otherProfile?.last_seen ?? null,
-          );
+          setOtherLastSeen(otherProfile?.last_seen ?? null);
         }
 
-        await markMessagesSeen(
-          bookingId,
-          currentUserId,
-        );
+        await markMessagesSeen(bookingId, currentUserId);
 
         messageChannel = subscribeToMessages(
           bookingId,
@@ -303,35 +251,60 @@ export default function ChatRoom() {
               return;
             }
 
-            setMessages((previous) =>
-              upsertMessage(previous, incoming),
-            );
+            setMessages((previous) => upsertMessage(previous, incoming));
 
-            if (
-              incoming.sender_id !== currentUserId
-            ) {
-              await markMessagesSeen(
-                bookingId,
-                currentUserId,
-              ).catch(console.error);
+            if (incoming.sender_id !== currentUserId) {
+              await markMessagesSeen(bookingId, currentUserId).catch(
+                console.error,
+              );
             }
 
             scrollToBottom();
           },
         );
 
-        presenceChannel = supabase.channel(
-          `chat-presence-${bookingId}`,
-          {
-            config: {
-              presence: {
-                key: currentUserId,
-              },
+        presenceChannel = supabase.channel(`chat-presence-${bookingId}`, {
+          config: {
+            presence: {
+              key: currentUserId,
             },
           },
-        );
+        });
 
         typingChannel.current = presenceChannel;
+
+        const syncOtherPresence = () => {
+          const presenceState = presenceChannel?.presenceState() ?? {};
+
+          const otherPersonPresent = Object.entries(presenceState).some(
+            ([presenceUserId, presences]) =>
+              presenceUserId !== currentUserId &&
+              Array.isArray(presences) &&
+              presences.length > 0,
+          );
+
+          const someoneElseIsTyping = Object.entries(presenceState).some(
+            ([presenceUserId, presences]) =>
+              presenceUserId !== currentUserId &&
+              Array.isArray(presences) &&
+              presences.some((presence) =>
+                Boolean(
+                  (
+                    presence as {
+                      typing?: boolean;
+                    }
+                  ).typing,
+                ),
+              ),
+          );
+
+          setOtherOnline(otherPersonPresent);
+          setOtherTyping(someoneElseIsTyping);
+
+          if (!otherPersonPresent) {
+            setOtherLastSeen(new Date().toISOString());
+          }
+        };
 
         presenceChannel
           .on(
@@ -339,53 +312,14 @@ export default function ChatRoom() {
             {
               event: "sync",
             },
-            () => {
-              const presenceState =
-                presenceChannel?.presenceState() ?? {};
-
-              const otherPersonPresent =
-                Object.entries(presenceState).some(
-                  ([presenceUserId, presences]) =>
-                    presenceUserId !== currentUserId &&
-                    Array.isArray(presences) &&
-                    presences.length > 0,
-                );
-
-              const someoneElseIsTyping =
-                Object.entries(presenceState).some(
-                  ([presenceUserId, presences]) =>
-                    presenceUserId !== currentUserId &&
-                    Array.isArray(presences) &&
-                    presences.some((presence) =>
-                      Boolean(
-                        (
-                          presence as {
-                            typing?: boolean;
-                          }
-                        ).typing,
-                      ),
-                    ),
-                );
-
-              setOtherOnline(otherPersonPresent);
-              setOtherTyping(
-                someoneElseIsTyping,
-              );
-            },
+            syncOtherPresence,
           )
           .on(
             "presence",
             {
               event: "leave",
             },
-            () => {
-              setOtherOnline(false);
-              setOtherTyping(false);
-
-              setOtherLastSeen(
-                new Date().toISOString(),
-              );
-            },
+            syncOtherPresence,
           )
           .subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
@@ -396,24 +330,30 @@ export default function ChatRoom() {
                 joined_at: new Date().toISOString(),
               });
 
-              const { error: lastSeenError } =
-                await supabase.rpc(
-                  "update_my_last_seen",
-                );
+              const { error: lastSeenError } = await supabase.rpc(
+                "update_my_last_seen",
+              );
 
               if (lastSeenError) {
-                console.error(
-                  "Unable to update last seen:",
-                  lastSeenError,
-                );
+                console.error("Unable to update last seen:", lastSeenError);
               }
+
+              return;
+            }
+
+            if (status === "CHANNEL_ERROR") {
+              console.error("Chat presence channel error.");
+              setOtherTyping(false);
+            }
+
+            if (status === "TIMED_OUT") {
+              console.error("Chat presence connection timed out.");
+              setOtherTyping(false);
             }
           });
 
         profileChannel = supabase
-          .channel(
-            `chat-profile-${chatOtherUserId}-${crypto.randomUUID()}`,
-          )
+          .channel(`chat-profile-${chatOtherUserId}-${crypto.randomUUID()}`)
           .on(
             "postgres_changes",
             {
@@ -423,53 +363,39 @@ export default function ChatRoom() {
               filter: `id=eq.${chatOtherUserId}`,
             },
             (payload) => {
-              const updatedProfile =
-                payload.new as {
-                  id?: string;
-                  last_seen?: string | null;
-                };
+              const updatedProfile = payload.new as {
+                id?: string;
+                last_seen?: string | null;
+              };
 
-              if (
-                updatedProfile.id ===
-                chatOtherUserId
-              ) {
-                setOtherLastSeen(
-                  updatedProfile.last_seen ?? null,
-                );
+              if (updatedProfile.id === chatOtherUserId) {
+                setOtherLastSeen(updatedProfile.last_seen ?? null);
               }
             },
           )
           .subscribe();
 
-        heartbeatTimer.current = setInterval(
-          () => {
-            void supabase
-              .rpc("update_my_last_seen")
-              .then(({ error: heartbeatError }) => {
-                if (heartbeatError) {
-                  console.error(
-                    "Last seen heartbeat failed:",
-                    heartbeatError,
-                  );
-                }
-              });
-          },
-          30_000,
-        );
+        heartbeatTimer.current = setInterval(() => {
+          void supabase
+            .rpc("update_my_last_seen")
+            .then(({ error: heartbeatError }) => {
+              if (heartbeatError) {
+                console.error("Last seen heartbeat failed:", heartbeatError);
+              }
+            });
+        }, 30_000);
 
         initializedRef.current = true;
         scrollToBottom("auto");
-} catch (caught) {
-  console.error("CHAT ERROR", caught);
+      } catch (caught) {
+        console.error("CHAT ERROR", caught);
 
-  if (!cancelled) {
-    setError(
-      caught instanceof Error
-        ? caught.message
-        : "Unable to load chat.",
-    );
-  }
-} finally {
+        if (!cancelled) {
+          setError(
+            caught instanceof Error ? caught.message : "Unable to load chat.",
+          );
+        }
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
@@ -499,9 +425,7 @@ export default function ChatRoom() {
       }
 
       if (presenceChannel) {
-        void supabase.removeChannel(
-          presenceChannel,
-        );
+        void supabase.removeChannel(presenceChannel);
       }
 
       if (profileChannel) {
@@ -511,6 +435,62 @@ export default function ChatRoom() {
       typingChannel.current = null;
     };
   }, [bookingId, scrollToBottom]);
+
+  useEffect(() => {
+    if (!Number.isFinite(bookingId) || !userId) {
+      return;
+    }
+
+    let active = true;
+    let refreshing = false;
+
+    const refreshConversation = async () => {
+      if (!active || refreshing) {
+        return;
+      }
+
+      refreshing = true;
+
+      try {
+        const history = await getMessages(bookingId, userId);
+
+        if (!active) {
+          return;
+        }
+
+        setMessages(history);
+
+        await markMessagesSeen(bookingId, userId);
+
+        if (active) {
+          scrollToBottom("auto");
+        }
+      } catch (caught) {
+        console.error("Unable to recover chat conversation:", caught);
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const handleOnline = () => {
+      void refreshConversation();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshConversation();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      active = false;
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [bookingId, scrollToBottom, userId]);
 
   useEffect(() => {
     if (initializedRef.current) {
@@ -561,15 +541,9 @@ export default function ChatRoom() {
     });
 
     try {
-      const saved = await sendMessage(
-        bookingId,
-        userId,
-        trimmed,
-      );
+      const saved = await sendMessage(bookingId, userId, trimmed);
 
-      setMessages((previous) =>
-        upsertMessage(previous, saved),
-      );
+      setMessages((previous) => upsertMessage(previous, saved));
 
       scrollToBottom();
 
@@ -577,31 +551,20 @@ export default function ChatRoom() {
     } catch (caught) {
       setMessage(trimmed);
 
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Message failed.",
-      );
+      setError(caught instanceof Error ? caught.message : "Message failed.");
     } finally {
       setSending(false);
     }
   }
 
-  function handleKeyDown(
-    event: KeyboardEvent<HTMLTextAreaElement>,
-  ) {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey
-    ) {
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void handleSend();
     }
   }
 
-  async function handleImage(
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
+  async function handleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     event.target.value = "";
@@ -616,31 +579,21 @@ export default function ChatRoom() {
     try {
       const url = await uploadChatImage(file);
 
-      const saved = await sendImage(
-        bookingId,
-        userId,
-        url,
-      );
+      const saved = await sendImage(bookingId, userId, url);
 
-      setMessages((previous) =>
-        upsertMessage(previous, saved),
-      );
+      setMessages((previous) => upsertMessage(previous, saved));
 
       scrollToBottom();
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : "Image upload failed.",
+        caught instanceof Error ? caught.message : "Image upload failed.",
       );
     } finally {
       setUploading(false);
     }
   }
 
-  async function handleFile(
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     event.target.value = "";
@@ -662,16 +615,12 @@ export default function ChatRoom() {
         uploaded.name,
       );
 
-      setMessages((previous) =>
-        upsertMessage(previous, saved),
-      );
+      setMessages((previous) => upsertMessage(previous, saved));
 
       scrollToBottom();
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : "File upload failed.",
+        caught instanceof Error ? caught.message : "File upload failed.",
       );
     } finally {
       setUploading(false);
@@ -685,14 +634,11 @@ export default function ChatRoom() {
     : null;
 
   const otherName = otherUser
-    ? `${otherUser.first_name ?? ""} ${
-        otherUser.last_name ?? ""
-      }`.trim()
+    ? `${otherUser.first_name ?? ""} ${otherUser.last_name ?? ""}`.trim()
     : "Conversation";
 
   const profilePicture =
-    otherUser?.profile_picture ||
-    "https://placehold.co/96x96?text=User";
+    otherUser?.profile_picture || "https://placehold.co/96x96?text=User";
 
   if (loading) {
     return (
@@ -741,8 +687,7 @@ export default function ChatRoom() {
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-            {error ||
-              "This conversation could not be opened."}
+            {error || "This conversation could not be opened."}
           </p>
 
           <button
@@ -789,9 +734,7 @@ export default function ChatRoom() {
 
             <span
               className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-slate-900 ${
-                otherOnline
-                  ? "bg-emerald-500"
-                  : "bg-slate-400"
+                otherOnline ? "bg-emerald-500" : "bg-slate-400"
               }`}
             />
           </div>
@@ -901,42 +844,30 @@ export default function ChatRoom() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Ask questions, send booking details, or
-                share important files with {otherName}.
+                Ask questions, send booking details, or share important files
+                with {otherName}.
               </p>
             </div>
           ) : (
             messages.map((item, index) => {
-              const mine =
-                item.sender_id === userId;
+              const mine = item.sender_id === userId;
 
-              const previous =
-                messages[index - 1];
+              const previous = messages[index - 1];
 
               const next = messages[index + 1];
 
               const showDay =
                 !previous ||
-                new Date(
-                  previous.created_at,
-                ).toDateString() !==
-                  new Date(
-                    item.created_at,
-                  ).toDateString();
+                new Date(previous.created_at).toDateString() !==
+                  new Date(item.created_at).toDateString();
 
               const sameSenderAsPrevious =
-                previous?.sender_id ===
-                  item.sender_id &&
-                !showDay;
+                previous?.sender_id === item.sender_id && !showDay;
 
               const sameSenderAsNext =
                 next?.sender_id === item.sender_id &&
-                new Date(
-                  next.created_at,
-                ).toDateString() ===
-                  new Date(
-                    item.created_at,
-                  ).toDateString();
+                new Date(next.created_at).toDateString() ===
+                  new Date(item.created_at).toDateString();
 
               return (
                 <div key={item.id}>
@@ -945,9 +876,7 @@ export default function ChatRoom() {
                       <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
 
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                        {formatDay(
-                          item.created_at,
-                        )}
+                        {formatDay(item.created_at)}
                       </span>
 
                       <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
@@ -955,14 +884,8 @@ export default function ChatRoom() {
                   )}
 
                   <div
-                    className={`flex ${
-                      sameSenderAsNext
-                        ? "mb-1"
-                        : "mb-3"
-                    } ${
-                      mine
-                        ? "justify-end"
-                        : "justify-start"
+                    className={`flex ${sameSenderAsNext ? "mb-1" : "mb-3"} ${
+                      mine ? "justify-end" : "justify-start"
                     }`}
                   >
                     {!mine && (
@@ -979,17 +902,14 @@ export default function ChatRoom() {
 
                     <div
                       className={`flex max-w-[84%] flex-col sm:max-w-[68%] ${
-                        mine
-                          ? "items-end"
-                          : "items-start"
+                        mine ? "items-end" : "items-start"
                       }`}
                     >
-                      {!mine &&
-                        !sameSenderAsPrevious && (
-                          <p className="mb-1 ml-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                            {otherName}
-                          </p>
-                        )}
+                      {!mine && !sameSenderAsPrevious && (
+                        <p className="mb-1 ml-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          {otherName}
+                        </p>
+                      )}
 
                       <div
                         className={`overflow-hidden shadow-sm ${
@@ -1050,21 +970,16 @@ export default function ChatRoom() {
 
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-bold">
-                                {item.file_name ||
-                                  "Attachment"}
+                                {item.file_name || "Attachment"}
                               </p>
 
                               <p
                                 className={`mt-0.5 text-[10px] font-medium ${
-                                  mine
-                                    ? "text-blue-100"
-                                    : "text-slate-500"
+                                  mine ? "text-blue-100" : "text-slate-500"
                                 }`}
                               >
-                                {getFileExtension(
-                                  item.file_name,
-                                )}{" "}
-                                document · Open file
+                                {getFileExtension(item.file_name)} document ·
+                                Open file
                               </p>
                             </div>
                           </a>
@@ -1072,16 +987,10 @@ export default function ChatRoom() {
 
                         <div
                           className={`flex items-center justify-end gap-1.5 px-3 pb-2 pt-1 text-[10px] ${
-                            mine
-                              ? "text-blue-100"
-                              : "text-slate-400"
+                            mine ? "text-blue-100" : "text-slate-400"
                           }`}
                         >
-                          <span>
-                            {formatTime(
-                              item.created_at,
-                            )}
-                          </span>
+                          <span>{formatTime(item.created_at)}</span>
 
                           {mine && (
                             <span className="flex items-center gap-0.5">
@@ -1093,11 +1002,7 @@ export default function ChatRoom() {
                                 }`}
                               />
 
-                              <span>
-                                {item.seen_at
-                                  ? "Seen"
-                                  : "Sent"}
-                              </span>
+                              <span>{item.seen_at ? "Seen" : "Sent"}</span>
                             </span>
                           )}
                         </div>
@@ -1158,9 +1063,7 @@ export default function ChatRoom() {
               <label
                 aria-label="Upload image"
                 className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
-                  uploading
-                    ? "pointer-events-none opacity-50"
-                    : ""
+                  uploading ? "pointer-events-none opacity-50" : ""
                 }`}
               >
                 <ImagePlus className="h-5 w-5" />
@@ -1177,9 +1080,7 @@ export default function ChatRoom() {
               <label
                 aria-label="Upload file"
                 className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
-                  uploading
-                    ? "pointer-events-none opacity-50"
-                    : ""
+                  uploading ? "pointer-events-none opacity-50" : ""
                 }`}
               >
                 <Paperclip className="h-5 w-5" />
@@ -1198,9 +1099,7 @@ export default function ChatRoom() {
               <textarea
                 ref={textareaRef}
                 value={message}
-                onChange={(event) =>
-                  handleTyping(event.target.value)
-                }
+                onChange={(event) => handleTyping(event.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={1}
                 maxLength={2000}
@@ -1217,11 +1116,7 @@ export default function ChatRoom() {
 
             <button
               type="button"
-              disabled={
-                !message.trim() ||
-                sending ||
-                uploading
-              }
+              disabled={!message.trim() || sending || uploading}
               onClick={() => void handleSend()}
               aria-label="Send message"
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-none disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
@@ -1235,8 +1130,7 @@ export default function ChatRoom() {
           </div>
 
           <p className="mt-2 hidden pl-24 text-[10px] font-medium text-slate-400 dark:text-slate-500 sm:block">
-            Enter to send · Shift + Enter for a new
-            line
+            Enter to send · Shift + Enter for a new line
           </p>
         </footer>
       </div>

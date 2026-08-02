@@ -14,6 +14,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -36,12 +37,7 @@ const PAGE_SIZE = 10;
 
 type StatusFilter = "All" | CustomerStatus;
 
-type DateFilter =
-  | "All"
-  | "Today"
-  | "This Week"
-  | "This Month"
-  | "Custom";
+type DateFilter = "All" | "Today" | "This Week" | "This Month" | "Custom";
 
 type SortOption =
   | "Newest"
@@ -128,9 +124,7 @@ function matchesDateFilter(
   const start = customStart
     ? startOfDay(new Date(`${customStart}T00:00:00`))
     : null;
-  const end = customEnd
-    ? endOfDay(new Date(`${customEnd}T00:00:00`))
-    : null;
+  const end = customEnd ? endOfDay(new Date(`${customEnd}T00:00:00`)) : null;
 
   if (start && date < start) {
     return false;
@@ -172,20 +166,18 @@ function csvEscape(value: unknown): string {
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("All");
-  const [dateFilter, setDateFilter] =
-    useState<DateFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("All");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [sortOption, setSortOption] =
-    useState<SortOption>("Newest");
+  const [sortOption, setSortOption] = useState<SortOption>("Newest");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [processingId, setProcessingId] =
-    useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadCustomers = useCallback(async (background = false) => {
     if (background) {
@@ -220,6 +212,20 @@ export default function Customers() {
   }, [loadCustomers]);
 
   useEffect(() => {
+    let mounted = true;
+
+    const scheduleRealtimeRefresh = () => {
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (mounted) {
+          void loadCustomers(true);
+        }
+      }, 300);
+    };
+
     const channel = supabase
       .channel("admin-customers-page")
       .on(
@@ -230,35 +236,44 @@ export default function Customers() {
           table: "profiles",
           filter: "role=eq.customer",
         },
-        () => {
-          void loadCustomers(true);
-        },
+        scheduleRealtimeRefresh,
       )
-      .subscribe();
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error("Admin customers realtime channel error.");
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error("Admin customers realtime connection timed out.");
+        }
+      });
 
     return () => {
+      mounted = false;
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
       void supabase.removeChannel(channel);
     };
   }, [loadCustomers]);
 
   useEffect(() => {
     setPage(1);
-  }, [
-    search,
-    statusFilter,
-    dateFilter,
-    customStart,
-    customEnd,
-    sortOption,
-  ]);
+  }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
 
   const filteredCustomers = useMemo(() => {
     const term = search.trim().toLowerCase();
 
     const filtered = customers.filter((customer) => {
       const matchesStatus =
-        statusFilter === "All" ||
-        customer.normalized_status === statusFilter;
+        statusFilter === "All" || customer.normalized_status === statusFilter;
 
       const matchesDate = matchesDateFilter(
         customer.created_at,
@@ -282,9 +297,7 @@ export default function Customers() {
         .toLowerCase();
 
       return (
-        matchesStatus &&
-        matchesDate &&
-        (!term || searchable.includes(term))
+        matchesStatus && matchesDate && (!term || searchable.includes(term))
       );
     });
 
@@ -390,10 +403,7 @@ export default function Customers() {
     safePage * PAGE_SIZE,
   );
 
-  async function changeStatus(
-    customer: Customer,
-    nextStatus: CustomerStatus,
-  ) {
+  async function changeStatus(customer: Customer, nextStatus: CustomerStatus) {
     const confirmed = await confirmAction(
       `Change ${customer.full_name}'s account status from ${customer.normalized_status} to ${nextStatus}?`,
       {
@@ -407,26 +417,18 @@ export default function Customers() {
     }
 
     setProcessingId(customer.id);
-    const toastId = toast.loading(
-      "Updating customer status...",
-    );
+    const toastId = toast.loading("Updating customer status...");
 
     try {
-      const updated = await updateCustomerStatus(
-        customer.id,
-        nextStatus,
-      );
+      const updated = await updateCustomerStatus(customer.id, nextStatus);
 
       setCustomers((current) =>
-        current.map((item) =>
-          item.id === updated.id ? updated : item,
-        ),
+        current.map((item) => (item.id === updated.id ? updated : item)),
       );
 
-      toast.success(
-        `${customer.full_name} is now ${nextStatus}.`,
-        { id: toastId },
-      );
+      toast.success(`${customer.full_name} is now ${nextStatus}.`, {
+        id: toastId,
+      });
     } catch (updateError) {
       toast.error(
         updateError instanceof Error
@@ -488,9 +490,7 @@ export default function Customers() {
     const anchor = document.createElement("a");
 
     anchor.href = url;
-    anchor.download = `customers-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    anchor.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
 
     document.body.appendChild(anchor);
     anchor.click();
@@ -548,9 +548,7 @@ export default function Customers() {
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <RefreshCw
-                className={`h-4 w-4 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
               />
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
@@ -597,9 +595,7 @@ export default function Customers() {
               type="search"
               placeholder="Search name, email, phone, address, or status..."
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </label>
@@ -607,9 +603,7 @@ export default function Customers() {
           <select
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(
-                event.target.value as StatusFilter,
-              )
+              setStatusFilter(event.target.value as StatusFilter)
             }
             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
@@ -624,9 +618,7 @@ export default function Customers() {
           <select
             value={dateFilter}
             onChange={(event) =>
-              setDateFilter(
-                event.target.value as DateFilter,
-              )
+              setDateFilter(event.target.value as DateFilter)
             }
             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
@@ -640,9 +632,7 @@ export default function Customers() {
           <select
             value={sortOption}
             onChange={(event) =>
-              setSortOption(
-                event.target.value as SortOption,
-              )
+              setSortOption(event.target.value as SortOption)
             }
             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
@@ -667,9 +657,7 @@ export default function Customers() {
               <input
                 type="date"
                 value={customStart}
-                onChange={(event) =>
-                  setCustomStart(event.target.value)
-                }
+                onChange={(event) => setCustomStart(event.target.value)}
                 max={customEnd || undefined}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-950"
               />
@@ -677,9 +665,7 @@ export default function Customers() {
               <input
                 type="date"
                 value={customEnd}
-                onChange={(event) =>
-                  setCustomEnd(event.target.value)
-                }
+                onChange={(event) => setCustomEnd(event.target.value)}
                 min={customStart || undefined}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-950"
               />
@@ -725,16 +711,13 @@ export default function Customers() {
                     <th className="p-4 font-semibold">Location</th>
                     <th className="p-4 font-semibold">Status</th>
                     <th className="p-4 font-semibold">Joined</th>
-                    <th className="p-4 font-semibold print:hidden">
-                      Actions
-                    </th>
+                    <th className="p-4 font-semibold print:hidden">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {pageCustomers.map((customer) => {
-                    const isProcessing =
-                      processingId === customer.id;
+                    const isProcessing = processingId === customer.id;
 
                     return (
                       <tr
@@ -751,9 +734,7 @@ export default function Customers() {
                               />
                             ) : (
                               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
-                                {customer.full_name
-                                  .charAt(0)
-                                  .toUpperCase()}
+                                {customer.full_name.charAt(0).toUpperCase()}
                               </div>
                             )}
 
@@ -779,13 +760,9 @@ export default function Customers() {
                         </td>
 
                         <td className="p-4 text-sm text-slate-700 dark:text-slate-300">
-                          <p>
-                            {customer.municipality ||
-                              "No municipality"}
-                          </p>
+                          <p>{customer.municipality || "No municipality"}</p>
                           <p className="max-w-64 truncate text-xs text-slate-500">
-                            {customer.full_address ||
-                              "No address"}
+                            {customer.full_address || "No address"}
                           </p>
                         </td>
 
@@ -874,22 +851,15 @@ export default function Customers() {
             <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
               <p className="text-sm text-slate-500">
                 Showing {(safePage - 1) * PAGE_SIZE + 1}–
-                {Math.min(
-                  safePage * PAGE_SIZE,
-                  filteredCustomers.length,
-                )}{" "}
-                of {filteredCustomers.length}
+                {Math.min(safePage * PAGE_SIZE, filteredCustomers.length)} of{" "}
+                {filteredCustomers.length}
               </p>
 
               <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={safePage === 1}
-                  onClick={() =>
-                    setPage((current) =>
-                      Math.max(1, current - 1),
-                    )
-                  }
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
                 >
                   Previous
@@ -903,9 +873,7 @@ export default function Customers() {
                   type="button"
                   disabled={safePage === totalPages}
                   onClick={() =>
-                    setPage((current) =>
-                      Math.min(totalPages, current + 1),
-                    )
+                    setPage((current) => Math.min(totalPages, current + 1))
                   }
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
                 >

@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -11,38 +11,55 @@ export default function CustomerLogin() {
   const { showLoading, hideLoading } = useLoading();
 
   const [showPassword, setShowPassword] = useState(false);
-
   const [email, setEmail] = useState("");
-
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const message = sessionStorage.getItem("auth-message");
+
+    if (message) {
+      sessionStorage.removeItem("auth-message");
+
+      window.setTimeout(() => {
+        toast.error(message, {
+          duration: 6000,
+        });
+      }, 100);
+    }
+  }, []);
+
   async function handleLogin() {
-  if (!email || !password) {
-    toast.warning("Please fill all fields.");
-    return;
-  }
+    if (!email || !password) {
+      toast.warning("Please fill all fields.");
+      return;
+    }
+
     setLoading(true);
     showLoading(700);
 
-    const { data, error } = await login(email, password);
+    try {
+      const { data, error } = await login(email, password);
 
-    setLoading(false);
+      if (error) {
+        toast.error(error.message, {
+          duration: 6000,
+        });
+        return;
+      }
 
-    if (error) {
+      if (!data.user || !data.session) {
+        toast.error("Login failed.");
+        return;
+      }
+
+      navigate("/customer/dashboard", {
+        replace: true,
+      });
+    } finally {
+      setLoading(false);
       hideLoading();
-      toast.error(error.message);
-      return;
     }
-
-    if (!data.user) {
-      hideLoading();
-      toast.error("Login failed.");
-      return;
-    }
-
-    navigate("/customer/dashboard");
   }
 
   return (
@@ -70,7 +87,8 @@ export default function CustomerLogin() {
                 type="email"
                 placeholder="Enter email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </div>
           </div>
@@ -86,26 +104,32 @@ export default function CustomerLogin() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                onChange={(event) => setPassword(event.target.value)}
               />
 
-              <button onClick={() => setShowPassword(!showPassword)}>
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
           <button
+            type="button"
             disabled={loading}
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg"
+            onClick={() => void handleLogin()}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Signing In..." : "Login"}
           </button>
 
           <p className="text-center text-sm">
             No account?
-            <Link to="/customer/register" className="text-blue-600 ml-1">
+            <Link to="/register/customer" className="text-blue-600 ml-1">
               Register
             </Link>
           </p>

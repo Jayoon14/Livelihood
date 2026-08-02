@@ -1,7 +1,4 @@
-import type {
-  RealtimeChannel,
-  RealtimePostgresChangesPayload,
-} from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   Bell,
@@ -15,12 +12,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -90,16 +82,10 @@ function formatRelativeDate(value: string): string {
 }
 
 function normalizeText(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ");
+  return value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 }
 
-function resolveNotificationRoute(
-  item: Notification,
-): string {
+function resolveNotificationRoute(item: Notification): string {
   const title = normalizeText(item.title);
   const message = normalizeText(item.message);
   const combined = `${title} ${message}`;
@@ -112,10 +98,7 @@ function resolveNotificationRoute(
     return "/admin/payments";
   }
 
-  if (
-    combined.includes("booking") ||
-    item.booking_id
-  ) {
+  if (combined.includes("booking") || item.booking_id) {
     return "/admin/bookings";
   }
 
@@ -127,9 +110,7 @@ function resolveNotificationRoute(
 }
 
 function iconForNotification(item: Notification) {
-  const value = normalizeText(
-    `${item.title} ${item.message}`,
-  );
+  const value = normalizeText(`${item.title} ${item.message}`);
 
   if (value.includes("worker")) {
     return UserPlus;
@@ -146,58 +127,26 @@ function iconForNotification(item: Notification) {
   return Bell;
 }
 
-function mergeNotification(
-  current: Notification[],
-  incoming: Notification,
-): Notification[] {
-  const existingIndex = current.findIndex(
-    (item) => item.id === incoming.id,
-  );
-
-  if (existingIndex === -1) {
-    return [incoming, ...current];
-  }
-
-  const next = [...current];
-  next[existingIndex] = incoming;
-
-  return next.sort(
-    (first, second) =>
-      new Date(second.created_at).getTime() -
-      new Date(first.created_at).getTime(),
-  );
-}
-
 export default function Notifications() {
   const navigate = useNavigate();
 
-  const [notifications, setNotifications] = useState<
-    Notification[]
-  >([]);
-  const [filter, setFilter] =
-    useState<FilterValue>("all");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [filter, setFilter] = useState<FilterValue>("all");
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] =
-    useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] =
-    useState(false);
-  const [loadingMore, setLoadingMore] =
-    useState(false);
-  const [markingAll, setMarkingAll] =
-    useState(false);
-  const [clearingRead, setClearingRead] =
-    useState(false);
-  const [deletingIds, setDeletingIds] = useState<
-    number[]
-  >([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [clearingRead, setClearingRead] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<number[]>([]);
   const [error, setError] = useState("");
-  const [userId, setUserId] = useState<string | null>(
-    null,
-  );
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -277,6 +226,26 @@ export default function Notifications() {
   useEffect(() => {
     let channel: RealtimeChannel | null = null;
     let active = true;
+    let currentUserId = "";
+
+    const scheduleRealtimeRefresh = () => {
+      if (!active || !currentUserId) {
+        return;
+      }
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (active) {
+          void loadNotifications({
+            requestedPage: 1,
+            background: true,
+          });
+        }
+      }, 300);
+    };
 
     async function initializeRealtime() {
       try {
@@ -293,6 +262,7 @@ export default function Notifications() {
           return;
         }
 
+        currentUserId = user.id;
         setUserId(user.id);
 
         channel = supabase
@@ -300,135 +270,79 @@ export default function Notifications() {
           .on(
             "postgres_changes",
             {
-              event: "INSERT",
+              event: "*",
               schema: "public",
               table: "notifications",
               filter: `user_id=eq.${user.id}`,
             },
-            (
-              payload: RealtimePostgresChangesPayload<Notification>,
-            ) => {
-              const incoming =
-                payload.new as Notification;
-
-              setNotifications((current) =>
-                mergeNotification(current, incoming),
-              );
-              setTotal((current) => current + 1);
-
-              if (!incoming.is_read) {
-                toast.info(incoming.title, {
-                  description: incoming.message,
-                });
-              }
-            },
+            scheduleRealtimeRefresh,
           )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            (
-              payload: RealtimePostgresChangesPayload<Notification>,
-            ) => {
-              const incoming =
-                payload.new as Notification;
+          .subscribe((subscriptionStatus) => {
+            if (!active) {
+              return;
+            }
 
-              setNotifications((current) => {
-                if (
-                  filter === "unread" &&
-                  incoming.is_read
-                ) {
-                  return current.filter(
-                    (item) => item.id !== incoming.id,
-                  );
-                }
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error("Admin notifications realtime channel error.");
+              scheduleRealtimeRefresh();
+            }
 
-                if (
-                  filter === "read" &&
-                  !incoming.is_read
-                ) {
-                  return current.filter(
-                    (item) => item.id !== incoming.id,
-                  );
-                }
-
-                return mergeNotification(
-                  current,
-                  incoming,
-                );
-              });
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "DELETE",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            (
-              payload: RealtimePostgresChangesPayload<Notification>,
-            ) => {
-              const deleted =
-                payload.old as Partial<Notification>;
-
-              if (typeof deleted.id !== "number") {
-                return;
-              }
-
-              setNotifications((current) =>
-                current.filter(
-                  (item) => item.id !== deleted.id,
-                ),
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error(
+                "Admin notifications realtime connection timed out.",
               );
-              setTotal((current) =>
-                Math.max(0, current - 1),
-              );
-            },
-          )
-          .subscribe();
+              scheduleRealtimeRefresh();
+            }
+          });
       } catch (caught) {
-        console.error(
-          "Admin notification realtime error:",
-          caught,
-        );
+        console.error("Admin notification realtime error:", caught);
       }
     }
+
+    const handleOnline = () => {
+      scheduleRealtimeRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRealtimeRefresh();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     void initializeRealtime();
 
     return () => {
       active = false;
 
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
       if (channel) {
         void supabase.removeChannel(channel);
       }
     };
-  }, [filter]);
+  }, [loadNotifications]);
 
   const unreadCount = useMemo(
-    () =>
-      notifications.filter((item) => !item.is_read)
-        .length,
+    () => notifications.filter((item) => !item.is_read).length,
     [notifications],
   );
 
   const readCount = useMemo(
-    () =>
-      notifications.filter((item) => item.is_read)
-        .length,
+    () => notifications.filter((item) => item.is_read).length,
     [notifications],
   );
 
   async function handleRead(id: number) {
-    const existing = notifications.find(
-      (item) => item.id === id,
-    );
+    const existing = notifications.find((item) => item.id === id);
 
     if (!existing || existing.is_read) {
       return;
@@ -436,9 +350,7 @@ export default function Notifications() {
 
     setNotifications((current) =>
       current.map((item) =>
-        item.id === id
-          ? { ...item, is_read: true }
-          : item,
+        item.id === id ? { ...item, is_read: true } : item,
       ),
     );
 
@@ -446,16 +358,12 @@ export default function Notifications() {
       await markMyNotificationAsRead(id);
 
       if (filter === "unread") {
-        setNotifications((current) =>
-          current.filter((item) => item.id !== id),
-        );
+        setNotifications((current) => current.filter((item) => item.id !== id));
       }
     } catch (caught) {
       setNotifications((current) =>
         current.map((item) =>
-          item.id === id
-            ? { ...item, is_read: false }
-            : item,
+          item.id === id ? { ...item, is_read: false } : item,
         ),
       );
 
@@ -486,9 +394,7 @@ export default function Notifications() {
             })),
       );
 
-      toast.success(
-        "All notifications marked as read.",
-      );
+      toast.success("All notifications marked as read.");
     } catch (caught) {
       toast.error(
         caught instanceof Error
@@ -501,31 +407,21 @@ export default function Notifications() {
   }
 
   async function handleDelete(item: Notification) {
-    const confirmed = window.confirm(
-      `Delete "${item.title}"?`,
-    );
+    const confirmed = window.confirm(`Delete "${item.title}"?`);
 
     if (!confirmed) {
       return;
     }
 
-    setDeletingIds((current) => [
-      ...current,
-      item.id,
-    ]);
+    setDeletingIds((current) => [...current, item.id]);
 
     try {
       await deleteMyNotification(item.id);
 
       setNotifications((current) =>
-        current.filter(
-          (notification) =>
-            notification.id !== item.id,
-        ),
+        current.filter((notification) => notification.id !== item.id),
       );
-      setTotal((current) =>
-        Math.max(0, current - 1),
-      );
+      setTotal((current) => Math.max(0, current - 1));
 
       toast.success("Notification deleted.");
     } catch (caught) {
@@ -535,9 +431,7 @@ export default function Notifications() {
           : "Unable to delete notification.",
       );
     } finally {
-      setDeletingIds((current) =>
-        current.filter((id) => id !== item.id),
-      );
+      setDeletingIds((current) => current.filter((id) => id !== item.id));
     }
   }
 
@@ -546,9 +440,7 @@ export default function Notifications() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Delete all read notifications?",
-    );
+    const confirmed = window.confirm("Delete all read notifications?");
 
     if (!confirmed) {
       return;
@@ -559,16 +451,10 @@ export default function Notifications() {
     try {
       await deleteMyReadNotifications();
 
-      setNotifications((current) =>
-        current.filter((item) => !item.is_read),
-      );
-      setTotal((current) =>
-        Math.max(0, current - readCount),
-      );
+      setNotifications((current) => current.filter((item) => !item.is_read));
+      setTotal((current) => Math.max(0, current - readCount));
 
-      toast.success(
-        "Read notifications were cleared.",
-      );
+      toast.success("Read notifications were cleared.");
     } catch (caught) {
       toast.error(
         caught instanceof Error
@@ -580,9 +466,7 @@ export default function Notifications() {
     }
   }
 
-  async function handleOpenNotification(
-    item: Notification,
-  ) {
+  async function handleOpenNotification(item: Notification) {
     if (!item.is_read) {
       await handleRead(item.id);
     }
@@ -642,27 +526,19 @@ export default function Notifications() {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
               <RefreshCw
-                className={`h-4 w-4 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
               />
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
 
             <button
               type="button"
-              onClick={() =>
-                void handleMarkAllAsRead()
-              }
-              disabled={
-                markingAll || unreadCount === 0
-              }
+              onClick={() => void handleMarkAllAsRead()}
+              disabled={markingAll || unreadCount === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <CheckCheck className="h-4 w-4" />
-              {markingAll
-                ? "Marking..."
-                : "Mark all read"}
+              {markingAll ? "Marking..." : "Mark all read"}
             </button>
 
             <button
@@ -672,29 +548,15 @@ export default function Notifications() {
               className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-slate-900 dark:hover:bg-red-950/20"
             >
               <Trash2 className="h-4 w-4" />
-              {clearingRead
-                ? "Clearing..."
-                : "Clear read"}
+              {clearingRead ? "Clearing..." : "Clear read"}
             </button>
           </div>
         </header>
 
         <section className="grid gap-4 sm:grid-cols-3">
-          <SummaryCard
-            label="Total results"
-            value={total}
-            icon={Bell}
-          />
-          <SummaryCard
-            label="Unread shown"
-            value={unreadCount}
-            icon={Bell}
-          />
-          <SummaryCard
-            label="Read shown"
-            value={readCount}
-            icon={CheckCheck}
-          />
+          <SummaryCard label="Total results" value={total} icon={Bell} />
+          <SummaryCard label="Unread shown" value={unreadCount} icon={Bell} />
+          <SummaryCard label="Read shown" value={readCount} icon={CheckCheck} />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -704,9 +566,7 @@ export default function Notifications() {
               <input
                 type="search"
                 value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search notifications..."
                 className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-10 text-sm outline-none focus:border-emerald-500 dark:border-slate-700"
               />
@@ -757,9 +617,7 @@ export default function Notifications() {
             </p>
             <button
               type="button"
-              onClick={() =>
-                void loadNotifications()
-              }
+              onClick={() => void loadNotifications()}
               className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Try again
@@ -787,10 +645,8 @@ export default function Notifications() {
           ) : (
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {notifications.map((item) => {
-                const Icon =
-                  iconForNotification(item);
-                const deleting =
-                  deletingIds.includes(item.id);
+                const Icon = iconForNotification(item);
+                const deleting = deletingIds.includes(item.id);
 
                 return (
                   <article
@@ -803,11 +659,7 @@ export default function Notifications() {
                   >
                     <button
                       type="button"
-                      onClick={() =>
-                        void handleOpenNotification(
-                          item,
-                        )
-                      }
+                      onClick={() => void handleOpenNotification(item)}
                       className="w-full p-5 text-left"
                     >
                       <div className="flex items-start gap-4">
@@ -838,13 +690,9 @@ export default function Notifications() {
 
                           <p
                             className="mt-2 text-xs text-slate-400"
-                            title={formatExactDate(
-                              item.created_at,
-                            )}
+                            title={formatExactDate(item.created_at)}
                           >
-                            {formatRelativeDate(
-                              item.created_at,
-                            )}
+                            {formatRelativeDate(item.created_at)}
                           </p>
                         </div>
                       </div>
@@ -886,24 +734,18 @@ export default function Notifications() {
             </div>
           )}
 
-          {!loading &&
-            notifications.length > 0 &&
-            hasMore && (
-              <div className="border-t border-slate-200 p-4 text-center dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleLoadMore()
-                  }
-                  disabled={loadingMore}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  {loadingMore
-                    ? "Loading..."
-                    : "Load more"}
-                </button>
-              </div>
-            )}
+          {!loading && notifications.length > 0 && hasMore && (
+            <div className="border-t border-slate-200 p-4 text-center dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => void handleLoadMore()}
+                disabled={loadingMore}
+                className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {loadingMore ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </section>
       </section>
     </AdminLayout>
@@ -922,9 +764,7 @@ function SummaryCard({
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">
-          {label}
-        </p>
+        <p className="text-sm font-medium text-slate-500">{label}</p>
         <Icon className="h-5 w-5 text-emerald-600" />
       </div>
       <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">

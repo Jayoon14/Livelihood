@@ -1,8 +1,7 @@
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { supabase } from "../lib/supabase";
-import { getUnreadCount, type ChatMessage } from "../services/chatService";
+import { getUnreadCount } from "../services/chatService";
 
 const REFRESH_DELAY_MS = 200;
 
@@ -85,25 +84,27 @@ export function useChatUnreadCount() {
               event: "*",
               schema: "public",
               table: "messages",
+              filter: `receiver_id=eq.${currentUserId}`,
             },
-            (payload: RealtimePostgresChangesPayload<ChatMessage>) => {
-              const next = payload.new as Partial<ChatMessage>;
-              const previous = payload.old as Partial<ChatMessage>;
-
-              const relevant =
-                next.receiver_id === currentUserId ||
-                previous.receiver_id === currentUserId ||
-                next.sender_id === currentUserId ||
-                previous.sender_id === currentUserId ||
-                next.receiver_id === undefined ||
-                previous.receiver_id === undefined;
-
-              if (relevant) {
-                scheduleRefresh();
-              }
+            () => {
+              scheduleRefresh();
             },
           )
-          .subscribe();
+          .subscribe((subscriptionStatus) => {
+            if (cancelled) {
+              return;
+            }
+
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error("Chat unread realtime channel error.");
+              scheduleRefresh();
+            }
+
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error("Chat unread realtime connection timed out.");
+              scheduleRefresh();
+            }
+          });
       } catch (error) {
         if (!cancelled) {
           console.error("Unable to initialize chat unread count:", error);
@@ -121,12 +122,29 @@ export function useChatUnreadCount() {
       },
     );
 
+    const handleOnline = () => {
+      scheduleRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
 
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
       }
+
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       authListener.subscription.unsubscribe();
 

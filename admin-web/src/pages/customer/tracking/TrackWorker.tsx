@@ -76,6 +76,8 @@ const ROUTE_SOURCE_ID = "customer-worker-route-source";
 const ROUTE_LAYER_ID = "customer-worker-route-layer";
 const STALE_GPS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
 const ROUTE_REFRESH_INTERVAL = 12_000; // 12 seconds
+const MAX_ROUTE_REFRESH_INTERVAL = 60_000; // refresh ETA even while stationary
+const LOCATION_FALLBACK_REFRESH_INTERVAL = 15_000; // 15 seconds
 const MIN_ROUTE_MOVEMENT_METERS = 15;
 
 const MAP_STYLE = {
@@ -657,6 +659,7 @@ export default function TrackWorker() {
     async (
       workerCoordinates: [number, number],
       destinationCoordinates: [number, number],
+      fitMap = false,
     ) => {
       const currentRequestNumber = ++routeRequestNumberRef.current;
 
@@ -684,7 +687,11 @@ export default function TrackWorker() {
 
         const map = mapRef.current;
 
-        if (map) {
+        /*
+         * Only move the camera when explicitly requested. Automatic route
+         * refreshes should not interrupt a customer's manual pan or zoom.
+         */
+        if (map && fitMap) {
           const bounds = new LngLatBounds();
 
           route.coordinates.forEach((coordinate) => {
@@ -726,7 +733,7 @@ export default function TrackWorker() {
     (
       workerCoordinates: [number, number],
       destinationCoordinates: [number, number],
-      force = false,
+      fitMap = false,
     ) => {
       const now = Date.now();
       const lastOrigin = lastRouteOriginRef.current;
@@ -734,16 +741,26 @@ export default function TrackWorker() {
         !lastOrigin ||
         getDistanceBetweenCoordinates(lastOrigin, workerCoordinates) >=
           MIN_ROUTE_MOVEMENT_METERS;
-      const intervalElapsed =
-        now - lastRouteRequestAtRef.current >= ROUTE_REFRESH_INTERVAL;
+      const timeSinceLastRequest = now - lastRouteRequestAtRef.current;
+      const intervalElapsed = timeSinceLastRequest >= ROUTE_REFRESH_INTERVAL;
+      const maximumIntervalElapsed =
+        timeSinceLastRequest >= MAX_ROUTE_REFRESH_INTERVAL;
 
-      if (!force && (!movedEnough || !intervalElapsed)) {
+      /*
+       * Refresh normally after meaningful movement and the short throttle
+       * interval. Even when the worker is stationary, refresh periodically so
+       * ETA and route information do not remain stale forever.
+       */
+      const shouldRefresh =
+        fitMap || (movedEnough && intervalElapsed) || maximumIntervalElapsed;
+
+      if (!shouldRefresh) {
         return;
       }
 
       lastRouteRequestAtRef.current = now;
       lastRouteOriginRef.current = workerCoordinates;
-      void requestRoute(workerCoordinates, destinationCoordinates);
+      void requestRoute(workerCoordinates, destinationCoordinates, fitMap);
     },
     [requestRoute],
   );
@@ -758,6 +775,23 @@ export default function TrackWorker() {
 
       if (!isValidCoordinates(location.longitude, location.latitude)) {
         console.error("Invalid worker coordinates:", location);
+        workerMarkerRef.current?.remove();
+        workerMarkerRef.current = null;
+        workerCoordinatesRef.current = null;
+        clearRoute();
+        return;
+      }
+
+      /*
+       * Do not keep displaying an old marker after the worker goes offline
+       * or stops publishing fresh GPS updates. A stale marker can make the
+       * customer think the worker is still moving toward the destination.
+       */
+      if (!isFreshWorkerLocation(location)) {
+        workerMarkerRef.current?.remove();
+        workerMarkerRef.current = null;
+        workerCoordinatesRef.current = null;
+        clearRoute();
         return;
       }
 
@@ -819,11 +853,7 @@ export default function TrackWorker() {
         });
       }
 
-      if (
-        customerCoordinates &&
-        !trackingFinished &&
-        isFreshWorkerLocation(location)
-      ) {
+      if (customerCoordinates && !trackingFinished) {
         requestRouteThrottled(coordinates, customerCoordinates, fitMap);
       } else if (trackingFinished) {
         clearRoute();
@@ -841,9 +871,7 @@ export default function TrackWorker() {
   );
 
   const selectedMapStyle =
-    mapStyleKey === "satellite"
-      ? SATELLITE_STYLE
-      : STYLES[mapStyleKey];
+    mapStyleKey === "satellite" ? SATELLITE_STYLE : STYLES[mapStyleKey];
 
   useMapStyle({
     mapRef,
@@ -1054,13 +1082,22 @@ export default function TrackWorker() {
 
   useEffect(() => {
     if (!booking?.worker_id || !mapReady || trackingFinished) {
+      setRealtimeConnected(false);
       return;
     }
 
-    void fetchLatestWorkerLocation(true);
+    let mounted = true;
+
+    const refreshLatestLocation = (fitMap = false) => {
+      if (mounted) {
+        void fetchLatestWorkerLocation(fitMap);
+      }
+    };
+
+    refreshLatestLocation(true);
 
     const channel = supabase
-      .channel(`customer-track-worker-${booking.id}`)
+      .channel(`customer-track-worker-${booking.id}-${booking.worker_id}`)
       .on(
         "postgres_changes",
         {
@@ -1070,6 +1107,10 @@ export default function TrackWorker() {
           filter: `worker_id=eq.${booking.worker_id}`,
         },
         (payload) => {
+          if (!mounted) {
+            return;
+          }
+
           if (payload.eventType === "DELETE") {
             setWorkerLocation(null);
             workerMarkerRef.current?.remove();
@@ -1083,15 +1124,58 @@ export default function TrackWorker() {
           const updatedLocation = payload.new as WorkerLocationRow;
 
           setWorkerLocation(updatedLocation);
-
+          setLastLocationFetchAt(new Date().toISOString());
           displayWorkerLocation(updatedLocation, false);
         },
       )
       .subscribe((status) => {
+        if (!mounted) {
+          return;
+        }
+
         setRealtimeConnected(status === "SUBSCRIBED");
+
+        if (status === "CHANNEL_ERROR") {
+          console.error("Customer worker tracking realtime channel error.");
+          refreshLatestLocation();
+        }
+
+        if (status === "TIMED_OUT") {
+          console.error(
+            "Customer worker tracking realtime connection timed out.",
+          );
+          refreshLatestLocation();
+        }
       });
 
+    /*
+     * Realtime remains the primary source. This lightweight fallback keeps
+     * tracking fresh after temporary network loss, browser sleep, or a missed
+     * postgres_changes event.
+     */
+    const fallbackRefreshTimer = window.setInterval(() => {
+      refreshLatestLocation();
+    }, LOCATION_FALLBACK_REFRESH_INTERVAL);
+
+    const handleOnline = () => {
+      refreshLatestLocation();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshLatestLocation();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      mounted = false;
+      setRealtimeConnected(false);
+      window.clearInterval(fallbackRefreshTimer);
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       void supabase.removeChannel(channel);
     };
   }, [

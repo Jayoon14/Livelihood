@@ -1,4 +1,3 @@
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   Bell,
@@ -285,6 +284,7 @@ export default function Notifications() {
   const navigate = useNavigate();
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
@@ -392,6 +392,24 @@ export default function Notifications() {
     let isMounted = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
+    const scheduleRealtimeRefresh = () => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (isMounted) {
+          void loadNotifications({
+            requestedPage: 1,
+          });
+        }
+      }, 300);
+    };
+
     async function initializeRealtime(): Promise<void> {
       try {
         const userId = await getCurrentNotificationUserId();
@@ -410,85 +428,61 @@ export default function Notifications() {
               table: "notifications",
               filter: `user_id=eq.${userId}`,
             },
-            (payload: RealtimePostgresChangesPayload<Notification>) => {
-              if (!isMounted) {
-                return;
-              }
-
-              if (payload.eventType === "INSERT") {
-                const inserted = payload.new;
-
-                setNotifications((current) =>
-                  mergeNotifications([inserted], current),
-                );
-                setTotal((current) => current + 1);
-
-                if (!inserted.is_read) {
-                  setGlobalUnreadCount((current) => current + 1);
-                } else {
-                  setGlobalReadCount((current) => current + 1);
-                }
-
-                return;
-              }
-
-              if (payload.eventType === "UPDATE") {
-                const updated = payload.new;
-                const previous = payload.old as Partial<Notification>;
-
-                setNotifications((current) =>
-                  current.map((item) =>
-                    item.id === updated.id ? updated : item,
-                  ),
-                );
-
-                if (previous.is_read === false && updated.is_read === true) {
-                  setGlobalUnreadCount((current) => Math.max(0, current - 1));
-                  setGlobalReadCount((current) => current + 1);
-                }
-
-                if (previous.is_read === true && updated.is_read === false) {
-                  setGlobalReadCount((current) => Math.max(0, current - 1));
-                  setGlobalUnreadCount((current) => current + 1);
-                }
-
-                return;
-              }
-
-              if (payload.eventType === "DELETE") {
-                const deleted = payload.old as Partial<Notification>;
-
-                setNotifications((current) =>
-                  current.filter((item) => item.id !== deleted.id),
-                );
-                setTotal((current) => Math.max(0, current - 1));
-
-                if (deleted.is_read === false) {
-                  setGlobalUnreadCount((current) => Math.max(0, current - 1));
-                }
-
-                if (deleted.is_read === true) {
-                  setGlobalReadCount((current) => Math.max(0, current - 1));
-                }
-              }
-            },
+            scheduleRealtimeRefresh,
           )
-          .subscribe();
+          .subscribe((subscriptionStatus) => {
+            if (!isMounted) {
+              return;
+            }
+
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error("Worker notifications realtime channel error.");
+              scheduleRealtimeRefresh();
+            }
+
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error(
+                "Worker notifications realtime connection timed out.",
+              );
+              scheduleRealtimeRefresh();
+            }
+          });
       } catch (error) {
         console.error("Notification realtime initialization failed:", error);
       }
     }
+
+    const handleOnline = () => {
+      scheduleRealtimeRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRealtimeRefresh();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     void initializeRealtime();
 
     return () => {
       isMounted = false;
 
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
       if (channel) {
         void supabase.removeChannel(channel);
       }
     };
-  }, []);
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!message || message.type !== "success") {

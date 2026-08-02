@@ -263,6 +263,18 @@ export default function PaymentRequests() {
         setWorkerId(user.id);
         await loadPayments(user.id);
 
+        const scheduleRealtimeRefresh = () => {
+          if (realtimeTimerRef.current) {
+            clearTimeout(realtimeTimerRef.current);
+          }
+
+          realtimeTimerRef.current = setTimeout(() => {
+            if (mounted) {
+              void loadPayments(user.id);
+            }
+          }, 300);
+        };
+
         channel = supabase
           .channel(`worker-payment-requests-${user.id}`)
           .on(
@@ -272,19 +284,35 @@ export default function PaymentRequests() {
               schema: "public",
               table: "payment_transactions",
             },
-            () => {
-              if (realtimeTimerRef.current) {
-                clearTimeout(realtimeTimerRef.current);
-              }
-
-              realtimeTimerRef.current = setTimeout(() => {
-                if (mounted) {
-                  void loadPayments(user.id);
-                }
-              }, 300);
-            },
+            scheduleRealtimeRefresh,
           )
-          .subscribe();
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "payments",
+              filter: `worker_id=eq.${user.id}`,
+            },
+            scheduleRealtimeRefresh,
+          )
+          .subscribe((subscriptionStatus) => {
+            if (!mounted) {
+              return;
+            }
+
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error(
+                "Worker payment requests realtime channel error.",
+              );
+            }
+
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error(
+                "Worker payment requests realtime connection timed out.",
+              );
+            }
+          });
       } catch (error) {
         if (mounted) {
           setMessage({

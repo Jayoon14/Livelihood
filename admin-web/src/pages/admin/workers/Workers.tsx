@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -67,6 +68,8 @@ export default function Workers() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const loadWorkers = useCallback(async (background = false) => {
     background ? setRefreshing(true) : setLoading(true);
     setError(null);
@@ -88,6 +91,20 @@ export default function Workers() {
   useEffect(() => void loadWorkers(), [loadWorkers]);
 
   useEffect(() => {
+    let mounted = true;
+
+    const scheduleRealtimeRefresh = () => {
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (mounted) {
+          void loadWorkers(true);
+        }
+      }, 300);
+    };
+
     const channel = supabase
       .channel("admin-workers-page")
       .on(
@@ -98,20 +115,50 @@ export default function Workers() {
           table: "profiles",
           filter: "role=eq.worker",
         },
-        () => void loadWorkers(true),
+        scheduleRealtimeRefresh,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "reviews" },
-        () => void loadWorkers(true),
+        {
+          event: "*",
+          schema: "public",
+          table: "reviews",
+        },
+        scheduleRealtimeRefresh,
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "bookings" },
-        () => void loadWorkers(true),
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+        },
+        scheduleRealtimeRefresh,
       )
-      .subscribe();
-    return () => void supabase.removeChannel(channel);
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error("Admin workers realtime channel error.");
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error("Admin workers realtime connection timed out.");
+        }
+      });
+
+    return () => {
+      mounted = false;
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
+      void supabase.removeChannel(channel);
+    };
   }, [loadWorkers]);
 
   useEffect(() => setPage(1), [search, status, sort]);

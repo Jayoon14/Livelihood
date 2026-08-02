@@ -6,6 +6,10 @@ import type {
 import { supabase } from "../lib/supabase";
 import { logActivity } from "./activityService";
 import { createNotification } from "./notificationService";
+import {
+  claimActiveSession,
+  releaseActiveSession,
+} from "./activeSessionService";
 
 export type UserRole = "admin" | "worker" | "customer" | string;
 
@@ -235,10 +239,64 @@ export async function login(
     const normalizedEmail = normalizeEmail(email);
     const normalizedPassword = validatePassword(password);
 
-    return await supabase.auth.signInWithPassword({
+    const result = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password: normalizedPassword,
     });
+
+    if (result.error || !result.data.session) {
+      return result;
+    }
+
+    const allowed = await claimActiveSession();
+
+    if (!allowed) {
+      const activeSessionMessage =
+        "This account is already logged in on another device.";
+
+      const activeUserId = result.data.user?.id;
+
+      if (activeUserId) {
+        try {
+          await createNotification(
+            activeUserId,
+            null,
+            "Security Alert",
+            "A sign-in attempt to your account was blocked because this account is already active on another device. If this was not you, change your password immediately.",
+          );
+        } catch (notificationError) {
+          /*
+           * The login attempt must still be blocked even if the security
+           * notification cannot be inserted.
+           */
+          console.error(
+            "Unable to create blocked-login security notification:",
+            notificationError,
+          );
+        }
+      }
+
+      sessionStorage.setItem(
+        "auth-message",
+        activeSessionMessage,
+      );
+
+      await supabase.auth.signOut({ scope: "local" });
+
+      return {
+        data: {
+          user: null,
+          session: null,
+        },
+        error: {
+          name: "ActiveSessionError",
+          message: activeSessionMessage,
+          status: 403,
+        } as AuthError,
+      };
+    }
+
+    return result;
   } catch (error) {
     return {
       data: {
@@ -414,9 +472,11 @@ export async function logout() {
       "Authentication",
       "User logged out",
     );
+
+    await releaseActiveSession();
   }
 
-  return supabase.auth.signOut();
+  return supabase.auth.signOut({ scope: "local" });
 }
 
 // =========================

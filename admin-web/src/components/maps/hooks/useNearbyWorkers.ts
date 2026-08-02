@@ -1,14 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
-import {
-  Marker,
-  type Map as MapLibreMap,
-} from "maplibre-gl";
+import { Marker, type Map as MapLibreMap } from "maplibre-gl";
 
 import { supabase } from "../../../lib/supabase";
 import type { Coordinates } from "../types";
@@ -54,6 +46,8 @@ interface WorkerMarkerRecord {
 }
 
 const STALE_GPS_THRESHOLD_MS = 2 * 60 * 1000;
+const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 60_000;
+const MAX_NEARBY_ACCURACY_METERS = 1_000;
 const REFRESH_INTERVAL_MS = 30_000;
 
 function degreesToRadians(value: number): number {
@@ -68,17 +62,13 @@ function calculateDistanceMeters(
   const [firstLongitude, firstLatitude] = first;
   const [secondLongitude, secondLatitude] = second;
 
-  const latitudeDifference = degreesToRadians(
-    secondLatitude - firstLatitude,
-  );
+  const latitudeDifference = degreesToRadians(secondLatitude - firstLatitude);
   const longitudeDifference = degreesToRadians(
     secondLongitude - firstLongitude,
   );
 
-  const firstLatitudeRadians =
-    degreesToRadians(firstLatitude);
-  const secondLatitudeRadians =
-    degreesToRadians(secondLatitude);
+  const firstLatitudeRadians = degreesToRadians(firstLatitude);
+  const secondLatitudeRadians = degreesToRadians(secondLatitude);
 
   const a =
     Math.sin(latitudeDifference / 2) ** 2 +
@@ -86,17 +76,10 @@ function calculateDistanceMeters(
       Math.cos(secondLatitudeRadians) *
       Math.sin(longitudeDifference / 2) ** 2;
 
-  return (
-    earthRadiusMeters *
-    2 *
-    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  );
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function isValidCoordinates(
-  longitude: number,
-  latitude: number,
-): boolean {
+function isValidCoordinates(longitude: number, latitude: number): boolean {
   return (
     Number.isFinite(longitude) &&
     Number.isFinite(latitude) &&
@@ -110,9 +93,24 @@ function isValidCoordinates(
 function hasFreshGps(worker: WorkerLocationRow): boolean {
   const updatedAt = new Date(worker.updated_at).getTime();
 
+  if (!Number.isFinite(updatedAt)) {
+    return false;
+  }
+
+  const ageMilliseconds = Date.now() - updatedAt;
+
   return (
-    Number.isFinite(updatedAt) &&
-    Date.now() - updatedAt <= STALE_GPS_THRESHOLD_MS
+    ageMilliseconds >= -MAX_FUTURE_TIMESTAMP_DRIFT_MS &&
+    ageMilliseconds <= STALE_GPS_THRESHOLD_MS
+  );
+}
+
+function hasUsableAccuracy(worker: WorkerLocationRow): boolean {
+  return (
+    worker.accuracy === null ||
+    (Number.isFinite(worker.accuracy) &&
+      worker.accuracy >= 0 &&
+      worker.accuracy <= MAX_NEARBY_ACCURACY_METERS)
   );
 }
 
@@ -187,25 +185,16 @@ export function useNearbyWorkers({
   radiusKilometers = 20,
   onWorkerSelect,
 }: UseNearbyWorkersParams) {
-  const markerRecordsRef =
-    useRef<Map<string, WorkerMarkerRecord>>(new Map());
-  const animationFramesRef =
-    useRef<Map<string, number>>(new Map());
-  const workersRef =
-    useRef<Map<string, NearbyWorker>>(new Map());
-  const workerProfilesRef =
-    useRef<Map<string, WorkerProfile>>(new Map());
+  const markerRecordsRef = useRef<Map<string, WorkerMarkerRecord>>(new Map());
+  const animationFramesRef = useRef<Map<string, number>>(new Map());
+  const workersRef = useRef<Map<string, NearbyWorker>>(new Map());
+  const workerProfilesRef = useRef<Map<string, WorkerProfile>>(new Map());
   const mountedRef = useRef(true);
-  const channelIdRef = useRef(
-    `customer-nearby-workers-${crypto.randomUUID()}`,
-  );
+  const channelIdRef = useRef(`customer-nearby-workers-${crypto.randomUUID()}`);
 
-  const [nearbyWorkers, setNearbyWorkers] =
-    useState<NearbyWorker[]>([]);
-  const [loadingWorkers, setLoadingWorkers] =
-    useState(false);
-  const [nearbyWorkersError, setNearbyWorkersError] =
-    useState("");
+  const [nearbyWorkers, setNearbyWorkers] = useState<NearbyWorker[]>([]);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
+  const [nearbyWorkersError, setNearbyWorkersError] = useState("");
 
   const publishWorkers = useCallback(() => {
     if (!mountedRef.current) {
@@ -215,25 +204,21 @@ export function useNearbyWorkers({
     setNearbyWorkers(
       [...workersRef.current.values()].sort(
         (first, second) =>
-          (first.distanceMeters ??
-            Number.POSITIVE_INFINITY) -
-          (second.distanceMeters ??
-            Number.POSITIVE_INFINITY),
+          (first.distanceMeters ?? Number.POSITIVE_INFINITY) -
+          (second.distanceMeters ?? Number.POSITIVE_INFINITY),
       ),
     );
   }, []);
 
   const removeWorker = useCallback((workerId: string) => {
-    const animationFrame =
-      animationFramesRef.current.get(workerId);
+    const animationFrame = animationFramesRef.current.get(workerId);
 
     if (animationFrame !== undefined) {
       cancelAnimationFrame(animationFrame);
       animationFramesRef.current.delete(workerId);
     }
 
-    const record =
-      markerRecordsRef.current.get(workerId);
+    const record = markerRecordsRef.current.get(workerId);
 
     record?.cleanupClick();
     record?.marker.remove();
@@ -243,15 +228,13 @@ export function useNearbyWorkers({
   }, []);
 
   const clearAllWorkers = useCallback(() => {
-    for (const animationFrame of
-      animationFramesRef.current.values()) {
+    for (const animationFrame of animationFramesRef.current.values()) {
       cancelAnimationFrame(animationFrame);
     }
 
     animationFramesRef.current.clear();
 
-    for (const record of
-      markerRecordsRef.current.values()) {
+    for (const record of markerRecordsRef.current.values()) {
       record.cleanupClick();
       record.marker.remove();
     }
@@ -281,11 +264,8 @@ export function useNearbyWorkers({
   );
 
   const getWorkerProfile = useCallback(
-    async (
-      workerId: string,
-    ): Promise<WorkerProfile | null> => {
-      const cached =
-        workerProfilesRef.current.get(workerId);
+    async (workerId: string): Promise<WorkerProfile | null> => {
+      const cached = workerProfilesRef.current.get(workerId);
 
       if (cached) {
         return cached;
@@ -293,30 +273,21 @@ export function useNearbyWorkers({
 
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "id, first_name, middle_name, last_name, profile_picture",
-        )
+        .select("id, first_name, middle_name, last_name, profile_picture")
         .eq("id", workerId)
         .eq("role", "worker")
         .eq("status", "Approved")
         .maybeSingle();
 
       if (error) {
-        console.error(
-          "Unable to load nearby worker profile:",
-          error,
-        );
+        console.error("Unable to load nearby worker profile:", error);
         return null;
       }
 
-      const profile =
-        (data as WorkerProfile | null) ?? null;
+      const profile = (data as WorkerProfile | null) ?? null;
 
       if (profile) {
-        workerProfilesRef.current.set(
-          profile.id,
-          profile,
-        );
+        workerProfilesRef.current.set(profile.id, profile);
       }
 
       return profile;
@@ -325,20 +296,14 @@ export function useNearbyWorkers({
   );
 
   const animateMarker = useCallback(
-    (
-      workerId: string,
-      destination: Coordinates,
-      durationMs = 800,
-    ) => {
-      const record =
-        markerRecordsRef.current.get(workerId);
+    (workerId: string, destination: Coordinates, durationMs = 800) => {
+      const record = markerRecordsRef.current.get(workerId);
 
       if (!record) {
         return;
       }
 
-      const previousFrame =
-        animationFramesRef.current.get(workerId);
+      const previousFrame = animationFramesRef.current.get(workerId);
 
       if (previousFrame !== undefined) {
         cancelAnimationFrame(previousFrame);
@@ -348,35 +313,20 @@ export function useNearbyWorkers({
       const startedAt = performance.now();
 
       const animate = (now: number) => {
-        const progress = Math.min(
-          (now - startedAt) / durationMs,
-          1,
-        );
+        const progress = Math.min((now - startedAt) / durationMs, 1);
         const eased =
           progress < 0.5
             ? 2 * progress * progress
-            : 1 -
-              Math.pow(-2 * progress + 2, 2) / 2;
+            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-        const longitude =
-          start[0] +
-          (destination[0] - start[0]) * eased;
-        const latitude =
-          start[1] +
-          (destination[1] - start[1]) * eased;
+        const longitude = start[0] + (destination[0] - start[0]) * eased;
+        const latitude = start[1] + (destination[1] - start[1]) * eased;
 
-        record.marker.setLngLat([
-          longitude,
-          latitude,
-        ]);
+        record.marker.setLngLat([longitude, latitude]);
 
         if (progress < 1) {
-          const frame =
-            requestAnimationFrame(animate);
-          animationFramesRef.current.set(
-            workerId,
-            frame,
-          );
+          const frame = requestAnimationFrame(animate);
+          animationFramesRef.current.set(workerId, frame);
           return;
         }
 
@@ -391,29 +341,20 @@ export function useNearbyWorkers({
   );
 
   const applyHeading = useCallback(
-    (
-      element: HTMLDivElement,
-      heading: number | null,
-    ) => {
-      const icon =
-        element.querySelector<HTMLElement>(
-          "[data-worker-marker-icon]",
-        );
+    (element: HTMLDivElement, heading: number | null) => {
+      const icon = element.querySelector<HTMLElement>(
+        "[data-worker-marker-icon]",
+      );
 
       if (!icon) {
         return;
       }
 
       const validHeading =
-        typeof heading === "number" &&
-        Number.isFinite(heading)
-          ? heading
-          : 0;
+        typeof heading === "number" && Number.isFinite(heading) ? heading : 0;
 
-      icon.style.transition =
-        "transform 400ms ease";
-      icon.style.transform =
-        `rotate(${validHeading}deg)`;
+      icon.style.transition = "transform 400ms ease";
+      icon.style.transform = `rotate(${validHeading}deg)`;
     },
     [],
   );
@@ -426,27 +367,27 @@ export function useNearbyWorkers({
         return;
       }
 
-      if (
-        !isValidCoordinates(
-          worker.longitude,
-          worker.latitude,
-        )
-      ) {
+      if (!isValidCoordinates(worker.longitude, worker.latitude)) {
         removeWorker(worker.worker_id);
         publishWorkers();
         return;
       }
 
       const distanceMeters = getDistance(worker);
+
+      /*
+       * Do not display a worker until the customer's current location is
+       * available. Treating a null distance as inside the radius can show a
+       * worker who is actually far away.
+       */
       const insideRadius =
-        distanceMeters === null ||
-        distanceMeters <=
-          radiusKilometers * 1_000;
+        distanceMeters !== null && distanceMeters <= radiusKilometers * 1_000;
 
       const shouldDisplay =
         worker.is_online &&
         worker.is_available &&
         hasFreshGps(worker) &&
+        hasUsableAccuracy(worker) &&
         insideRadius;
 
       if (!shouldDisplay) {
@@ -455,8 +396,7 @@ export function useNearbyWorkers({
         return;
       }
 
-      const profile =
-        await getWorkerProfile(worker.worker_id);
+      const profile = await getWorkerProfile(worker.worker_id);
 
       if (!mountedRef.current) {
         return;
@@ -468,69 +408,41 @@ export function useNearbyWorkers({
         profile,
       };
 
-      workersRef.current.set(
-        worker.worker_id,
-        nearbyWorker,
-      );
+      workersRef.current.set(worker.worker_id, nearbyWorker);
 
-      const handleClick = (
-        event: MouseEvent,
-      ) => {
+      const handleClick = (event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
 
-        const latest =
-          workersRef.current.get(worker.worker_id);
+        const latest = workersRef.current.get(worker.worker_id);
 
         if (latest) {
           onWorkerSelect?.(latest);
         }
       };
 
-      const destination: Coordinates = [
-        worker.longitude,
-        worker.latitude,
-      ];
+      const destination: Coordinates = [worker.longitude, worker.latitude];
 
-      const existing =
-        markerRecordsRef.current.get(
-          worker.worker_id,
-        );
+      const existing = markerRecordsRef.current.get(worker.worker_id);
 
       if (existing) {
-        animateMarker(
-          worker.worker_id,
-          destination,
-        );
-        applyHeading(
-          existing.element,
-          worker.heading,
-        );
+        animateMarker(worker.worker_id, destination);
+        applyHeading(existing.element, worker.heading);
 
         existing.cleanupClick();
-        existing.element.addEventListener(
-          "click",
-          handleClick,
-        );
+        existing.element.addEventListener("click", handleClick);
         existing.cleanupClick = () => {
-          existing.element.removeEventListener(
-            "click",
-            handleClick,
-          );
+          existing.element.removeEventListener("click", handleClick);
         };
 
         publishWorkers();
         return;
       }
 
-      const element =
-        createWorkerMarkerElement();
+      const element = createWorkerMarkerElement();
 
       applyHeading(element, worker.heading);
-      element.addEventListener(
-        "click",
-        handleClick,
-      );
+      element.addEventListener("click", handleClick);
 
       const marker = new Marker({
         element,
@@ -539,20 +451,14 @@ export function useNearbyWorkers({
         .setLngLat(destination)
         .addTo(map);
 
-      markerRecordsRef.current.set(
-        worker.worker_id,
-        {
-          marker,
-          element,
-          coordinates: destination,
-          cleanupClick: () => {
-            element.removeEventListener(
-              "click",
-              handleClick,
-            );
-          },
+      markerRecordsRef.current.set(worker.worker_id, {
+        marker,
+        element,
+        coordinates: destination,
+        cleanupClick: () => {
+          element.removeEventListener("click", handleClick);
         },
-      );
+      });
 
       publishWorkers();
     },
@@ -569,73 +475,53 @@ export function useNearbyWorkers({
     ],
   );
 
-  const loadNearbyWorkers = useCallback(
-    async (): Promise<void> => {
-      if (!enabled) {
-        return;
+  const loadNearbyWorkers = useCallback(async (): Promise<void> => {
+    if (!enabled) {
+      return;
+    }
+
+    if (mountedRef.current) {
+      setLoadingWorkers(true);
+      setNearbyWorkersError("");
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("worker_locations")
+        .select(
+          "worker_id, latitude, longitude, accuracy, heading, speed, is_online, is_available, updated_at",
+        )
+        .eq("is_online", true)
+        .eq("is_available", true);
+
+      if (error) {
+        throw error;
       }
+
+      const rows = (data ?? []) as WorkerLocationRow[];
+      const receivedIds = new Set(rows.map((row) => row.worker_id));
+
+      await Promise.all(rows.map((row) => processWorker(row)));
+
+      for (const workerId of [...workersRef.current.keys()]) {
+        if (!receivedIds.has(workerId)) {
+          removeWorker(workerId);
+        }
+      }
+
+      publishWorkers();
+    } catch (error) {
+      console.error("Unable to load nearby workers:", error);
 
       if (mountedRef.current) {
-        setLoadingWorkers(true);
-        setNearbyWorkersError("");
+        setNearbyWorkersError("Unable to load nearby workers.");
       }
-
-      try {
-        const { data, error } = await supabase
-          .from("worker_locations")
-          .select(
-            "worker_id, latitude, longitude, accuracy, heading, speed, is_online, is_available, updated_at",
-          )
-          .eq("is_online", true)
-          .eq("is_available", true);
-
-        if (error) {
-          throw error;
-        }
-
-        const rows =
-          (data ?? []) as WorkerLocationRow[];
-        const receivedIds = new Set(
-          rows.map((row) => row.worker_id),
-        );
-
-        await Promise.all(
-          rows.map((row) => processWorker(row)),
-        );
-
-        for (const workerId of [
-          ...workersRef.current.keys(),
-        ]) {
-          if (!receivedIds.has(workerId)) {
-            removeWorker(workerId);
-          }
-        }
-
-        publishWorkers();
-      } catch (error) {
-        console.error(
-          "Unable to load nearby workers:",
-          error,
-        );
-
-        if (mountedRef.current) {
-          setNearbyWorkersError(
-            "Unable to load nearby workers.",
-          );
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoadingWorkers(false);
-        }
+    } finally {
+      if (mountedRef.current) {
+        setLoadingWorkers(false);
       }
-    },
-    [
-      enabled,
-      processWorker,
-      publishWorkers,
-      removeWorker,
-    ],
-  );
+    }
+  }, [enabled, processWorker, publishWorkers, removeWorker]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -668,8 +554,7 @@ export function useNearbyWorkers({
         },
         (payload) => {
           if (payload.eventType === "DELETE") {
-            const deleted =
-              payload.old as Partial<WorkerLocationRow>;
+            const deleted = payload.old as Partial<WorkerLocationRow>;
 
             if (deleted.worker_id) {
               removeWorker(deleted.worker_id);
@@ -679,9 +564,7 @@ export function useNearbyWorkers({
             return;
           }
 
-          void processWorker(
-            payload.new as WorkerLocationRow,
-          );
+          void processWorker(payload.new as WorkerLocationRow);
         },
       )
       .subscribe((status) => {
@@ -689,10 +572,7 @@ export function useNearbyWorkers({
           return;
         }
 
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT"
-        ) {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setNearbyWorkersError(
             "Realtime worker tracking connection failed. Retrying automatically.",
           );
@@ -704,15 +584,27 @@ export function useNearbyWorkers({
         }
       });
 
-    const refreshTimer = window.setInterval(
-      () => {
+    const refreshTimer = window.setInterval(() => {
+      void loadNearbyWorkers();
+    }, REFRESH_INTERVAL_MS);
+
+    const handleOnline = () => {
+      void loadNearbyWorkers();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
         void loadNearbyWorkers();
-      },
-      REFRESH_INTERVAL_MS,
-    );
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.clearInterval(refreshTimer);
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       void supabase.removeChannel(channel);
       clearAllWorkers();
     };
@@ -725,10 +617,9 @@ export function useNearbyWorkers({
     removeWorker,
   ]);
 
-  const refreshNearbyWorkers =
-    useCallback(() => {
-      void loadNearbyWorkers();
-    }, [loadNearbyWorkers]);
+  const refreshNearbyWorkers = useCallback(() => {
+    void loadNearbyWorkers();
+  }, [loadNearbyWorkers]);
 
   return {
     nearbyWorkers,

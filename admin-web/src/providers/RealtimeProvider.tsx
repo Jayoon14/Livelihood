@@ -17,13 +17,19 @@ import { supabase } from "../lib/supabase";
 
 export type RealtimeTable =
   | "activity_logs"
+  | "booking_completion_proofs"
   | "bookings"
   | "chats"
   | "messages"
   | "notifications"
+  | "payment_transactions"
   | "payments"
   | "profiles"
-  | "worker_locations";
+  | "reviews"
+  | "services"
+  | "unavailable_dates"
+  | "worker_locations"
+  | "worker_schedules";
 
 type RealtimeStatus =
   | "CONNECTING"
@@ -58,24 +64,36 @@ interface RealtimeProviderProps {
 
 const INITIAL_VERSIONS: RealtimeVersions = {
   activity_logs: 0,
+  booking_completion_proofs: 0,
   bookings: 0,
   chats: 0,
   messages: 0,
   notifications: 0,
+  payment_transactions: 0,
   payments: 0,
   profiles: 0,
+  reviews: 0,
+  services: 0,
+  unavailable_dates: 0,
   worker_locations: 0,
+  worker_schedules: 0,
 };
 
 const REALTIME_TABLES: RealtimeTable[] = [
   "activity_logs",
+  "booking_completion_proofs",
   "bookings",
   "chats",
   "messages",
   "notifications",
+  "payment_transactions",
   "payments",
   "profiles",
+  "reviews",
+  "services",
+  "unavailable_dates",
   "worker_locations",
+  "worker_schedules",
 ];
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);

@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { supabase } from "../lib/supabase";
+import { releaseActiveSession } from "../services/activeSessionService";
 
 export type UserRole = "admin" | "worker" | "customer";
 
@@ -109,12 +110,10 @@ export function AuthProvider({
 
         if (profileError) {
           console.error("Profile query failed:", profileError);
-
           setProfile(null);
           setError(
             `Unable to load account profile: ${profileError.message}`,
           );
-
           return;
         }
 
@@ -123,12 +122,10 @@ export function AuthProvider({
             "No profile row found for authenticated user:",
             session.user.id,
           );
-
           setProfile(null);
           setError(
             "No profile record was found for this account.",
           );
-
           return;
         }
 
@@ -136,16 +133,11 @@ export function AuthProvider({
         const normalizedRole = normalizeRole(profileData.role);
 
         if (!normalizedRole) {
-          console.error(
-            "Invalid profile role:",
-            profileData.role,
-          );
-
+          console.error("Invalid profile role:", profileData.role);
           setProfile(null);
           setError(
             `Invalid account role: ${String(profileData.role)}`,
           );
-
           return;
         }
 
@@ -168,7 +160,6 @@ export function AuthProvider({
         setProfile(normalizedProfile);
       } catch (caughtError) {
         console.error("AuthContext profile error:", caughtError);
-
         setProfile(null);
         setError(
           caughtError instanceof Error
@@ -190,12 +181,10 @@ export function AuthProvider({
 
     if (sessionError) {
       console.error("Session error:", sessionError);
-
       setUser(null);
       setProfile(null);
       setError(sessionError.message);
       setLoading(false);
-
       return;
     }
 
@@ -217,12 +206,10 @@ export function AuthProvider({
 
       if (sessionError) {
         console.error("Initial session error:", sessionError);
-
         setUser(null);
         setProfile(null);
         setError(sessionError.message);
         setLoading(false);
-
         return;
       }
 
@@ -246,10 +233,6 @@ export function AuthProvider({
         return;
       }
 
-      /*
-       * I-delay ang database query para hindi magsagawa ng
-       * async Supabase request direkta sa auth callback.
-       */
       window.setTimeout(() => {
         if (active) {
           void loadProfileFromSession(session);
@@ -266,19 +249,30 @@ export function AuthProvider({
   const signOut = useCallback(async () => {
     setLoading(true);
 
-    const { error: signOutError } =
-      await supabase.auth.signOut();
+    try {
+      await releaseActiveSession();
 
-    if (signOutError) {
-      setError(signOutError.message);
+      const { error: signOutError } =
+        await supabase.auth.signOut({ scope: "local" });
+
+      if (signOutError) {
+        throw signOutError;
+      }
+
+      setUser(null);
+      setProfile(null);
+      setError(null);
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Unable to sign out.";
+
+      setError(message);
+      throw caughtError;
+    } finally {
       setLoading(false);
-      throw signOutError;
     }
-
-    setUser(null);
-    setProfile(null);
-    setError(null);
-    setLoading(false);
   }, []);
 
   const contextValue = useMemo<AuthContextType>(
@@ -287,10 +281,8 @@ export function AuthProvider({
       profile,
       loading,
       error,
-
       role: profile?.role ?? null,
       status: profile?.status ?? null,
-
       refreshProfile,
       signOut,
     }),

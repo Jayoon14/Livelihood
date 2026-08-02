@@ -94,7 +94,62 @@ export default function PaymentHistory() {
   ========================== */
 
   useEffect(() => {
-    void loadPayments();
+    let isMounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const initializeRealtime = async () => {
+      await loadPayments();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Customer payments realtime auth error:", userError);
+        return;
+      }
+
+      if (!user || !isMounted) {
+        return;
+      }
+
+      channel = supabase
+        .channel(`customer-payment-history-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "payments",
+            filter: `customer_id=eq.${user.id}`,
+          },
+          () => {
+            if (isMounted) {
+              void loadPayments(true);
+            }
+          },
+        )
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR") {
+            console.error("Customer payment history realtime channel error.");
+          }
+
+          if (status === "TIMED_OUT") {
+            console.error("Customer payment history realtime connection timed out.");
+          }
+        });
+    };
+
+    void initializeRealtime();
+
+    return () => {
+      isMounted = false;
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   async function loadPayments(isRefresh = false) {

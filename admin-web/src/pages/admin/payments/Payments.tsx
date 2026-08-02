@@ -11,12 +11,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -33,19 +28,9 @@ import {
 
 const PAGE_SIZE = 10;
 
-type StatusFilter =
-  | "All"
-  | "Pending"
-  | "Partially Paid"
-  | "Paid"
-  | "Rejected";
+type StatusFilter = "All" | "Pending" | "Partially Paid" | "Paid" | "Rejected";
 
-type DateFilter =
-  | "All"
-  | "Today"
-  | "This Week"
-  | "This Month"
-  | "Custom";
+type DateFilter = "All" | "Today" | "This Week" | "This Month" | "Custom";
 
 type SortOption =
   | "Newest"
@@ -82,12 +67,7 @@ function profileName(
   }
 
   return (
-    [
-      profile.first_name,
-      profile.middle_name,
-      profile.last_name,
-      profile.suffix,
-    ]
+    [profile.first_name, profile.middle_name, profile.last_name, profile.suffix]
       .map((part) => part?.trim())
       .filter((part): part is string => Boolean(part))
       .join(" ") || "Unknown user"
@@ -233,9 +213,7 @@ function isWithinDateRange(
     const start = customStart
       ? startOfDay(new Date(`${customStart}T00:00:00`))
       : null;
-    const end = customEnd
-      ? endOfDay(new Date(`${customEnd}T00:00:00`))
-      : null;
+    const end = customEnd ? endOfDay(new Date(`${customEnd}T00:00:00`)) : null;
 
     if (start && date < start) {
       return false;
@@ -262,63 +240,68 @@ export default function Payments() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("All");
-  const [dateFilter, setDateFilter] =
-    useState<DateFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("All");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [sortOption, setSortOption] =
-    useState<SortOption>("Newest");
+  const [sortOption, setSortOption] = useState<SortOption>("Newest");
   const [page, setPage] = useState(1);
-  const [expandedId, setExpandedId] =
-    useState<number | null>(null);
-  const [processingId, setProcessingId] =
-    useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectingTransaction, setRejectingTransaction] =
     useState<PaymentTransaction | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const loadPayments = useCallback(
-    async (background = false) => {
-      if (background) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadPayments = useCallback(async (background = false) => {
+    if (background) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    setError("");
+
+    try {
+      const records = await getAllPayments();
+      setPayments(records);
+      setLastUpdated(new Date());
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Unable to load payments.";
+
+      setError(message);
+
+      if (!background) {
+        toast.error(message);
       }
-
-      setError("");
-
-      try {
-        const records = await getAllPayments();
-        setPayments(records);
-        setLastUpdated(new Date());
-      } catch (caught) {
-        const message =
-          caught instanceof Error
-            ? caught.message
-            : "Unable to load payments.";
-
-        setError(message);
-
-        if (!background) {
-          toast.error(message);
-        }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [],
-  );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadPayments();
   }, [loadPayments]);
 
   useEffect(() => {
+    let mounted = true;
+
+    const scheduleRealtimeRefresh = () => {
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (mounted) {
+          void loadPayments(true);
+        }
+      }, 300);
+    };
+
     const channel = supabase
       .channel("admin-payments-page")
       .on(
@@ -328,9 +311,7 @@ export default function Payments() {
           schema: "public",
           table: "payments",
         },
-        () => {
-          void loadPayments(true);
-        },
+        scheduleRealtimeRefresh,
       )
       .on(
         "postgres_changes",
@@ -339,13 +320,30 @@ export default function Payments() {
           schema: "public",
           table: "payment_transactions",
         },
-        () => {
-          void loadPayments(true);
-        },
+        scheduleRealtimeRefresh,
       )
-      .subscribe();
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error("Admin payments realtime channel error.");
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error("Admin payments realtime connection timed out.");
+        }
+      });
 
     return () => {
+      mounted = false;
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
       void supabase.removeChannel(channel);
     };
   }, [loadPayments]);
@@ -355,8 +353,7 @@ export default function Payments() {
 
     const filtered = payments.filter((payment) => {
       const matchesStatus =
-        statusFilter === "All" ||
-        payment.payment_status === statusFilter;
+        statusFilter === "All" || payment.payment_status === statusFilter;
 
       const matchesDate = isWithinDateRange(
         payment.created_at,
@@ -375,13 +372,10 @@ export default function Payments() {
         payment.reference_number,
         payment.verification_status,
       ]
-        .map((value) =>
-          String(value ?? "").toLowerCase(),
-        )
+        .map((value) => String(value ?? "").toLowerCase())
         .join(" ");
 
-      const matchesSearch =
-        !term || searchable.includes(term);
+      const matchesSearch = !term || searchable.includes(term);
 
       return matchesStatus && matchesDate && matchesSearch;
     });
@@ -395,16 +389,10 @@ export default function Payments() {
           );
 
         case "Amount High":
-          return (
-            numericAmount(second.amount) -
-            numericAmount(first.amount)
-          );
+          return numericAmount(second.amount) - numericAmount(first.amount);
 
         case "Amount Low":
-          return (
-            numericAmount(first.amount) -
-            numericAmount(second.amount)
-          );
+          return numericAmount(first.amount) - numericAmount(second.amount);
 
         case "Customer A-Z":
           return profileName(first.customer).localeCompare(
@@ -417,9 +405,7 @@ export default function Payments() {
           );
 
         case "Status A-Z":
-          return first.payment_status.localeCompare(
-            second.payment_status,
-          );
+          return first.payment_status.localeCompare(second.payment_status);
 
         case "Newest":
         default:
@@ -490,14 +476,7 @@ export default function Payments() {
 
   useEffect(() => {
     setPage(1);
-  }, [
-    search,
-    statusFilter,
-    dateFilter,
-    customStart,
-    customEnd,
-    sortOption,
-  ]);
+  }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -505,9 +484,7 @@ export default function Payments() {
     }
   }, [page, totalPages]);
 
-  async function approveTransaction(
-    transaction: PaymentTransaction,
-  ) {
+  async function approveTransaction(transaction: PaymentTransaction) {
     const confirmed = await confirmAction(
       `Approve ${money(transaction.amount)} via ${
         transaction.payment_method || "payment"
@@ -523,22 +500,15 @@ export default function Payments() {
     }
 
     setProcessingId(transaction.id);
-    const toastId = toast.loading(
-      "Approving payment transaction...",
-    );
+    const toastId = toast.loading("Approving payment transaction...");
 
     try {
       await approvePaymentTransaction(transaction.id);
-      toast.success(
-        "Payment transaction approved.",
-        { id: toastId },
-      );
+      toast.success("Payment transaction approved.", { id: toastId });
       await loadPayments(true);
     } catch (caught) {
       toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Approval failed.",
+        caught instanceof Error ? caught.message : "Approval failed.",
         { id: toastId },
       );
     } finally {
@@ -560,29 +530,19 @@ export default function Payments() {
 
     setProcessingId(rejectingTransaction.id);
 
-    const toastId = toast.loading(
-      "Rejecting payment transaction...",
-    );
+    const toastId = toast.loading("Rejecting payment transaction...");
 
     try {
-      await rejectPaymentTransaction(
-        rejectingTransaction.id,
-        reason,
-      );
+      await rejectPaymentTransaction(rejectingTransaction.id, reason);
 
-      toast.success(
-        "Payment transaction rejected.",
-        { id: toastId },
-      );
+      toast.success("Payment transaction rejected.", { id: toastId });
 
       setRejectingTransaction(null);
       setRejectionReason("");
       await loadPayments(true);
     } catch (caught) {
       toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Rejection failed.",
+        caught instanceof Error ? caught.message : "Rejection failed.",
         { id: toastId },
       );
     } finally {
@@ -628,9 +588,7 @@ export default function Payments() {
 
     const csv = [
       headers.map(csvEscape).join(","),
-      ...rows.map((row) =>
-        row.map(csvEscape).join(","),
-      ),
+      ...rows.map((row) => row.map(csvEscape).join(",")),
     ].join("\n");
 
     const blob = new Blob([`\uFEFF${csv}`], {
@@ -639,9 +597,7 @@ export default function Payments() {
 
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
-    const date = new Date()
-      .toISOString()
-      .slice(0, 10);
+    const date = new Date().toISOString().slice(0, 10);
 
     anchor.href = url;
     anchor.download = `payments-${date}.csv`;
@@ -687,8 +643,7 @@ export default function Payments() {
 
             {lastUpdated && (
               <p className="mt-1 text-xs text-slate-400">
-                Last updated:{" "}
-                {formatDateTime(lastUpdated.toISOString())}
+                Last updated: {formatDateTime(lastUpdated.toISOString())}
               </p>
             )}
           </div>
@@ -720,9 +675,7 @@ export default function Payments() {
             >
               <RefreshCw
                 className={`h-4 w-4 ${
-                  loading || refreshing
-                    ? "animate-spin"
-                    : ""
+                  loading || refreshing ? "animate-spin" : ""
                 }`}
               />
               {refreshing ? "Refreshing..." : "Refresh"}
@@ -754,9 +707,7 @@ export default function Payments() {
 
           <SummaryCard
             title="Pending"
-            value={(
-              totals.pending + totals.partiallyPaid
-            ).toLocaleString()}
+            value={(totals.pending + totals.partiallyPaid).toLocaleString()}
             subtitle={`${totals.partiallyPaid} partially paid`}
             icon={<CalendarDays className="h-5 w-5" />}
           />
@@ -775,9 +726,7 @@ export default function Payments() {
 
             <input
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search ID, booking, customer, worker, method..."
               className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-blue-500 dark:border-slate-700"
             />
@@ -786,9 +735,7 @@ export default function Payments() {
           <select
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(
-                event.target.value as StatusFilter,
-              )
+              setStatusFilter(event.target.value as StatusFilter)
             }
             className="rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 dark:border-slate-700"
           >
@@ -802,9 +749,7 @@ export default function Payments() {
           <select
             value={dateFilter}
             onChange={(event) =>
-              setDateFilter(
-                event.target.value as DateFilter,
-              )
+              setDateFilter(event.target.value as DateFilter)
             }
             className="rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 dark:border-slate-700"
           >
@@ -818,9 +763,7 @@ export default function Payments() {
           <select
             value={sortOption}
             onChange={(event) =>
-              setSortOption(
-                event.target.value as SortOption,
-              )
+              setSortOption(event.target.value as SortOption)
             }
             className="rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 dark:border-slate-700"
           >
@@ -851,9 +794,7 @@ export default function Payments() {
                 <input
                   type="date"
                   value={customStart}
-                  onChange={(event) =>
-                    setCustomStart(event.target.value)
-                  }
+                  onChange={(event) => setCustomStart(event.target.value)}
                   max={customEnd || undefined}
                   className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700"
                 />
@@ -867,9 +808,7 @@ export default function Payments() {
                 <input
                   type="date"
                   value={customEnd}
-                  onChange={(event) =>
-                    setCustomEnd(event.target.value)
-                  }
+                  onChange={(event) => setCustomEnd(event.target.value)}
                   min={customStart || undefined}
                   className="w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700"
                 />
@@ -885,9 +824,7 @@ export default function Payments() {
             </div>
           ) : error ? (
             <div className="p-12 text-center">
-              <p className="text-sm font-semibold text-red-600">
-                {error}
-              </p>
+              <p className="text-sm font-semibold text-red-600">{error}</p>
 
               <button
                 type="button"
@@ -906,60 +843,30 @@ export default function Payments() {
               <table className="w-full min-w-290 text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60">
                   <tr>
-                    <th className="px-4 py-3">
-                      Payment
-                    </th>
-                    <th className="px-4 py-3">
-                      Customer / Worker
-                    </th>
-                    <th className="px-4 py-3">
-                      Total
-                    </th>
-                    <th className="px-4 py-3">
-                      Paid
-                    </th>
-                    <th className="px-4 py-3">
-                      Balance
-                    </th>
-                    <th className="px-4 py-3">
-                      Status
-                    </th>
-                    <th className="px-4 py-3">
-                      Transactions
-                    </th>
-                    <th className="px-4 py-3 print:hidden">
-                      Action
-                    </th>
+                    <th className="px-4 py-3">Payment</th>
+                    <th className="px-4 py-3">Customer / Worker</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Paid</th>
+                    <th className="px-4 py-3">Balance</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Transactions</th>
+                    <th className="px-4 py-3 print:hidden">Action</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {visiblePayments.map((payment) => {
-                    const transactions =
-                      payment.payment_transactions ?? [];
-                    const expanded =
-                      expandedId === payment.id;
-                    const customerId = profileId(
-                      payment.customer,
-                    );
-                    const workerId = profileId(
-                      payment.worker,
-                    );
+                    const transactions = payment.payment_transactions ?? [];
+                    const expanded = expandedId === payment.id;
+                    const customerId = profileId(payment.customer);
+                    const workerId = profileId(payment.worker);
 
                     return (
-                      <tr
-                        key={payment.id}
-                        className="align-top"
-                      >
-                        <td
-                          colSpan={8}
-                          className="p-0"
-                        >
+                      <tr key={payment.id} className="align-top">
+                        <td colSpan={8} className="p-0">
                           <div className="grid min-w-290 grid-cols-[120px_1.7fr_120px_120px_120px_150px_120px_120px] items-center">
                             <div className="px-4 py-4">
-                              <div className="font-bold">
-                                #{payment.id}
-                              </div>
+                              <div className="font-bold">#{payment.id}</div>
 
                               <Link
                                 to={`/bookings/${payment.booking_id}`}
@@ -1032,11 +939,7 @@ export default function Payments() {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setExpandedId(
-                                    expanded
-                                      ? null
-                                      : payment.id,
-                                  )
+                                  setExpandedId(expanded ? null : payment.id)
                                 }
                                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                               >
@@ -1059,8 +962,7 @@ export default function Payments() {
                                 </h3>
 
                                 <span className="text-xs text-slate-500">
-                                  Verification:{" "}
-                                  {payment.verification_status}
+                                  Verification: {payment.verification_status}
                                 </span>
                               </div>
 
@@ -1070,115 +972,100 @@ export default function Payments() {
                                 </p>
                               ) : (
                                 <div className="space-y-2">
-                                  {transactions.map(
-                                    (transaction) => (
-                                      <div
-                                        key={transaction.id}
-                                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
-                                      >
-                                        <div>
-                                          <div className="font-semibold">
-                                            {money(
-                                              transaction.amount,
-                                            )}{" "}
-                                            ·{" "}
-                                            {transaction.payment_method ||
-                                              "Unknown method"}
-                                          </div>
-
-                                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                            <span>
-                                              Reference:{" "}
-                                              {transaction.reference_number ||
-                                                "Not required"}
-                                            </span>
-
-                                            <span
-                                              className={`rounded-full px-2 py-0.5 font-bold ${transactionStatusClass(
-                                                transaction.transaction_status,
-                                              )}`}
-                                            >
-                                              {
-                                                transaction.transaction_status
-                                              }
-                                            </span>
-
-                                            <span>
-                                              {formatDateTime(
-                                                transaction.created_at,
-                                              )}
-                                            </span>
-                                          </div>
-
-                                          {transaction.rejection_reason && (
-                                            <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
-                                              Reason:{" "}
-                                              {
-                                                transaction.rejection_reason
-                                              }
-                                            </p>
-                                          )}
+                                  {transactions.map((transaction) => (
+                                    <div
+                                      key={transaction.id}
+                                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                                    >
+                                      <div>
+                                        <div className="font-semibold">
+                                          {money(transaction.amount)} ·{" "}
+                                          {transaction.payment_method ||
+                                            "Unknown method"}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2 print:hidden">
-                                          {transaction.proof_of_payment && (
-                                            <a
-                                              href={
-                                                transaction.proof_of_payment
-                                              }
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-                                            >
-                                              View proof
-                                            </a>
-                                          )}
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                          <span>
+                                            Reference:{" "}
+                                            {transaction.reference_number ||
+                                              "Not required"}
+                                          </span>
 
-                                          {transaction.transaction_status ===
-                                            "Pending" && (
-                                            <>
-                                              <button
-                                                type="button"
-                                                disabled={
-                                                  processingId ===
-                                                  transaction.id
-                                                }
-                                                onClick={() =>
-                                                  void approveTransaction(
-                                                    transaction,
-                                                  )
-                                                }
-                                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-                                              >
-                                                <CheckCircle2 className="h-4 w-4" />
-                                                Approve
-                                              </button>
+                                          <span
+                                            className={`rounded-full px-2 py-0.5 font-bold ${transactionStatusClass(
+                                              transaction.transaction_status,
+                                            )}`}
+                                          >
+                                            {transaction.transaction_status}
+                                          </span>
 
-                                              <button
-                                                type="button"
-                                                disabled={
-                                                  processingId ===
-                                                  transaction.id
-                                                }
-                                                onClick={() => {
-                                                  setRejectingTransaction(
-                                                    transaction,
-                                                  );
-                                                  setRejectionReason(
-                                                    "",
-                                                  );
-                                                }}
-                                                className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                                              >
-                                                <XCircle className="h-4 w-4" />
-                                                Reject
-                                              </button>
-                                            </>
-                                          )}
+                                          <span>
+                                            {formatDateTime(
+                                              transaction.created_at,
+                                            )}
+                                          </span>
                                         </div>
+
+                                        {transaction.rejection_reason && (
+                                          <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+                                            Reason:{" "}
+                                            {transaction.rejection_reason}
+                                          </p>
+                                        )}
                                       </div>
-                                    ),
-                                  )}
+
+                                      <div className="flex flex-wrap gap-2 print:hidden">
+                                        {transaction.proof_of_payment && (
+                                          <a
+                                            href={transaction.proof_of_payment}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                                          >
+                                            View proof
+                                          </a>
+                                        )}
+
+                                        {transaction.transaction_status ===
+                                          "Pending" && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              disabled={
+                                                processingId === transaction.id
+                                              }
+                                              onClick={() =>
+                                                void approveTransaction(
+                                                  transaction,
+                                                )
+                                              }
+                                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                            >
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              Approve
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              disabled={
+                                                processingId === transaction.id
+                                              }
+                                              onClick={() => {
+                                                setRejectingTransaction(
+                                                  transaction,
+                                                );
+                                                setRejectionReason("");
+                                              }}
+                                              className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                                            >
+                                              <XCircle className="h-4 w-4" />
+                                              Reject
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -1192,56 +1079,41 @@ export default function Payments() {
             </div>
           )}
 
-          {!loading &&
-            !error &&
-            filteredPayments.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700 print:hidden">
+          {!loading && !error && filteredPayments.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700 print:hidden">
+              <span>
+                Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filteredPayments.length)} of{" "}
+                {filteredPayments.length}
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700"
+                >
+                  Previous
+                </button>
+
                 <span>
-                  Showing{" "}
-                  {(page - 1) * PAGE_SIZE + 1}–
-                  {Math.min(
-                    page * PAGE_SIZE,
-                    filteredPayments.length,
-                  )}{" "}
-                  of {filteredPayments.length}
+                  Page {page} of {totalPages}
                 </span>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page === 1}
-                    onClick={() =>
-                      setPage((value) =>
-                        Math.max(1, value - 1),
-                      )
-                    }
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700"
-                  >
-                    Previous
-                  </button>
-
-                  <span>
-                    Page {page} of {totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={page === totalPages}
-                    onClick={() =>
-                      setPage((value) =>
-                        Math.min(
-                          totalPages,
-                          value + 1,
-                        ),
-                      )
-                    }
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700"
-                  >
-                    Next
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={page === totalPages}
+                  onClick={() =>
+                    setPage((value) => Math.min(totalPages, value + 1))
+                  }
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700"
+                >
+                  Next
+                </button>
               </div>
-            )}
+            </div>
+          )}
         </section>
 
         <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-700 dark:bg-slate-900">
@@ -1253,10 +1125,7 @@ export default function Payments() {
             label="Pending verification"
             value={totals.pending.toLocaleString()}
           />
-          <FooterStat
-            label="Fully paid"
-            value={totals.paid.toLocaleString()}
-          />
+          <FooterStat label="Fully paid" value={totals.paid.toLocaleString()} />
           <FooterStat
             label="Filtered revenue"
             value={money(totals.totalPaid)}
@@ -1272,10 +1141,7 @@ export default function Payments() {
             aria-labelledby="reject-payment-title"
             className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900"
           >
-            <h2
-              id="reject-payment-title"
-              className="text-lg font-bold"
-            >
+            <h2 id="reject-payment-title" className="text-lg font-bold">
               Reject payment transaction
             </h2>
 
@@ -1285,9 +1151,7 @@ export default function Payments() {
 
             <textarea
               value={rejectionReason}
-              onChange={(event) =>
-                setRejectionReason(event.target.value)
-              }
+              onChange={(event) => setRejectionReason(event.target.value)}
               rows={4}
               maxLength={500}
               autoFocus
@@ -1306,9 +1170,7 @@ export default function Payments() {
                   setRejectingTransaction(null);
                   setRejectionReason("");
                 }}
-                disabled={
-                  processingId === rejectingTransaction.id
-                }
+                disabled={processingId === rejectingTransaction.id}
                 className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700"
               >
                 Cancel
@@ -1362,20 +1224,12 @@ function SummaryCard({
         {value}
       </p>
 
-      <p className="mt-1 text-xs text-slate-400">
-        {subtitle}
-      </p>
+      <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
     </article>
   );
 }
 
-function FooterStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function FooterStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">

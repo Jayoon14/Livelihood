@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -45,12 +46,7 @@ const STATUS_OPTIONS = [
 
 type StatusFilter = (typeof STATUS_OPTIONS)[number];
 
-type DateFilter =
-  | "All"
-  | "Today"
-  | "This Week"
-  | "This Month"
-  | "Custom";
+type DateFilter = "All" | "Today" | "This Week" | "This Month" | "Custom";
 
 type SortOption =
   | "Newest"
@@ -69,11 +65,7 @@ function profileName(
     return "Unknown user";
   }
 
-  const composed = [
-    profile.first_name,
-    profile.middle_name,
-    profile.last_name,
-  ]
+  const composed = [profile.first_name, profile.middle_name, profile.last_name]
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part))
     .join(" ")
@@ -246,9 +238,7 @@ function isWithinDateRange(
     const start = customStart
       ? startOfDay(new Date(`${customStart}T00:00:00`))
       : null;
-    const end = customEnd
-      ? endOfDay(new Date(`${customEnd}T00:00:00`))
-      : null;
+    const end = customEnd ? endOfDay(new Date(`${customEnd}T00:00:00`)) : null;
 
     if (start && date < start) {
       return false;
@@ -272,19 +262,16 @@ export default function Bookings() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("All");
-  const [dateFilter, setDateFilter] =
-    useState<DateFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("All");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [sortOption, setSortOption] =
-    useState<SortOption>("Newest");
+  const [sortOption, setSortOption] = useState<SortOption>("Newest");
   const [page, setPage] = useState(1);
-  const [processingId, setProcessingId] =
-    useState<number | null>(null);
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadBookings = useCallback(async (background = false) => {
     if (background) {
@@ -321,6 +308,20 @@ export default function Bookings() {
   }, [loadBookings]);
 
   useEffect(() => {
+    let mounted = true;
+
+    const scheduleRealtimeRefresh = () => {
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+
+      realtimeTimerRef.current = setTimeout(() => {
+        if (mounted) {
+          void loadBookings(true);
+        }
+      }, 300);
+    };
+
     const channel = supabase
       .channel("admin-bookings-page")
       .on(
@@ -330,39 +331,46 @@ export default function Bookings() {
           schema: "public",
           table: "bookings",
         },
-        () => {
-          void loadBookings(true);
-        },
+        scheduleRealtimeRefresh,
       )
-      .subscribe();
+      .subscribe((subscriptionStatus) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (subscriptionStatus === "CHANNEL_ERROR") {
+          console.error("Admin bookings realtime channel error.");
+        }
+
+        if (subscriptionStatus === "TIMED_OUT") {
+          console.error("Admin bookings realtime connection timed out.");
+        }
+      });
 
     return () => {
+      mounted = false;
+
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = null;
+      }
+
       void supabase.removeChannel(channel);
     };
   }, [loadBookings]);
 
   useEffect(() => {
     setPage(1);
-  }, [
-    search,
-    statusFilter,
-    dateFilter,
-    customStart,
-    customEnd,
-    sortOption,
-  ]);
+  }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
 
   const filteredBookings = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     const filtered = bookings.filter((booking) => {
-      const canonicalStatus = normalizeAdminBookingStatus(
-        booking.status,
-      );
+      const canonicalStatus = normalizeAdminBookingStatus(booking.status);
 
       const matchesStatus =
-        statusFilter === "All" ||
-        canonicalStatus === statusFilter;
+        statusFilter === "All" || canonicalStatus === statusFilter;
 
       const matchesDate = isWithinDateRange(
         booking.booking_date,
@@ -389,7 +397,9 @@ export default function Bookings() {
           booking.completion_status,
           booking.payment_status,
         ].some((value) =>
-          String(value ?? "").toLowerCase().includes(query),
+          String(value ?? "")
+            .toLowerCase()
+            .includes(query),
         );
 
       return matchesStatus && matchesDate && matchesSearch;
@@ -405,14 +415,12 @@ export default function Bookings() {
 
         case "Schedule Soonest":
           return (
-            bookingScheduleTimestamp(first) -
-            bookingScheduleTimestamp(second)
+            bookingScheduleTimestamp(first) - bookingScheduleTimestamp(second)
           );
 
         case "Schedule Latest":
           return (
-            bookingScheduleTimestamp(second) -
-            bookingScheduleTimestamp(first)
+            bookingScheduleTimestamp(second) - bookingScheduleTimestamp(first)
           );
 
         case "Customer A-Z":
@@ -431,9 +439,7 @@ export default function Bookings() {
           );
 
         case "Status A-Z":
-          return normalizeAdminBookingStatus(
-            first.status,
-          ).localeCompare(
+          return normalizeAdminBookingStatus(first.status).localeCompare(
             normalizeAdminBookingStatus(second.status),
           );
 
@@ -460,9 +466,7 @@ export default function Bookings() {
       (result, booking) => {
         result.total += 1;
 
-        const status = normalizeAdminBookingStatus(
-          booking.status,
-        );
+        const status = normalizeAdminBookingStatus(booking.status);
 
         if (status === ADMIN_BOOKING_STATUS.PENDING) {
           result.pending += 1;
@@ -516,9 +520,7 @@ export default function Bookings() {
     booking: AdminBooking,
     nextStatus: AdminBookingStatus,
   ) {
-    const currentStatus = normalizeAdminBookingStatus(
-      booking.status,
-    );
+    const currentStatus = normalizeAdminBookingStatus(booking.status);
 
     const confirmed = await confirmAction(
       `Change booking #${booking.id} from ${currentStatus} to ${nextStatus}?`,
@@ -544,26 +546,18 @@ export default function Bookings() {
 
     setProcessingId(booking.id);
 
-    const toastId = toast.loading(
-      "Updating booking status...",
-    );
+    const toastId = toast.loading("Updating booking status...");
 
     try {
-      const updated = await updateBookingStatus(
-        booking.id,
-        nextStatus,
-      );
+      const updated = await updateBookingStatus(booking.id, nextStatus);
 
       setBookings((current) =>
-        current.map((item) =>
-          item.id === updated.id ? updated : item,
-        ),
+        current.map((item) => (item.id === updated.id ? updated : item)),
       );
 
-      toast.success(
-        `Booking #${booking.id} is now ${nextStatus}.`,
-        { id: toastId },
-      );
+      toast.success(`Booking #${booking.id} is now ${nextStatus}.`, {
+        id: toastId,
+      });
     } catch (updateError) {
       toast.error(
         updateError instanceof Error
@@ -620,9 +614,7 @@ export default function Bookings() {
 
     const csv = [
       headers.map(csvEscape).join(","),
-      ...rows.map((row) =>
-        row.map(csvEscape).join(","),
-      ),
+      ...rows.map((row) => row.map(csvEscape).join(",")),
     ].join("\n");
 
     const blob = new Blob([`\uFEFF${csv}`], {
@@ -633,9 +625,7 @@ export default function Bookings() {
     const anchor = document.createElement("a");
 
     anchor.href = url;
-    anchor.download = `bookings-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    anchor.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`;
 
     document.body.appendChild(anchor);
     anchor.click();
@@ -678,8 +668,7 @@ export default function Bookings() {
 
             {lastUpdated && (
               <p className="mt-1 text-xs text-slate-400">
-                Last updated:{" "}
-                {formatDateTime(lastUpdated.toISOString())}
+                Last updated: {formatDateTime(lastUpdated.toISOString())}
               </p>
             )}
           </div>
@@ -711,9 +700,7 @@ export default function Bookings() {
             >
               <RefreshCw
                 className={`h-4 w-4 ${
-                  loading || refreshing
-                    ? "animate-spin"
-                    : ""
+                  loading || refreshing ? "animate-spin" : ""
                 }`}
               />
               {refreshing ? "Refreshing..." : "Refresh"}
@@ -760,9 +747,7 @@ export default function Bookings() {
 
             <input
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search ID, customer, worker, service, address, or status"
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
@@ -771,17 +756,13 @@ export default function Bookings() {
           <select
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(
-                event.target.value as StatusFilter,
-              )
+              setStatusFilter(event.target.value as StatusFilter)
             }
             className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {status === "All"
-                  ? "All statuses"
-                  : status}
+                {status === "All" ? "All statuses" : status}
               </option>
             ))}
           </select>
@@ -789,9 +770,7 @@ export default function Bookings() {
           <select
             value={dateFilter}
             onChange={(event) =>
-              setDateFilter(
-                event.target.value as DateFilter,
-              )
+              setDateFilter(event.target.value as DateFilter)
             }
             className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
@@ -805,9 +784,7 @@ export default function Bookings() {
           <select
             value={sortOption}
             onChange={(event) =>
-              setSortOption(
-                event.target.value as SortOption,
-              )
+              setSortOption(event.target.value as SortOption)
             }
             className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
           >
@@ -838,9 +815,7 @@ export default function Bookings() {
                 <input
                   type="date"
                   value={customStart}
-                  onChange={(event) =>
-                    setCustomStart(event.target.value)
-                  }
+                  onChange={(event) => setCustomStart(event.target.value)}
                   max={customEnd || undefined}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"
                 />
@@ -853,9 +828,7 @@ export default function Bookings() {
                 <input
                   type="date"
                   value={customEnd}
-                  onChange={(event) =>
-                    setCustomEnd(event.target.value)
-                  }
+                  onChange={(event) => setCustomEnd(event.target.value)}
                   min={customStart || undefined}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"
                 />
@@ -871,9 +844,7 @@ export default function Bookings() {
             </div>
           ) : error ? (
             <div className="p-12 text-center">
-              <p className="font-semibold text-red-600">
-                {error}
-              </p>
+              <p className="font-semibold text-red-600">{error}</p>
               <button
                 type="button"
                 onClick={() => void loadBookings()}
@@ -891,38 +862,22 @@ export default function Bookings() {
               <table className="w-full min-w-7xl">
                 <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                   <tr>
-                    <th className="px-5 py-4">
-                      Booking
-                    </th>
-                    <th className="px-5 py-4">
-                      Customer
-                    </th>
-                    <th className="px-5 py-4">
-                      Worker
-                    </th>
-                    <th className="px-5 py-4">
-                      Schedule
-                    </th>
-                    <th className="px-5 py-4">
-                      Workflow
-                    </th>
-                    <th className="px-5 py-4">
-                      Status
-                    </th>
-                    <th className="px-5 py-4 print:hidden">
-                      Actions
-                    </th>
+                    <th className="px-5 py-4">Booking</th>
+                    <th className="px-5 py-4">Customer</th>
+                    <th className="px-5 py-4">Worker</th>
+                    <th className="px-5 py-4">Schedule</th>
+                    <th className="px-5 py-4">Workflow</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 print:hidden">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {visibleBookings.map((booking) => {
-                    const isProcessing =
-                      processingId === booking.id;
-                    const canonicalStatus =
-                      normalizeAdminBookingStatus(
-                        booking.status,
-                      );
+                    const isProcessing = processingId === booking.id;
+                    const canonicalStatus = normalizeAdminBookingStatus(
+                      booking.status,
+                    );
 
                     return (
                       <tr
@@ -935,15 +890,11 @@ export default function Bookings() {
                           </p>
 
                           <p className="text-xs text-slate-500">
-                            {booking.service_name ||
-                              "Service booking"}
+                            {booking.service_name || "Service booking"}
                           </p>
 
                           <p className="mt-1 text-xs text-slate-400">
-                            Created{" "}
-                            {formatDateTime(
-                              booking.created_at,
-                            )}
+                            Created {formatDateTime(booking.created_at)}
                           </p>
                         </td>
 
@@ -956,8 +907,7 @@ export default function Bookings() {
                           </Link>
 
                           <p className="text-xs text-slate-500">
-                            {booking.customer?.email ||
-                              "No email"}
+                            {booking.customer?.email || "No email"}
                           </p>
                         </td>
 
@@ -970,21 +920,15 @@ export default function Bookings() {
                           </Link>
 
                           <p className="text-xs text-slate-500">
-                            {booking.worker?.email ||
-                              "No email"}
+                            {booking.worker?.email || "No email"}
                           </p>
                         </td>
 
                         <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
-                          <p>
-                            {formatDate(
-                              booking.booking_date,
-                            )}
-                          </p>
+                          <p>{formatDate(booking.booking_date)}</p>
 
                           <p className="text-xs text-slate-500">
-                            {booking.booking_time ||
-                              "Time not set"}
+                            {booking.booking_time || "Time not set"}
                           </p>
                         </td>
 
@@ -992,9 +936,7 @@ export default function Bookings() {
                           <div className="flex max-w-65 flex-wrap gap-1.5">
                             <StatusPill
                               label="Schedule"
-                              value={
-                                booking.schedule_status
-                              }
+                              value={booking.schedule_status}
                             />
                             <StatusPill
                               label="Trip"
@@ -1002,15 +944,11 @@ export default function Bookings() {
                             />
                             <StatusPill
                               label="Completion"
-                              value={
-                                booking.completion_status
-                              }
+                              value={booking.completion_status}
                             />
                             <StatusPill
                               label="Payment"
-                              value={
-                                booking.payment_status
-                              }
+                              value={booking.payment_status}
                             />
                           </div>
                         </td>
@@ -1117,58 +1055,41 @@ export default function Bookings() {
             </div>
           )}
 
-          {!loading &&
-            !error &&
-            filteredBookings.length > 0 && (
-              <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
-                <p className="text-sm text-slate-500">
-                  Showing{" "}
-                  {(currentPage - 1) * PAGE_SIZE + 1}–
-                  {Math.min(
-                    currentPage * PAGE_SIZE,
-                    filteredBookings.length,
-                  )}{" "}
-                  of {filteredBookings.length}
-                </p>
+          {!loading && !error && filteredBookings.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
+              <p className="text-sm text-slate-500">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filteredBookings.length)} of{" "}
+                {filteredBookings.length}
+              </p>
 
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPage((value) =>
-                        Math.max(1, value - 1),
-                      )
-                    }
-                    disabled={currentPage === 1}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700"
-                  >
-                    Previous
-                  </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700"
+                >
+                  Previous
+                </button>
 
-                  <span className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
-                    Page {currentPage} of {totalPages}
-                  </span>
+                <span className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
+                  Page {currentPage} of {totalPages}
+                </span>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPage((value) =>
-                        Math.min(
-                          totalPages,
-                          value + 1,
-                        ),
-                      )
-                    }
-                    disabled={
-                      currentPage === totalPages
-                    }
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700"
-                  >
-                    Next
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPage((value) => Math.min(totalPages, value + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700"
+                >
+                  Next
+                </button>
               </div>
-            )}
+            </div>
+          )}
         </section>
       </div>
     </AdminLayout>

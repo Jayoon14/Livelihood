@@ -1,17 +1,6 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import {
-  Bell,
-  CheckCheck,
-  LoaderCircle,
-  RefreshCw,
-  X,
-} from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Bell, CheckCheck, LoaderCircle, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -59,8 +48,16 @@ function getNotificationRoute(
   notification: Notification,
   role: "worker" | "customer",
 ): string {
-  const text =
-    `${notification.title} ${notification.message}`.toLowerCase();
+  const text = `${notification.title} ${notification.message}`.toLowerCase();
+
+  if (
+    text.includes("security") ||
+    text.includes("sign-in attempt") ||
+    text.includes("another device") ||
+    text.includes("password")
+  ) {
+    return role === "worker" ? "/worker/settings" : "/customer/settings";
+  }
 
   if (text.includes("message") || text.includes("chat")) {
     return notification.booking_id
@@ -116,9 +113,11 @@ function playNotificationSound(): void {
   try {
     const AudioContextClass =
       window.AudioContext ||
-      (window as typeof window & {
-        webkitAudioContext?: typeof AudioContext;
-      }).webkitAudioContext;
+      (
+        window as typeof window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
 
     if (!AudioContextClass) {
       return;
@@ -183,28 +182,23 @@ export default function NotificationDropdown({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
-  const [processingIds, setProcessingIds] = useState<Set<number>>(
-    new Set(),
-  );
+  const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const [toastNotification, setToastNotification] =
     useState<Notification | null>(null);
 
-  const setProcessing = useCallback(
-    (id: number, active: boolean): void => {
-      setProcessingIds((current) => {
-        const next = new Set(current);
+  const setProcessing = useCallback((id: number, active: boolean): void => {
+    setProcessingIds((current) => {
+      const next = new Set(current);
 
-        if (active) {
-          next.add(id);
-        } else {
-          next.delete(id);
-        }
+      if (active) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
 
-        return next;
-      });
-    },
-    [],
-  );
+      return next;
+    });
+  }, []);
 
   const loadNotifications = useCallback(
     async (showRefresh = false): Promise<void> => {
@@ -226,10 +220,7 @@ export default function NotificationDropdown({
         setNotifications(page.items);
         setUnreadCount(count);
       } catch (error) {
-        const message = getErrorMessage(
-          error,
-          "Unable to load notifications.",
-        );
+        const message = getErrorMessage(error, "Unable to load notifications.");
 
         console.error(message, error);
 
@@ -250,8 +241,7 @@ export default function NotificationDropdown({
 
     async function initialize(): Promise<void> {
       try {
-        const currentUserId =
-          await getCurrentNotificationUserId();
+        const currentUserId = await getCurrentNotificationUserId();
 
         if (isCancelled) {
           return;
@@ -265,9 +255,7 @@ export default function NotificationDropdown({
         }
 
         channel = supabase
-          .channel(
-            `${role}-notification-dropdown-${currentUserId}`,
-          )
+          .channel(`${role}-notification-dropdown-${currentUserId}`)
           .on(
             "postgres_changes",
             {
@@ -276,9 +264,7 @@ export default function NotificationDropdown({
               table: "notifications",
               filter: `user_id=eq.${currentUserId}`,
             },
-            (
-              payload: RealtimePostgresChangesPayload<Notification>,
-            ) => {
+            (payload: RealtimePostgresChangesPayload<Notification>) => {
               if (isCancelled) {
                 return;
               }
@@ -289,9 +275,7 @@ export default function NotificationDropdown({
                 setNotifications((current) =>
                   sortNotifications([
                     newNotification,
-                    ...current.filter(
-                      (item) => item.id !== newNotification.id,
-                    ),
+                    ...current.filter((item) => item.id !== newNotification.id),
                   ]).slice(0, DROPDOWN_PAGE_SIZE),
                 );
 
@@ -314,30 +298,29 @@ export default function NotificationDropdown({
               if (payload.eventType === "UPDATE") {
                 const updatedNotification = payload.new;
 
-                setNotifications((current) =>
-                  sortNotifications(
+                setNotifications((current) => {
+                  const existing = current.find(
+                    (item) => item.id === updatedNotification.id,
+                  );
+
+                  if (existing) {
+                    const wasUnread = !existing.is_read;
+                    const isUnread = !updatedNotification.is_read;
+
+                    if (wasUnread !== isUnread) {
+                      setUnreadCount((count) =>
+                        isUnread ? count + 1 : Math.max(0, count - 1),
+                      );
+                    }
+                  }
+
+                  return sortNotifications(
                     current.map((item) =>
                       item.id === updatedNotification.id
                         ? updatedNotification
                         : item,
                     ),
-                  ),
-                );
-
-                setUnreadCount((current) => {
-                  const previous = payload.old as Partial<Notification>;
-                  const wasUnread = previous.is_read === false;
-                  const isUnread = updatedNotification.is_read === false;
-
-                  if (wasUnread && !isUnread) {
-                    return Math.max(0, current - 1);
-                  }
-
-                  if (!wasUnread && isUnread) {
-                    return current + 1;
-                  }
-
-                  return current;
+                  );
                 });
 
                 return;
@@ -346,25 +329,40 @@ export default function NotificationDropdown({
               if (payload.eventType === "DELETE") {
                 const deleted = payload.old as Partial<Notification>;
 
-                setNotifications((current) =>
-                  current.filter((item) => item.id !== deleted.id),
-                );
-
-                if (deleted.is_read === false) {
-                  setUnreadCount((current) =>
-                    Math.max(0, current - 1),
+                setNotifications((current) => {
+                  const existing = current.find(
+                    (item) => item.id === deleted.id,
                   );
-                }
+
+                  if (existing && !existing.is_read) {
+                    setUnreadCount((count) => Math.max(0, count - 1));
+                  }
+
+                  return current.filter((item) => item.id !== deleted.id);
+                });
               }
             },
           )
-          .subscribe();
+          .subscribe((subscriptionStatus) => {
+            if (isCancelled) {
+              return;
+            }
+
+            if (subscriptionStatus === "CHANNEL_ERROR") {
+              console.error(
+                `${role} notification dropdown realtime channel error.`,
+              );
+            }
+
+            if (subscriptionStatus === "TIMED_OUT") {
+              console.error(
+                `${role} notification dropdown realtime connection timed out.`,
+              );
+            }
+          });
       } catch (error) {
         if (!isCancelled) {
-          console.error(
-            "Initialize notification dropdown error:",
-            error,
-          );
+          console.error("Initialize notification dropdown error:", error);
         }
       }
     }
@@ -393,10 +391,7 @@ export default function NotificationDropdown({
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside,
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -430,19 +425,14 @@ export default function NotificationDropdown({
       }
     } catch (error) {
       toast.error(
-        getErrorMessage(
-          error,
-          "Unable to mark the notification as read.",
-        ),
+        getErrorMessage(error, "Unable to mark the notification as read."),
       );
     } finally {
       setProcessing(id, false);
     }
   }
 
-  async function handleDelete(
-    notification: Notification,
-  ): Promise<void> {
+  async function handleDelete(notification: Notification): Promise<void> {
     if (processingIds.has(notification.id)) {
       return;
     }
@@ -457,17 +447,10 @@ export default function NotificationDropdown({
       );
 
       if (!notification.is_read) {
-        setUnreadCount((current) =>
-          Math.max(0, current - 1),
-        );
+        setUnreadCount((current) => Math.max(0, current - 1));
       }
     } catch (error) {
-      toast.error(
-        getErrorMessage(
-          error,
-          "Unable to delete the notification.",
-        ),
-      );
+      toast.error(getErrorMessage(error, "Unable to delete the notification."));
     } finally {
       setProcessing(notification.id, false);
     }
@@ -492,10 +475,7 @@ export default function NotificationDropdown({
       setUnreadCount(0);
     } catch (error) {
       toast.error(
-        getErrorMessage(
-          error,
-          "Unable to mark all notifications as read.",
-        ),
+        getErrorMessage(error, "Unable to mark all notifications as read."),
       );
     } finally {
       setMarkingAll(false);
@@ -557,9 +537,7 @@ export default function NotificationDropdown({
                 aria-label="Refresh notifications"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${
-                    refreshing ? "animate-spin" : ""
-                  }`}
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
                 />
               </button>
 
@@ -578,9 +556,7 @@ export default function NotificationDropdown({
             <button
               type="button"
               onClick={() => void handleMarkAllRead()}
-              disabled={
-                markingAll || unreadCount === 0 || !userId
-              }
+              disabled={markingAll || unreadCount === 0 || !userId}
               className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-300"
             >
               {markingAll ? (
@@ -588,7 +564,6 @@ export default function NotificationDropdown({
               ) : (
                 <CheckCheck className="h-4 w-4" />
               )}
-
               Mark all as read
             </button>
 

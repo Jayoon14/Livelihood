@@ -39,16 +39,17 @@ interface PendingWorkerLocation {
   location: WorkerLocation;
 }
 
-const WorkerLocationContext =
-  createContext<WorkerLocationContextValue | null>(null);
+const WorkerLocationContext = createContext<WorkerLocationContextValue | null>(
+  null,
+);
 
 const WORKER_ONLINE_STORAGE_KEY = "livelihoodgo_worker_online";
-const PENDING_LOCATION_STORAGE_KEY =
-  "livelihoodgo_pending_worker_location";
+const PENDING_LOCATION_STORAGE_KEY = "livelihoodgo_pending_worker_location";
 
 const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
 const INITIAL_LOCATION_TIMEOUT_MS = 20_000;
 const WATCH_LOCATION_TIMEOUT_MS = 20_000;
+const LOCATION_HEARTBEAT_INTERVAL_MS = 30_000;
 
 /*
  * Desktop browsers may initially return a coarse network location.
@@ -56,7 +57,12 @@ const WATCH_LOCATION_TIMEOUT_MS = 20_000;
  * incorrect routes. A phone with Precise Location normally returns
  * readings below 100 metres.
  */
-const MAX_USABLE_ACCURACY_METERS = 100_000;
+/*
+ * Reject extremely coarse readings that can place the worker several
+ * kilometres away and produce incorrect nearby-worker, route, and ETA data.
+ * Readings above 5 km are not reliable enough for service navigation.
+ */
+const MAX_USABLE_ACCURACY_METERS = 5_000;
 const LOW_ACCURACY_WARNING_METERS = 100;
 
 const GEOLOCATION_OPTIONS: PositionOptions = {
@@ -134,10 +140,13 @@ export function WorkerLocationProvider({
   const startPromiseRef = useRef<Promise<void> | null>(null);
   const trackingSessionRef = useRef(0);
   const lastSavedAtRef = useRef(0);
+  const latestLocationRef = useRef<WorkerLocation | null>(null);
+  const heartbeatInFlightRef = useRef(false);
   const mountedRef = useRef(true);
 
-  const [workerLocation, setWorkerLocation] =
-    useState<WorkerLocation | null>(null);
+  const [workerLocation, setWorkerLocation] = useState<WorkerLocation | null>(
+    null,
+  );
   const [isOnline, setIsOnline] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -155,9 +164,7 @@ export function WorkerLocationProvider({
     }
 
     const role =
-      typeof data?.role === "string"
-        ? data.role.trim().toLowerCase()
-        : "";
+      typeof data?.role === "string" ? data.role.trim().toLowerCase() : "";
 
     if (role !== "worker") {
       throw new Error(
@@ -189,24 +196,22 @@ export function WorkerLocationProvider({
     async (workerId: string, location: WorkerLocation) => {
       validateLocation(location);
 
-      const { error } = await supabase
-        .from("worker_locations")
-        .upsert(
-          {
-            worker_id: workerId,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.accuracy,
-            heading: location.heading,
-            speed: location.speed,
-            is_online: true,
-            is_available: true,
-            updated_at: location.updatedAt,
-          },
-          {
-            onConflict: "worker_id",
-          },
-        );
+      const { error } = await supabase.from("worker_locations").upsert(
+        {
+          worker_id: workerId,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy,
+          heading: location.heading,
+          speed: location.speed,
+          is_online: true,
+          is_available: true,
+          updated_at: location.updatedAt,
+        },
+        {
+          onConflict: "worker_id",
+        },
+      );
 
       if (error) {
         throw new Error(`Unable to sync GPS: ${error.message}`);
@@ -245,32 +250,30 @@ export function WorkerLocationProvider({
     setIsTracking(false);
   }, []);
 
-  const applySyncedLocation = useCallback(
-    (location: WorkerLocation) => {
-      if (!mountedRef.current) return;
+  const applySyncedLocation = useCallback((location: WorkerLocation) => {
+    if (!mountedRef.current) return;
 
-      setWorkerLocation(location);
-      setIsOnline(true);
-      setIsTracking(true);
-      setLocating(false);
+    latestLocationRef.current = location;
+    setWorkerLocation(location);
+    setIsOnline(true);
+    setIsTracking(true);
+    setLocating(false);
 
-      localStorage.setItem(WORKER_ONLINE_STORAGE_KEY, "true");
+    localStorage.setItem(WORKER_ONLINE_STORAGE_KEY, "true");
 
-      if (
-        location.accuracy !== null &&
-        location.accuracy > LOW_ACCURACY_WARNING_METERS
-      ) {
-        setMessage(
-          `GPS is online, but accuracy is about ${Math.round(
-            location.accuracy,
-          )} metres. Enable Precise Location for better navigation.`,
-        );
-      } else {
-        setMessage("");
-      }
-    },
-    [],
-  );
+    if (
+      location.accuracy !== null &&
+      location.accuracy > LOW_ACCURACY_WARNING_METERS
+    ) {
+      setMessage(
+        `GPS is online, but accuracy is about ${Math.round(
+          location.accuracy,
+        )} metres. Enable Precise Location for better navigation.`,
+      );
+    } else {
+      setMessage("");
+    }
+  }, []);
 
   const syncPosition = useCallback(
     async (
@@ -294,6 +297,7 @@ export function WorkerLocationProvider({
       }
 
       lastSavedAtRef.current = now;
+      latestLocationRef.current = location;
       setWorkerLocation(location);
       setIsTracking(true);
 
@@ -327,11 +331,7 @@ export function WorkerLocationProvider({
         );
       }
     },
-    [
-      applySyncedLocation,
-      cachePendingLocation,
-      upsertWorkerLocation,
-    ],
+    [applySyncedLocation, cachePendingLocation, upsertWorkerLocation],
   );
 
   const getInitialPosition = useCallback(
@@ -363,9 +363,7 @@ export function WorkerLocationProvider({
       }
 
       if (!("geolocation" in navigator)) {
-        throw new Error(
-          "This browser or device does not support geolocation.",
-        );
+        throw new Error("This browser or device does not support geolocation.");
       }
 
       clearWatch();
@@ -424,10 +422,7 @@ export function WorkerLocationProvider({
           );
         },
         (error) => {
-          if (
-            !mountedRef.current ||
-            sessionId !== trackingSessionRef.current
-          ) {
+          if (!mountedRef.current || sessionId !== trackingSessionRef.current) {
             return;
           }
 
@@ -509,6 +504,7 @@ export function WorkerLocationProvider({
     const knownWorkerId = workerIdRef.current;
 
     clearWatch();
+    latestLocationRef.current = null;
     setWorkerLocation(null);
     setIsOnline(false);
     setIsTracking(false);
@@ -569,10 +565,7 @@ export function WorkerLocationProvider({
         }
 
         validateLocation(pending.location);
-        await upsertWorkerLocation(
-          pending.workerId,
-          pending.location,
-        );
+        await upsertWorkerLocation(pending.workerId, pending.location);
 
         workerIdRef.current = pending.workerId;
         applySyncedLocation(pending.location);
@@ -590,10 +583,7 @@ export function WorkerLocationProvider({
       if (!mountedRef.current) return;
 
       if (workerLocation && workerIdRef.current) {
-        cachePendingLocation(
-          workerIdRef.current,
-          workerLocation,
-        );
+        cachePendingLocation(workerIdRef.current, workerLocation);
       }
 
       setIsOnline(false);
@@ -618,6 +608,80 @@ export function WorkerLocationProvider({
     upsertWorkerLocation,
     workerLocation,
   ]);
+
+  useEffect(() => {
+    if (!isTracking) {
+      return;
+    }
+
+    let active = true;
+
+    const sendHeartbeat = async () => {
+      if (!active || heartbeatInFlightRef.current || !navigator.onLine) {
+        return;
+      }
+
+      const workerId = workerIdRef.current;
+      const latestLocation = latestLocationRef.current;
+
+      if (!workerId || !latestLocation) {
+        return;
+      }
+
+      heartbeatInFlightRef.current = true;
+
+      const heartbeatLocation: WorkerLocation = {
+        ...latestLocation,
+        updatedAt: new Date().toISOString(),
+      };
+
+      try {
+        await upsertWorkerLocation(workerId, heartbeatLocation);
+
+        if (!active || !mountedRef.current) {
+          return;
+        }
+
+        latestLocationRef.current = heartbeatLocation;
+        setWorkerLocation(heartbeatLocation);
+        setIsOnline(true);
+      } catch (error) {
+        if (!active || !mountedRef.current) {
+          return;
+        }
+
+        cachePendingLocation(workerId, heartbeatLocation);
+        setIsOnline(false);
+        setMessage(
+          error instanceof Error
+            ? `${error.message} The latest location will retry automatically.`
+            : "Unable to send the GPS heartbeat.",
+        );
+      } finally {
+        heartbeatInFlightRef.current = false;
+      }
+    };
+
+    const heartbeatTimer = window.setInterval(
+      () => void sendHeartbeat(),
+      LOCATION_HEARTBEAT_INTERVAL_MS,
+    );
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void sendHeartbeat();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      active = false;
+      heartbeatInFlightRef.current = false;
+      window.clearInterval(heartbeatTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [cachePendingLocation, isTracking, upsertWorkerLocation]);
 
   useEffect(() => {
     let active = true;

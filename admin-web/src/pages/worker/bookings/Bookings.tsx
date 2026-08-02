@@ -277,25 +277,61 @@ export default function Bookings() {
   }, []);
 
   useEffect(() => {
-    void loadBookings();
+    let isMounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const channel = supabase
-      .channel("worker-bookings-page")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        () => {
-          void loadBookings(true);
-        },
-      )
-      .subscribe();
+    const setupRealtime = async () => {
+      await loadBookings();
+
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Worker realtime auth error:", error);
+        return;
+      }
+
+      if (!user || !isMounted) {
+        return;
+      }
+
+      channel = supabase
+        .channel(`worker-bookings-page-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "bookings",
+            filter: `worker_id=eq.${user.id}`,
+          },
+          () => {
+            if (isMounted) {
+              void loadBookings(true);
+            }
+          },
+        )
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR") {
+            console.error("Worker bookings realtime channel error.");
+          }
+
+          if (status === "TIMED_OUT") {
+            console.error("Worker bookings realtime connection timed out.");
+          }
+        });
+    };
+
+    void setupRealtime();
 
     return () => {
-      void supabase.removeChannel(channel);
+      isMounted = false;
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [loadBookings]);
 
