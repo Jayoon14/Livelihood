@@ -415,15 +415,83 @@ export async function approveWorker(id: string): Promise<WorkerProfile[]> {
 // REJECT WORKER
 // ====================
 
-export async function rejectWorker(id: string): Promise<WorkerProfile[]> {
-  return updateWorkerStatus(
-    id,
-    WORKER_STATUS.REJECTED,
-    "REJECTED",
-    "Worker account rejected",
-    "Registration Rejected",
-    "Your worker registration has been rejected. Please contact the administrator for more information.",
-  );
+export async function rejectWorker(
+  id: string,
+  reason = "",
+): Promise<WorkerProfile[]> {
+  const workerId = validateWorkerId(id);
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    throw new Error(
+      `Unable to read administrator session: ${sessionError.message}`,
+    );
+  }
+
+  if (!session?.access_token) {
+    throw new Error("Administrator session is missing. Please sign in again.");
+  }
+
+  console.log("Invoking reject-worker Edge Function:", workerId);
+
+  const { data, error } = await supabase.functions.invoke("reject-worker", {
+    body: {
+      workerId,
+      reason: reason.trim() || null,
+    },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  console.log("reject-worker response:", {
+    data,
+    error,
+  });
+
+  if (error) {
+    const context = error.context as Response | undefined;
+
+    let responseMessage = "";
+
+    if (context) {
+      try {
+        const payload = (await context.clone().json()) as {
+          error?: string;
+          message?: string;
+        };
+
+        responseMessage = payload.error ?? payload.message ?? "";
+      } catch {
+        responseMessage = "";
+      }
+    }
+
+    throw new Error(
+      responseMessage || `Unable to reject worker: ${error.message}`,
+    );
+  }
+
+  const response = data as {
+    success?: boolean;
+    error?: string;
+    worker?: WorkerProfile;
+  } | null;
+
+  if (!response?.success || !response.worker) {
+    throw new Error(response?.error ?? "Worker rejection did not complete.");
+  }
+
+  return [
+    {
+      ...response.worker,
+      status: WORKER_STATUS.REJECTED,
+    },
+  ];
 }
 
 // ====================
@@ -1052,6 +1120,11 @@ export async function setWorkerStatus(
   status: WorkerStatus,
 ): Promise<WorkerProfile> {
   const normalized = normalizeWorkerStatus(status);
+
+  if (normalized === WORKER_STATUS.REJECTED) {
+    const rejected = await rejectWorker(workerId);
+    return rejected[0];
+  }
   const labels: Record<WorkerStatus, [string, string, string, string]> = {
     [WORKER_STATUS.APPROVED]: [
       "APPROVED",
@@ -1152,7 +1225,6 @@ export async function getWorkerReviews(
     };
   });
 }
-
 
 // Worker online presence helpers
 export {

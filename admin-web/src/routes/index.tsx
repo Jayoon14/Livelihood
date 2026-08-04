@@ -13,6 +13,9 @@ import { lazy, Suspense } from "react";
   const RegisterChoice = lazy(() => import("../pages/auth/RegisterChoice"));
   const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
   const ResetPassword = lazy(() => import("../pages/auth/ResetPassword"));
+  const VerifyEmailOtp = lazy(
+    () => import("../pages/auth/VerifyEmailOtp"),
+  );
 
   // ================= CUSTOMER AUTH =================
   const CustomerLogin = lazy(() => import("../pages/auth/customer/Login"));
@@ -259,6 +262,7 @@ import { lazy, Suspense } from "react";
                 <Route path="/customer/login" element={<CustomerLogin />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/verify-email" element={<VerifyEmailOtp />} />
 
                 {/* Temporary security/status pages. These can be moved into
                     separate page files later without changing the route paths. */}

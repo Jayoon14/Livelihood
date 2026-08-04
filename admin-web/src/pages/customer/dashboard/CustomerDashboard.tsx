@@ -1120,7 +1120,7 @@ export default function CustomerDashboard() {
                     </div>
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="mt-5 w-full rounded-xl bg-slate-900 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-slate-700 dark:hover:bg-indigo-600"
+                      className="mt-5 w-full rounded-xl bg-linear-to-r from-blue-700 via-blue-600 to-indigo-600 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30"
                     >
                       View profile
                     </button>

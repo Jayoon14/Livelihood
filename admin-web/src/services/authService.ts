@@ -1,8 +1,4 @@
-import type {
-  AuthError,
-  Session,
-  User,
-} from "@supabase/supabase-js";
+import type { AuthError, Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { logActivity } from "./activityService";
 import { createNotification } from "./notificationService";
@@ -35,8 +31,8 @@ export interface RegisterData {
 
   profilePicture?: File | null;
   role: UserRole;
+  captchaToken?: string;
 }
-
 
 export interface AuthResult {
   data: {
@@ -56,21 +52,6 @@ export interface CurrentSessionResult {
   error: AuthError | null;
 }
 
-const PROFILE_PICTURE_BUCKET = "profile-picture";
-const MAX_PROFILE_PICTURE_SIZE = 5 * 1024 * 1024;
-
-const ALLOWED_PROFILE_PICTURE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-
-const ALLOWED_PROFILE_PICTURE_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-]);
 
 function normalizeRequiredText(value: string, fieldName: string): string {
   const normalizedValue = value.trim();
@@ -115,105 +96,6 @@ function normalizeRole(role: UserRole): string {
   return normalizeRequiredText(String(role), "Role").toLowerCase();
 }
 
-function getProfilePictureExtension(file: File): string {
-  const extension = file.name.split(".").pop()?.toLowerCase().trim();
-
-  if (!extension || !ALLOWED_PROFILE_PICTURE_EXTENSIONS.has(extension)) {
-    throw new Error("Only JPG, PNG, and WEBP images are allowed.");
-  }
-
-  return extension === "jpeg" ? "jpg" : extension;
-}
-
-function validateProfilePicture(file: File): string {
-  if (!ALLOWED_PROFILE_PICTURE_TYPES.has(file.type)) {
-    throw new Error("Only JPG, PNG, and WEBP images are allowed.");
-  }
-
-  if (file.size <= 0) {
-    throw new Error("The selected profile picture is empty.");
-  }
-
-  if (file.size > MAX_PROFILE_PICTURE_SIZE) {
-    throw new Error("Profile picture must be 5 MB or smaller.");
-  }
-
-  return getProfilePictureExtension(file);
-}
-
-function buildFullName(firstName: string, lastName: string): string {
-  return `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
-}
-
-async function uploadProfilePicture(
-  userId: string,
-  file: File,
-): Promise<{ publicUrl: string; filePath: string }> {
-  const extension = validateProfilePicture(file);
-  const filePath = `${userId}/${crypto.randomUUID()}.${extension}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(PROFILE_PICTURE_BUCKET)
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      contentType: file.type,
-      upsert: false,
-    });
-
-  if (uploadError) {
-    throw uploadError;
-  }
-
-  const { data } = supabase.storage
-    .from(PROFILE_PICTURE_BUCKET)
-    .getPublicUrl(filePath);
-
-  const publicUrl = data.publicUrl?.trim();
-
-  if (!publicUrl) {
-    await supabase.storage.from(PROFILE_PICTURE_BUCKET).remove([filePath]);
-
-    throw new Error("Unable to generate profile picture URL.");
-  }
-
-  return {
-    publicUrl,
-    filePath,
-  };
-}
-
-async function removeUploadedProfilePicture(filePath: string | null) {
-  if (!filePath) {
-    return;
-  }
-
-  await supabase.storage.from(PROFILE_PICTURE_BUCKET).remove([filePath]);
-}
-
-async function notifyAdminsAboutWorkerRegistration(
-  workerName: string,
-): Promise<void> {
-  const { data: admins, error } = await supabase
-    .from("profiles")
-    .select("id")
-    .ilike("role", "admin");
-
-  if (error || !admins?.length) {
-    return;
-  }
-
-  await Promise.allSettled(
-    admins.map((admin) =>
-      createNotification(
-        String(admin.id),
-        0,
-        "New Worker Registration",
-        `${workerName} has submitted a worker registration.`,
-      ),
-    ),
-  );
-}
-
 async function logActivitySafely(
   userId: string,
   action: string,
@@ -234,14 +116,22 @@ async function logActivitySafely(
 export async function login(
   email: string,
   password: string,
+  captchaToken?: string,
 ): Promise<AuthResult> {
   try {
     const normalizedEmail = normalizeEmail(email);
     const normalizedPassword = validatePassword(password);
 
+    if (typeof captchaToken !== "string" || !captchaToken.trim()) {
+      throw new Error("Please complete the security verification.");
+    }
+
     const result = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password: normalizedPassword,
+      options: {
+        captchaToken: captchaToken.trim(),
+      },
     });
 
     if (result.error || !result.data.session) {
@@ -276,10 +166,7 @@ export async function login(
         }
       }
 
-      sessionStorage.setItem(
-        "auth-message",
-        activeSessionMessage,
-      );
+      sessionStorage.setItem("auth-message", activeSessionMessage);
 
       await supabase.auth.signOut({ scope: "local" });
 
@@ -326,22 +213,86 @@ export async function login(
 export async function registerUser(
   userData: RegisterData,
 ): Promise<AuthResult> {
-  let uploadedFilePath: string | null = null;
-
   try {
-    const firstName = normalizeRequiredText(userData.firstName, "First name");
-    const middleName = normalizeOptionalText(userData.middleName);
-    const lastName = normalizeRequiredText(userData.lastName, "Last name");
+    const firstName = normalizeRequiredText(
+      userData.firstName,
+      "First name",
+    );
+    const middleName = normalizeOptionalText(
+      userData.middleName,
+    );
+    const lastName = normalizeRequiredText(
+      userData.lastName,
+      "Last name",
+    );
 
     const email = normalizeEmail(userData.email);
-    const phone = normalizeRequiredText(userData.phone, "Phone number");
-    const password = validatePassword(userData.password);
+    const phone = normalizeRequiredText(
+      userData.phone,
+      "Phone number",
+    );
+    const password = validatePassword(
+      userData.password,
+    );
     const role = normalizeRole(userData.role);
+    const captchaToken =
+      normalizeOptionalText(userData.captchaToken) ??
+      undefined;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    /*
+     * Kapag naka-enable ang Confirm Email, walang authenticated
+     * session pagkatapos ng signUp. Kaya ang profile data ay
+     * ipinapasa bilang user metadata at ise-save ng database
+     * trigger na on_auth_user_created.
+     */
+    const { data, error } =
+      await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          captchaToken,
+          emailRedirectTo: window.location.origin,
+          data: {
+            first_name: firstName,
+            middle_name: middleName,
+            last_name: lastName,
+            email,
+            phone,
+            gender: normalizeOptionalText(
+              userData.gender,
+            ),
+            birth_date: normalizeOptionalText(
+              userData.birthDate,
+            ),
+            civil_status: normalizeOptionalText(
+              userData.civilStatus,
+            ),
+            religion: normalizeOptionalText(
+              userData.religion,
+            ),
+            house_no: normalizeOptionalText(
+              userData.houseNo,
+            ),
+            street: normalizeOptionalText(
+              userData.street,
+            ),
+            barangay: normalizeOptionalText(
+              userData.barangay,
+            ),
+            municipality: normalizeOptionalText(
+              userData.municipality,
+            ),
+            province: normalizeOptionalText(
+              userData.province,
+            ),
+            role,
+            status:
+              role === "customer"
+                ? "Approved"
+                : "Pending",
+          },
+        },
+      });
 
     if (error) {
       return {
@@ -350,9 +301,7 @@ export async function registerUser(
       };
     }
 
-    const user = data.user;
-
-    if (!user) {
+    if (!data.user) {
       return {
         data: {
           user: null,
@@ -366,75 +315,19 @@ export async function registerUser(
       };
     }
 
-    let profilePictureUrl: string | null = null;
-
-    if (userData.profilePicture) {
-      const uploadResult = await uploadProfilePicture(
-        user.id,
-        userData.profilePicture,
-      );
-
-      profilePictureUrl = uploadResult.publicUrl;
-      uploadedFilePath = uploadResult.filePath;
-    }
-
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: user.id,
-      first_name: firstName,
-      middle_name: middleName,
-      last_name: lastName,
-      email,
-      phone,
-      gender: normalizeOptionalText(userData.gender),
-      birth_date: normalizeOptionalText(userData.birthDate),
-      civil_status: normalizeOptionalText(userData.civilStatus),
-      religion: normalizeOptionalText(userData.religion),
-      house_no: normalizeOptionalText(userData.houseNo),
-      street: normalizeOptionalText(userData.street),
-      barangay: normalizeOptionalText(userData.barangay),
-      municipality: normalizeOptionalText(userData.municipality),
-      province: normalizeOptionalText(userData.province),
-      profile_picture: profilePictureUrl,
-      role,
-      status: role === "customer" ? "Approved" : "Pending",
-    });
-
-    if (profileError) {
-      await removeUploadedProfilePicture(uploadedFilePath);
-
-      return {
-        data: {
-          user: null,
-          session: null,
-        },
-        error: {
-          name: "ProfileError",
-          message: profileError.message,
-          status: 500,
-        } as AuthError,
-      };
-    }
-
-    const fullName = buildFullName(firstName, lastName);
-
-    if (role === "worker") {
-      await notifyAdminsAboutWorkerRegistration(fullName);
-    }
-
-    await logActivitySafely(
-      user.id,
-      "REGISTER",
-      "Authentication",
-      `${fullName} registered as ${role}`,
-    );
-
+    /*
+     * Huwag mag-upload o mag-insert mula sa frontend kapag
+     * session=null. Ang profile row ay gagawin ng database
+     * trigger kahit hinihintay pa ang email verification.
+     *
+     * Ang optional profile picture ay maaaring i-upload
+     * pagkatapos ma-verify at makapag-login ang customer.
+     */
     return {
       data,
       error: null,
     };
   } catch (error) {
-    await removeUploadedProfilePicture(uploadedFilePath);
-
     return {
       data: {
         user: null,

@@ -1,6 +1,8 @@
 import {
   ArrowLeft,
   Ban,
+  BriefcaseBusiness,
+  CalendarCheck2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -8,6 +10,8 @@ import {
   RefreshCw,
   RotateCw,
   ShieldOff,
+  Sparkles,
+  Star,
   X,
   ZoomIn,
   ZoomOut,
@@ -32,6 +36,7 @@ import {
   getWorkerFullName,
   getWorkerReviews,
   normalizeWorkerStatus,
+  rejectWorker,
   setWorkerStatus,
   WORKER_STATUS,
   type CompleteWorkerProfile,
@@ -255,6 +260,7 @@ export default function WorkerDetails() {
   const preview = previewIndex === null ? null : documents[previewIndex];
   const worker = details?.profile ?? null;
   const normalizedStatus = normalizeWorkerStatus(worker?.status);
+  const isApproved = normalizedStatus === WORKER_STATUS.APPROVED;
   const fullName = worker ? getWorkerFullName(worker) : "Worker";
   const avatar = worker ? getWorkerAvatar(worker) : null;
   const metrics = useMemo(() => {
@@ -295,25 +301,71 @@ export default function WorkerDetails() {
 
   async function changeStatus(next: WorkerStatus) {
     if (!worker) return;
+
+    const isReject = next === WORKER_STATUS.REJECTED;
+
     const confirmed = await confirmAction(
-      `Change ${fullName}'s account status to ${next}?`,
-      { title: "Update worker status", confirmText: next },
+      isReject
+        ? `Reject and permanently delete ${fullName}'s registration? The worker must register again.`
+        : `Change ${fullName}'s account status to ${next}?`,
+      {
+        title: isReject ? "Reject worker registration" : "Update worker status",
+        confirmText: next,
+      },
     );
+
     if (!confirmed) return;
+
     setProcessing(true);
-    const toastId = toast.loading("Updating worker status...");
+
+    const toastId = toast.loading(
+      isReject
+        ? "Rejecting and deleting worker registration..."
+        : "Updating worker status...",
+    );
+
     try {
+      if (isReject) {
+        await rejectWorker(worker.id);
+
+        toast.success(
+          "Worker registration was rejected and deleted. The same email can now register again.",
+          {
+            id: toastId,
+          },
+        );
+
+        window.location.assign("/workers");
+        return;
+      }
+
       const updated = await setWorkerStatus(worker.id, next);
+
       setDetails((current) =>
         current
-          ? { ...current, profile: { ...current.profile, ...updated } }
+          ? {
+              ...current,
+              profile: {
+                ...current.profile,
+                ...updated,
+              },
+            }
           : current,
       );
-      toast.success(`Worker status changed to ${next}.`, { id: toastId });
-    } catch (err) {
+
+      toast.success(`Worker status changed to ${next}.`, {
+        id: toastId,
+      });
+    } catch (statusError) {
+      console.error("Worker status operation failed:", statusError);
+
       toast.error(
-        err instanceof Error ? err.message : "Unable to update worker status.",
-        { id: toastId },
+        statusError instanceof Error
+          ? statusError.message
+          : "Unable to update worker status.",
+        {
+          id: toastId,
+        },
       );
     } finally {
       setProcessing(false);
@@ -423,15 +475,79 @@ export default function WorkerDetails() {
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat title="Bookings" value={metrics.total} />
-          <Stat title="Completed Jobs" value={metrics.completed} />
-          <Stat title="Reviews" value={metrics.reviews} />
-          <Stat
-            title="Average Rating"
-            value={metrics.reviews ? metrics.average.toFixed(1) : "—"}
-          />
-        </section>
+        {isApproved ? (
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="Total bookings"
+              value={metrics.total}
+              description="All service requests received"
+              icon={<CalendarCheck2 className="h-5 w-5" />}
+              accentClass="from-blue-500 to-indigo-600"
+              iconClass="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
+            />
+            <MetricCard
+              title="Completed jobs"
+              value={metrics.completed}
+              description="Successfully finished services"
+              icon={<BriefcaseBusiness className="h-5 w-5" />}
+              accentClass="from-emerald-500 to-teal-600"
+              iconClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+            />
+            <MetricCard
+              title="Customer reviews"
+              value={metrics.reviews}
+              description="Feedback submitted by customers"
+              icon={<Star className="h-5 w-5" />}
+              accentClass="from-amber-400 to-orange-500"
+              iconClass="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+            />
+            <MetricCard
+              title="Average rating"
+              value={metrics.reviews ? metrics.average.toFixed(1) : "No rating"}
+              description={
+                metrics.reviews
+                  ? "Overall customer satisfaction"
+                  : "Ratings will appear after reviews"
+              }
+              icon={<Sparkles className="h-5 w-5" />}
+              accentClass="from-violet-500 to-fuchsia-600"
+              iconClass="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
+            />
+          </section>
+        ) : (
+          <section className="relative overflow-hidden rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 via-white to-blue-50 p-6 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-slate-900 dark:to-blue-500/10">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-300/20 blur-2xl" />
+            <div className="absolute -bottom-10 left-1/3 h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" />
+
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 shadow-inner dark:bg-amber-500/15 dark:text-amber-300">
+                <Sparkles className="h-7 w-7" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                  Performance insights locked
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
+                  Approve this worker to unlock activity metrics
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  Booking totals, completed jobs, customer reviews, ratings,
+                  offered services, and booking history will appear only after
+                  the worker is approved and begins receiving service activity.
+                </p>
+              </div>
+
+              <span
+                className={`w-fit rounded-full px-4 py-2 text-sm font-bold ${statusClass(
+                  normalizedStatus,
+                )}`}
+              >
+                {normalizedStatus}
+              </span>
+            </div>
+          </section>
+        )}
 
         <Section title="Personal Information">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -557,8 +673,8 @@ export default function WorkerDetails() {
           </div>
         </Section>
 
-        <Section title={`Services Offered (${details.services.length})`}>
-          {details.services.length ? (
+        {isApproved && details.services.length > 0 && (
+          <Section title={`Services Offered (${details.services.length})`}>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {details.services.map((service) => (
                 <article
@@ -580,10 +696,8 @@ export default function WorkerDetails() {
                 </article>
               ))}
             </div>
-          ) : (
-            <Empty text="No services added." />
-          )}
-        </Section>
+          </Section>
+        )}
 
         <Section title={`Documents (${documents.length})`}>
           {documents.length ? (
@@ -611,8 +725,8 @@ export default function WorkerDetails() {
           )}
         </Section>
 
-        <Section title={`Booking History (${bookings.length})`}>
-          {bookings.length ? (
+        {isApproved && bookings.length > 0 && (
+          <Section title={`Booking History (${bookings.length})`}>
             <div className="overflow-x-auto">
               <table className="w-full min-w-212.5 text-sm">
                 <thead className="bg-slate-50 text-left dark:bg-slate-800/60">
@@ -658,13 +772,11 @@ export default function WorkerDetails() {
                 </tbody>
               </table>
             </div>
-          ) : (
-            <Empty text="No bookings found." />
-          )}
-        </Section>
+          </Section>
+        )}
 
-        <Section title={`Reviews (${reviews.length})`}>
-          {reviews.length ? (
+        {isApproved && reviews.length > 0 && (
+          <Section title={`Reviews (${reviews.length})`}>
             <div className="space-y-3">
               {reviews.map((review) => (
                 <article
@@ -700,10 +812,8 @@ export default function WorkerDetails() {
                 </article>
               ))}
             </div>
-          ) : (
-            <Empty text="No reviews yet." />
-          )}
-        </Section>
+          </Section>
+        )}
       </div>
 
       {preview && (
@@ -823,11 +933,40 @@ function Info({ title, value }: { title: string; value: unknown }) {
     </div>
   );
 }
-function Stat({ title, value }: { title: string; value: string | number }) {
+function MetricCard({
+  title,
+  value,
+  description,
+  icon,
+  accentClass,
+  iconClass,
+}: {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: ReactNode;
+  accentClass: string;
+  iconClass: string;
+}) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-sm font-semibold text-slate-500">{title}</p>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
+    <article className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900">
+      <div
+        className={`absolute inset-x-0 top-0 h-1 bg-linear-to-r ${accentClass}`}
+      />
+      <div className="flex items-start justify-between gap-4">
+        <div className={`rounded-xl p-3 ${iconClass}`}>{icon}</div>
+        <div className="h-10 w-10 rounded-full bg-slate-100/80 blur-xl transition group-hover:scale-150 dark:bg-slate-700/50" />
+      </div>
+
+      <p className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+        {title}
+      </p>
+      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+        {value}
+      </p>
+      <p className="mt-2 text-sm leading-5 text-slate-500 dark:text-slate-400">
+        {description}
+      </p>
     </article>
   );
 }

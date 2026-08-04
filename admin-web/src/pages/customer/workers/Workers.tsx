@@ -23,6 +23,22 @@ import NearbyWorkersModal from "./components/NearbyWorkersModal";
 const heading = { fontFamily: "'Sora', sans-serif" };
 const inter = { fontFamily: "'Inter', sans-serif" };
 
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+
+function isOnline(lastSeen?: string | null): boolean {
+  if (!lastSeen) return false;
+
+  const timestamp = new Date(lastSeen).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  const elapsed = Date.now() - timestamp;
+
+  return elapsed >= 0 && elapsed <= ONLINE_TIMEOUT_MS;
+}
+
 const selectClass =
   "rounded-2xl border border-slate-200 px-5 py-4 outline-none bg-white text-slate-700 transition-colors focus:border-[#0A1930] focus:ring-2 focus:ring-[#0A1930]/10";
 
@@ -37,6 +53,12 @@ export default function Workers() {
   const [availability, setAvailability] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onlineStatus, setOnlineStatus] = useState<
+    Record<string, boolean>
+  >({});
+  const [workerAvailability, setWorkerAvailability] = useState<
+    Record<string, boolean>
+  >({});
 
   const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
 
@@ -55,6 +77,69 @@ export default function Workers() {
     } catch (error) {
       console.error(error);
     }
+  }
+
+  async function refreshWorkerStatuses(
+    workerList: any[],
+  ): Promise<void> {
+    const workerIds = workerList
+      .map((worker) => String(worker.id))
+      .filter(Boolean);
+
+    if (!workerIds.length) {
+      setOnlineStatus({});
+      setWorkerAvailability({});
+      return;
+    }
+
+    const [presenceResult, availabilityEntries] =
+      await Promise.all([
+        import("../../../lib/supabase").then(
+          async ({ supabase }) =>
+            await supabase
+              .from("profiles")
+              .select("id, last_seen")
+              .in("id", workerIds)
+              .eq("role", "worker"),
+        ),
+        Promise.all(
+          workerIds.map(
+            async (workerId) =>
+              [
+                workerId,
+                Boolean(
+                  await isWorkerAvailable(workerId),
+                ),
+              ] as const,
+          ),
+        ),
+      ]);
+
+    if (presenceResult.error) {
+      console.error(
+        "Unable to load worker online status:",
+        presenceResult.error,
+      );
+    }
+
+    setOnlineStatus(
+      Object.fromEntries(
+        workerIds.map((workerId) => {
+          const profile = presenceResult.data?.find(
+            (item) => String(item.id) === workerId,
+          );
+
+          return [
+            workerId,
+            isOnline(profile?.last_seen),
+          ];
+        }),
+      ),
+    );
+
+    setWorkerAvailability(
+      Object.fromEntries(availabilityEntries),
+    );
   }
 
   async function loadWorkers() {
@@ -112,6 +197,7 @@ export default function Workers() {
       }
 
       setWorkers(filtered);
+      await refreshWorkerStatuses(filtered);
     } catch (error) {
       console.error(error);
     } finally {
@@ -380,6 +466,18 @@ export default function Workers() {
               const averageRating = Number(worker.average_rating ?? 0).toFixed(
                 1,
               );
+              const workerId = String(worker.id);
+              const online = Boolean(
+                onlineStatus[workerId],
+              );
+              const available = Boolean(
+                workerAvailability[workerId],
+              );
+              const bookingState = !online
+                ? "offline"
+                : available
+                  ? "available"
+                  : "working";
 
               return (
                 <div
@@ -390,7 +488,7 @@ export default function Workers() {
                     rounded-3xl
                     border
                     border-slate-100
-                    shadow-sm
+                    shadow-lg
                     overflow-hidden
                     hover:-translate-y-2
                     hover:shadow-2xl
@@ -449,10 +547,22 @@ export default function Workers() {
                         Verified Worker
                       </span>
 
-                      <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Available
-                      </span>
+                      {bookingState === "available" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Available
+                        </span>
+                      ) : bookingState === "working" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                          Working
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          Offline
+                        </span>
+                      )}
 
                       {worker.service_name && (
                         <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-xs font-semibold">
@@ -468,8 +578,8 @@ export default function Workers() {
 
                     {/* DETAILS */}
 
-                    <div className="grid grid-cols-2 gap-4 mt-6">
-                      <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4">
+                    <div className="mt-6 grid grid-cols-2 items-stretch gap-4">
+                      <div className="flex h-28 flex-col justify-between rounded-2xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-emerald-100 p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-emerald-700 font-semibold">
                           Completed Jobs
                         </p>
@@ -482,7 +592,7 @@ export default function Workers() {
                         </p>
                       </div>
 
-                      <div className="rounded-2xl bg-amber-50 border border-amber-100 p-4">
+                      <div className="flex h-28 flex-col justify-between rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 to-orange-100 p-5 shadow-sm">
                         <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">
                           Rating
                         </p>
@@ -504,23 +614,55 @@ export default function Workers() {
                       </div>
                     </div>
 
+                    {/* BOOKING STATUS */}
+
+                    {bookingState !== "available" && (
+                      <div
+                        className={`mt-5 rounded-2xl border p-4 text-sm ${
+                          bookingState === "working"
+                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            : "border-rose-200 bg-rose-50 text-rose-800"
+                        }`}
+                      >
+                        <p className="font-bold">
+                          {bookingState === "working"
+                            ? "Worker is currently working"
+                            : "Worker is currently offline"}
+                        </p>
+                        <p className="mt-1 leading-5 opacity-80">
+                          {bookingState === "working"
+                            ? "This worker cannot accept another booking while an active job is in progress."
+                            : "You may view the profile, but booking will be available only when the worker is online."}
+                        </p>
+                      </div>
+                    )}
+
                     {/* ACTIONS */}
 
-                    <div className="mt-6 space-y-3">
+                    <div className="my-6 border-t border-slate-100" />
+
+                    <div className="space-y-3">
                       <Link
                         to={`/customer/workers/${worker.id}`}
                         className="
                           block
                           w-full
-                          text-center
-                          bg-[#0A1930]
-                          hover:bg-[#12294D]
-                          text-white
-                          py-3.5
                           rounded-2xl
+                          bg-linear-to-r
+                          from-blue-700
+                          via-blue-600
+                          to-indigo-600
+                          py-3.5
+                          text-center
                           font-semibold
-                          shadow-sm
-                          transition-colors
+                          text-white
+                          shadow-lg
+                          shadow-blue-500/20
+                          transition-all
+                          duration-300
+                          hover:-translate-y-0.5
+                          hover:shadow-xl
+                          hover:shadow-blue-500/30
                         "
                       >
                         View Worker Profile
@@ -532,15 +674,19 @@ export default function Workers() {
                         }
                         className="
                           w-full
-                          border
-                          border-slate-200
-                          hover:border-[#0A1930]
-                          hover:bg-slate-50
-                          text-slate-700
-                          py-3.5
                           rounded-2xl
+                          border-2
+                          border-slate-200
+                          bg-white
+                          py-3.5
                           font-semibold
-                          transition-colors
+                          text-slate-700
+                          transition-all
+                          duration-300
+                          hover:-translate-y-0.5
+                          hover:border-blue-500
+                          hover:bg-blue-50
+                          hover:text-blue-700
                         "
                       >
                         Compare Worker

@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-} from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   AlertTriangle,
   Eye,
@@ -17,6 +12,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import AuthSplitLayout from "../../components/auth/AuthSplitLayout";
+import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
+import EmailOtpModal from "../../components/auth/EmailOtpModal";
 import { useLoading } from "../../context/LoadingContext";
 import {
   getRememberedEmail,
@@ -27,6 +24,8 @@ import {
 import { supabase } from "../../lib/supabase";
 import { logActivity } from "../../services/activityService";
 import { login, logout } from "../../services/authService";
+import { uploadPendingProfilePicture } from "../../utils/pendingProfilePicture";
+import { uploadPendingWorkerFiles } from "../../utils/pendingWorkerFiles";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -58,6 +57,21 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [captchaPurpose, setCaptchaPurpose] = useState<
+    "login" | "resend" | null
+  >(null);
+  const [pendingLogin, setPendingLogin] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
+
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
@@ -72,6 +86,20 @@ export default function Login() {
       setEmail(getRememberedEmail());
     }
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [resendCooldown]);
 
   function validateForm(): boolean {
     const nextErrors: {
@@ -98,24 +126,15 @@ export default function Login() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function handlePasswordKey(
-    event: KeyboardEvent<HTMLInputElement>,
-  ): void {
+  function handlePasswordKey(event: KeyboardEvent<HTMLInputElement>): void {
     setCapsLockOn(event.getModifierState("CapsLock"));
   }
 
-  async function handleLogin(
-    event?: FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event?.preventDefault();
-
-    if (loading || !validateForm()) {
-      return;
-    }
-
+  async function completeLogin(token: string): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
+      setPendingLogin(true);
       setLoading(true);
       showLoading(500);
 
@@ -125,11 +144,19 @@ export default function Login() {
         saveRememberedEmail(normalizedEmail);
       }
 
-      const { error } = await login(normalizedEmail, password);
+      const { error } = await login(normalizedEmail, password, token);
 
       if (error) {
+        const normalizedError = error.message.toLowerCase();
+
+        if (normalizedError.includes("email not confirmed")) {
+          setEmailNotVerified(true);
+        }
+
         throw new Error(getFriendlyLoginError(error.message));
       }
+
+      setEmailNotVerified(false);
 
       const {
         data: { user },
@@ -154,9 +181,7 @@ export default function Login() {
         .maybeSingle();
 
       if (profileError) {
-        throw new Error(
-          `Unable to load your profile: ${profileError.message}`,
-        );
+        throw new Error(`Unable to load your profile: ${profileError.message}`);
       }
 
       if (!profile) {
@@ -164,30 +189,116 @@ export default function Login() {
         throw new Error("Your user profile was not found.");
       }
 
-      const role = String(profile.role ?? "").trim().toLowerCase();
-      const status = String(profile.status ?? "").trim().toLowerCase();
+      const role = String(profile.role ?? "")
+        .trim()
+        .toLowerCase();
 
-      toast.success("Welcome back!");
+      const status = String(profile.status ?? "")
+        .trim()
+        .toLowerCase();
+
+      if (role === "customer") {
+        await uploadPendingProfilePicture(
+          user.id,
+          user.email ?? normalizedEmail,
+        ).catch((profilePictureError: unknown) => {
+          console.error(
+            "Pending customer profile picture upload failed:",
+            profilePictureError,
+          );
+        });
+      }
+
+      if (role === "worker") {
+        await uploadPendingWorkerFiles(
+          user.id,
+          user.email ?? normalizedEmail,
+        ).catch((workerFilesError: unknown) => {
+          console.error(
+            "Pending worker files upload failed:",
+            workerFilesError,
+          );
+        });
+      }
+
+      setCaptchaOpen(false);
+      setCaptchaPurpose(null);
 
       if (role === "admin") {
+        toast.success("Welcome back!");
         navigate("/dashboard", { replace: true });
         return;
       }
 
       if (role === "worker") {
-        if (status !== "approved") {
+        if (status === "rejected") {
           await logout();
-          toast.warning(
-            "Your worker account is waiting for admin approval.",
+
+          toast.error(
+            "Your worker registration was rejected by the administrator. Please register again and submit updated information.",
+            {
+              duration: 8000,
+            },
           );
+
+          navigate("/register-choice", {
+            replace: true,
+            state: {
+              rejectedWorkerEmail:
+                user.email ?? normalizedEmail,
+              registrationRejected: true,
+            },
+          });
+
           return;
         }
 
+        if (status === "disabled") {
+          await logout();
+
+          toast.error(
+            "Your worker account has been disabled. Please contact the administrator for assistance.",
+            {
+              duration: 8000,
+            },
+          );
+
+          return;
+        }
+
+        if (status === "blocked") {
+          await logout();
+
+          toast.error(
+            "Your worker account has been blocked. Please contact the administrator for assistance.",
+            {
+              duration: 8000,
+            },
+          );
+
+          return;
+        }
+
+        if (status !== "approved") {
+          await logout();
+
+          toast.warning(
+            "Your worker account is still waiting for administrator approval.",
+            {
+              duration: 7000,
+            },
+          );
+
+          return;
+        }
+
+        toast.success("Welcome back!");
         navigate("/worker/dashboard", { replace: true });
         return;
       }
 
       if (role === "customer") {
+        toast.success("Welcome back!");
         navigate("/customer/dashboard", { replace: true });
         return;
       }
@@ -195,15 +306,123 @@ export default function Login() {
       await logout();
       throw new Error("Unknown account role.");
     } catch (error) {
+      setCaptchaWidgetKey((current) => current + 1);
+      setCaptchaOpen(false);
+      setCaptchaPurpose(null);
+
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to sign in.",
+        error instanceof Error ? error.message : "Unable to sign in.",
       );
     } finally {
+      setPendingLogin(false);
       setLoading(false);
       hideLoading();
     }
+  }
+
+  function requestResendVerification(): void {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setFieldErrors((current) => ({
+        ...current,
+        email: "Enter your email address first.",
+      }));
+      toast.warning("Enter your email address first.");
+      return;
+    }
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setFieldErrors((current) => ({
+        ...current,
+        email: "Enter a valid email address.",
+      }));
+      toast.warning("Enter a valid email address.");
+      return;
+    }
+
+    if (sendingVerification || resendCooldown > 0 || pendingLogin) {
+      return;
+    }
+
+    if (!turnstileSiteKey) {
+      toast.error(
+        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+      );
+      return;
+    }
+
+    setCaptchaPurpose("resend");
+    setCaptchaWidgetKey((current) => current + 1);
+    setCaptchaOpen(true);
+  }
+
+  async function completeResendVerification(token: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      setSendingVerification(true);
+
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: window.location.origin,
+          captchaToken: token,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setCaptchaOpen(false);
+      setCaptchaPurpose(null);
+      setResendCooldown(60);
+
+      toast.success(
+        "OTP code sent successfully. Enter the code to verify your email.",
+      );
+
+      setOtpModalOpen(true);
+    } catch (error) {
+      setCaptchaWidgetKey((current) => current + 1);
+      setCaptchaOpen(false);
+      setCaptchaPurpose(null);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to resend the verification email.";
+
+      toast.error(
+        message.toLowerCase().includes("rate limit")
+          ? "Please wait before requesting another verification email."
+          : message,
+      );
+    } finally {
+      setSendingVerification(false);
+    }
+  }
+
+  async function handleLogin(
+    event?: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event?.preventDefault();
+
+    if (loading || pendingLogin || !validateForm()) {
+      return;
+    }
+
+    if (!turnstileSiteKey) {
+      toast.error(
+        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+      );
+      return;
+    }
+    setCaptchaPurpose("login");
+    setCaptchaWidgetKey((current) => current + 1);
+    setCaptchaOpen(true);
   }
 
   const emailField = (
@@ -231,9 +450,10 @@ export default function Login() {
           inputMode="email"
           placeholder="you@example.com"
           value={email}
-          disabled={loading}
+          disabled={loading || pendingLogin}
           onChange={(event) => {
             setEmail(event.target.value);
+            setEmailNotVerified(false);
 
             if (fieldErrors.email) {
               setFieldErrors((current) => ({
@@ -278,7 +498,7 @@ export default function Login() {
           autoComplete="current-password"
           placeholder="Enter password"
           value={password}
-          disabled={loading}
+          disabled={loading || pendingLogin}
           onKeyDown={handlePasswordKey}
           onKeyUp={handlePasswordKey}
           onChange={(event) => {
@@ -347,7 +567,7 @@ export default function Login() {
   const loginButton = (
     <button
       type="submit"
-      disabled={loading}
+      disabled={loading || pendingLogin}
       className="mt-7 w-full rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-400/30 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:from-slate-300 disabled:via-slate-300 disabled:to-slate-300 disabled:shadow-none dark:disabled:from-slate-700 dark:disabled:via-slate-700 dark:disabled:to-slate-700"
     >
       {loading ? "Signing in..." : "Sign in"}
@@ -366,12 +586,55 @@ export default function Login() {
     </p>
   );
 
+  const verificationNotice = emailNotVerified ? (
+    <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/25 dark:bg-amber-500/10">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-300">
+          <Mail className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+            Email verification required
+          </p>
+
+          <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-200/80">
+            Check the inbox or spam folder for{" "}
+            <span className="font-semibold break-all">
+              {email.trim().toLowerCase()}
+            </span>
+            .
+          </p>
+
+          <button
+            type="button"
+            onClick={requestResendVerification}
+            disabled={
+              sendingVerification ||
+              resendCooldown > 0 ||
+              loading ||
+              pendingLogin
+            }
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {sendingVerification
+              ? "Sending..."
+              : resendCooldown > 0
+                ? `Resend available in ${resendCooldown}s`
+                : "Resend Verification Email"}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const loginForm = (
     <form onSubmit={handleLogin} noValidate>
       {emailField}
       {passwordField}
       {rememberForgotRow}
       {loginButton}
+      {verificationNotice}
       {registerRow}
     </form>
   );
@@ -419,6 +682,57 @@ export default function Login() {
           10,000+ jobs completed by verified pros
         </div>
       </div>
+
+      <EmailOtpModal
+        open={otpModalOpen}
+        email={email}
+        onClose={() => {
+          if (!sendingVerification) {
+            setOtpModalOpen(false);
+          }
+        }}
+        onVerified={() => {
+          setOtpModalOpen(false);
+          setEmailNotVerified(false);
+          toast.success("Email verified. You may now sign in.");
+        }}
+      />
+
+      <CaptchaVerificationModal
+        open={captchaOpen}
+        siteKey={turnstileSiteKey ?? ""}
+        widgetKey={captchaWidgetKey}
+        processing={pendingLogin || sendingVerification}
+        title={
+          captchaPurpose === "resend"
+            ? "Verify before resending"
+            : "Verify before signing in"
+        }
+        description={
+          captchaPurpose === "resend"
+            ? "Complete this quick security check to resend your verification email."
+            : "Complete this quick security check to continue to your account."
+        }
+        onClose={() => {
+          if (!pendingLogin && !sendingVerification) {
+            setCaptchaOpen(false);
+            setCaptchaPurpose(null);
+          }
+        }}
+        onSuccess={(token) => {
+          if (captchaPurpose === "resend") {
+            void completeResendVerification(token);
+            return;
+          }
+
+          void completeLogin(token);
+        }}
+        onExpire={() => undefined}
+        onError={() => {
+          setCaptchaWidgetKey((current) => current + 1);
+          toast.error("Security verification failed. Please try again.");
+        }}
+      />
     </AuthSplitLayout>
   );
 }

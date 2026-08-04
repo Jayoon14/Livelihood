@@ -17,6 +17,7 @@ import {
   Share2,
   Sparkles,
   Star,
+  WifiOff,
 } from "lucide-react";
 
 import { FaFacebook, FaInstagram } from "react-icons/fa";
@@ -94,6 +95,25 @@ const fieldClass =
 const secondaryButtonClass =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100";
 
+type WorkerBookingState =
+  | "checking"
+  | "offline"
+  | "working"
+  | "available";
+
+const ONLINE_STATUS_STALE_MS = 2 * 60 * 1000;
+
+function locationIsFresh(updatedAt?: string | null): boolean {
+  if (!updatedAt) return false;
+
+  const timestamp = new Date(updatedAt).getTime();
+
+  return (
+    Number.isFinite(timestamp) &&
+    Date.now() - timestamp <= ONLINE_STATUS_STALE_MS
+  );
+}
+
 export default function CustomerWorkerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -122,6 +142,8 @@ export default function CustomerWorkerProfile() {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [workerBookingState, setWorkerBookingState] =
+    useState<WorkerBookingState>("checking");
 
   const fullName = useMemo(() => {
     if (!worker) return "";
@@ -155,7 +177,11 @@ export default function CustomerWorkerProfile() {
     return localToday.toISOString().split("T")[0];
   }, []);
 
+  const workerCanBeBooked =
+    workerBookingState === "available";
+
   const bookingReady =
+    workerCanBeBooked &&
     Boolean(selectedService) &&
     Boolean(bookingDate) &&
     Boolean(bookingTime) &&
@@ -167,6 +193,41 @@ export default function CustomerWorkerProfile() {
   useEffect(() => {
     void loadWorker();
   }, [id]);
+
+  useEffect(() => {
+    const workerId = worker?.profile.id;
+
+    if (!workerId) {
+      return;
+    }
+
+    void refreshWorkerBookingState(workerId);
+
+    const channel = supabase
+      .channel(`customer-worker-booking-status-${workerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "worker_locations",
+          filter: `worker_id=eq.${workerId}`,
+        },
+        () => {
+          void refreshWorkerBookingState(workerId);
+        },
+      )
+      .subscribe();
+
+    const timer = window.setInterval(() => {
+      void refreshWorkerBookingState(workerId);
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [worker?.profile.id]);
 
   useEffect(() => {
     if (!worker) return;
@@ -186,6 +247,48 @@ export default function CustomerWorkerProfile() {
     return () => window.clearTimeout(timer);
   }, [location.search, worker]);
 
+  async function refreshWorkerBookingState(
+    workerId: string,
+  ): Promise<WorkerBookingState> {
+    try {
+      const { data, error } = await supabase
+        .from("worker_locations")
+        .select(
+          "worker_id, is_online, is_available, updated_at",
+        )
+        .eq("worker_id", workerId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (
+        !data ||
+        !data.is_online ||
+        !locationIsFresh(data.updated_at)
+      ) {
+        setWorkerBookingState("offline");
+        return "offline";
+      }
+
+      if (!data.is_available) {
+        setWorkerBookingState("working");
+        return "working";
+      }
+
+      setWorkerBookingState("available");
+      return "available";
+    } catch (error) {
+      console.error(
+        "Unable to refresh worker booking status:",
+        error,
+      );
+      setWorkerBookingState("offline");
+      return "offline";
+    }
+  }
+
   async function loadWorker() {
     if (!id) {
       setLoadError("Worker profile was not found.");
@@ -196,6 +299,7 @@ export default function CustomerWorkerProfile() {
     try {
       setLoading(true);
       setLoadError("");
+      setWorkerBookingState("checking");
 
       const data = (await getCustomerWorkerProfile(id)) as WorkerProfileData;
       const [services, averageRating, weeklySchedule, unavailable] =
@@ -214,6 +318,7 @@ export default function CustomerWorkerProfile() {
       setSchedule((weeklySchedule ?? []) as WorkerSchedule[]);
       setUnavailableDates((unavailable ?? []) as UnavailableDate[]);
 
+      await refreshWorkerBookingState(id);
       await saveRecentlyViewed(id);
     } catch (error) {
       console.error("Failed loading worker:", error);
@@ -223,8 +328,40 @@ export default function CustomerWorkerProfile() {
     }
   }
 
+  useEffect(() => {
+    if (workerCanBeBooked) {
+      return;
+    }
+
+    setBookingDate("");
+    setBookingTime("");
+    setAvailableSlots([]);
+    setAvailabilityMessage(
+      workerBookingState === "working"
+        ? "This worker is currently working and cannot accept another booking."
+        : workerBookingState === "offline"
+          ? "This worker is offline. Booking will be available when the worker comes online."
+          : "",
+    );
+  }, [workerCanBeBooked, workerBookingState]);
+
   async function handleBookingDateChange(date: string) {
     if (!worker) return;
+
+    const currentState =
+      await refreshWorkerBookingState(worker.profile.id);
+
+    if (currentState !== "available") {
+      setBookingDate("");
+      setBookingTime("");
+      setAvailableSlots([]);
+      setAvailabilityMessage(
+        currentState === "working"
+          ? "This worker is currently working and cannot accept another booking."
+          : "This worker is offline. Booking will be available when the worker comes online.",
+      );
+      return;
+    }
 
     setBookingDate(date);
     setBookingTime("");
@@ -262,6 +399,18 @@ export default function CustomerWorkerProfile() {
 
   async function handleContinueBooking() {
     if (!worker) return;
+
+    const currentState =
+      await refreshWorkerBookingState(worker.profile.id);
+
+    if (currentState !== "available") {
+      toast.warning(
+        currentState === "working"
+          ? "This worker is currently working and cannot accept another booking."
+          : "This worker is offline. Please wait until the worker is online before booking.",
+      );
+      return;
+    }
 
     if (!selectedService) {
       toast.warning("Please select a service.");
@@ -611,6 +760,59 @@ export default function CustomerWorkerProfile() {
               </span>
             </header>
 
+            <div className="px-3 pt-3 sm:px-5 sm:pt-5 lg:px-7 lg:pt-7">
+              <div
+                className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                  workerBookingState === "available"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : workerBookingState === "working"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : workerBookingState === "checking"
+                        ? "border-blue-200 bg-blue-50 text-blue-800"
+                        : "border-rose-200 bg-rose-50 text-rose-800"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm">
+                    {workerBookingState === "available" ? (
+                      <CheckCircle2 size={20} />
+                    ) : workerBookingState === "working" ? (
+                      <Briefcase size={20} />
+                    ) : workerBookingState === "checking" ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <WifiOff size={20} />
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="font-bold">
+                      {workerBookingState === "available"
+                        ? "Worker is online and available"
+                        : workerBookingState === "working"
+                          ? "Worker is currently working"
+                          : workerBookingState === "checking"
+                            ? "Checking worker status"
+                            : "Worker is currently offline"}
+                    </p>
+                    <p className="mt-1 text-sm leading-5 opacity-80">
+                      {workerBookingState === "available"
+                        ? "You may select a service, date, and available time."
+                        : workerBookingState === "working"
+                          ? "The booking form is locked while an active job is in progress."
+                          : workerBookingState === "checking"
+                            ? "Please wait while the latest availability is loaded."
+                            : "You may view the profile, but booking is enabled only when the worker is online."}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="w-fit rounded-full bg-white/80 px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-sm">
+                  {workerBookingState}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-5 p-5 sm:p-7">
               {/* FORM */}
               <div className="grid gap-5 xl:grid-cols-[minmax(0,0.82fr)_minmax(600px,1.18fr)]">
@@ -625,6 +827,7 @@ export default function CustomerWorkerProfile() {
                     <select
                       id="service"
                       value={selectedService?.id ?? ""}
+                      disabled={!workerCanBeBooked}
                       onChange={(event) => {
                         const service = worker.services.find(
                           (item) => item.id === Number(event.target.value),
@@ -658,6 +861,7 @@ export default function CustomerWorkerProfile() {
                         type="date"
                         min={minimumBookingDate}
                         value={bookingDate}
+                        disabled={!workerCanBeBooked}
                         onChange={(event) =>
                           void handleBookingDateChange(event.target.value)
                         }
@@ -680,6 +884,7 @@ export default function CustomerWorkerProfile() {
                           setBookingTime(event.target.value)
                         }
                         disabled={
+                          !workerCanBeBooked ||
                           !bookingDate ||
                           checkingAvailability ||
                           availableSlots.length === 0
@@ -733,6 +938,7 @@ export default function CustomerWorkerProfile() {
                       rows={5}
                       maxLength={500}
                       value={notes}
+                      disabled={!workerCanBeBooked}
                       onChange={(event) => setNotes(event.target.value)}
                       placeholder="Describe the work needed, preferred details, or special instructions."
                       className="min-h-32 w-full resize-y rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
@@ -803,7 +1009,11 @@ export default function CustomerWorkerProfile() {
                 <button
                   type="button"
                   onClick={() => void handleContinueBooking()}
-                  disabled={continuing || !bookingReady}
+                  disabled={
+                    continuing ||
+                    !workerCanBeBooked ||
+                    !bookingReady
+                  }
                   className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
                   {continuing ? (

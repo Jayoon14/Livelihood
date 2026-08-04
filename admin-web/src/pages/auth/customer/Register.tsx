@@ -18,17 +18,37 @@ import {
 
 import { Link, useNavigate } from "react-router-dom";
 
+import CaptchaVerificationModal from "../../../components/auth/CaptchaVerificationModal";
+import EmailOtpModal from "../../../components/auth/EmailOtpModal";
 import { registerUser } from "../../../services/authService";
+import { isDisposableEmail } from "../../../utils/disposableEmail";
+import { savePendingProfilePicture } from "../../../utils/pendingProfilePicture";
 
 const inputWrap =
   "flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 transition focus-within:border-[#2937f0] focus-within:ring-4 focus-within:ring-[#2937f0]/10 dark:border-slate-700 dark:bg-slate-800";
 
-const inputBase = "w-full bg-transparent py-3.5 text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:text-white";
+const inputBase =
+  "w-full bg-transparent py-3.5 text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:text-white";
 
 const selectBase =
   "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-slate-900 dark:text-white outline-none transition focus:border-[#2937f0] focus:ring-4 focus:ring-[#2937f0]/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white";
 
 const label = "text-sm font-semibold text-slate-700 dark:text-slate-200";
+
+const RELIGION_OPTIONS = [
+  "Roman Catholic",
+  "Iglesia ni Cristo",
+  "Islam",
+  "Born Again Christian",
+  "Protestant",
+  "Seventh-day Adventist",
+  "Jehovah's Witness",
+  "Buddhist",
+  "Hindu",
+  "Indigenous belief",
+  "Other",
+  "Prefer not to say",
+] as const;
 
 export default function CustomerRegister() {
   const navigate = useNavigate();
@@ -78,12 +98,20 @@ export default function CustomerRegister() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [pendingRegistration, setPendingRegistration] = useState(false);
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
 
   // =========================
   // REGISTER
   // =========================
 
-  async function handleRegister() {
+  function validateRegistration(): boolean {
     if (
       !firstName ||
       !lastName ||
@@ -93,50 +121,94 @@ export default function CustomerRegister() {
       !confirmPassword
     ) {
       toast.warning("Please complete required fields.");
-      return;
+      return false;
+    }
+
+    if (isDisposableEmail(email)) {
+      toast.warning(
+        "Temporary or disposable email addresses are not allowed. Please use your personal email.",
+      );
+      return false;
     }
 
     if (password !== confirmPassword) {
       toast.warning("Passwords do not match.");
-      return;
+      return false;
     }
 
     if (password.length < 6) {
       toast.warning("Password must be at least 6 characters.");
-      return;
+      return false;
     }
 
-    setLoading(true);
-
-    const { error } = await registerUser({
-      firstName,
-      middleName,
-      lastName,
-      email,
-      phone,
-      password,
-      gender,
-      birthDate,
-      civilStatus,
-      religion,
-      houseNo,
-      street,
-      barangay,
-      municipality,
-      province,
-      profilePicture,
-      role: "customer",
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
+    if (!turnstileSiteKey) {
+      toast.error(
+        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+      );
+      return false;
     }
 
-    toast.success("Registration successful!");
-    navigate("/");
+    return true;
+  }
+
+  function handleRegister() {
+    if (loading || pendingRegistration || !validateRegistration()) {
+      return;
+    }
+    setCaptchaWidgetKey((current) => current + 1);
+    setCaptchaOpen(true);
+  }
+
+  async function completeRegistration(token: string) {
+    try {
+      setPendingRegistration(true);
+      setLoading(true);
+
+      const { error } = await registerUser({
+        firstName,
+        middleName,
+        lastName,
+        email,
+        phone,
+        password,
+        gender,
+        birthDate,
+        civilStatus,
+        religion,
+        houseNo,
+        street,
+        barangay,
+        municipality,
+        province,
+        profilePicture,
+        role: "customer",
+        captchaToken: token,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await savePendingProfilePicture(email, profilePicture);
+
+      setCaptchaOpen(false);
+
+      toast.success(
+        "Account created. Enter the OTP code sent to your email.",
+      );
+
+      setOtpModalOpen(true);
+    } catch (error) {
+      setCaptchaWidgetKey((current) => current + 1);
+      setCaptchaOpen(false);
+
+      toast.error(
+        error instanceof Error ? error.message : "Registration failed.",
+      );
+    } finally {
+      setPendingRegistration(false);
+      setLoading(false);
+    }
   }
 
   return (
@@ -145,7 +217,10 @@ export default function CustomerRegister() {
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* BACKGROUND */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden"
+      >
         <div
           className="absolute inset-x-0 top-0 h-[32rem] opacity-[0.06] dark:opacity-[0.035]"
           style={{
@@ -395,13 +470,19 @@ export default function CustomerRegister() {
 
                 <div>
                   <label className={label}>Religion</label>
-                  <input
-                    type="text"
+                  <select
                     value={religion}
                     onChange={(event) => setReligion(event.target.value)}
-                    placeholder="Optional"
                     className={selectBase}
-                  />
+                  >
+                    <option value="">Select religion</option>
+
+                    {RELIGION_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </section>
@@ -581,9 +662,34 @@ export default function CustomerRegister() {
                     id="profile-upload"
                     type="file"
                     accept="image/*"
-                    onChange={(event) =>
-                      setProfilePicture(event.target.files?.[0] || null)
-                    }
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+
+                      if (
+                        file &&
+                        !["image/jpeg", "image/png", "image/webp"].includes(
+                          file.type,
+                        )
+                      ) {
+                        toast.warning(
+                          "Please select a JPG, PNG, or WEBP image.",
+                        );
+                        event.target.value = "";
+                        setProfilePicture(null);
+                        return;
+                      }
+
+                      if (file && file.size > 5 * 1024 * 1024) {
+                        toast.warning(
+                          "Profile picture must be 5 MB or smaller.",
+                        );
+                        event.target.value = "";
+                        setProfilePicture(null);
+                        return;
+                      }
+
+                      setProfilePicture(file);
+                    }}
                     className="hidden"
                   />
 
@@ -676,10 +782,12 @@ export default function CustomerRegister() {
                 <button
                   type="button"
                   onClick={handleRegister}
-                  disabled={loading}
+                  disabled={loading || pendingRegistration}
                   className="flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
                 >
-                  {loading ? "Creating Account..." : "Create Customer Account"}
+                  {loading || pendingRegistration
+                    ? "Creating Account..."
+                    : "Create Customer Account"}
                 </button>
 
                 <p className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -696,6 +804,48 @@ export default function CustomerRegister() {
           </section>
         </section>
       </div>
+
+      <EmailOtpModal
+        open={otpModalOpen}
+        email={email}
+        accountType="customer"
+        onClose={() => {
+          if (!pendingRegistration) {
+            setOtpModalOpen(false);
+          }
+        }}
+        onVerified={() => {
+          setOtpModalOpen(false);
+          navigate("/", {
+            replace: true,
+            state: {
+              verifiedEmail: email.trim().toLowerCase(),
+            },
+          });
+        }}
+      />
+
+      <CaptchaVerificationModal
+        open={captchaOpen}
+        siteKey={turnstileSiteKey ?? ""}
+        widgetKey={captchaWidgetKey}
+        processing={pendingRegistration}
+        title="Verify before creating your account"
+        description="Complete this quick security check to continue with customer registration."
+        onClose={() => {
+          if (!pendingRegistration) {
+            setCaptchaOpen(false);
+          }
+        }}
+        onSuccess={(token) => {
+          void completeRegistration(token);
+        }}
+        onExpire={() => undefined}
+        onError={() => {
+          setCaptchaWidgetKey((current) => current + 1);
+          toast.error("Security verification failed. Please try again.");
+        }}
+      />
     </main>
   );
 }
