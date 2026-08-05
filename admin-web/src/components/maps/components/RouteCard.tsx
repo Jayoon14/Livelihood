@@ -22,7 +22,7 @@ export default function RouteCard({
   }
 
   return (
-    <div className="absolute bottom-4 left-3 right-20 z-20 max-w-md rounded-3xl bg-white/95 p-4 shadow-2xl backdrop-blur-xl sm:left-5 sm:right-auto sm:w-[410px] lg:hidden">
+    <div className="absolute left-3 right-3 top-20 z-20 max-w-md rounded-3xl bg-white/95 p-4 shadow-2xl backdrop-blur-xl sm:left-5 sm:right-auto sm:w-[410px] md:hidden">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-bold text-slate-900">

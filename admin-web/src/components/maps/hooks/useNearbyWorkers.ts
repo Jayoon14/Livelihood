@@ -4,6 +4,11 @@ import { Marker, type Map as MapLibreMap } from "maplibre-gl";
 
 import { supabase } from "../../../lib/supabase";
 import type { Coordinates } from "../types";
+import {
+  DEFAULT_NEARBY_WORKER_RADIUS_KM,
+  MAX_WORKER_GPS_ACCURACY_METERS,
+  STALE_WORKER_GPS_MS,
+} from "../constants";
 
 interface WorkerLocationRow {
   worker_id: string;
@@ -45,9 +50,9 @@ interface WorkerMarkerRecord {
   cleanupClick: () => void;
 }
 
-const STALE_GPS_THRESHOLD_MS = 5 * 60 * 1000;
+const STALE_GPS_THRESHOLD_MS = STALE_WORKER_GPS_MS;
 const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 60_000;
-const MAX_NEARBY_ACCURACY_METERS = 5_000;
+const MAX_NEARBY_ACCURACY_METERS = MAX_WORKER_GPS_ACCURACY_METERS;
 const REFRESH_INTERVAL_MS = 30_000;
 const TRANSIENT_GRACE_PERIOD_MS = 90_000;
 const MAX_CONSECUTIVE_MISSES = 3;
@@ -116,7 +121,7 @@ function hasUsableAccuracy(worker: WorkerLocationRow): boolean {
   );
 }
 
-function createWorkerMarkerElement(): HTMLDivElement {
+function createWorkerMarkerElement(isAvailable: boolean): HTMLDivElement {
   const container = document.createElement("div");
 
   container.className = "livelihood-worker-marker";
@@ -139,10 +144,10 @@ function createWorkerMarkerElement(): HTMLDivElement {
         justify-content:center;
         border:3px solid white;
         border-radius:9999px;
-        background:#16a34a;
+        background:${isAvailable ? "#16a34a" : "#f59e0b"};
         box-shadow:
           0 8px 20px rgba(15,23,42,.25),
-          0 0 0 4px rgba(34,197,94,.18);
+          0 0 0 4px ${isAvailable ? "rgba(34,197,94,.18)" : "rgba(245,158,11,.22)"};
       "
     >
       <svg
@@ -163,6 +168,7 @@ function createWorkerMarkerElement(): HTMLDivElement {
       </svg>
 
       <span
+        data-worker-status-dot
         style="
           position:absolute;
           right:-1px;
@@ -171,7 +177,7 @@ function createWorkerMarkerElement(): HTMLDivElement {
           height:12px;
           border:2px solid white;
           border-radius:9999px;
-          background:#22c55e;
+          background:${isAvailable ? "#22c55e" : "#f59e0b"};
         "
       ></span>
     </div>
@@ -184,7 +190,7 @@ export function useNearbyWorkers({
   mapRef,
   currentLocationRef,
   enabled,
-  radiusKilometers = 50,
+  radiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM,
   onWorkerSelect,
 }: UseNearbyWorkersParams) {
   const markerRecordsRef = useRef<Map<string, WorkerMarkerRecord>>(new Map());
@@ -396,7 +402,6 @@ export function useNearbyWorkers({
 
       const shouldDisplay =
         worker.is_online &&
-        worker.is_available &&
         hasFreshGps(worker) &&
         hasUsableAccuracy(worker) &&
         insideRadius;
@@ -478,6 +483,25 @@ export function useNearbyWorkers({
         animateMarker(worker.worker_id, destination);
         applyHeading(existing.element, worker.heading);
 
+        const icon = existing.element.querySelector<HTMLElement>(
+          "[data-worker-marker-icon]",
+        );
+        const statusDot = existing.element.querySelector<HTMLElement>(
+          "[data-worker-status-dot]",
+        );
+
+        if (icon) {
+          icon.style.background = worker.is_available
+            ? "#16a34a"
+            : "#f59e0b";
+        }
+
+        if (statusDot) {
+          statusDot.style.background = worker.is_available
+            ? "#22c55e"
+            : "#f59e0b";
+        }
+
         existing.cleanupClick();
         existing.element.addEventListener("click", handleClick);
         existing.cleanupClick = () => {
@@ -488,7 +512,7 @@ export function useNearbyWorkers({
         return;
       }
 
-      const element = createWorkerMarkerElement();
+      const element = createWorkerMarkerElement(worker.is_available);
 
       applyHeading(element, worker.heading);
       element.addEventListener("click", handleClick);
@@ -702,92 +726,61 @@ export function useNearbyWorkers({
     void loadNearbyWorkers();
   }, [loadNearbyWorkers]);
 
-  const fitNearbyWorkers = useCallback(
-    (options: {
-      includeOrigin?: boolean;
-      animate?: boolean;
-    } = {}) => {
-      const map = mapRef.current;
+  const fitNearbyWorkers = useCallback((): boolean => {
+    const map = mapRef.current;
+    const origin = currentLocationRef.current;
+    const workers = [...workersRef.current.values()];
 
-      if (!map || workersRef.current.size === 0) {
-        return false;
-      }
+    if (!map || workers.length === 0) {
+      return false;
+    }
 
-      const {
-        includeOrigin = true,
-        animate = true,
-      } = options;
+    const points: Coordinates[] = workers.map((worker) => [
+      worker.longitude,
+      worker.latitude,
+    ]);
 
-      const coordinates: Coordinates[] = [
-        ...workersRef.current.values(),
-      ].map((worker) => [
-        worker.longitude,
-        worker.latitude,
-      ]);
+    if (origin) {
+      points.push(origin);
+    }
 
-      const origin = currentLocationRef.current;
-
-      if (includeOrigin && origin) {
-        coordinates.push(origin);
-      }
-
-      if (coordinates.length === 1) {
-        map.flyTo({
-          center: coordinates[0],
-          zoom: Math.max(map.getZoom(), 13),
-          duration: animate ? 700 : 0,
-          essential: true,
-        });
-
-        return true;
-      }
-
-      let minimumLongitude = coordinates[0][0];
-      let maximumLongitude = coordinates[0][0];
-      let minimumLatitude = coordinates[0][1];
-      let maximumLatitude = coordinates[0][1];
-
-      for (const [longitude, latitude] of coordinates) {
-        minimumLongitude = Math.min(
-          minimumLongitude,
-          longitude,
-        );
-        maximumLongitude = Math.max(
-          maximumLongitude,
-          longitude,
-        );
-        minimumLatitude = Math.min(
-          minimumLatitude,
-          latitude,
-        );
-        maximumLatitude = Math.max(
-          maximumLatitude,
-          latitude,
-        );
-      }
-
-      map.fitBounds(
-        [
-          [minimumLongitude, minimumLatitude],
-          [maximumLongitude, maximumLatitude],
-        ],
-        {
-          padding: {
-            top: 110,
-            right: 70,
-            bottom: 110,
-            left: 70,
-          },
-          maxZoom: 14,
-          duration: animate ? 800 : 0,
-          essential: true,
-        },
-      );
-
+    if (points.length === 1) {
+      map.flyTo({
+        center: points[0],
+        zoom: 14,
+        duration: 700,
+        essential: true,
+      });
       return true;
-    },
-    [currentLocationRef, mapRef],
-  );
+    }
+
+    let minLng = points[0][0];
+    let maxLng = points[0][0];
+    let minLat = points[0][1];
+    let maxLat = points[0][1];
+
+    for (const [lng, lat] of points) {
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+    }
+
+    map.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding: { top: 100, right: 80, bottom: 100, left: 80 },
+        maxZoom: 14,
+        duration: 850,
+        essential: true,
+      },
+    );
+
+    return true;
+  }, [currentLocationRef, mapRef]);
 
   return {
     nearbyWorkers,

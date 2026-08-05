@@ -60,9 +60,20 @@ export default function NearbyWorkersModal({
   const [selectedWorker, setSelectedWorker] =
     useState<NearbyWorker | null>(null);
 
+  const [routeTarget, setRouteTarget] = useState<{
+    latitude: number;
+    longitude: number;
+    address: string;
+  } | null>(null);
+
+  const [routeRequestKey, setRouteRequestKey] =
+    useState(0);
+
   useEffect(() => {
     if (!open) {
       setSelectedWorker(null);
+      setRouteTarget(null);
+      setRouteRequestKey(0);
       return;
     }
 
@@ -164,10 +175,17 @@ export default function NearbyWorkersModal({
           <div className="h-full overflow-y-auto p-2 sm:p-5">
             <LocationPicker
               showNearbyWorkers
-              nearbyWorkerRadiusKilometers={20}
+              nearbyWorkerRadiusKilometers={50}
               onNearbyWorkerSelect={
                 setSelectedWorker
               }
+              externalRouteTarget={routeTarget}
+              externalRouteRequestKey={
+                routeRequestKey
+              }
+              onExternalRouteStarted={() => {
+                setSelectedWorker(null);
+              }}
               onLocationSelect={() => {
                 // Map-only worker discovery.
               }}
@@ -292,7 +310,7 @@ export default function NearbyWorkersModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                <div className="grid grid-cols-1 gap-3 border-t border-slate-200 p-4 sm:grid-cols-3 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() =>
@@ -302,6 +320,27 @@ export default function NearbyWorkersModal({
                   >
                     <UserRound size={18} />
                     Back
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRouteTarget({
+                        latitude:
+                          selectedWorker.latitude,
+                        longitude:
+                          selectedWorker.longitude,
+                        address: `${workerName} live location`,
+                      });
+
+                      setRouteRequestKey(
+                        (current) => current + 1,
+                      );
+                    }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700"
+                  >
+                    <Navigation size={18} />
+                    Route to Worker
                   </button>
 
                   <button

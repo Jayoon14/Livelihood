@@ -12,9 +12,7 @@ interface UseDirectionsProps {
   selectedCoordinatesRef: React.MutableRefObject<Coordinates>;
 
   drawRoute: (coordinates: [number, number][]) => void;
-  getCurrentLocation: (
-    selectAsDestination?: boolean,
-  ) => Promise<Coordinates | null>;
+  getCurrentLocation: (selectAsDestination?: boolean) => Promise<Coordinates | null>;
 
   setRouting: React.Dispatch<React.SetStateAction<boolean>>;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -37,10 +35,9 @@ export function useDirections({
   setDuration,
   setShowDirections,
 }: UseDirectionsProps) {
-  return useCallback(async () => {
+  return useCallback(async (destinationOverride?: Coordinates) => {
     if (!currentLocationRef.current) {
       setMessage("Getting your current location...");
-
       await getCurrentLocation(false);
     }
 
@@ -49,7 +46,7 @@ export function useDirections({
     if (!origin) {
       return;
     }
-    const destination = selectedCoordinatesRef.current;
+    const destination = destinationOverride ?? selectedCoordinatesRef.current;
 
     setRouting(true);
     setMessage("");
@@ -87,10 +84,6 @@ export function useDirections({
           duration: 1200,
           maxZoom: 17,
         });
-
-        window.setTimeout(() => {
-          drawRoute(route.coordinates);
-        }, 350);
       }, 100);
     } catch (error) {
       console.error("OSRM directions error:", error);

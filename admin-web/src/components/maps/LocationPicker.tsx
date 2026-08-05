@@ -3,6 +3,7 @@ import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { Coordinates } from "./types";
+import { DEFAULT_NEARBY_WORKER_RADIUS_KM } from "./constants";
 import {
   DEFAULT_CENTER,
   SATELLITE_STYLE,
@@ -55,6 +56,13 @@ interface InitialLocation {
   longitude: number;
   address: string;
 }
+
+interface ExternalRouteTarget {
+  latitude: number;
+  longitude: number;
+  address?: string;
+}
+
 interface Props {
   onLocationSelect: (
     latitude: number,
@@ -73,15 +81,22 @@ interface Props {
 
   initialLocation?: InitialLocation;
   navigationMode?: boolean;
+
+  externalRouteTarget?: ExternalRouteTarget | null;
+  externalRouteRequestKey?: number;
+  onExternalRouteStarted?: () => void;
 }
 export default function LocationPicker({
   onLocationSelect,
   onLocationConfirmedChange,
   showNearbyWorkers = false,
-  nearbyWorkerRadiusKilometers = 50,
+  nearbyWorkerRadiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM,
   onNearbyWorkerSelect,
   initialLocation,
   navigationMode = false,
+  externalRouteTarget = null,
+  externalRouteRequestKey = 0,
+  onExternalRouteStarted,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -90,6 +105,13 @@ export default function LocationPicker({
   const destinationMarkerRef = useRef<Marker | null>(null);
 
   const callbackRef = useRef(onLocationSelect);
+  const initialLocationLoadedRef = useRef(false);
+  const automaticRouteStartedRef = useRef(false);
+  const nearbyFitKeyRef = useRef("");
+  const handledExternalRouteKeyRef = useRef<number>(0);
+  const initialGpsRequestedRef = useRef(false);
+  const userSelectedLocationRef = useRef(false);
+  const routeTargetRef = useRef<Coordinates | null>(null);
 
   const selectedCoordinatesRef = useRef<Coordinates>(DEFAULT_CENTER);
   const currentLocationRef = useRef<Coordinates | null>(null);
@@ -155,6 +177,7 @@ export default function LocationPicker({
   } = useLocationPickerState();
   const [followUser] = useState(true);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [routeDisplayAddress, setRouteDisplayAddress] = useState("");
 
   useEffect(() => {
     callbackRef.current = onLocationSelect;
@@ -321,10 +344,51 @@ useEffect(() => {
     setShowDirections,
   });
 
-  const initialLocationLoadedRef = useRef(false);
-  const automaticRouteStartedRef = useRef(false);
-  const initialGpsRequestedRef = useRef(false);
-  const userSelectedLocationRef = useRef(false);
+  const getServiceLocationDirections = useCallback(async () => {
+    routeTargetRef.current = null;
+    setRouteDisplayAddress(selectedAddress);
+    await getDirections(selectedCoordinatesRef.current);
+  }, [getDirections, selectedAddress]);
+
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !externalRouteTarget ||
+      externalRouteRequestKey <= 0 ||
+      handledExternalRouteKeyRef.current ===
+        externalRouteRequestKey
+    ) {
+      return;
+    }
+
+    handledExternalRouteKeyRef.current =
+      externalRouteRequestKey;
+
+    const startExternalRoute = async () => {
+      const temporaryTarget: Coordinates = [
+        externalRouteTarget.longitude,
+        externalRouteTarget.latitude,
+      ];
+
+      routeTargetRef.current = temporaryTarget;
+      setRouteDisplayAddress(
+        externalRouteTarget.address ??
+          "Selected worker live location",
+      );
+
+      await getDirections(temporaryTarget);
+      onExternalRouteStarted?.();
+    };
+
+    void startExternalRoute();
+  }, [
+    externalRouteRequestKey,
+    externalRouteTarget,
+    getDirections,
+    mapReady,
+    onExternalRouteStarted,
+  ]);
+
 
   useEffect(() => {
   if (
@@ -447,10 +511,12 @@ useMapStyle({
 
 
 const {
+  nearbyWorkers,
   nearbyWorkersCount,
   loadingWorkers,
   nearbyWorkersError,
   refreshNearbyWorkers,
+  fitNearbyWorkers,
 } = useNearbyWorkers({
   mapRef,
   currentLocationRef:
@@ -476,6 +542,43 @@ useEffect(() => {
   mapReady,
   navigationMode,
   refreshNearbyWorkers,
+  showNearbyWorkers,
+]);
+
+useEffect(() => {
+  if (
+    !showNearbyWorkers ||
+    !mapReady ||
+    nearbyWorkers.length === 0
+  ) {
+    return;
+  }
+
+  const key = [
+    latitude.toFixed(5),
+    longitude.toFixed(5),
+    ...nearbyWorkers
+      .map((worker) => worker.worker_id)
+      .sort(),
+  ].join("|");
+
+  if (nearbyFitKeyRef.current === key) {
+    return;
+  }
+
+  nearbyFitKeyRef.current = key;
+
+  const timer = window.setTimeout(() => {
+    fitNearbyWorkers();
+  }, 400);
+
+  return () => window.clearTimeout(timer);
+}, [
+  fitNearbyWorkers,
+  latitude,
+  longitude,
+  mapReady,
+  nearbyWorkers,
   showNearbyWorkers,
 ]);
 
@@ -572,7 +675,7 @@ const handleCurrentLocation = useCallback(() => {
     clearSearchHistory,
     saveLocation: saveUserSelectedLocation,
     setShowLayers,
-    getDirections,
+    getDirections: getServiceLocationDirections,
   });
   const mobileSearchProps = useMobileSearchProps({
     searchText,
@@ -596,7 +699,7 @@ const layersModalProps = useLayersModalProps({
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:rounded-[28px]">
       <div className="relative flex h-[68dvh] min-h-[500px] max-h-[760px] w-full overflow-hidden sm:h-[650px]">
-        <div className="hidden w-[320px] shrink-0 lg:block">
+        <div className="hidden w-[320px] shrink-0 md:block">
           <MapSidebar {...sidebarProps} />
         </div>
         <div className="relative flex-1">
@@ -614,7 +717,7 @@ const layersModalProps = useLayersModalProps({
           )}
           {showNearbyWorkers && (
             <div className="pointer-events-none absolute right-3 top-3 z-20 sm:right-4 sm:top-4">
-              <div className="rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
+              <div className="pointer-events-auto rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Nearby Workers
                 </p>
@@ -624,6 +727,16 @@ const layersModalProps = useLayersModalProps({
                     ? "Loading..."
                     : `${nearbyWorkersCount} available`}
                 </p>
+
+                {nearbyWorkersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => fitNearbyWorkers()}
+                    className="pointer-events-auto mt-2 min-h-9 w-full rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700"
+                  >
+                    Show workers
+                  </button>
+                )}
 
                 {nearbyWorkersError && (
                   <p className="mt-1 max-w-52 text-xs text-red-600">
@@ -636,20 +749,20 @@ const layersModalProps = useLayersModalProps({
         </div>
 
         {/* Mobile map actions */}
-        <div className="absolute bottom-20 left-1/2 z-30 flex -translate-x-1/2 gap-2 lg:hidden sm:bottom-24">
+        <div className="absolute bottom-3 right-3 z-30 flex gap-2 md:hidden">
           <button
             type="button"
             onClick={() => setShowLayers(true)}
-            className="min-h-11 rounded-xl border border-white/80 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-xl backdrop-blur-xl transition hover:bg-white"
+            className="min-h-11 rounded-xl border border-slate-200 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-lg backdrop-blur"
           >
             Layers
           </button>
 
           <button
             type="button"
-            onClick={() => void getDirections()}
+            onClick={() => void getServiceLocationDirections()}
             disabled={routing}
-            className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xl transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {routing ? "Routing..." : "Route"}
           </button>
@@ -669,7 +782,7 @@ const layersModalProps = useLayersModalProps({
 
         <RouteCard
           visible={showDirections}
-          selectedAddress={selectedAddress}
+          selectedAddress={routeDisplayAddress || selectedAddress}
           distance={distance}
           duration={duration}
           onClose={() => setShowDirections(false)}

@@ -28,9 +28,7 @@ export function useCurrentLocation({
   setMessage,
 }: UseCurrentLocationParams) {
   return useCallback(
-    (
-      selectAsDestination = true,
-    ): Promise<Coordinates | null> => {
+    (selectAsDestination = true): Promise<Coordinates | null> => {
       if (!navigator.geolocation) {
         setMessage(
           "Geolocation is not supported by this browser.",
@@ -43,78 +41,76 @@ export function useCurrentLocation({
 
       return new Promise<Coordinates | null>((resolve) => {
         navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const coordinates: Coordinates = [
-              position.coords.longitude,
-              position.coords.latitude,
-            ];
+        async (position) => {
+          const coordinates: Coordinates = [
+            position.coords.longitude,
+            position.coords.latitude,
+          ];
 
-            currentLocationRef.current = coordinates;
+          currentLocationRef.current = coordinates;
 
-            try {
-              if (selectAsDestination) {
-                await saveLocation(
-                  position.coords.latitude,
-                  position.coords.longitude,
-                );
-              }
-
-              resolve(coordinates);
-            } catch (error) {
-              console.error(
-                "Unable to save current location:",
-                error,
+          try {
+            if (selectAsDestination) {
+              await saveLocation(
+                position.coords.latitude,
+                position.coords.longitude,
               );
-
-              setMessage(
-                "Your location was found, but its address could not be loaded.",
-              );
-
-              resolve(coordinates);
-            } finally {
-              setLocating(false);
             }
-          },
+          } catch (error) {
+            console.error(
+              "Unable to save current location:",
+              error,
+            );
 
-          (error) => {
-            console.error("Geolocation error:", error);
-
+            setMessage(
+              "Your location was found, but its address could not be loaded.",
+            );
+          } finally {
             setLocating(false);
+          }
 
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                setMessage(
-                  "Location permission was denied. Please allow location access in your browser.",
-                );
-                break;
+          resolve(coordinates);
+        },
 
-              case error.POSITION_UNAVAILABLE:
-                setMessage(
-                  "Your current location is unavailable. Please try again.",
-                );
-                break;
+        (error) => {
+          console.error("Geolocation error:", error);
 
-              case error.TIMEOUT:
-                setMessage(
-                  "Location request timed out. Please try again or select a location on the map.",
-                );
-                break;
+          setLocating(false);
 
-              default:
-                setMessage(
-                  "Unable to access your location. Please choose a point on the map.",
-                );
-            }
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setMessage(
+                "Location permission was denied. Please allow location access in your browser.",
+              );
+              break;
 
-            resolve(null);
-          },
+            case error.POSITION_UNAVAILABLE:
+              setMessage(
+                "Your current location is unavailable. Please try again.",
+              );
+              break;
 
-          {
-            enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 60000,
-          },
-        );
+            case error.TIMEOUT:
+              setMessage(
+                "Location request timed out. Please try again or select a location on the map.",
+              );
+              break;
+
+            default:
+              setMessage(
+                "Unable to access your location. Please choose a point on the map.",
+              );
+          }
+
+          resolve(null);
+        },
+
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 60000,
+        },
+      );
       });
     },
     [

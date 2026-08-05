@@ -26,20 +26,6 @@ const inter = { fontFamily: "'Inter', sans-serif" };
 
 const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
 
-function isOnline(lastSeen?: string | null): boolean {
-  if (!lastSeen) return false;
-
-  const timestamp = new Date(lastSeen).getTime();
-
-  if (!Number.isFinite(timestamp)) {
-    return false;
-  }
-
-  const elapsed = Date.now() - timestamp;
-
-  return elapsed >= 0 && elapsed <= ONLINE_TIMEOUT_MS;
-}
-
 const selectClass =
   "rounded-2xl border border-slate-200 px-5 py-4 outline-none bg-white text-slate-700 transition-colors focus:border-[#0A1930] focus:ring-2 focus:ring-[#0A1930]/10";
 
@@ -71,7 +57,25 @@ export default function Workers() {
   }, []);
 
   useEffect(() => {
-    loadWorkers();
+    void loadWorkers();
+  }, [search, category, priceRange, rating, availability]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void loadWorkers();
+      }
+    };
+
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [search, category, priceRange, rating, availability]);
 
   async function loadCategories() {
@@ -103,10 +107,9 @@ export default function Workers() {
       availabilityEntries,
     ] = await Promise.all([
       supabase
-        .from("profiles")
-        .select("id, last_seen")
-        .in("id", workerIds)
-        .eq("role", "worker"),
+        .from("worker_locations")
+        .select("worker_id, is_online, is_available, updated_at")
+        .in("worker_id", workerIds),
       supabase
         .from("bookings")
         .select("worker_id, status, trip_status")
@@ -169,14 +172,20 @@ export default function Workers() {
     setOnlineStatus(
       Object.fromEntries(
         workerIds.map((workerId) => {
-          const profile = presenceResult.data?.find(
-            (item) => String(item.id) === workerId,
+          const location = presenceResult.data?.find(
+            (item) => String(item.worker_id) === workerId,
           );
 
-          return [
-            workerId,
-            isOnline(profile?.last_seen),
-          ];
+          const updatedAt = new Date(
+            String(location?.updated_at ?? ""),
+          ).getTime();
+
+          const online =
+            Boolean(location?.is_online) &&
+            Number.isFinite(updatedAt) &&
+            Date.now() - updatedAt <= ONLINE_TIMEOUT_MS;
+
+          return [workerId, online];
         }),
       ),
     );
@@ -191,7 +200,18 @@ export default function Workers() {
     );
 
     setWorkerAvailability(
-      Object.fromEntries(availabilityEntries),
+      Object.fromEntries(
+        availabilityEntries.map(([workerId, scheduleAvailable]) => {
+          const location = presenceResult.data?.find(
+            (item) => String(item.worker_id) === workerId,
+          );
+
+          return [
+            workerId,
+            Boolean(location?.is_available) && scheduleAvailable,
+          ];
+        }),
+      ),
     );
   }
 

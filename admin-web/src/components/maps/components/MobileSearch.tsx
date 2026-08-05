@@ -52,7 +52,7 @@ export default function MobileSearch({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute bottom-3 left-3 z-30 inline-flex max-w-[calc(100%-5.5rem)] items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-3 text-sm font-bold text-slate-800 shadow-2xl backdrop-blur-xl transition hover:bg-white sm:bottom-5 sm:left-5 lg:hidden"
+        className="absolute bottom-3 left-3 z-30 inline-flex max-w-[calc(100%-5.5rem)] items-center gap-2 rounded-full border border-white/80 bg-white/95 px-4 py-3 text-sm font-bold text-slate-800 shadow-2xl backdrop-blur-xl transition hover:bg-white sm:bottom-5 sm:left-5 md:hidden"
         aria-label="Open location search"
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
@@ -67,7 +67,7 @@ export default function MobileSearch({
   }
 
   return (
-    <div className="absolute inset-x-2 bottom-2 z-40 lg:hidden sm:inset-x-4 sm:bottom-4">
+    <div className="absolute inset-x-2 bottom-2 z-40 md:hidden sm:inset-x-4 sm:bottom-4">
       <div className="max-h-[58dvh] overflow-hidden rounded-3xl border border-white/80 bg-white/98 shadow-[0_24px_60px_rgba(15,23,42,0.35)] backdrop-blur-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div className="min-w-0">

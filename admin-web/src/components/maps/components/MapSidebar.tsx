@@ -56,7 +56,7 @@ export default function MapSidebar({
   onGetDirections,
 }: MapSidebarProps) {
   return (
-    <aside className="relative z-20 hidden w-[320px] shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+    <aside className="relative z-20 flex h-full w-full flex-col border-r border-slate-200 bg-white">
       <div className="border-b border-slate-200 px-5 py-5">
         <h2 className="text-xl font-bold text-slate-900">Navigation</h2>
 
@@ -215,12 +215,13 @@ export default function MapSidebar({
         </div>
 
       </div>
-      <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+
+      <div className="shrink-0 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_25px_rgba(15,23,42,0.06)]">
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={onOpenLayers}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
           >
             <Layers3 size={18} />
             Layers
@@ -230,7 +231,7 @@ export default function MapSidebar({
             type="button"
             onClick={onGetDirections}
             disabled={routing}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {routing ? (
               <LoaderCircle size={18} className="animate-spin" />
@@ -242,21 +243,18 @@ export default function MapSidebar({
         </div>
 
         {distance !== null && duration !== null && (
-          <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 p-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-white p-2.5">
-                <p className="text-[11px] text-slate-500">Distance</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-900">
-                  {formatDistance(distance)}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-2.5">
-                <p className="text-[11px] text-slate-500">Estimated time</p>
-                <p className="mt-0.5 text-sm font-bold text-slate-900">
-                  {formatDuration(duration)}
-                </p>
-              </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
+            <div>
+              <p className="text-[11px] text-slate-500">Distance</p>
+              <p className="font-bold text-slate-900">
+                {formatDistance(distance)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500">Estimated time</p>
+              <p className="font-bold text-slate-900">
+                {formatDuration(duration)}
+              </p>
             </div>
           </div>
         )}

@@ -134,25 +134,42 @@ export function useSaveLocation({
       setResults([]);
       setMessage("");
 
-      if (
-        !destinationMarkerRef.current &&
-        mapRef.current
-      ) {
-        destinationMarkerRef.current = new Marker({
-          element: createCustomerMarkerElement(),
-          anchor: "bottom",
-          draggable: false,
-        })
-          .setLngLat([
+      const placeDestinationMarker = (): boolean => {
+        const map = mapRef.current;
+
+        if (!map) {
+          return false;
+        }
+
+        const existingElement =
+          destinationMarkerRef.current?.getElement();
+
+        if (
+          !destinationMarkerRef.current ||
+          !existingElement?.isConnected
+        ) {
+          destinationMarkerRef.current?.remove();
+
+          destinationMarkerRef.current = new Marker({
+            element: createCustomerMarkerElement(),
+            anchor: "bottom",
+            draggable: false,
+          })
+            .setLngLat([longitude, latitude])
+            .addTo(map);
+        } else {
+          destinationMarkerRef.current.setLngLat([
             longitude,
             latitude,
-          ])
-          .addTo(mapRef.current);
-      } else {
-        destinationMarkerRef.current?.setLngLat([
-          longitude,
-          latitude,
-        ]);
+          ]);
+        }
+
+        return true;
+      };
+
+      if (!placeDestinationMarker()) {
+        window.setTimeout(placeDestinationMarker, 100);
+        window.setTimeout(placeDestinationMarker, 350);
       }
 
       if (moveCamera) {
