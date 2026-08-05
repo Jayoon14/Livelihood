@@ -39,6 +39,8 @@ import { lazy, Suspense } from "react";
     () => import("../pages/admin/customers/CustomerDetails"),
   );
   const Reports = lazy(() => import("../pages/admin/reports/Reports"));
+  const ReportsComplaints = lazy(() => import("../pages/admin/cases/ReportsComplaints"));
+  const CaseReview = lazy(() => import("../pages/admin/cases/CaseReview"));
   const AdminServices = lazy(
     () => import("../pages/admin/services/Services"),
   );
@@ -118,6 +120,7 @@ import { lazy, Suspense } from "react";
     () => import("../pages/customer/reviews/LeaveReview"),
   );
   const Payment = lazy(() => import("../pages/customer/payments/Payment"));
+  const CustomerMyReports = lazy(() => import("../pages/customer/reports/MyReports"));
 
   // ================= WORKER =================
   const WorkerDashboard = lazy(
@@ -155,6 +158,7 @@ import { lazy, Suspense } from "react";
   const WorkerNotifications = lazy(
     () => import("../pages/worker/notifications/Notifications"),
   );
+  const WorkerMyReports = lazy(() => import("../pages/worker/reports/MyReports"));
 
   // ================= CHAT =================
   const ChatRoom = lazy(() => import("../pages/chat/ChatRoom"));
@@ -343,6 +347,8 @@ import { lazy, Suspense } from "react";
                   }
                 />
 
+                <Route path="/customer/reports" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerMyReports /></ProtectedRoute>} />
+
                 <Route
                   path="/customer/bookings"
                   element={
@@ -479,6 +485,8 @@ import { lazy, Suspense } from "react";
                     </ProtectedRoute>
                   }
                 />
+
+                <Route path="/worker/reports" element={<ProtectedRoute allowedRoles={["worker"]}><WorkerMyReports /></ProtectedRoute>} />
 
                 <Route
                   path="/worker/bookings"
@@ -693,6 +701,25 @@ import { lazy, Suspense } from "react";
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
                       <Reports />
+                    </ProtectedRoute>
+                  }
+                />
+
+
+                <Route
+                  path="/admin/cases"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <ReportsComplaints />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/cases/:reportId"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <CaseReview />
                     </ProtectedRoute>
                   }
                 />

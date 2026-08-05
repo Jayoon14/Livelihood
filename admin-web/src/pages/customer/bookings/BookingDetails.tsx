@@ -14,6 +14,7 @@ import {
   CalendarClock,
   CheckCircle2,
   XCircle,
+  Flag,
 } from "lucide-react";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -27,6 +28,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { hasReviewed } from "../../../services/reviewService";
 import { respondToProjectExtension } from "../../../services/projectLifecycleService";
+import ReportCaseModal from "../../../components/reports/ReportCaseModal";
 
 type BookingStatus =
   | "Pending"
@@ -234,6 +236,7 @@ export default function BookingDetails() {
     useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [reportModal, setReportModal] = useState<"report" | "complaint" | null>(null);
 
   const statusRef = useRef<BookingStatus | null>(null);
   const mountedRef = useRef(true);
@@ -900,6 +903,13 @@ export default function BookingDetails() {
               </div>
             )}
 
+          {booking.worker_id && booking.status !== "Pending" && booking.status !== "Cancelled" && (
+            <>
+              <button type="button" onClick={() => setReportModal("complaint")} className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 font-semibold text-white transition hover:bg-amber-600"><Flag className="h-5 w-5"/>File Complaint</button>
+              <button type="button" onClick={() => setReportModal("report")} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 font-semibold text-white transition hover:bg-red-700"><Flag className="h-5 w-5"/>Report Worker</button>
+            </>
+          )}
+
           <Link
             to="/customer/bookings"
             className="inline-flex items-center rounded-xl border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -908,6 +918,9 @@ export default function BookingDetails() {
           </Link>
         </div>
       </div>
+      {booking.worker_id && reportModal && (
+        <ReportCaseModal open bookingId={booking.id} reportedUserId={booking.worker_id} reporterRole="customer" reportedRole="worker" reportedUserName={getWorkerName(booking.worker)} defaultCaseType={reportModal} onClose={() => setReportModal(null)} />
+      )}
     </CustomerLayout>
   );
 }

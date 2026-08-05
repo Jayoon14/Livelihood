@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   MessageCircle,
   ShieldCheck,
+  Flag,
   Users,
   Wallet,
   Wrench,
@@ -43,6 +44,11 @@ const menus = [
     name: "Trusted Workers",
     icon: ShieldCheck,
     path: "/customer/trusted-workers",
+  },
+  {
+    name: "My Reports",
+    icon: Flag,
+    path: "/customer/reports",
   },
   {
     name: "Payments",

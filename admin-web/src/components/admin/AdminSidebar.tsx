@@ -2,6 +2,7 @@ import {
   BarChart3,
   ClipboardList,
   History,
+  ShieldAlert,
   LayoutDashboard,
   UserRound,
   Users,
@@ -40,6 +41,11 @@ const menus = [
     icon: BarChart3,
     label: "Reports",
     path: "/admin/reports",
+  },
+  {
+    icon: ShieldAlert,
+    label: "Reports & Complaints",
+    path: "/admin/cases",
   },
   {
     icon: Wrench,

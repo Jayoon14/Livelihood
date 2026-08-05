@@ -21,6 +21,8 @@ import {
   Navigation,
   Star,
   X,
+  Flag,
+  FileText,
 } from "lucide-react";
 import {
   checkWorkerAvailability,
@@ -32,6 +34,9 @@ import BookingFilters from "./components/BookingFilters";
 import BookingsSkeleton from "./components/BookingsSkeleton";
 import ProofImageGallery from "./components/ProofImageGallery";
 import StatusBadge from "./components/StatusBadge";
+import ReportCaseModal from "../../../components/reports/ReportCaseModal";
+import { getMyActiveReportCasesForBookings } from "../../../services/caseReportService";
+import type { ReportCase } from "../../../types/report";
 import { formatBookingDate, formatBookingTime, formatDateTime } from "./utils/dateTime";
 
 const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
@@ -67,6 +72,13 @@ export default function Bookings() {
   const [rebookNotes, setRebookNotes] = useState("");
   const [rebookAddress, setRebookAddress] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [reportBooking, setReportBooking] = useState<{
+    booking: CustomerBooking;
+    type: "report" | "complaint";
+  } | null>(null);
+  const [activeCasesByBooking, setActiveCasesByBooking] = useState<
+    Record<number, ReportCase[]>
+  >({});
 
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [activeAction, setActiveAction] = useState<{
@@ -192,7 +204,30 @@ export default function Bookings() {
         })),
       );
 
-      setBookings(updated as CustomerBooking[]);
+      const normalizedBookings = updated as CustomerBooking[];
+      setBookings(normalizedBookings);
+
+      try {
+        const cases = await getMyActiveReportCasesForBookings(
+          normalizedBookings.map((booking) => booking.id),
+        );
+
+        const grouped = cases.reduce<Record<number, ReportCase[]>>(
+          (current, item) => {
+            current[item.booking_id] = [
+              ...(current[item.booking_id] ?? []),
+              item,
+            ];
+            return current;
+          },
+          {},
+        );
+
+        setActiveCasesByBooking(grouped);
+      } catch (caseError) {
+        console.error("Load active report cases error:", caseError);
+        setActiveCasesByBooking({});
+      }
     } catch (error) {
       console.error("Load customer bookings error:", error);
       toast.error("Unable to load bookings.");
@@ -845,6 +880,47 @@ export default function Bookings() {
                                 <RotateCcw size={18} />
                                 Rebook
                               </button>
+
+                              {(activeCasesByBooking[booking.id] ?? []).length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate("/customer/reports")}
+                                  className="flex items-center gap-2 rounded-xl bg-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-800"
+                                >
+                                  <FileText size={18} />
+                                  View Report
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReportBooking({
+                                        booking,
+                                        type: "report",
+                                      })
+                                    }
+                                    className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+                                  >
+                                    <Flag size={18} />
+                                    Report Worker
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReportBooking({
+                                        booking,
+                                        type: "complaint",
+                                      })
+                                    }
+                                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 font-semibold text-white hover:bg-amber-600"
+                                  >
+                                    <FileText size={18} />
+                                    File Complaint
+                                  </button>
+                                </>
+                              )}
                             </>
                           )}
                         </>
@@ -884,6 +960,26 @@ export default function Bookings() {
           )}
         </div>
       </div>
+
+      {reportBooking && (
+        <ReportCaseModal
+          open
+          bookingId={reportBooking.booking.id}
+          reportedUserId={reportBooking.booking.worker_id}
+          reporterRole="customer"
+          reportedRole="worker"
+          reportedUserName={[
+            reportBooking.booking.worker?.first_name,
+            reportBooking.booking.worker?.middle_name,
+            reportBooking.booking.worker?.last_name,
+          ]
+            .filter(Boolean)
+            .join(" ") || "Worker"}
+          defaultCaseType={reportBooking.type}
+          onClose={() => setReportBooking(null)}
+          onSubmitted={() => void loadBookings()}
+        />
+      )}
 
       {selectedBooking &&
         !receiptBooking &&

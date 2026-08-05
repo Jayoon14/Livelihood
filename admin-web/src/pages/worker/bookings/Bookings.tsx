@@ -22,6 +22,8 @@ import {
   Trash2,
   WalletCards,
   X,
+  Flag,
+  FileText,
 } from "lucide-react";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
@@ -33,6 +35,9 @@ import {
 } from "../../../services/workerBookingService";
 import BookingTimeline from "../../../components/worker/Timeline/BookingTimeline";
 import BookingActivity from "../../../components/worker/Timeline/BookingActivity";
+import ReportCaseModal from "../../../components/reports/ReportCaseModal";
+import { getMyActiveReportCasesForBookings } from "../../../services/caseReportService";
+import type { ReportCase } from "../../../types/report";
 
 type BookingStatus =
   | "Pending"
@@ -226,6 +231,10 @@ export default function Bookings() {
   const [workerId, setWorkerId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [reportBooking, setReportBooking] = useState<{ booking: WorkerBooking; type: "report" | "complaint" } | null>(null);
+  const [activeCasesByBooking, setActiveCasesByBooking] = useState<
+    Record<number, ReportCase[]>
+  >({});
   const [selectedBooking, setSelectedBooking] = useState<WorkerBooking | null>(
     null,
   );
@@ -258,6 +267,28 @@ export default function Bookings() {
         : [];
 
       setBookings(normalized);
+
+      try {
+        const cases = await getMyActiveReportCasesForBookings(
+          normalized.map((booking) => booking.id),
+        );
+
+        const grouped = cases.reduce<Record<number, ReportCase[]>>(
+          (current, item) => {
+            current[item.booking_id] = [
+              ...(current[item.booking_id] ?? []),
+              item,
+            ];
+            return current;
+          },
+          {},
+        );
+
+        setActiveCasesByBooking(grouped);
+      } catch (caseError) {
+        console.error("Load worker active report cases error:", caseError);
+        setActiveCasesByBooking({});
+      }
       setSelectedBooking((current) =>
         current
           ? (normalized.find((booking) => booking.id === current.id) ?? null)
@@ -903,6 +934,49 @@ export default function Bookings() {
                               </button>
                             )}
 
+                            {booking.status === "Completed" &&
+                              booking.customer?.id &&
+                              ((activeCasesByBooking[booking.id] ?? []).length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate("/worker/reports")}
+                                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-700 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  View Report
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReportBooking({
+                                        booking,
+                                        type: "report",
+                                      })
+                                    }
+                                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-red-700"
+                                  >
+                                    <Flag className="h-4 w-4" />
+                                    Report Customer
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReportBooking({
+                                        booking,
+                                        type: "complaint",
+                                      })
+                                    }
+                                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-amber-600"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    File Complaint
+                                  </button>
+                                </>
+                              ))}
+
                             {booking.status === "On Going" &&
                               booking.trip_status === "On Trip" && (
                                 <Link
@@ -925,6 +999,10 @@ export default function Bookings() {
         )}
       </div>
 
+      {reportBooking?.booking.customer?.id && (
+        <ReportCaseModal open bookingId={reportBooking.booking.id} reportedUserId={reportBooking.booking.customer.id} reporterRole="worker" reportedRole="customer" reportedUserName={getCustomerName(reportBooking.booking.customer)} defaultCaseType={reportBooking.type} onClose={() => setReportBooking(null)} onSubmitted={() => void loadBookings(true)} />
+      )}
+
       {selectedBooking && (
         <div
           role="dialog"
@@ -946,6 +1024,13 @@ export default function Bookings() {
                     Booking #{selectedBooking.id}
                   </p>
                 </div>
+                {selectedBooking.customer?.id && selectedBooking.status !== "Pending" && selectedBooking.status !== "Cancelled" && (
+                  <>
+                    <button type="button" onClick={() => setReportBooking({ booking: selectedBooking, type: "complaint" })} className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-semibold text-white hover:bg-amber-600"><Flag className="h-4 w-4"/>File Complaint</button>
+                    <button type="button" onClick={() => setReportBooking({ booking: selectedBooking, type: "report" })} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700"><Flag className="h-4 w-4"/>Report Customer</button>
+                  </>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setSelectedBooking(null)}
