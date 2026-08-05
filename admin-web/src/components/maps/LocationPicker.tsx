@@ -636,11 +636,11 @@ const layersModalProps = useLayersModalProps({
         </div>
 
         {/* Mobile map actions */}
-        <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 gap-2 lg:hidden">
+        <div className="absolute bottom-20 left-1/2 z-30 flex -translate-x-1/2 gap-2 lg:hidden sm:bottom-24">
           <button
             type="button"
             onClick={() => setShowLayers(true)}
-            className="min-h-11 rounded-xl border border-slate-200 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-lg backdrop-blur"
+            className="min-h-11 rounded-xl border border-white/80 bg-white/95 px-4 text-sm font-bold text-slate-700 shadow-xl backdrop-blur-xl transition hover:bg-white"
           >
             Layers
           </button>
@@ -649,7 +649,7 @@ const layersModalProps = useLayersModalProps({
             type="button"
             onClick={() => void getDirections()}
             disabled={routing}
-            className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-xl transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {routing ? "Routing..." : "Route"}
           </button>

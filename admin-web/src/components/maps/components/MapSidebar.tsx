@@ -214,11 +214,13 @@ export default function MapSidebar({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+      </div>
+      <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)]">
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={onOpenLayers}
-            className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50"
           >
             <Layers3 size={18} />
             Layers
@@ -227,34 +229,31 @@ export default function MapSidebar({
           <button
             type="button"
             onClick={onGetDirections}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+            disabled={routing}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {routing ? (
               <LoaderCircle size={18} className="animate-spin" />
             ) : (
               <Navigation size={18} />
             )}
-            Route
+            {routing ? "Routing..." : "Route"}
           </button>
         </div>
 
         {distance !== null && duration !== null && (
-          <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-            <p className="text-sm font-bold text-blue-900">Route information</p>
-
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-white p-3">
-                <p className="text-xs text-slate-500">Distance</p>
-
-                <p className="mt-1 font-bold text-slate-900">
+          <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-white p-2.5">
+                <p className="text-[11px] text-slate-500">Distance</p>
+                <p className="mt-0.5 text-sm font-bold text-slate-900">
                   {formatDistance(distance)}
                 </p>
               </div>
 
-              <div className="rounded-xl bg-white p-3">
-                <p className="text-xs text-slate-500">Estimated time</p>
-
-                <p className="mt-1 font-bold text-slate-900">
+              <div className="rounded-xl bg-white p-2.5">
+                <p className="text-[11px] text-slate-500">Estimated time</p>
+                <p className="mt-0.5 text-sm font-bold text-slate-900">
                   {formatDuration(duration)}
                 </p>
               </div>
