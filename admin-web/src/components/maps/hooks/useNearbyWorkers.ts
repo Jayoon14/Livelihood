@@ -184,7 +184,7 @@ export function useNearbyWorkers({
   mapRef,
   currentLocationRef,
   enabled,
-  radiusKilometers = 20,
+  radiusKilometers = 50,
   onWorkerSelect,
 }: UseNearbyWorkersParams) {
   const markerRecordsRef = useRef<Map<string, WorkerMarkerRecord>>(new Map());

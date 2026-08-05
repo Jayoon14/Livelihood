@@ -78,7 +78,7 @@ export default function LocationPicker({
   onLocationSelect,
   onLocationConfirmedChange,
   showNearbyWorkers = false,
-  nearbyWorkerRadiusKilometers = 20,
+  nearbyWorkerRadiusKilometers = 50,
   onNearbyWorkerSelect,
   initialLocation,
   navigationMode = false,
@@ -613,7 +613,7 @@ const layersModalProps = useLayersModalProps({
             </div>
           )}
           {showNearbyWorkers && (
-            <div className="pointer-events-none absolute left-3 top-20 z-20 sm:left-4 sm:top-4">
+            <div className="pointer-events-none absolute right-3 top-3 z-20 sm:right-4 sm:top-4">
               <div className="rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Nearby Workers
