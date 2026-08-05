@@ -847,7 +847,11 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
 
   const date = today.toISOString().split("T")[0];
 
-  const [scheduleResult, unavailableResult] = await Promise.all([
+  const [
+    scheduleResult,
+    unavailableResult,
+    activeBookingsResult,
+  ] = await Promise.all([
     supabase
       .from("worker_schedules")
       .select("id")
@@ -861,6 +865,10 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
       .eq("worker_id", id)
       .eq("unavailable_date", date)
       .limit(1),
+    supabase
+      .from("bookings")
+      .select("id, status, trip_status")
+      .eq("worker_id", id),
   ]);
 
   if (scheduleResult.error) {
@@ -871,7 +879,35 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
     throw unavailableResult.error;
   }
 
+  if (activeBookingsResult.error) {
+    throw activeBookingsResult.error;
+  }
+
+  const hasActiveJob = (activeBookingsResult.data ?? []).some(
+    (booking) => {
+      const status = String(
+        booking.status ?? "",
+      )
+        .trim()
+        .toLowerCase();
+
+      const tripStatus = String(
+        booking.trip_status ?? "",
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        status === "on going" ||
+        status === "ongoing" ||
+        status === "in progress" ||
+        tripStatus === "on trip"
+      );
+    },
+  );
+
   return (
+    !hasActiveJob &&
     (scheduleResult.data?.length ?? 0) > 0 &&
     (unavailableResult.data?.length ?? 0) === 0
   );

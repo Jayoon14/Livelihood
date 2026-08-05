@@ -123,6 +123,73 @@ function getStoragePathFromPublicUrl(imageUrl: string): string | null {
   }
 }
 
+async function compressProofImage(file: File): Promise<File> {
+  if (file.size <= MAX_IMAGE_SIZE) {
+    return file;
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
+
+      element.src = sourceUrl;
+    });
+
+    const maximumDimension = 1920;
+    const scale = Math.min(
+      1,
+      maximumDimension / Math.max(image.naturalWidth, image.naturalHeight),
+    );
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("Image compression is not supported by this browser.");
+    }
+
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let quality = 0.9;
+    let blob: Blob | null = null;
+
+    while (quality >= 0.35) {
+      blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/webp", quality),
+      );
+
+      if (blob && blob.size <= MAX_IMAGE_SIZE) {
+        break;
+      }
+
+      quality -= 0.1;
+    }
+
+    if (!blob || blob.size > MAX_IMAGE_SIZE) {
+      throw new Error(
+        `${file.name} is still larger than 5 MB after compression.`,
+      );
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "completion-proof";
+
+    return new File([blob], `${baseName}.webp`, {
+      type: "image/webp",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
 export default function CompleteJob() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -405,7 +472,9 @@ export default function CompleteJob() {
     };
   }, [selectedImages]);
 
-  function handleImages(event: ChangeEvent<HTMLInputElement>): void {
+  async function handleImages(
+    event: ChangeEvent<HTMLInputElement>,
+  ): Promise<void> {
     const inputFiles = Array.from(event.target.files ?? []);
     if (inputFiles.length === 0) return;
 
@@ -425,18 +494,38 @@ export default function CompleteJob() {
       return;
     }
 
-    if (filesToAdd.some((file) => file.size > MAX_IMAGE_SIZE)) {
-      toast.error("Each image must not be larger than 5 MB.");
+    try {
+      const oversizedCount = filesToAdd.filter(
+        (file) => file.size > MAX_IMAGE_SIZE,
+      ).length;
+
+      if (oversizedCount > 0) {
+        toast.info(
+          `Compressing ${oversizedCount} large image${
+            oversizedCount === 1 ? "" : "s"
+          }...`,
+        );
+      }
+
+      const preparedFiles = await Promise.all(
+        filesToAdd.map((file) => compressProofImage(file)),
+      );
+
+      const newImages = preparedFiles.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+
+      setSelectedImages((current) => [...current, ...newImages]);
+
+      if (oversizedCount > 0) {
+        toast.success("Large proof images were compressed successfully.");
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error));
       event.target.value = "";
       return;
     }
-
-    const newImages = filesToAdd.map((file) => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
-
-    setSelectedImages((current) => [...current, ...newImages]);
 
     if (inputFiles.length > remainingSlots) {
       toast.warning(

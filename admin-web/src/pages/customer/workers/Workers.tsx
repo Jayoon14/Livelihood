@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
+import { supabase } from "../../../lib/supabase";
 
 import {
   Search,
@@ -59,6 +60,9 @@ export default function Workers() {
   const [workerAvailability, setWorkerAvailability] = useState<
     Record<string, boolean>
   >({});
+  const [workerBusy, setWorkerBusy] = useState<
+    Record<string, boolean>
+  >({});
 
   const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
 
@@ -89,31 +93,36 @@ export default function Workers() {
     if (!workerIds.length) {
       setOnlineStatus({});
       setWorkerAvailability({});
+      setWorkerBusy({});
       return;
     }
 
-    const [presenceResult, availabilityEntries] =
-      await Promise.all([
-        import("../../../lib/supabase").then(
-          async ({ supabase }) =>
-            await supabase
-              .from("profiles")
-              .select("id, last_seen")
-              .in("id", workerIds)
-              .eq("role", "worker"),
+    const [
+      presenceResult,
+      activeBookingsResult,
+      availabilityEntries,
+    ] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, last_seen")
+        .in("id", workerIds)
+        .eq("role", "worker"),
+      supabase
+        .from("bookings")
+        .select("worker_id, status, trip_status")
+        .in("worker_id", workerIds),
+      Promise.all(
+        workerIds.map(
+          async (workerId) =>
+            [
+              workerId,
+              Boolean(
+                await isWorkerAvailable(workerId),
+              ),
+            ] as const,
         ),
-        Promise.all(
-          workerIds.map(
-            async (workerId) =>
-              [
-                workerId,
-                Boolean(
-                  await isWorkerAvailable(workerId),
-                ),
-              ] as const,
-          ),
-        ),
-      ]);
+      ),
+    ]);
 
     if (presenceResult.error) {
       console.error(
@@ -121,6 +130,41 @@ export default function Workers() {
         presenceResult.error,
       );
     }
+
+    if (activeBookingsResult.error) {
+      console.error(
+        "Unable to load active worker bookings:",
+        activeBookingsResult.error,
+      );
+    }
+
+    const busyWorkerIds = new Set(
+      (activeBookingsResult.data ?? [])
+        .filter((booking) => {
+          const status = String(
+            booking.status ?? "",
+          )
+            .trim()
+            .toLowerCase();
+
+          const tripStatus = String(
+            booking.trip_status ?? "",
+          )
+            .trim()
+            .toLowerCase();
+
+          return (
+            status === "accepted" ||
+            status === "on going" ||
+            status === "ongoing" ||
+            status === "in progress" ||
+            tripStatus === "on trip"
+          );
+        })
+        .map((booking) =>
+          String(booking.worker_id),
+        ),
+    );
 
     setOnlineStatus(
       Object.fromEntries(
@@ -134,6 +178,15 @@ export default function Workers() {
             isOnline(profile?.last_seen),
           ];
         }),
+      ),
+    );
+
+    setWorkerBusy(
+      Object.fromEntries(
+        workerIds.map((workerId) => [
+          workerId,
+          busyWorkerIds.has(workerId),
+        ]),
       ),
     );
 
@@ -473,11 +526,17 @@ export default function Workers() {
               const available = Boolean(
                 workerAvailability[workerId],
               );
+              const busy = Boolean(
+                workerBusy[workerId],
+              );
+
               const bookingState = !online
                 ? "offline"
-                : available
-                  ? "available"
-                  : "working";
+                : busy
+                  ? "working"
+                  : available
+                    ? "available"
+                    : "offline";
 
               return (
                 <div
