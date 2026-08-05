@@ -99,6 +99,45 @@ interface ReviewRecord {
   rating: number | string | null;
 }
 
+export interface CustomerWorkerCardMetric {
+  worker_id: string;
+  completed_jobs: number | string | null;
+  is_online: boolean | null;
+  is_available: boolean | null;
+  location_updated_at: string | null;
+}
+
+export async function getCustomerWorkerCardMetrics(
+  workerIds: string[],
+): Promise<Map<string, CustomerWorkerCardMetric>> {
+  const requestedWorkerIds = Array.from(
+    new Set(
+      workerIds
+        .map((workerId) => workerId.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (!requestedWorkerIds.length) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase.rpc(
+    "get_customer_worker_card_metrics",
+    { requested_worker_ids: requestedWorkerIds },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return new Map(
+    ((data ?? []) as CustomerWorkerCardMetric[]).map(
+      (metric) => [String(metric.worker_id), metric],
+    ),
+  );
+}
+
 interface ServiceCategoryRecord {
   category: string | null;
 }
@@ -202,13 +241,6 @@ function calculateAverageRating(reviews: ReviewRecord[] | null): number {
   return Number((total / validRatings.length).toFixed(1));
 }
 
-function isCompletedBookingStatus(
-  value: unknown,
-): boolean {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase() === "completed";
-}
 
 async function enrichWorkersWithMetrics(
   workers: WorkerWithServices[],
@@ -218,78 +250,40 @@ async function enrichWorkersWithMetrics(
   }
 
   const workerIds = workers.map((worker) => worker.id);
-
-  const [reviewsResult, bookingsResult] =
-    await Promise.all([
-      supabase
-        .from("reviews")
-        .select("worker_id, rating")
-        .in("worker_id", workerIds),
-      supabase
-        .from("bookings")
-        .select("worker_id, status")
-        .in("worker_id", workerIds),
-    ]);
+  const [reviewsResult, metricsByWorker] = await Promise.all([
+    supabase
+      .from("reviews")
+      .select("worker_id, rating")
+      .in("worker_id", workerIds),
+    getCustomerWorkerCardMetrics(workerIds),
+  ]);
 
   if (reviewsResult.error) {
     throw reviewsResult.error;
   }
 
-  if (bookingsResult.error) {
-    throw bookingsResult.error;
-  }
-
-  const ratingsByWorker = new Map<
-    string,
-    ReviewRecord[]
-  >();
+  const ratingsByWorker = new Map<string, ReviewRecord[]>();
 
   for (const row of reviewsResult.data ?? []) {
     const workerId = String(row.worker_id ?? "");
+    if (!workerId) continue;
 
-    if (!workerId) {
-      continue;
-    }
-
-    const current =
-      ratingsByWorker.get(workerId) ?? [];
-
-    current.push({
-      rating: row.rating,
-    });
-
+    const current = ratingsByWorker.get(workerId) ?? [];
+    current.push({ rating: row.rating });
     ratingsByWorker.set(workerId, current);
   }
 
-  const completedByWorker = new Map<
-    string,
-    number
-  >();
+  return workers.map((worker) => {
+    const metric = metricsByWorker.get(worker.id);
 
-  for (const row of bookingsResult.data ?? []) {
-    const workerId = String(row.worker_id ?? "");
-
-    if (
-      !workerId ||
-      !isCompletedBookingStatus(row.status)
-    ) {
-      continue;
-    }
-
-    completedByWorker.set(
-      workerId,
-      (completedByWorker.get(workerId) ?? 0) + 1,
-    );
-  }
-
-  return workers.map((worker) => ({
-    ...worker,
-    average_rating: calculateAverageRating(
-      ratingsByWorker.get(worker.id) ?? [],
-    ),
-    completed_jobs:
-      completedByWorker.get(worker.id) ?? 0,
-  }));
+    return {
+      ...worker,
+      average_rating: calculateAverageRating(
+        ratingsByWorker.get(worker.id) ?? [],
+      ),
+      completed_jobs: Number(metric?.completed_jobs ?? 0),
+    };
+  });
 }
 
 async function updateWorkerStatus(
