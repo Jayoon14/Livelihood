@@ -29,6 +29,9 @@ import {
   getMyServices,
   updateService,
   SERVICE_STATUS,
+  type DurationUnit,
+  type PricingType,
+  type SchedulingType,
   type ServicePayload,
   type ServiceStatus,
   type WorkerService,
@@ -47,6 +50,10 @@ interface ServiceFormState {
   serviceName: string;
   description: string;
   price: string;
+  schedulingType: SchedulingType;
+  durationValue: string;
+  durationUnit: DurationUnit;
+  pricingType: PricingType;
 }
 
 interface FormErrors {
@@ -54,6 +61,7 @@ interface FormErrors {
   serviceName?: string;
   description?: string;
   price?: string;
+  durationValue?: string;
 }
 
 type PageMessage = {
@@ -66,6 +74,10 @@ const EMPTY_FORM: ServiceFormState = {
   serviceName: "",
   description: "",
   price: "",
+  schedulingType: "hourly",
+  durationValue: "1",
+  durationUnit: "hour",
+  pricingType: "fixed",
 };
 
 const PAGE_SIZE = 8;
@@ -113,6 +125,19 @@ function normalizeService(value: WorkerService): WorkerService {
     service_name: value.service_name?.trim() || "Unnamed Service",
     description: value.description?.trim() || "",
     price: Number(value.price) || 0,
+    scheduling_type:
+      value.scheduling_type === "project" ? "project" : "hourly",
+    duration_value: Math.max(Number(value.duration_value) || 1, 1),
+    duration_unit: ["hour", "day", "week", "month"].includes(
+      String(value.duration_unit),
+    )
+      ? value.duration_unit
+      : "hour",
+    pricing_type: ["hourly", "daily", "fixed"].includes(
+      String(value.pricing_type),
+    )
+      ? value.pricing_type
+      : "fixed",
     status:
       value.status === SERVICE_STATUS.APPROVED ||
       value.status === SERVICE_STATUS.REJECTED
@@ -127,6 +152,7 @@ function validateForm(form: ServiceFormState): FormErrors {
   const serviceName = form.serviceName.trim();
   const description = form.description.trim();
   const price = Number(form.price);
+  const durationValue = Number(form.durationValue);
 
   if (!category) {
     errors.category = "Category is required.";
@@ -142,6 +168,14 @@ function validateForm(form: ServiceFormState): FormErrors {
 
   if (description.length > 2_000) {
     errors.description = "Description must contain 2,000 characters or fewer.";
+  }
+
+  if (!form.durationValue.trim()) {
+    errors.durationValue = "Duration is required.";
+  } else if (!Number.isInteger(durationValue) || durationValue <= 0) {
+    errors.durationValue = "Enter a whole number greater than zero.";
+  } else if (durationValue > 365) {
+    errors.durationValue = "Duration is too long.";
   }
 
   if (!form.price.trim()) {
@@ -161,6 +195,42 @@ function formatCurrency(value: number): string {
     currency: "PHP",
     minimumFractionDigits: 2,
   }).format(value);
+}
+
+function getPricingLabel(type: PricingType): string {
+  switch (type) {
+    case "hourly":
+      return "Orasan";
+    case "daily":
+      return "Arawan";
+    case "fixed":
+    default:
+      return "Pakyawan";
+  }
+}
+
+function getPriceLabel(type: PricingType): string {
+  switch (type) {
+    case "hourly":
+      return "Hourly Rate";
+    case "daily":
+      return "Daily Rate";
+    case "fixed":
+    default:
+      return "Contract Price";
+  }
+}
+
+function getDurationLabel(service: WorkerService): string {
+  const value = service.duration_value;
+  const unit = service.duration_unit;
+  const unitLabel = {
+    hour: "Hour",
+    day: "Day",
+    week: "Week",
+    month: "Month",
+  }[unit];
+  return `${value} ${unitLabel}${value === 1 ? "" : "s"}`;
 }
 
 function getStatusClasses(status: ServiceStatus): string {
@@ -183,6 +253,10 @@ function formFromService(service: WorkerService): ServiceFormState {
     serviceName: service.service_name,
     description: service.description ?? "",
     price: String(service.price),
+    schedulingType: service.scheduling_type,
+    durationValue: String(service.duration_value),
+    durationUnit: service.duration_unit,
+    pricingType: service.pricing_type,
   };
 }
 
@@ -192,6 +266,10 @@ function serializeForm(form: ServiceFormState): string {
     serviceName: form.serviceName.trim(),
     description: form.description.trim(),
     price: form.price.trim(),
+    schedulingType: form.schedulingType,
+    durationValue: form.durationValue.trim(),
+    durationUnit: form.durationUnit,
+    pricingType: form.pricingType,
   });
 }
 
@@ -544,6 +622,10 @@ export default function Services() {
       service_name: form.serviceName.trim(),
       description: form.description.trim(),
       price: Number(form.price),
+      scheduling_type: form.schedulingType,
+      duration_value: Number(form.durationValue),
+      duration_unit: form.durationUnit,
+      pricing_type: form.pricingType,
     };
 
     try {
@@ -1002,12 +1084,26 @@ function ServiceCard({
         {service.description || "No description provided."}
       </p>
 
-      <div className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-        <PhilippinePeso className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-
-        <span className="text-lg font-black text-slate-900 dark:text-white">
-          {formatCurrency(service.price)}
-        </span>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {getPriceLabel(service.pricing_type)}
+          </p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <PhilippinePeso className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+            <span className="text-lg font-black text-slate-900 dark:text-white">
+              {formatCurrency(service.price)}
+            </span>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-300">
+            {service.scheduling_type === "project" ? "Project Duration" : "Service Duration"}
+          </p>
+          <p className="mt-1 font-black text-blue-900 dark:text-blue-100">
+            {getDurationLabel(service)} · {getPricingLabel(service.pricing_type)}
+          </p>
+        </div>
       </div>
 
       {service.status === "Rejected" && (
@@ -1155,32 +1251,52 @@ function ServiceFormModal({
               />
             </Field>
 
-            <Field label="Price" error={errors.price}>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-500">
-                  ₱
-                </span>
-
-                <input
-                  type="number"
-                  min="0.01"
-                  max="1000000"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={form.price}
-                  onChange={(event) =>
-                    onFieldChange("price", event.target.value)
-                  }
-                  disabled={saving}
-                  placeholder="0.00"
-                  className={`${inputClassName(Boolean(errors.price))} pl-9`}
-                />
+            <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+              <h3 className="font-black text-slate-900 dark:text-white">Scheduling</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Choose whether this is a short service or a longer project.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <Field label="Scheduling Type">
+                  <select value={form.schedulingType} onChange={(event) => onFieldChange("schedulingType", event.target.value as SchedulingType)} disabled={saving} className={inputClassName(false)}>
+                    <option value="hourly">Hourly / Same-day</option>
+                    <option value="project">Project / Multi-day</option>
+                  </select>
+                </Field>
+                <Field label={form.schedulingType === "project" ? "Estimated Duration" : "Service Duration"} error={errors.durationValue}>
+                  <input type="number" min="1" max="365" step="1" inputMode="numeric" value={form.durationValue} onChange={(event) => onFieldChange("durationValue", event.target.value)} disabled={saving} className={inputClassName(Boolean(errors.durationValue))} />
+                </Field>
+                <Field label="Duration Unit">
+                  <select value={form.durationUnit} onChange={(event) => onFieldChange("durationUnit", event.target.value as DurationUnit)} disabled={saving} className={inputClassName(false)}>
+                    <option value="hour">Hour(s)</option>
+                    <option value="day">Day(s)</option>
+                    <option value="week">Week(s)</option>
+                    <option value="month">Month(s)</option>
+                  </select>
+                </Field>
               </div>
-            </Field>
+            </div>
 
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
-              Editing an approved service changes its status back to Pending so
-              an administrator can review it again.
+            <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <h3 className="font-black text-emerald-950 dark:text-emerald-100">Pricing</h3>
+              <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">Pakyawan is one agreed total, Arawan is per working day, and Orasan is per hour.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Pricing Type">
+                  <select value={form.pricingType} onChange={(event) => onFieldChange("pricingType", event.target.value as PricingType)} disabled={saving} className={inputClassName(false)}>
+                    <option value="fixed">Pakyawan (Fixed Contract)</option>
+                    <option value="daily">Arawan (Daily Rate)</option>
+                    <option value="hourly">Orasan (Hourly Rate)</option>
+                  </select>
+                </Field>
+                <Field label={getPriceLabel(form.pricingType)} error={errors.price}>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-500">₱</span>
+                    <input type="number" min="0.01" max="1000000" step="0.01" inputMode="decimal" value={form.price} onChange={(event) => onFieldChange("price", event.target.value)} disabled={saving} placeholder="0.00" className={`${inputClassName(Boolean(errors.price))} pl-9`} />
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            <div className="sm:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+              Editing an approved service changes its status back to Pending so an administrator can review it again.
             </div>
 
             <div className="sm:col-span-2">

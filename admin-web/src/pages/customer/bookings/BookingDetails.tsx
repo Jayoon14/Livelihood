@@ -11,6 +11,9 @@ import {
   Loader2,
   MessageCircle,
   RefreshCw,
+  CalendarClock,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -23,6 +26,7 @@ import {
 
 import { supabase } from "../../../lib/supabase";
 import { hasReviewed } from "../../../services/reviewService";
+import { respondToProjectExtension } from "../../../services/projectLifecycleService";
 
 type BookingStatus =
   | "Pending"
@@ -51,6 +55,15 @@ type BookingDetailsData = {
   customer_address?: string | null;
   notes?: string | null;
   price?: number | string | null;
+  scheduled_start_at?: string | null;
+  scheduled_end_at?: string | null;
+  actual_start_at?: string | null;
+  actual_completed_at?: string | null;
+  extended_until?: string | null;
+  reservation_status?: string | null;
+  extension_requested_until?: string | null;
+  extension_status?: "Pending" | "Approved" | "Rejected" | null;
+  extension_reason?: string | null;
   worker?: BookingWorker | null;
   [key: string]: unknown;
 };
@@ -217,6 +230,8 @@ export default function BookingDetails() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [respondingToExtension, setRespondingToExtension] =
+    useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -474,6 +489,62 @@ export default function BookingDetails() {
     );
   }
 
+  const handleExtensionResponse = async (
+    approved: boolean,
+  ): Promise<void> => {
+    if (
+      !booking ||
+      respondingToExtension
+    ) {
+      return;
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      toast.error(
+        authError?.message ??
+          "Your session has expired.",
+      );
+      return;
+    }
+
+    const confirmed = await confirmAction(
+      approved
+        ? "Approve the worker's requested extension?"
+        : "Reject the worker's requested extension?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setRespondingToExtension(true);
+
+      await respondToProjectExtension(
+        booking.id,
+        user.id,
+        approved,
+      );
+
+      toast.success(
+        approved
+          ? "Project extension approved."
+          : "Project extension rejected.",
+      );
+
+      await loadBooking(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setRespondingToExtension(false);
+    }
+  };
+
   const currentStep =
     booking.status === "Cancelled"
       ? -1
@@ -603,6 +674,121 @@ export default function BookingDetails() {
               )}
           </div>
         </div>
+
+        {(booking.scheduled_start_at ||
+          booking.scheduled_end_at ||
+          booking.extension_status) && (
+          <div className="rounded-2xl bg-white p-6 shadow">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <CalendarClock className="h-6 w-6" />
+              </div>
+
+              <div>
+                <h2 className="text-xl font-bold">
+                  Project Schedule
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Estimated dates may change only through an approved extension.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Scheduled Start
+                </p>
+                <p className="mt-1 font-bold">
+                  {booking.scheduled_start_at
+                    ? new Date(
+                        booking.scheduled_start_at,
+                      ).toLocaleString("en-PH")
+                    : "Not set"}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Estimated Finish
+                </p>
+                <p className="mt-1 font-bold">
+                  {booking.extended_until ||
+                  booking.scheduled_end_at
+                    ? new Date(
+                        booking.extended_until ??
+                          booking.scheduled_end_at ??
+                          "",
+                      ).toLocaleString("en-PH")
+                    : "Not set"}
+                </p>
+              </div>
+            </div>
+
+            {booking.extension_status === "Pending" &&
+              booking.extension_requested_until && (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                  <p className="font-black text-amber-900">
+                    Extension Requested
+                  </p>
+
+                  <p className="mt-2 text-sm text-amber-800">
+                    New estimated finish:{" "}
+                    <strong>
+                      {new Date(
+                        booking.extension_requested_until,
+                      ).toLocaleString("en-PH")}
+                    </strong>
+                  </p>
+
+                  {booking.extension_reason && (
+                    <p className="mt-2 text-sm text-amber-800">
+                      Reason: {booking.extension_reason}
+                    </p>
+                  )}
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleExtensionResponse(true)
+                      }
+                      disabled={respondingToExtension}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      <CheckCircle2 className="h-5 w-5" />
+                      Approve Extension
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleExtensionResponse(false)
+                      }
+                      disabled={respondingToExtension}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
+                    >
+                      <XCircle className="h-5 w-5" />
+                      Reject Extension
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {booking.extension_status &&
+              booking.extension_status !== "Pending" && (
+                <div
+                  className={`mt-5 rounded-xl px-4 py-3 font-semibold ${
+                    booking.extension_status === "Approved"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-red-50 text-red-700"
+                  }`}
+                >
+                  Extension {booking.extension_status}
+                </div>
+              )}
+          </div>
+        )}
 
         <div className="rounded-2xl bg-white p-6 shadow">
           <h2 className="mb-6 text-2xl font-bold">

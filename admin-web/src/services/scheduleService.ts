@@ -62,6 +62,16 @@ export type WorkerAvailability =
 export interface BookingTimeRecord {
   booking_date?: string;
   booking_time: string;
+  scheduled_start_at?: string | null;
+  scheduled_end_at?: string | null;
+}
+
+export type DurationUnit = "hour" | "day" | "week" | "month";
+
+export interface ServiceDuration {
+  scheduling_type: "hourly" | "project";
+  duration_value: number;
+  duration_unit: DurationUnit;
 }
 
 export interface CreateSchedulePayload {
@@ -85,7 +95,6 @@ interface AdminProfile {
 }
 
 const MANILA_TIME_ZONE = "Asia/Manila";
-const BUFFER_HOURS = 1;
 const SLOT_INTERVAL_MINUTES = 60;
 
 function validateRequiredText(value: string, fieldName: string): string {
@@ -170,6 +179,37 @@ function minutesToTime(minutes: number): string {
   )}`;
 }
 
+export function calculateScheduledEnd(
+  start: Date,
+  durationValue: number,
+  durationUnit: DurationUnit,
+): Date {
+  const end = new Date(start);
+
+  if (durationUnit === "hour") end.setHours(end.getHours() + durationValue);
+  if (durationUnit === "day") end.setDate(end.getDate() + durationValue);
+  if (durationUnit === "week") end.setDate(end.getDate() + durationValue * 7);
+  if (durationUnit === "month") end.setMonth(end.getMonth() + durationValue);
+
+  return end;
+}
+
+export function createManilaScheduleRange(
+  date: string,
+  time: string,
+  durationValue: number,
+  durationUnit: DurationUnit,
+): { start: Date; end: Date } {
+  const validDate = validateDateString(date, "Booking date");
+  const validTime = validateTimeString(time, "Booking time");
+  const start = new Date(`${validDate}T${validTime}:00+08:00`);
+  return { start, end: calculateScheduledEnd(start, durationValue, durationUnit) };
+}
+
+function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
+  return aStart < bEnd && aEnd > bStart;
+}
+
 function getDayName(dateString: string): WeekDay {
   const validDate = validateDateString(dateString, "Booking date");
   const date = new Date(`${validDate}T00:00:00+08:00`);
@@ -208,29 +248,6 @@ function buildTimeSlots(
   return slots;
 }
 
-function buildBlockedTimes(
-  bookingTimes: string[],
-  bufferHours = BUFFER_HOURS,
-): Set<string> {
-  const blocked = new Set<string>();
-  const bufferMinutes = bufferHours * 60;
-
-  for (const bookingTime of bookingTimes) {
-    const bookingMinutes = timeToMinutes(bookingTime);
-
-    for (
-      let current = bookingMinutes - bufferMinutes;
-      current <= bookingMinutes + bufferMinutes;
-      current += SLOT_INTERVAL_MINUTES
-    ) {
-      if (current >= 0 && current < 24 * 60) {
-        blocked.add(minutesToTime(current));
-      }
-    }
-  }
-
-  return blocked;
-}
 
 async function getAdminIds(): Promise<string[]> {
   const { data, error } = await supabase
@@ -496,37 +513,55 @@ export async function checkWorkerAvailability(
 export async function getAvailableTimeSlots(
   workerId: string,
   bookingDate: string,
+  durationValue = 1,
+  durationUnit: DurationUnit = "hour",
 ): Promise<string[]> {
   const id = validateRequiredText(workerId, "Worker ID");
   const date = validateDateString(bookingDate, "Booking date");
   const availability = await checkWorkerAvailability(id, date);
 
-  if (availability.available === false) {
-    return [];
-  }
+  if (availability.available === false) return [];
 
   const { data: bookings, error } = await supabase
     .from("bookings")
-    .select("booking_time")
+    .select("booking_date,booking_time,scheduled_start_at,scheduled_end_at")
     .eq("worker_id", id)
-    .eq("booking_date", date)
     .in("status", [...BOOKING_ACTIVE_STATUSES]);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  const bookedTimes = ((bookings ?? []) as BookingTimeRecord[])
-    .map((booking) => booking.booking_time)
-    .filter(Boolean);
-
-  const blockedTimes = buildBlockedTimes(bookedTimes);
   const allSlots = buildTimeSlots(
     availability.schedule.start_time,
     availability.schedule.end_time,
   );
+  const scheduleEndMinutes = timeToMinutes(availability.schedule.end_time);
 
-  return allSlots.filter((slot) => !blockedTimes.has(slot));
+  return allSlots.filter((slot) => {
+    const candidate = createManilaScheduleRange(date, slot, durationValue, durationUnit);
+
+    if (durationUnit === "hour") {
+      const candidateEndMinutes = timeToMinutes(slot) + durationValue * 60;
+      if (candidateEndMinutes > scheduleEndMinutes) return false;
+    }
+
+    return !((bookings ?? []) as BookingTimeRecord[]).some((booking) => {
+      let existingStart: Date;
+      let existingEnd: Date;
+
+      if (booking.scheduled_start_at && booking.scheduled_end_at) {
+        existingStart = new Date(booking.scheduled_start_at);
+        existingEnd = new Date(booking.scheduled_end_at);
+      } else if (booking.booking_date && booking.booking_time) {
+        const legacy = createManilaScheduleRange(booking.booking_date, booking.booking_time, 1, "hour");
+        existingStart = legacy.start;
+        existingEnd = legacy.end;
+      } else {
+        return false;
+      }
+
+      return rangesOverlap(candidate.start, candidate.end, existingStart, existingEnd);
+    });
+  });
 }
 
 // ===============================

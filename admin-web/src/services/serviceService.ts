@@ -11,6 +11,10 @@ export const SERVICE_STATUS = {
 export type ServiceStatus =
   (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 
+export type SchedulingType = "hourly" | "project";
+export type DurationUnit = "hour" | "day" | "week" | "month";
+export type PricingType = "hourly" | "daily" | "fixed";
+
 export interface WorkerService {
   id: number;
   worker_id: string;
@@ -18,6 +22,10 @@ export interface WorkerService {
   service_name: string;
   description: string | null;
   price: number;
+  scheduling_type: SchedulingType;
+  duration_value: number;
+  duration_unit: DurationUnit;
+  pricing_type: PricingType;
   status: ServiceStatus;
 }
 
@@ -26,6 +34,10 @@ export interface ServicePayload {
   service_name: string;
   description: string;
   price: number;
+  scheduling_type: SchedulingType;
+  duration_value: number;
+  duration_unit: DurationUnit;
+  pricing_type: PricingType;
 }
 
 export interface WorkerName {
@@ -166,6 +178,19 @@ function normalizeService(
   return {
     ...row,
     price: Number(row.price) || 0,
+    scheduling_type:
+      row.scheduling_type === "project" ? "project" : "hourly",
+    duration_value: Math.max(Number(row.duration_value) || 1, 1),
+    duration_unit: ["hour", "day", "week", "month"].includes(
+      String(row.duration_unit),
+    )
+      ? row.duration_unit
+      : "hour",
+    pricing_type: ["hourly", "daily", "fixed"].includes(
+      String(row.pricing_type),
+    )
+      ? row.pricing_type
+      : "fixed",
     status: normalizeServiceStatus(row.status),
     worker,
     worker_name: getWorkerName(worker),
@@ -177,6 +202,10 @@ function validatePayload(service: ServicePayload): ServicePayload {
   const serviceName = normalizeText(service.service_name);
   const description = service.description.trim();
   const price = Number(service.price);
+  const schedulingType = service.scheduling_type;
+  const durationValue = Number(service.duration_value);
+  const durationUnit = service.duration_unit;
+  const pricingType = service.pricing_type;
 
   if (!category) {
     throw new Error("Service category is required.");
@@ -206,11 +235,35 @@ function validatePayload(service: ServicePayload): ServicePayload {
     throw new Error("Service price is too high.");
   }
 
+  if (!['hourly', 'project'].includes(schedulingType)) {
+    throw new Error("Select a valid scheduling type.");
+  }
+
+  if (!Number.isInteger(durationValue) || durationValue <= 0) {
+    throw new Error("Duration must be a whole number greater than zero.");
+  }
+
+  if (durationValue > 365) {
+    throw new Error("Duration is too long.");
+  }
+
+  if (!["hour", "day", "week", "month"].includes(durationUnit)) {
+    throw new Error("Select a valid duration unit.");
+  }
+
+  if (!["hourly", "daily", "fixed"].includes(pricingType)) {
+    throw new Error("Select a valid pricing type.");
+  }
+
   return {
     category,
     service_name: serviceName,
     description,
     price: Number(price.toFixed(2)),
+    scheduling_type: schedulingType,
+    duration_value: durationValue,
+    duration_unit: durationUnit,
+    pricing_type: pricingType,
   };
 }
 
@@ -329,6 +382,10 @@ async function updateStatus(
         service_name,
         description,
         price,
+        scheduling_type,
+        duration_value,
+        duration_unit,
+        pricing_type,
         status,
         worker:profiles!worker_id(
           id,
@@ -395,7 +452,7 @@ export async function getMyServices(
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id,worker_id,category,service_name,description,price,status",
+      "id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status",
     )
     .eq("worker_id", id)
     .order("id", { ascending: false });
@@ -428,7 +485,7 @@ export async function createService(
       status: SERVICE_STATUS.PENDING,
     })
     .select(
-      "id,worker_id,category,service_name,description,price,status",
+      "id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status",
     )
     .single();
 
@@ -485,7 +542,7 @@ export async function updateService(
     })
     .eq("id", serviceId)
     .select(
-      "id,worker_id,category,service_name,description,price,status",
+      "id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status",
     )
     .single();
 
@@ -565,6 +622,10 @@ export async function getAdminServices(
         service_name,
         description,
         price,
+        scheduling_type,
+        duration_value,
+        duration_unit,
+        pricing_type,
         status,
         worker:profiles!worker_id(
           id,
@@ -612,6 +673,10 @@ export async function getAdminServiceById(
         service_name,
         description,
         price,
+        scheduling_type,
+        duration_value,
+        duration_unit,
+        pricing_type,
         status,
         worker:profiles!worker_id(
           id,
@@ -663,7 +728,7 @@ export async function getApprovedServices(
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id,worker_id,category,service_name,description,price,status",
+      "id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status",
     )
     .eq("worker_id", id)
     .eq("status", SERVICE_STATUS.APPROVED)

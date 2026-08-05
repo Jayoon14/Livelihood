@@ -14,10 +14,17 @@ type BookingConfirmationState = {
   date: string;
   time: string;
   price: number | string;
+  pricingType?: "hourly" | "daily" | "fixed";
+  pricingLabel?: string;
   address: string;
   latitude: number;
   longitude: number;
   notes?: string;
+  schedulingType?: "hourly" | "project";
+  durationValue?: number;
+  durationUnit?: "hour" | "day" | "week" | "month";
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
 };
 
 /**
@@ -201,6 +208,8 @@ function BookingConfirmationContent() {
         customer_latitude: normalizedLatitude,
         customer_longitude: normalizedLongitude,
         notes: state.notes?.trim() || null,
+        scheduled_start_at: state.scheduledStartAt ?? null,
+        scheduled_end_at: state.scheduledEndAt ?? null,
       });
 
       toast.success(
@@ -235,8 +244,19 @@ function BookingConfirmationContent() {
         </h1>
 
         <p className="mb-8 text-sm text-slate-500">
-          The worker may be offline now. Your schedule request will be sent for approval.
+          Review the selected start schedule and estimated service completion before submitting.
         </p>
+
+        {routeState.scheduledEndAt && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+            <p className="font-bold">
+              {routeState.schedulingType === "project" ? "Project schedule" : "Service schedule"}
+            </p>
+            <p className="mt-1">
+              Estimated completion: {new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: routeState.durationUnit === "hour" ? "short" : undefined, timeZone: "Asia/Manila" }).format(new Date(routeState.scheduledEndAt))}
+            </p>
+          </div>
+        )}
 
         <div className="space-y-5">
           <div className="flex justify-between gap-6">

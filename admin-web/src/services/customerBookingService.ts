@@ -44,6 +44,8 @@ export interface CreateBookingInput {
   customer_latitude: number;
   customer_longitude: number;
   notes?: string | null;
+  scheduled_start_at?: string | null;
+  scheduled_end_at?: string | null;
 }
 
 export interface CustomerBookingWorker {
@@ -95,6 +97,9 @@ interface ServiceRecord {
   category: string | null;
   price: number | null;
   status: string | null;
+  scheduling_type?: "hourly" | "project" | null;
+  duration_value?: number | null;
+  duration_unit?: "hour" | "day" | "week" | "month" | null;
 }
 
 type RelatedWorker =
@@ -792,6 +797,25 @@ export async function createBooking(
     }
   }
 
+  if (data.scheduled_start_at && data.scheduled_end_at) {
+    const { count: overlapCount, error: overlapError } = await supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("worker_id", workerId)
+      .eq("is_deleted", false)
+      .in("status", [...ACTIVE_BOOKING_STATUSES])
+      .lt("scheduled_start_at", data.scheduled_end_at)
+      .gt("scheduled_end_at", data.scheduled_start_at);
+
+    if (overlapError) {
+      throw wrapError(overlapError, "Unable to check the worker schedule.");
+    }
+
+    if ((overlapCount ?? 0) > 0) {
+      throw new Error("This worker already has a job that overlaps the selected service duration.");
+    }
+  }
+
   const bookingPayload = {
     customer_id: customerId,
     worker_id: workerId,
@@ -807,6 +831,8 @@ export async function createBooking(
     customer_latitude: data.customer_latitude,
     customer_longitude: data.customer_longitude,
     notes: data.notes?.trim() || null,
+    scheduled_start_at: data.scheduled_start_at ?? null,
+    scheduled_end_at: data.scheduled_end_at ?? null,
     status: "Pending" satisfies BookingStatus,
     payment_status: "Pending" satisfies PaymentStatus,
     schedule_status: "Pending",
@@ -836,6 +862,10 @@ export async function createBooking(
       .single();
 
   if (bookingError) {
+    if (String(bookingError.message ?? "").toLowerCase().includes("overlapping active booking")) {
+      throw new Error("This worker already has a job that overlaps the selected service duration.");
+    }
+
     if (isDuplicateActiveBookingError(bookingError)) {
       throw new Error(DUPLICATE_ACTIVE_BOOKING_MESSAGE);
     }
