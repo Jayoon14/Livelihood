@@ -648,7 +648,7 @@ const layersModalProps = useLayersModalProps({
           <button
             type="button"
             onClick={() => void getDirections()}
-            disabled={routing || !currentLocationRef.current}
+            disabled={routing}
             className="min-h-11 rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {routing ? "Routing..." : "Route"}

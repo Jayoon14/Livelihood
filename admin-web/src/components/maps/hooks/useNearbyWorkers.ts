@@ -702,11 +702,99 @@ export function useNearbyWorkers({
     void loadNearbyWorkers();
   }, [loadNearbyWorkers]);
 
+  const fitNearbyWorkers = useCallback(
+    (options: {
+      includeOrigin?: boolean;
+      animate?: boolean;
+    } = {}) => {
+      const map = mapRef.current;
+
+      if (!map || workersRef.current.size === 0) {
+        return false;
+      }
+
+      const {
+        includeOrigin = true,
+        animate = true,
+      } = options;
+
+      const coordinates: Coordinates[] = [
+        ...workersRef.current.values(),
+      ].map((worker) => [
+        worker.longitude,
+        worker.latitude,
+      ]);
+
+      const origin = currentLocationRef.current;
+
+      if (includeOrigin && origin) {
+        coordinates.push(origin);
+      }
+
+      if (coordinates.length === 1) {
+        map.flyTo({
+          center: coordinates[0],
+          zoom: Math.max(map.getZoom(), 13),
+          duration: animate ? 700 : 0,
+          essential: true,
+        });
+
+        return true;
+      }
+
+      let minimumLongitude = coordinates[0][0];
+      let maximumLongitude = coordinates[0][0];
+      let minimumLatitude = coordinates[0][1];
+      let maximumLatitude = coordinates[0][1];
+
+      for (const [longitude, latitude] of coordinates) {
+        minimumLongitude = Math.min(
+          minimumLongitude,
+          longitude,
+        );
+        maximumLongitude = Math.max(
+          maximumLongitude,
+          longitude,
+        );
+        minimumLatitude = Math.min(
+          minimumLatitude,
+          latitude,
+        );
+        maximumLatitude = Math.max(
+          maximumLatitude,
+          latitude,
+        );
+      }
+
+      map.fitBounds(
+        [
+          [minimumLongitude, minimumLatitude],
+          [maximumLongitude, maximumLatitude],
+        ],
+        {
+          padding: {
+            top: 110,
+            right: 70,
+            bottom: 110,
+            left: 70,
+          },
+          maxZoom: 14,
+          duration: animate ? 800 : 0,
+          essential: true,
+        },
+      );
+
+      return true;
+    },
+    [currentLocationRef, mapRef],
+  );
+
   return {
     nearbyWorkers,
     nearbyWorkersCount: nearbyWorkers.length,
     loadingWorkers,
     nearbyWorkersError,
     refreshNearbyWorkers,
+    fitNearbyWorkers,
   };
 }
