@@ -205,6 +205,7 @@ export default function LocationPicker({
       }
 
       if (!navigationMode) {
+        userSelectedLocationRef.current = true;
         setLocationConfirmed(false);
         onLocationConfirmedChange?.(false);
       }
@@ -322,6 +323,8 @@ useEffect(() => {
 
   const initialLocationLoadedRef = useRef(false);
   const automaticRouteStartedRef = useRef(false);
+  const initialGpsRequestedRef = useRef(false);
+  const userSelectedLocationRef = useRef(false);
 
   useEffect(() => {
   if (
@@ -393,21 +396,34 @@ useEffect(() => {
     minimumIntervalMilliseconds: 30_000,
   });
 
-  const handleSearchResultSelect = useSearchResultSelect({
+  const selectSearchResultBase = useSearchResultSelect({
     saveLocation,
     addToSearchHistory,
   });
+
+  const handleSearchResultSelect = useCallback(
+    async (result: Parameters<typeof selectSearchResultBase>[0]) => {
+      userSelectedLocationRef.current = true;
+      await selectSearchResultBase(result);
+    },
+    [selectSearchResultBase],
+  );
 
   const recenterMap = useRecenterMap({
     mapRef,
     currentLocationRef,
   });
   useEffect(() => {
-    if (navigationMode) {
+    if (
+      navigationMode ||
+      initialGpsRequestedRef.current ||
+      userSelectedLocationRef.current
+    ) {
       return;
     }
 
-    getCurrentLocation(true);
+    initialGpsRequestedRef.current = true;
+    void getCurrentLocation(true);
   }, [getCurrentLocation, navigationMode]);
 
 const selectedMapStyle =
@@ -518,6 +534,25 @@ const handleCurrentLocation = useCallback(() => {
   recenterMap,
   refreshNearbyWorkers,
 ]);
+  const saveUserSelectedLocation = useCallback(
+    async (
+      nextLatitude: number,
+      nextLongitude: number,
+      nextAddress?: string,
+      preserveView?: boolean,
+    ) => {
+      userSelectedLocationRef.current = true;
+
+      await saveLocation(
+        nextLatitude,
+        nextLongitude,
+        nextAddress,
+        preserveView,
+      );
+    },
+    [saveLocation],
+  );
+
   const sidebarProps = useSidebarProps({
     searchText,
     results,
@@ -535,7 +570,7 @@ const handleCurrentLocation = useCallback(() => {
     handleSearchResultSelect,
     handleCurrentLocation,
     clearSearchHistory,
-    saveLocation,
+    saveLocation: saveUserSelectedLocation,
     setShowLayers,
     getDirections,
   });

@@ -49,6 +49,8 @@ const STALE_GPS_THRESHOLD_MS = 5 * 60 * 1000;
 const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 60_000;
 const MAX_NEARBY_ACCURACY_METERS = 5_000;
 const REFRESH_INTERVAL_MS = 30_000;
+const TRANSIENT_GRACE_PERIOD_MS = 90_000;
+const MAX_CONSECUTIVE_MISSES = 3;
 
 function degreesToRadians(value: number): number {
   return (value * Math.PI) / 180;
@@ -189,6 +191,8 @@ export function useNearbyWorkers({
   const animationFramesRef = useRef<Map<string, number>>(new Map());
   const workersRef = useRef<Map<string, NearbyWorker>>(new Map());
   const workerProfilesRef = useRef<Map<string, WorkerProfile>>(new Map());
+  const lastEligibleAtRef = useRef<Map<string, number>>(new Map());
+  const consecutiveMissesRef = useRef<Map<string, number>>(new Map());
   const mountedRef = useRef(true);
   const channelIdRef = useRef(`customer-nearby-workers-${crypto.randomUUID()}`);
 
@@ -225,6 +229,8 @@ export function useNearbyWorkers({
 
     markerRecordsRef.current.delete(workerId);
     workersRef.current.delete(workerId);
+    lastEligibleAtRef.current.delete(workerId);
+    consecutiveMissesRef.current.delete(workerId);
   }, []);
 
   const clearAllWorkers = useCallback(() => {
@@ -241,6 +247,8 @@ export function useNearbyWorkers({
 
     markerRecordsRef.current.clear();
     workersRef.current.clear();
+    lastEligibleAtRef.current.clear();
+    consecutiveMissesRef.current.clear();
 
     if (mountedRef.current) {
       setNearbyWorkers([]);
@@ -360,7 +368,10 @@ export function useNearbyWorkers({
   );
 
   const processWorker = useCallback(
-    async (worker: WorkerLocationRow) => {
+    async (
+      worker: WorkerLocationRow,
+      source: "refresh" | "realtime" = "refresh",
+    ) => {
       const map = mapRef.current;
 
       if (!map) {
@@ -390,11 +401,49 @@ export function useNearbyWorkers({
         hasUsableAccuracy(worker) &&
         insideRadius;
 
-      if (!shouldDisplay) {
+      if (!worker.is_online) {
         removeWorker(worker.worker_id);
         publishWorkers();
         return;
       }
+
+      if (!shouldDisplay) {
+        const lastEligibleAt =
+          lastEligibleAtRef.current.get(worker.worker_id) ?? 0;
+
+        const insideGracePeriod =
+          workersRef.current.has(worker.worker_id) &&
+          Date.now() - lastEligibleAt <=
+            TRANSIENT_GRACE_PERIOD_MS;
+
+        /*
+         * A single refresh can briefly return stale/missing availability while
+         * the worker heartbeat is being updated. Preserve the existing marker
+         * during that short grace period instead of making it flicker.
+         */
+        if (source === "refresh" && insideGracePeriod) {
+          return;
+        }
+
+        if (
+          source === "realtime" &&
+          workersRef.current.has(worker.worker_id) &&
+          hasFreshGps(worker) &&
+          insideRadius
+        ) {
+          return;
+        }
+
+        removeWorker(worker.worker_id);
+        publishWorkers();
+        return;
+      }
+
+      lastEligibleAtRef.current.set(
+        worker.worker_id,
+        Date.now(),
+      );
+      consecutiveMissesRef.current.set(worker.worker_id, 0);
 
       const profile = await getWorkerProfile(worker.worker_id);
 
@@ -497,12 +546,43 @@ export function useNearbyWorkers({
       }
 
       const rows = (data ?? []) as WorkerLocationRow[];
-      const receivedIds = new Set(rows.map((row) => row.worker_id));
+      const receivedIds = new Set(
+        rows.map((row) => row.worker_id),
+      );
 
-      await Promise.all(rows.map((row) => processWorker(row)));
+      await Promise.all(
+        rows.map((row) =>
+          processWorker(row, "refresh"),
+        ),
+      );
 
-      for (const workerId of [...workersRef.current.keys()]) {
-        if (!receivedIds.has(workerId)) {
+      for (const workerId of [
+        ...workersRef.current.keys(),
+      ]) {
+        if (receivedIds.has(workerId)) {
+          consecutiveMissesRef.current.set(workerId, 0);
+          continue;
+        }
+
+        const nextMisses =
+          (consecutiveMissesRef.current.get(workerId) ?? 0) + 1;
+
+        consecutiveMissesRef.current.set(
+          workerId,
+          nextMisses,
+        );
+
+        const lastEligibleAt =
+          lastEligibleAtRef.current.get(workerId) ?? 0;
+
+        const graceExpired =
+          Date.now() - lastEligibleAt >
+          TRANSIENT_GRACE_PERIOD_MS;
+
+        if (
+          nextMisses >= MAX_CONSECUTIVE_MISSES &&
+          graceExpired
+        ) {
           removeWorker(workerId);
         }
       }
@@ -562,7 +642,10 @@ export function useNearbyWorkers({
             return;
           }
 
-          void processWorker(payload.new as WorkerLocationRow);
+          void processWorker(
+            payload.new as WorkerLocationRow,
+            "realtime",
+          );
         },
       )
       .subscribe((status) => {
