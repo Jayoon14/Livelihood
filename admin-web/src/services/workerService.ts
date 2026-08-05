@@ -847,29 +847,26 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
 
   const date = today.toISOString().split("T")[0];
 
-  const [
-    scheduleResult,
-    unavailableResult,
-    activeBookingsResult,
-  ] = await Promise.all([
-    supabase
-      .from("worker_schedules")
-      .select("id")
-      .eq("worker_id", id)
-      .eq("day_of_week", day)
-      .eq("is_available", true)
-      .limit(1),
-    supabase
-      .from("unavailable_dates")
-      .select("id")
-      .eq("worker_id", id)
-      .eq("unavailable_date", date)
-      .limit(1),
-    supabase
-      .from("bookings")
-      .select("id, status, trip_status")
-      .eq("worker_id", id),
-  ]);
+  const [scheduleResult, unavailableResult, activeBookingsResult] =
+    await Promise.all([
+      supabase
+        .from("worker_schedules")
+        .select("id")
+        .eq("worker_id", id)
+        .eq("day_of_week", day)
+        .eq("is_available", true)
+        .limit(1),
+      supabase
+        .from("unavailable_dates")
+        .select("id")
+        .eq("worker_id", id)
+        .eq("unavailable_date", date)
+        .limit(1),
+      supabase
+        .from("bookings")
+        .select("id, status, trip_status")
+        .eq("worker_id", id),
+    ]);
 
   if (scheduleResult.error) {
     throw scheduleResult.error;
@@ -883,28 +880,22 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
     throw activeBookingsResult.error;
   }
 
-  const hasActiveJob = (activeBookingsResult.data ?? []).some(
-    (booking) => {
-      const status = String(
-        booking.status ?? "",
-      )
-        .trim()
-        .toLowerCase();
+  const hasActiveJob = (activeBookingsResult.data ?? []).some((booking) => {
+    const status = String(booking.status ?? "")
+      .trim()
+      .toLowerCase();
 
-      const tripStatus = String(
-        booking.trip_status ?? "",
-      )
-        .trim()
-        .toLowerCase();
+    const tripStatus = String(booking.trip_status ?? "")
+      .trim()
+      .toLowerCase();
 
-      return (
-        status === "on going" ||
-        status === "ongoing" ||
-        status === "in progress" ||
-        tripStatus === "on trip"
-      );
-    },
-  );
+    return (
+      status === "on going" ||
+      status === "ongoing" ||
+      status === "in progress" ||
+      tripStatus === "on trip"
+    );
+  });
 
   return (
     !hasActiveJob &&
