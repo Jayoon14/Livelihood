@@ -1,3 +1,3 @@
 export const DEFAULT_NEARBY_WORKER_RADIUS_KM = 50;
-export const STALE_WORKER_GPS_MS = 5 * 60 * 1000;
+export const STALE_WORKER_GPS_MS = 15 * 60 * 1000;
 export const MAX_WORKER_GPS_ACCURACY_METERS = 5_000;

@@ -49,7 +49,8 @@ const PENDING_LOCATION_STORAGE_KEY = "livelihoodgo_pending_worker_location";
 const MIN_LOCATION_SAVE_INTERVAL_MS = 4_000;
 const INITIAL_LOCATION_TIMEOUT_MS = 20_000;
 const WATCH_LOCATION_TIMEOUT_MS = 20_000;
-const LOCATION_HEARTBEAT_INTERVAL_MS = 30_000;
+const LOCATION_HEARTBEAT_INTERVAL_MS = 20_000;
+const HEARTBEAT_RESUME_DEBOUNCE_MS = 1_000;
 
 /*
  * Desktop browsers may initially return a coarse network location.
@@ -142,6 +143,7 @@ export function WorkerLocationProvider({
   const lastSavedAtRef = useRef(0);
   const latestLocationRef = useRef<WorkerLocation | null>(null);
   const heartbeatInFlightRef = useRef(false);
+  const heartbeatResumeTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const [workerLocation, setWorkerLocation] = useState<WorkerLocation | null>(
@@ -220,6 +222,47 @@ export function WorkerLocationProvider({
       clearPendingLocation();
     },
     [clearPendingLocation],
+  );
+
+  const sendDatabaseHeartbeat = useCallback(
+    async (workerId: string, location: WorkerLocation) => {
+      validateLocation(location);
+
+      const heartbeatAt = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("worker_locations")
+        .update({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: location.accuracy,
+          heading: location.heading,
+          speed: location.speed,
+          is_online: true,
+          updated_at: heartbeatAt,
+        })
+        .eq("worker_id", workerId)
+        .select("worker_id")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Unable to send GPS heartbeat: ${error.message}`);
+      }
+
+      /*
+       * The row may not exist yet after a fresh account/login. In that case,
+       * create it once using the normal location upsert.
+       */
+      if (!data) {
+        await upsertWorkerLocation(workerId, {
+          ...location,
+          updatedAt: heartbeatAt,
+        });
+      }
+
+      return heartbeatAt;
+    },
+    [upsertWorkerLocation],
   );
 
   const setDatabaseOffline = useCallback(async (workerId: string) => {
@@ -610,14 +653,23 @@ export function WorkerLocationProvider({
   ]);
 
   useEffect(() => {
-    if (!isTracking) {
+    const shouldKeepOnline =
+      isTracking ||
+      isOnline ||
+      localStorage.getItem(WORKER_ONLINE_STORAGE_KEY) === "true";
+
+    if (!shouldKeepOnline) {
       return;
     }
 
     let active = true;
 
     const sendHeartbeat = async () => {
-      if (!active || heartbeatInFlightRef.current || !navigator.onLine) {
+      if (
+        !active ||
+        heartbeatInFlightRef.current ||
+        !navigator.onLine
+      ) {
         return;
       }
 
@@ -630,37 +682,64 @@ export function WorkerLocationProvider({
 
       heartbeatInFlightRef.current = true;
 
-      const heartbeatLocation: WorkerLocation = {
-        ...latestLocation,
-        updatedAt: new Date().toISOString(),
-      };
-
       try {
-        await upsertWorkerLocation(workerId, heartbeatLocation);
+        const heartbeatAt = await sendDatabaseHeartbeat(
+          workerId,
+          latestLocation,
+        );
 
         if (!active || !mountedRef.current) {
           return;
         }
 
+        const heartbeatLocation: WorkerLocation = {
+          ...latestLocation,
+          updatedAt: heartbeatAt,
+        };
+
         latestLocationRef.current = heartbeatLocation;
         setWorkerLocation(heartbeatLocation);
         setIsOnline(true);
+        setIsTracking(true);
+        localStorage.setItem(WORKER_ONLINE_STORAGE_KEY, "true");
       } catch (error) {
         if (!active || !mountedRef.current) {
           return;
         }
 
-        cachePendingLocation(workerId, heartbeatLocation);
-        setIsOnline(false);
+        cachePendingLocation(workerId, {
+          ...latestLocation,
+          updatedAt: new Date().toISOString(),
+        });
+
+        /*
+         * Keep the local online state while GPS tracking is still active. A
+         * temporary network failure must not make the worker appear to have
+         * pressed Go Offline.
+         */
         setMessage(
           error instanceof Error
-            ? `${error.message} The latest location will retry automatically.`
-            : "Unable to send the GPS heartbeat.",
+            ? `${error.message} Retrying automatically.`
+            : "Unable to send the GPS heartbeat. Retrying automatically.",
         );
       } finally {
         heartbeatInFlightRef.current = false;
       }
     };
+
+    const scheduleImmediateHeartbeat = () => {
+      if (heartbeatResumeTimerRef.current !== null) {
+        window.clearTimeout(heartbeatResumeTimerRef.current);
+      }
+
+      heartbeatResumeTimerRef.current = window.setTimeout(() => {
+        heartbeatResumeTimerRef.current = null;
+        void sendHeartbeat();
+      }, HEARTBEAT_RESUME_DEBOUNCE_MS);
+    };
+
+    /* Send immediately when the effect starts, then keep the row fresh. */
+    void sendHeartbeat();
 
     const heartbeatTimer = window.setInterval(
       () => void sendHeartbeat(),
@@ -669,19 +748,43 @@ export function WorkerLocationProvider({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void sendHeartbeat();
+        scheduleImmediateHeartbeat();
       }
     };
 
+    const handleResume = () => {
+      scheduleImmediateHeartbeat();
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
+    window.addEventListener("online", handleResume);
 
     return () => {
       active = false;
       heartbeatInFlightRef.current = false;
       window.clearInterval(heartbeatTimer);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      if (heartbeatResumeTimerRef.current !== null) {
+        window.clearTimeout(heartbeatResumeTimerRef.current);
+        heartbeatResumeTimerRef.current = null;
+      }
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("pageshow", handleResume);
+      window.removeEventListener("online", handleResume);
     };
-  }, [cachePendingLocation, isTracking, upsertWorkerLocation]);
+  }, [
+    cachePendingLocation,
+    isOnline,
+    isTracking,
+    sendDatabaseHeartbeat,
+  ]);
 
   useEffect(() => {
     let active = true;

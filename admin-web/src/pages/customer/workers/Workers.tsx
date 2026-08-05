@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -24,7 +24,7 @@ import NearbyWorkersModal from "./components/NearbyWorkersModal";
 const heading = { fontFamily: "'Sora', sans-serif" };
 const inter = { fontFamily: "'Inter', sans-serif" };
 
-const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 
 const selectClass =
   "rounded-2xl border border-slate-200 px-5 py-4 outline-none bg-white text-slate-700 transition-colors focus:border-[#0A1930] focus:ring-2 focus:ring-[#0A1930]/10";
@@ -40,14 +40,8 @@ export default function Workers() {
   const [availability, setAvailability] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [onlineStatus, setOnlineStatus] = useState<
-    Record<string, boolean>
-  >({});
-  const [workerAvailability, setWorkerAvailability] = useState<
-    Record<string, boolean>
-  >({});
-  const [workerBusy, setWorkerBusy] = useState<
-    Record<string, boolean>
+  const [workerBookingStates, setWorkerBookingStates] = useState<
+    Record<string, "offline" | "working" | "available">
   >({});
 
   const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
@@ -56,27 +50,6 @@ export default function Workers() {
     loadCategories();
   }, []);
 
-  useEffect(() => {
-    void loadWorkers();
-  }, [search, category, priceRange, rating, availability]);
-
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void loadWorkers();
-      }
-    };
-
-    const timer = window.setInterval(refresh, 15_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [search, category, priceRange, rating, availability]);
 
   async function loadCategories() {
     try {
@@ -87,94 +60,108 @@ export default function Workers() {
     }
   }
 
-  async function refreshWorkerStatuses(
-    workerList: any[],
-  ): Promise<void> {
-    const workerIds = workerList
-      .map((worker) => String(worker.id))
-      .filter(Boolean);
+  const refreshWorkerStatuses = useCallback(
+    async (workerList: any[]): Promise<void> => {
+      const workerIds = workerList
+        .map((worker) => String(worker.id))
+        .filter(Boolean);
 
-    if (!workerIds.length) {
-      setOnlineStatus({});
-      setWorkerAvailability({});
-      setWorkerBusy({});
-      return;
-    }
+      if (!workerIds.length) {
+        setWorkerBookingStates({});
+        return;
+      }
 
-    const [
-      presenceResult,
-      activeBookingsResult,
-      availabilityEntries,
-    ] = await Promise.all([
-      supabase
-        .from("worker_locations")
-        .select("worker_id, is_online, is_available, updated_at")
-        .in("worker_id", workerIds),
-      supabase
-        .from("bookings")
-        .select("worker_id, status, trip_status")
-        .in("worker_id", workerIds),
-      Promise.all(
-        workerIds.map(
-          async (workerId) =>
-            [
-              workerId,
-              Boolean(
-                await isWorkerAvailable(workerId),
-              ),
-            ] as const,
-        ),
-      ),
-    ]);
-
-    if (presenceResult.error) {
-      console.error(
-        "Unable to load worker online status:",
-        presenceResult.error,
-      );
-    }
-
-    if (activeBookingsResult.error) {
-      console.error(
-        "Unable to load active worker bookings:",
-        activeBookingsResult.error,
-      );
-    }
-
-    const busyWorkerIds = new Set(
-      (activeBookingsResult.data ?? [])
-        .filter((booking) => {
-          const status = String(
-            booking.status ?? "",
+      const [
+        locationsResult,
+        activeBookingsResult,
+        availabilityEntries,
+      ] = await Promise.all([
+        supabase
+          .from("worker_locations")
+          .select(
+            "worker_id, is_online, is_available, updated_at",
           )
-            .trim()
-            .toLowerCase();
+          .in("worker_id", workerIds),
+        supabase
+          .from("bookings")
+          .select("worker_id, status, trip_status")
+          .in("worker_id", workerIds),
+        Promise.all(
+          workerIds.map(
+            async (workerId) => {
+              try {
+                return [
+                  workerId,
+                  Boolean(await isWorkerAvailable(workerId)),
+                ] as const;
+              } catch (error) {
+                console.error(
+                  `Unable to load schedule availability for ${workerId}:`,
+                  error,
+                );
 
-          const tripStatus = String(
-            booking.trip_status ?? "",
-          )
-            .trim()
-            .toLowerCase();
-
-          return (
-            status === "accepted" ||
-            status === "on going" ||
-            status === "ongoing" ||
-            status === "in progress" ||
-            tripStatus === "on trip"
-          );
-        })
-        .map((booking) =>
-          String(booking.worker_id),
+                return [workerId, true] as const;
+              }
+            },
+          ),
         ),
-    );
+      ]);
 
-    setOnlineStatus(
-      Object.fromEntries(
+      if (locationsResult.error) {
+        console.error(
+          "Unable to load worker GPS presence:",
+          locationsResult.error,
+        );
+      }
+
+      if (activeBookingsResult.error) {
+        console.error(
+          "Unable to load active worker bookings:",
+          activeBookingsResult.error,
+        );
+      }
+
+      const locations = new Map(
+        (locationsResult.data ?? []).map((location) => [
+          String(location.worker_id),
+          location,
+        ]),
+      );
+
+      const scheduleAvailability = new Map(
+        availabilityEntries,
+      );
+
+      const busyWorkerIds = new Set(
+        (activeBookingsResult.data ?? [])
+          .filter((booking) => {
+            const status = String(booking.status ?? "")
+              .trim()
+              .toLowerCase();
+
+            const tripStatus = String(
+              booking.trip_status ?? "",
+            )
+              .trim()
+              .toLowerCase();
+
+            return (
+              status === "accepted" ||
+              status === "approved" ||
+              status === "on going" ||
+              status === "ongoing" ||
+              status === "in progress" ||
+              tripStatus === "on trip"
+            );
+          })
+          .map((booking) =>
+            String(booking.worker_id),
+          ),
+      );
+
+      const nextStates = Object.fromEntries(
         workerIds.map((workerId) => {
-          const location = presenceResult.data?.find(
-            (item) => String(item.worker_id) === workerId,
-          );
+          const location = locations.get(workerId);
 
           const updatedAt = new Date(
             String(location?.updated_at ?? ""),
@@ -183,39 +170,39 @@ export default function Workers() {
           const online =
             Boolean(location?.is_online) &&
             Number.isFinite(updatedAt) &&
-            Date.now() - updatedAt <= ONLINE_TIMEOUT_MS;
+            Date.now() - updatedAt >= 0 &&
+            Date.now() - updatedAt <=
+              ONLINE_TIMEOUT_MS;
 
-          return [workerId, online];
+          const busy = busyWorkerIds.has(workerId);
+
+          const available =
+            online &&
+            !busy &&
+            Boolean(location?.is_available) &&
+            Boolean(
+              scheduleAvailability.get(workerId),
+            );
+
+          const state:
+            | "offline"
+            | "working"
+            | "available" = !online
+            ? "offline"
+            : available
+              ? "available"
+              : "working";
+
+          return [workerId, state];
         }),
-      ),
-    );
+      );
 
-    setWorkerBusy(
-      Object.fromEntries(
-        workerIds.map((workerId) => [
-          workerId,
-          busyWorkerIds.has(workerId),
-        ]),
-      ),
-    );
+      setWorkerBookingStates(nextStates);
+    },
+    [],
+  );
 
-    setWorkerAvailability(
-      Object.fromEntries(
-        availabilityEntries.map(([workerId, scheduleAvailable]) => {
-          const location = presenceResult.data?.find(
-            (item) => String(item.worker_id) === workerId,
-          );
-
-          return [
-            workerId,
-            Boolean(location?.is_available) && scheduleAvailable,
-          ];
-        }),
-      ),
-    );
-  }
-
-  async function loadWorkers() {
+  const loadWorkers = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -276,7 +263,77 @@ export default function Workers() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [
+    availability,
+    category,
+    priceRange,
+    rating,
+    refreshWorkerStatuses,
+    search,
+  ]);
+
+  useEffect(() => {
+    void loadWorkers();
+  }, [loadWorkers]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void loadWorkers();
+      }
+    };
+
+    const timer = window.setInterval(
+      refresh,
+      15_000,
+    );
+
+    const locationChannel = supabase
+      .channel("customer-worker-card-presence")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "worker_locations",
+        },
+        refresh,
+      )
+      .subscribe();
+
+    const bookingChannel = supabase
+      .channel("customer-worker-card-bookings")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+        },
+        refresh,
+      )
+      .subscribe();
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener(
+      "visibilitychange",
+      refresh,
+    );
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener(
+        "visibilitychange",
+        refresh,
+      );
+
+      void supabase.removeChannel(locationChannel);
+      void supabase.removeChannel(bookingChannel);
+    };
+  }, [loadWorkers]);
 
   return (
     <CustomerLayout>
@@ -540,23 +597,9 @@ export default function Workers() {
                 1,
               );
               const workerId = String(worker.id);
-              const online = Boolean(
-                onlineStatus[workerId],
-              );
-              const available = Boolean(
-                workerAvailability[workerId],
-              );
-              const busy = Boolean(
-                workerBusy[workerId],
-              );
-
-              const bookingState = !online
-                ? "offline"
-                : busy
-                  ? "working"
-                  : available
-                    ? "available"
-                    : "offline";
+              const bookingState =
+                workerBookingStates[workerId] ??
+                "offline";
 
               return (
                 <div

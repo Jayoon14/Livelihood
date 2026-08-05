@@ -202,51 +202,94 @@ function calculateAverageRating(reviews: ReviewRecord[] | null): number {
   return Number((total / validRatings.length).toFixed(1));
 }
 
-async function getWorkerMetrics(workerId: string): Promise<{
-  average_rating: number;
-  completed_jobs: number;
-}> {
-  const [reviewsResult, completedJobsResult] = await Promise.all([
-    supabase.from("reviews").select("rating").eq("worker_id", workerId),
-    supabase
-      .from("bookings")
-      .select("*", {
-        count: "exact",
-        head: true,
-      })
-      .eq("worker_id", workerId)
-      .eq("status", "Completed"),
-  ]);
-
-  if (reviewsResult.error) {
-    throw reviewsResult.error;
-  }
-
-  if (completedJobsResult.error) {
-    throw completedJobsResult.error;
-  }
-
-  return {
-    average_rating: calculateAverageRating(
-      (reviewsResult.data ?? []) as ReviewRecord[],
-    ),
-    completed_jobs: completedJobsResult.count ?? 0,
-  };
+function isCompletedBookingStatus(
+  value: unknown,
+): boolean {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase() === "completed";
 }
 
 async function enrichWorkersWithMetrics(
   workers: WorkerWithServices[],
 ): Promise<WorkerSearchResult[]> {
-  return Promise.all(
-    workers.map(async (worker) => {
-      const metrics = await getWorkerMetrics(worker.id);
+  if (!workers.length) {
+    return [];
+  }
 
-      return {
-        ...worker,
-        ...metrics,
-      };
-    }),
-  );
+  const workerIds = workers.map((worker) => worker.id);
+
+  const [reviewsResult, bookingsResult] =
+    await Promise.all([
+      supabase
+        .from("reviews")
+        .select("worker_id, rating")
+        .in("worker_id", workerIds),
+      supabase
+        .from("bookings")
+        .select("worker_id, status")
+        .in("worker_id", workerIds),
+    ]);
+
+  if (reviewsResult.error) {
+    throw reviewsResult.error;
+  }
+
+  if (bookingsResult.error) {
+    throw bookingsResult.error;
+  }
+
+  const ratingsByWorker = new Map<
+    string,
+    ReviewRecord[]
+  >();
+
+  for (const row of reviewsResult.data ?? []) {
+    const workerId = String(row.worker_id ?? "");
+
+    if (!workerId) {
+      continue;
+    }
+
+    const current =
+      ratingsByWorker.get(workerId) ?? [];
+
+    current.push({
+      rating: row.rating,
+    });
+
+    ratingsByWorker.set(workerId, current);
+  }
+
+  const completedByWorker = new Map<
+    string,
+    number
+  >();
+
+  for (const row of bookingsResult.data ?? []) {
+    const workerId = String(row.worker_id ?? "");
+
+    if (
+      !workerId ||
+      !isCompletedBookingStatus(row.status)
+    ) {
+      continue;
+    }
+
+    completedByWorker.set(
+      workerId,
+      (completedByWorker.get(workerId) ?? 0) + 1,
+    );
+  }
+
+  return workers.map((worker) => ({
+    ...worker,
+    average_rating: calculateAverageRating(
+      ratingsByWorker.get(worker.id) ?? [],
+    ),
+    completed_jobs:
+      completedByWorker.get(worker.id) ?? 0,
+  }));
 }
 
 async function updateWorkerStatus(
@@ -421,59 +464,18 @@ export async function rejectWorker(
 ): Promise<WorkerProfile[]> {
   const workerId = validateWorkerId(id);
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError) {
-    throw new Error(
-      `Unable to read administrator session: ${sessionError.message}`,
-    );
-  }
-
-  if (!session?.access_token) {
-    throw new Error("Administrator session is missing. Please sign in again.");
-  }
-
-  console.log("Invoking reject-worker Edge Function:", workerId);
-
-  const { data, error } = await supabase.functions.invoke("reject-worker", {
-    body: {
-      workerId,
-      reason: reason.trim() || null,
+  const { data, error } = await supabase.functions.invoke(
+    "reject-worker",
+    {
+      body: {
+        workerId,
+        reason: reason.trim() || null,
+      },
     },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
-  });
-
-  console.log("reject-worker response:", {
-    data,
-    error,
-  });
+  );
 
   if (error) {
-    const context = error.context as Response | undefined;
-
-    let responseMessage = "";
-
-    if (context) {
-      try {
-        const payload = (await context.clone().json()) as {
-          error?: string;
-          message?: string;
-        };
-
-        responseMessage = payload.error ?? payload.message ?? "";
-      } catch {
-        responseMessage = "";
-      }
-    }
-
-    throw new Error(
-      responseMessage || `Unable to reject worker: ${error.message}`,
-    );
+    throw new Error(`Unable to reject worker: ${error.message}`);
   }
 
   const response = data as {
@@ -483,7 +485,9 @@ export async function rejectWorker(
   } | null;
 
   if (!response?.success || !response.worker) {
-    throw new Error(response?.error ?? "Worker rejection did not complete.");
+    throw new Error(
+      response?.error ?? "Worker rejection did not complete.",
+    );
   }
 
   return [
@@ -847,26 +851,21 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
 
   const date = today.toISOString().split("T")[0];
 
-  const [scheduleResult, unavailableResult, activeBookingsResult] =
-    await Promise.all([
-      supabase
-        .from("worker_schedules")
-        .select("id")
-        .eq("worker_id", id)
-        .eq("day_of_week", day)
-        .eq("is_available", true)
-        .limit(1),
-      supabase
-        .from("unavailable_dates")
-        .select("id")
-        .eq("worker_id", id)
-        .eq("unavailable_date", date)
-        .limit(1),
-      supabase
-        .from("bookings")
-        .select("id, status, trip_status")
-        .eq("worker_id", id),
-    ]);
+  const [scheduleResult, unavailableResult] = await Promise.all([
+    supabase
+      .from("worker_schedules")
+      .select("id")
+      .eq("worker_id", id)
+      .eq("day_of_week", day)
+      .eq("is_available", true)
+      .limit(1),
+    supabase
+      .from("unavailable_dates")
+      .select("id")
+      .eq("worker_id", id)
+      .eq("unavailable_date", date)
+      .limit(1),
+  ]);
 
   if (scheduleResult.error) {
     throw scheduleResult.error;
@@ -876,29 +875,7 @@ export async function isWorkerAvailable(workerId: string): Promise<boolean> {
     throw unavailableResult.error;
   }
 
-  if (activeBookingsResult.error) {
-    throw activeBookingsResult.error;
-  }
-
-  const hasActiveJob = (activeBookingsResult.data ?? []).some((booking) => {
-    const status = String(booking.status ?? "")
-      .trim()
-      .toLowerCase();
-
-    const tripStatus = String(booking.trip_status ?? "")
-      .trim()
-      .toLowerCase();
-
-    return (
-      status === "on going" ||
-      status === "ongoing" ||
-      status === "in progress" ||
-      tripStatus === "on trip"
-    );
-  });
-
   return (
-    !hasActiveJob &&
     (scheduleResult.data?.length ?? 0) > 0 &&
     (unavailableResult.data?.length ?? 0) === 0
   );
@@ -1252,6 +1229,7 @@ export async function getWorkerReviews(
     };
   });
 }
+
 
 // Worker online presence helpers
 export {
