@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   LoaderCircle,
   LocateFixed,
   MapPin,
@@ -9,9 +10,12 @@ import {
   WifiOff,
 } from "lucide-react";
 
+import { useState } from "react";
+
 import { useWorkerLocation } from "../../../context/WorkerLocationProvider";
 
 export default function WorkerLocationStatus() {
+  const [showDetails, setShowDetails] = useState(false);
   const {
     workerLocation,
     isOnline,
@@ -129,40 +133,70 @@ export default function WorkerLocationStatus() {
       </div>
 
       {(isOnline || workerLocation) && (
-        <div className="grid gap-3 border-t border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:grid-cols-3 sm:p-6">
-          <StatusItem
-            label="GPS Status"
-            value={isTracking ? "Tracking active" : "Waiting for GPS"}
-            good={isTracking}
-          />
+        <div className="border-t border-slate-100 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setShowDetails((current) => !current)}
+            aria-expanded={showDetails}
+            aria-controls="worker-gps-details"
+            className="flex min-h-12 w-full items-center justify-between gap-3 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 dark:bg-slate-950/40 dark:hover:bg-slate-800 sm:px-6"
+          >
+            <span>
+              <span className="block text-sm font-black text-slate-800 dark:text-slate-100">
+                GPS and connection details
+              </span>
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+                {showDetails ? "Hide technical status" : "Tap to view GPS status, accuracy, and coordinates"}
+              </span>
+            </span>
 
-          <StatusItem
-            label="Database Sync"
-            value={isOnline ? "Synced" : "Pending connection"}
-            good={isOnline}
-          />
+            <ChevronDown
+              className={`h-5 w-5 shrink-0 text-slate-500 transition-transform duration-300 ${showDetails ? "rotate-180" : ""}`}
+            />
+          </button>
 
-          <StatusItem
-            label="GPS Accuracy"
-            value={
-              accuracy !== null
-                ? `${Math.round(accuracy)} metres`
-                : "Not available"
-            }
-            good={accuracyGood}
-          />
+          <div
+            id="worker-gps-details"
+            className={`grid overflow-hidden bg-slate-50 transition-all duration-300 ease-in-out dark:bg-slate-950/40 ${
+              showDetails
+                ? "max-h-[720px] gap-3 p-4 opacity-100 sm:grid-cols-2 sm:p-6 xl:grid-cols-3"
+                : "max-h-0 gap-0 p-0 opacity-0"
+            }`}
+          >
+            <StatusItem
+              label="GPS Status"
+              value={isTracking ? "Tracking active" : "Waiting for GPS"}
+              good={isTracking}
+            />
 
-          {latitude !== null && longitude !== null && (
-            <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:col-span-3">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                Current Coordinates
-              </p>
+            <StatusItem
+              label="Database Sync"
+              value={isOnline ? "Synced" : "Pending connection"}
+              good={isOnline}
+            />
 
-              <p className="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
-                {latitude.toFixed(6)}, {longitude.toFixed(6)}
-              </p>
-            </div>
-          )}
+            <StatusItem
+              label="GPS Accuracy"
+              value={
+                accuracy !== null
+                  ? `${Math.round(accuracy)} metres`
+                  : "Not available"
+              }
+              good={accuracyGood}
+            />
+
+            {latitude !== null && longitude !== null && (
+              <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:col-span-2 xl:col-span-3">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-400">
+                  Current Coordinates
+                </p>
+
+                <p className="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
+                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

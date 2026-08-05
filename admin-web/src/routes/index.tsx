@@ -588,6 +588,12 @@ import { lazy, Suspense } from "react";
                   }
                 />
 
+                {/* Backward-compatible route for old dashboard/sidebar links. */}
+                <Route
+                  path="/worker/chat"
+                  element={<Navigate to="/worker/messages" replace />}
+                />
+
                 {/* ================= SHARED CUSTOMER/WORKER CHAT ================= */}
 
                 <Route

@@ -45,9 +45,9 @@ interface WorkerMarkerRecord {
   cleanupClick: () => void;
 }
 
-const STALE_GPS_THRESHOLD_MS = 2 * 60 * 1000;
+const STALE_GPS_THRESHOLD_MS = 5 * 60 * 1000;
 const MAX_FUTURE_TIMESTAMP_DRIFT_MS = 60_000;
-const MAX_NEARBY_ACCURACY_METERS = 1_000;
+const MAX_NEARBY_ACCURACY_METERS = 5_000;
 const REFRESH_INTERVAL_MS = 30_000;
 
 function degreesToRadians(value: number): number {
@@ -490,9 +490,7 @@ export function useNearbyWorkers({
         .from("worker_locations")
         .select(
           "worker_id, latitude, longitude, accuracy, heading, speed, is_online, is_available, updated_at",
-        )
-        .eq("is_online", true)
-        .eq("is_available", true);
+        );
 
       if (error) {
         throw error;
