@@ -2,7 +2,30 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { createNotification } from "./notificationService";
 
-const CHAT_ENABLED_STATUSES = ["Approved", "On Going", "Completed"] as const;
+const CHAT_ENABLED_STATUSES = [
+  "Approved",
+  "Accepted",
+  "On Going",
+  "Ongoing",
+  "In Progress",
+  "Completed",
+] as const;
+
+function isChatEnabledStatus(value: unknown): boolean {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+  return [
+    "approved",
+    "accepted",
+    "on going",
+    "ongoing",
+    "in progress",
+    "completed",
+  ].includes(normalized);
+}
 
 export type ChatProfile = {
   id: string;
@@ -207,7 +230,7 @@ async function getParticipantContext(
     throw new Error("You are not a participant in this booking.");
   }
 
-  if (!CHAT_ENABLED_STATUSES.includes(data.status as never)) {
+  if (!isChatEnabledStatus(data.status)) {
     throw new Error(
       "Chat is available only for approved, ongoing, or completed bookings.",
     );
@@ -668,15 +691,15 @@ export async function getChatList(
       )
     `)
     .or(`customer_id.eq.${userId},worker_id.eq.${userId}`)
-    .in("status", [...CHAT_ENABLED_STATUSES])
     .order("created_at", { ascending: false });
 
   if (bookingError) {
     throw bookingError;
   }
 
-  const normalizedBookings: ChatContext[] = (bookings ?? []).map(
-    (booking) => {
+  const normalizedBookings: ChatContext[] = (bookings ?? [])
+    .filter((booking) => isChatEnabledStatus(booking.status))
+    .map((booking) => {
       const service = normalizeRelation(
         booking.service as
           | { id?: number; service_name?: string | null }

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { getChatListPath } from "../../utils/chatRoutes";
 import {
   getChatContext,
   getMessages,
@@ -140,6 +141,7 @@ export default function ChatRoom() {
   const [context, setContext] = useState<ChatContext | null>(null);
   const [message, setMessage] = useState("");
   const [userId, setUserId] = useState("");
+  const [currentRole, setCurrentRole] = useState<"customer" | "worker">("customer");
 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -221,6 +223,9 @@ export default function ChatRoom() {
 
         setContext(chatContext);
         setMessages(history);
+        setCurrentRole(
+          chatContext.worker_id === currentUserId ? "worker" : "customer",
+        );
 
         const chatOtherUserId =
           chatContext.customer_id === currentUserId
@@ -483,11 +488,13 @@ export default function ChatRoom() {
     };
 
     window.addEventListener("online", handleOnline);
+    window.addEventListener("focus", handleOnline);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       active = false;
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("focus", handleOnline);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [bookingId, scrollToBottom, userId]);
@@ -692,7 +699,7 @@ export default function ChatRoom() {
 
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(getChatListPath(currentRole))}
             className="mt-6 min-h-11 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
           >
             Go back
@@ -718,7 +725,7 @@ export default function ChatRoom() {
         <header className="relative z-20 flex min-h-[76px] items-center gap-3 border-b border-slate-200/80 bg-white/95 px-3 py-3 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 sm:px-5 lg:px-6">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(getChatListPath(currentRole))}
             aria-label="Go back"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >

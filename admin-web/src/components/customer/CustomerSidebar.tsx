@@ -58,7 +58,7 @@ const menus = [
   {
     name: "Messages",
     icon: MessageCircle,
-    path: "/chat",
+    path: "/customer/messages",
   },
 ];
 

@@ -431,6 +431,11 @@ import { lazy, Suspense } from "react";
                 />
 
                 <Route
+                  path="/customer/chat"
+                  element={<Navigate to="/customer/messages" replace />}
+                />
+
+                <Route
                   path="/customer/categories"
                   element={
                     <ProtectedRoute allowedRoles={["customer"]}>

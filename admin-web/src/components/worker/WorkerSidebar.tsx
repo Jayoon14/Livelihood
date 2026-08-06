@@ -65,7 +65,7 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
     {
       name: "Messages",
       icon: MessageCircle,
-      path: "/chat",
+      path: "/worker/messages",
     },
   ];
 
