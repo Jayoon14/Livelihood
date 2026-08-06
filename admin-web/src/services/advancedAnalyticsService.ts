@@ -120,22 +120,29 @@ function profileName(profile: ProfileRow | undefined): string {
   );
 }
 
-function applyDateFilter<T extends { gte: Function; lte: Function }>(
-  query: T,
+interface DateFilterableQuery<TQuery> {
+  gte(column: string, value: string): TQuery;
+  lte(column: string, value: string): TQuery;
+}
+
+function applyDateFilter<
+  TQuery extends DateFilterableQuery<TQuery>,
+>(
+  query: TQuery,
   filters: AnalyticsFilters,
-): T {
+): TQuery {
   let result = query;
   if (filters.startDate) {
     result = result.gte(
       "created_at",
       `${filters.startDate}T00:00:00.000Z`,
-    ) as T;
+    );
   }
   if (filters.endDate) {
     result = result.lte(
       "created_at",
       `${filters.endDate}T23:59:59.999Z`,
-    ) as T;
+    );
   }
   return result;
 }

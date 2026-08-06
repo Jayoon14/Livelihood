@@ -25,6 +25,7 @@ import {
 import {
   type ChangeEvent,
   type FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -42,7 +43,7 @@ import {
   validatePassword,
   type UpdateProfileRequest,
 } from "../../../services/profileService";
-import { useProfile } from "../../../context/ProfileContext";
+import { useProfile } from "../../../context/ProfileContextValue";
 
 interface CustomerProfileDraft {
   first_name: string;
@@ -155,17 +156,16 @@ function ProfileContent() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   useEffect(() => {
-    if (!profile) {
-      void refreshProfile();
-    }
-  }, [profile, refreshProfile]);
-
-  useEffect(() => {
     if (profile) {
-      setDraft(makeDraft(profile));
-      void loadProfileStats(profile.id);
+      return;
     }
-  }, [profile?.id]);
+
+    const timer = window.setTimeout(() => {
+      void refreshProfile();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [profile, refreshProfile]);
 
   const fullName = useMemo(() => {
     if (!profile) {
@@ -201,7 +201,9 @@ function ProfileContent() {
     return Math.round((completed / values.length) * 100);
   }, [profile]);
 
-  async function loadProfileStats(customerId: string): Promise<void> {
+  const loadProfileStats = useCallback(async (
+    customerId: string,
+  ): Promise<void> => {
     setLoadingStats(true);
 
     try {
@@ -221,7 +223,7 @@ function ProfileContent() {
             .eq("customer_id", customerId),
         ]);
 
-      let nextStats = { ...EMPTY_STATS };
+      const nextStats = { ...EMPTY_STATS };
 
       if (bookingsResult.status === "fulfilled") {
         const { data, count, error } = bookingsResult.value;
@@ -282,7 +284,21 @@ function ProfileContent() {
     } finally {
       setLoadingStats(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setDraft(makeDraft(profile));
+      void loadProfileStats(profile.id);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadProfileStats, profile]);
+
 
   function updateDraft(
     field: keyof CustomerProfileDraft,

@@ -12,7 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { logout } from "../../services/authService";
-import { useProfile } from "../../context/ProfileContext";
+import { useProfile } from "../../context/ProfileContextValue";
 import NotificationDropdown from "../notifications/NotificationDropdown";
 import ThemeDropdown from "../common/ThemeDropdown";
 import AccountActivityModal from "../account/AccountActivityModal";

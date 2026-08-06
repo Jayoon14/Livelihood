@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -14,49 +12,15 @@ import type {
 } from "@supabase/supabase-js";
 
 import { supabase } from "../lib/supabase";
-
-export type RealtimeTable =
-  | "activity_logs"
-  | "booking_completion_proofs"
-  | "bookings"
-  | "chats"
-  | "messages"
-  | "notifications"
-  | "payment_transactions"
-  | "payments"
-  | "profiles"
-  | "reviews"
-  | "services"
-  | "unavailable_dates"
-  | "worker_locations"
-  | "worker_schedules";
-
-type RealtimeStatus =
-  | "CONNECTING"
-  | "SUBSCRIBED"
-  | "CHANNEL_ERROR"
-  | "TIMED_OUT"
-  | "CLOSED";
-
-type RealtimeVersions = Record<RealtimeTable, number>;
-
-type UnknownRow = Record<string, unknown>;
-
-export interface RealtimeChange {
-  table: RealtimeTable;
-  eventType: "INSERT" | "UPDATE" | "DELETE";
-  newRecord: UnknownRow | null;
-  oldRecord: UnknownRow | null;
-  receivedAt: number;
-}
-
-interface RealtimeContextValue {
-  status: RealtimeStatus;
-  connected: boolean;
-  versions: RealtimeVersions;
-  lastChange: RealtimeChange | null;
-  getVersion: (table: RealtimeTable) => number;
-}
+import {
+  RealtimeContext,
+  type RealtimeChange,
+  type RealtimeContextValue,
+  type RealtimeStatus,
+  type RealtimeTable,
+  type RealtimeVersions,
+  type UnknownRealtimeRow,
+} from "./RealtimeContext";
 
 interface RealtimeProviderProps {
   children: ReactNode;
@@ -96,8 +60,6 @@ const REALTIME_TABLES: RealtimeTable[] = [
   "worker_schedules",
 ];
 
-const RealtimeContext = createContext<RealtimeContextValue | null>(null);
-
 function isRealtimeEvent(
   eventType: string,
 ): eventType is "INSERT" | "UPDATE" | "DELETE" {
@@ -113,27 +75,22 @@ export function RealtimeProvider({
 }: RealtimeProviderProps) {
   const [status, setStatus] =
     useState<RealtimeStatus>("CONNECTING");
-
   const [versions, setVersions] =
     useState<RealtimeVersions>(INITIAL_VERSIONS);
-
   const [lastChange, setLastChange] =
     useState<RealtimeChange | null>(null);
-
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const processChange = useCallback(
     (
       table: RealtimeTable,
-      payload: RealtimePostgresChangesPayload<UnknownRow>,
+      payload: RealtimePostgresChangesPayload<UnknownRealtimeRow>,
     ) => {
-      if (!isRealtimeEvent(payload.eventType)) {
-        return;
-      }
+      if (!isRealtimeEvent(payload.eventType)) return;
 
-      setVersions((currentVersions) => ({
-        ...currentVersions,
-        [table]: currentVersions[table] + 1,
+      setVersions((current) => ({
+        ...current,
+        [table]: current[table] + 1,
       }));
 
       setLastChange({
@@ -142,11 +99,11 @@ export function RealtimeProvider({
         newRecord:
           payload.eventType === "DELETE"
             ? null
-            : (payload.new as UnknownRow),
+            : (payload.new as UnknownRealtimeRow),
         oldRecord:
           payload.eventType === "INSERT"
             ? null
-            : (payload.old as UnknownRow),
+            : (payload.old as UnknownRealtimeRow),
         receivedAt: Date.now(),
       });
     },
@@ -156,19 +113,18 @@ export function RealtimeProvider({
   useEffect(() => {
     let mounted = true;
 
-    const connectRealtime = async () => {
+    const connect = async () => {
       if (channelRef.current) {
         await supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
 
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setStatus("CONNECTING");
 
-      let channel = supabase.channel("livelihood-system-realtime");
+      let channel = supabase.channel(
+        "livelihood-system-realtime",
+      );
 
       REALTIME_TABLES.forEach((table) => {
         channel = channel.on(
@@ -179,13 +135,12 @@ export function RealtimeProvider({
             table,
           },
           (payload) => {
-            if (!mounted) {
-              return;
-            }
-
+            if (!mounted) return;
             processChange(
               table,
-              payload as RealtimePostgresChangesPayload<UnknownRow>,
+              payload as RealtimePostgresChangesPayload<
+                UnknownRealtimeRow
+              >,
             );
           },
         );
@@ -194,45 +149,33 @@ export function RealtimeProvider({
       channelRef.current = channel;
 
       channel.subscribe((subscriptionStatus) => {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         switch (subscriptionStatus) {
           case "SUBSCRIBED":
             setStatus("SUBSCRIBED");
-            console.log("Supabase Realtime connected.");
             break;
-
           case "CHANNEL_ERROR":
             setStatus("CHANNEL_ERROR");
-            console.error("Supabase Realtime channel error.");
             break;
-
           case "TIMED_OUT":
             setStatus("TIMED_OUT");
-            console.error("Supabase Realtime connection timed out.");
             break;
-
           case "CLOSED":
             setStatus("CLOSED");
             break;
-
           default:
             setStatus("CONNECTING");
-            break;
         }
       });
     };
 
-    void connectRealtime();
+    void connect();
 
     return () => {
       mounted = false;
-
       const channel = channelRef.current;
       channelRef.current = null;
-
       if (channel) {
         void supabase.removeChannel(channel);
       }
@@ -260,24 +203,4 @@ export function RealtimeProvider({
       {children}
     </RealtimeContext.Provider>
   );
-}
-
-export function useRealtime() {
-  const context = useContext(RealtimeContext);
-
-  if (!context) {
-    throw new Error(
-      "useRealtime must be used inside RealtimeProvider.",
-    );
-  }
-
-  return context;
-}
-
-export function useRealtimeTableVersion(
-  table: RealtimeTable,
-) {
-  const { versions } = useRealtime();
-
-  return versions[table];
 }

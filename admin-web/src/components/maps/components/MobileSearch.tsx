@@ -35,9 +35,15 @@ export default function MobileSearch({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (results.length > 0 || searching) {
-      setOpen(true);
+    if (results.length === 0 && !searching) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setOpen(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [results.length, searching]);
 
   const handleSelectResult = async (

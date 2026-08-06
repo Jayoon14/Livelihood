@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -34,6 +34,12 @@ type ApprovedTransaction = {
   transaction_status?: string | null;
   approved_at?: string | null;
   created_at?: string | null;
+};
+
+type JsPdfWithAutoTable = jsPDF & {
+  lastAutoTable?: {
+    finalY?: number;
+  };
 };
 
 type ReceiptData = {
@@ -87,11 +93,7 @@ export default function CustomerReceipt() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    void loadReceipt();
-  }, [id]);
-
-  async function loadReceipt() {
+  const loadReceipt = useCallback(async () => {
     try {
       setLoading(true);
       setErrorMessage("");
@@ -119,7 +121,16 @@ export default function CustomerReceipt() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadReceipt();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadReceipt]);
+
 
   /* ==========================
      FORMATTERS
@@ -296,7 +307,7 @@ export default function CustomerReceipt() {
       },
     });
 
-    const receiptInfoFinalY = (doc as any).lastAutoTable?.finalY ?? 120;
+    const receiptInfoFinalY = (doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? 120;
 
     /*
      * Payment transaction table
@@ -361,7 +372,7 @@ export default function CustomerReceipt() {
     });
 
     const transactionFinalY =
-      (doc as any).lastAutoTable?.finalY ?? receiptInfoFinalY + 80;
+      (doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? receiptInfoFinalY + 80;
 
     /*
      * Payment computation
@@ -401,7 +412,7 @@ export default function CustomerReceipt() {
       },
     });
 
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 220;
+    const finalY = (doc as JsPdfWithAutoTable).lastAutoTable?.finalY ?? 220;
 
     doc.setFontSize(9);
 

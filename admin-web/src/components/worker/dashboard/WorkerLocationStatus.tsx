@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { useWorkerLocation } from "../../../context/WorkerLocationProvider";
+import { useWorkerLocation } from "../../../context/WorkerLocationContext";
 
 export default function WorkerLocationStatus() {
   const [showDetails, setShowDetails] = useState(false);
@@ -53,9 +53,15 @@ export default function WorkerLocationStatus() {
   const hasLocationDetails = Boolean(isOnline || workerLocation);
 
   useEffect(() => {
-    if (!hasLocationDetails) {
-      setShowDetails(false);
+    if (hasLocationDetails) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setShowDetails(false);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [hasLocationDetails]);
 
   return (

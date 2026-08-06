@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Award,
@@ -254,66 +254,9 @@ export default function CustomerWorkerProfile() {
     selectedWorkerIsNearby &&
     !checkingWorkerDistance;
 
-  useEffect(() => {
-    void loadWorker();
-  }, [id]);
-
-  useEffect(() => {
-    const workerId = worker?.profile.id;
-
-    if (!workerId) {
-      return;
-    }
-
-    void refreshWorkerBookingState(workerId);
-
-    const channel = supabase
-      .channel(`customer-worker-booking-status-${workerId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "worker_locations",
-          filter: `worker_id=eq.${workerId}`,
-        },
-        () => {
-          void refreshWorkerBookingState(workerId);
-        },
-      )
-      .subscribe();
-
-    const timer = window.setInterval(() => {
-      void refreshWorkerBookingState(workerId);
-    }, 30_000);
-
-    return () => {
-      window.clearInterval(timer);
-      void supabase.removeChannel(channel);
-    };
-  }, [worker?.profile.id]);
-
-  useEffect(() => {
-    if (!worker) return;
-
-    const searchParams = new URLSearchParams(location.search);
-    const shouldOpenBooking = searchParams.get("book") === "true";
-
-    if (!shouldOpenBooking) return;
-
-    const timer = window.setTimeout(() => {
-      document.getElementById("booking-section")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [location.search, worker]);
-
-  async function refreshWorkerBookingState(
+  const refreshWorkerBookingState = useCallback(async (
     workerId: string,
-  ): Promise<WorkerBookingState> {
+  ): Promise<WorkerBookingState> => {
     try {
       const { data, error } = await supabase
         .from("worker_locations")
@@ -351,9 +294,9 @@ export default function CustomerWorkerProfile() {
       setWorkerBookingState("offline");
       return "offline";
     }
-  }
+  }, []);
 
-  async function loadWorker() {
+  const loadWorker = useCallback(async () => {
     if (!id) {
       setLoadError("Worker profile was not found.");
       setLoading(false);
@@ -397,13 +340,13 @@ export default function CustomerWorkerProfile() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, refreshWorkerBookingState]);
 
-  async function checkSelectedWorkerDistance(
+  const checkSelectedWorkerDistance = useCallback(async (
     customerLatitude: number,
     customerLongitude: number,
     showToast = false,
-  ): Promise<boolean> {
+  ): Promise<boolean> => {
     if (!worker) {
       return false;
     }
@@ -490,42 +433,131 @@ export default function CustomerWorkerProfile() {
     } finally {
       setCheckingWorkerDistance(false);
     }
-  }
+  }, [worker]);
 
   useEffect(() => {
-    if (
-      !worker ||
-      latitude === null ||
-      longitude === null
-    ) {
-      setSelectedWorkerDistanceMeters(null);
-      setWorkerLocationMessage("");
+    const timer = window.setTimeout(() => {
+      void loadWorker();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadWorker]);
+
+  useEffect(() => {
+    const workerId = worker?.profile.id;
+
+    if (!workerId) {
       return;
     }
 
+    const initialRefreshTimer =
+      window.setTimeout(() => {
+        void refreshWorkerBookingState(workerId);
+      }, 0);
+
+    const channel = supabase
+      .channel(
+        `customer-worker-booking-status-${workerId}`,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "worker_locations",
+          filter: `worker_id=eq.${workerId}`,
+        },
+        () => {
+          void refreshWorkerBookingState(workerId);
+        },
+      )
+      .subscribe();
+
+    const refreshInterval = window.setInterval(
+      () => {
+        void refreshWorkerBookingState(workerId);
+      },
+      30_000,
+    );
+
+    return () => {
+      window.clearTimeout(initialRefreshTimer);
+      window.clearInterval(refreshInterval);
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    refreshWorkerBookingState,
+    worker?.profile.id,
+  ]);
+
+  useEffect(() => {
+    if (!worker) return;
+
+    const searchParams = new URLSearchParams(location.search);
+    const shouldOpenBooking = searchParams.get("book") === "true";
+
+    if (!shouldOpenBooking) return;
+
+    const timer = window.setTimeout(() => {
+      document.getElementById("booking-section")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [location.search, worker]);
+
+
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void checkSelectedWorkerDistance(latitude, longitude);
+      if (
+        !worker ||
+        latitude === null ||
+        longitude === null
+      ) {
+        setSelectedWorkerDistanceMeters(null);
+        setWorkerLocationMessage("");
+        return;
+      }
+
+      void checkSelectedWorkerDistance(
+        latitude,
+        longitude,
+      );
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [worker?.profile.id, latitude, longitude]);
+  }, [
+    checkSelectedWorkerDistance,
+    latitude,
+    longitude,
+    worker,
+  ]);
 
   useEffect(() => {
     if (workerCanBeBooked) {
       return;
     }
 
-    setBookingDate("");
-    setBookingTime("");
-    setAvailableSlots([]);
-    setAvailabilityMessage(
-      workerBookingState === "working"
-        ? "This worker is currently working and cannot accept another booking."
-        : workerBookingState === "offline"
-          ? "This worker is offline. Booking will be available when the worker comes online."
-          : "",
-    );
-  }, [workerCanBeBooked, workerBookingState]);
+    const timer = window.setTimeout(() => {
+      setBookingDate("");
+      setBookingTime("");
+      setAvailableSlots([]);
+      setAvailabilityMessage(
+        workerBookingState === "working"
+          ? "This worker is currently working and cannot accept another booking."
+          : workerBookingState === "offline"
+            ? "This worker is offline. Booking will be available when the worker comes online."
+            : "",
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    workerCanBeBooked,
+    workerBookingState,
+  ]);
 
   async function handleBookingDateChange(date: string) {
     if (!worker) return;

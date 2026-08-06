@@ -1,15 +1,19 @@
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+  type RefObject,
+} from "react";
 import type { Marker } from "maplibre-gl";
 import type { Coordinates } from "../types";
 
 interface UseSmoothMarkerParams {
-  marker: Marker | null;
+  markerRef: RefObject<Marker | null>;
   coordinates: Coordinates | null;
   duration?: number;
 }
 
 export function useSmoothMarker({
-  marker,
+  markerRef,
   coordinates,
   duration = 500,
 }: UseSmoothMarkerParams) {
@@ -17,7 +21,11 @@ export function useSmoothMarker({
   const previousRef = useRef<Coordinates | null>(null);
 
   useEffect(() => {
-    if (!marker || !coordinates) return;
+    const marker = markerRef.current;
+
+    if (!marker || !coordinates) {
+      return;
+    }
 
     if (!previousRef.current) {
       previousRef.current = coordinates;
@@ -30,31 +38,34 @@ export function useSmoothMarker({
     const to = coordinates;
 
     const animate = (time: number) => {
-      const progress = Math.min((time - start) / duration, 1);
+      const progress = Math.min(
+        (time - start) / duration,
+        1,
+      );
 
-      const lng =
-        from[0] + (to[0] - from[0]) * progress;
-
-      const lat =
-        from[1] + (to[1] - from[1]) * progress;
-
-      marker.setLngLat([lng, lat]);
+      marker.setLngLat([
+        from[0] + (to[0] - from[0]) * progress,
+        from[1] + (to[1] - from[1]) * progress,
+      ]);
 
       if (progress < 1) {
         animationRef.current =
-          requestAnimationFrame(animate);
+          window.requestAnimationFrame(animate);
       }
     };
 
     animationRef.current =
-      requestAnimationFrame(animate);
+      window.requestAnimationFrame(animate);
 
     previousRef.current = coordinates;
 
     return () => {
-    if (animationRef.current !== null) {
-    cancelAnimationFrame(animationRef.current);
-    }
-        };
-  }, [marker, coordinates, duration]);
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(
+          animationRef.current,
+        );
+        animationRef.current = null;
+      }
+    };
+  }, [coordinates, duration, markerRef]);
 }

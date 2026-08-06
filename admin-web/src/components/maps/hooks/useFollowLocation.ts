@@ -1,27 +1,32 @@
-import { useEffect } from "react";
+import {
+  useEffect,
+  type RefObject,
+} from "react";
 import type { Map } from "maplibre-gl";
 import type { Coordinates } from "../types";
 
 interface UseFollowLocationParams {
-  map: Map | null;
+  mapRef: RefObject<Map | null>;
   coordinates: Coordinates | null;
   enabled: boolean;
 }
 
 export function useFollowLocation({
-  map,
+  mapRef,
   coordinates,
   enabled,
 }: UseFollowLocationParams) {
   useEffect(() => {
-    if (!enabled) return;
-    if (!map) return;
-    if (!coordinates) return;
+    const map = mapRef.current;
+
+    if (!enabled || !map || !coordinates) {
+      return;
+    }
 
     map.easeTo({
       center: coordinates,
       duration: 1000,
       zoom: Math.max(map.getZoom(), 17),
     });
-  }, [map, coordinates, enabled]);
+  }, [coordinates, enabled, mapRef]);
 }

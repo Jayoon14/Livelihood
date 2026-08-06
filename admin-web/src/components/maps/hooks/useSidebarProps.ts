@@ -1,10 +1,12 @@
+import type { SavedPlace, SearchResult } from "../types";
+
 interface Props {
   searchText: string;
-  results: any[];
+  results: SearchResult[];
   searching: boolean;
   locating: boolean;
   routing: boolean;
-  searchHistory: any[];
+  searchHistory: SavedPlace[];
   selectedAddress: string;
   distance: number | null;
   duration: number | null;
@@ -12,7 +14,7 @@ interface Props {
 
   searchAddress: (value: string) => void;
   clearSearch: () => void;
-  handleSearchResultSelect: (result: any) => void;
+  handleSearchResultSelect: (result: SearchResult) => void;
   handleCurrentLocation: () => void;
   clearSearchHistory: () => void;
   saveLocation: (
@@ -43,7 +45,7 @@ export function useSidebarProps(props: Props) {
     onCurrentLocationClick: props.handleCurrentLocation,
     onClearSearchHistory: props.clearSearchHistory,
 
-    onSelectHistoryPlace: (place: any) =>
+    onSelectHistoryPlace: (place: SavedPlace) =>
       props.saveLocation(
         place.latitude,
         place.longitude,

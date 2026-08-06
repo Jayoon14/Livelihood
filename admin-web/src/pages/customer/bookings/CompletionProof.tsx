@@ -212,9 +212,11 @@ export default function CompletionProof() {
       }
 
       try {
-        refresh
-          ? setRefreshing(true)
-          : setLoading(true);
+        if (refresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
         setMessage(null);
 
@@ -370,14 +372,19 @@ export default function CompletionProof() {
   );
 
   useEffect(() => {
-    if (!parsedBookingId) {
-      void loadProof();
-      return;
-    }
-
     let mounted = true;
 
-    void loadProof();
+    const initialLoadTimer =
+      window.setTimeout(() => {
+        void loadProof();
+      }, 0);
+
+    if (!parsedBookingId) {
+      return () => {
+        mounted = false;
+        window.clearTimeout(initialLoadTimer);
+      };
+    }
 
     const channel = supabase
       .channel(`customer-completion-proof-${parsedBookingId}`)
@@ -429,6 +436,7 @@ export default function CompletionProof() {
 
     return () => {
       mounted = false;
+      window.clearTimeout(initialLoadTimer);
       void supabase.removeChannel(channel);
     };
   }, [loadProof, parsedBookingId]);

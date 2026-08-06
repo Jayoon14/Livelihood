@@ -271,7 +271,13 @@ export default function CustomerWorkerProfile() {
     !checkingWorkerDistance;
 
   useEffect(() => {
-    void loadWorker();
+    const timer = window.setTimeout(() => {
+      void loadWorker();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+    // This legacy profile loader intentionally follows the route id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -423,22 +429,24 @@ export default function CustomerWorkerProfile() {
   }
 
   useEffect(() => {
-    if (
-      !worker ||
-      latitude === null ||
-      longitude === null
-    ) {
-      setSelectedWorkerDistanceMeters(null);
-      setWorkerLocationMessage("");
-      return;
-    }
-
     const timeoutId = window.setTimeout(() => {
+      if (
+        !worker ||
+        latitude === null ||
+        longitude === null
+      ) {
+        setSelectedWorkerDistanceMeters(null);
+        setWorkerLocationMessage("");
+        return;
+      }
+
       void checkSelectedWorkerDistance(latitude, longitude);
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [worker?.profile.id, latitude, longitude]);
+    // Legacy callback functions depend on the full worker record.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worker, latitude, longitude]);
 
   async function handleBookingDateChange(date: string) {
     if (!worker) return;

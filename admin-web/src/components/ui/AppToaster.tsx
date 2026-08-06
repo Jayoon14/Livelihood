@@ -1,5 +1,5 @@
 import { Toaster } from "sonner";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../context/ThemeContextValue";
 
 export default function AppToaster() {
   const { resolvedTheme } = useTheme();

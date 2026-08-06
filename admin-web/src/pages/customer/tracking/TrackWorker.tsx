@@ -387,7 +387,6 @@ export default function TrackWorker() {
   const lastRouteRequestAtRef = useRef(0);
   const lastRouteOriginRef = useRef<[number, number] | null>(null);
   const customerAddressRef = useRef<string | null>(null);
-  const initialDistanceRef = useRef<number | null>(null);
 
   const [booking, setBooking] = useState<BookingData | null>(null);
   const [workerLocation, setWorkerLocation] =
@@ -395,6 +394,8 @@ export default function TrackWorker() {
 
   const [routeInformation, setRouteInformation] =
     useState<RouteInformation | null>(null);
+  const [initialDistanceMeters, setInitialDistanceMeters] =
+    useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
@@ -433,11 +434,7 @@ export default function TrackWorker() {
       [workerLocation.longitude, workerLocation.latitude],
       customerCoordinates,
     );
-  }, [
-    customerCoordinates,
-    workerLocation?.latitude,
-    workerLocation?.longitude,
-  ]);
+  }, [customerCoordinates, workerLocation]);
 
   const remainingDistanceMeters = useMemo(() => {
     const routeDistance = routeInformation?.distanceMeters;
@@ -455,30 +452,36 @@ export default function TrackWorker() {
 
   useEffect(() => {
     if (
-      initialDistanceRef.current === null &&
-      remainingDistanceMeters !== null &&
-      remainingDistanceMeters > 0
+      initialDistanceMeters !== null ||
+      remainingDistanceMeters === null ||
+      remainingDistanceMeters <= 0
     ) {
-      initialDistanceRef.current = remainingDistanceMeters;
+      return;
     }
-  }, [remainingDistanceMeters]);
+
+    const timer = window.setTimeout(() => {
+      setInitialDistanceMeters(remainingDistanceMeters);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [initialDistanceMeters, remainingDistanceMeters]);
 
   const tripProgress = useMemo(() => {
-    const initialDistance = initialDistanceRef.current;
-
     if (
-      initialDistance === null ||
-      initialDistance <= 0 ||
+      initialDistanceMeters === null ||
+      initialDistanceMeters <= 0 ||
       remainingDistanceMeters === null
     ) {
       return 0;
     }
 
     const rawProgress =
-      ((initialDistance - remainingDistanceMeters) / initialDistance) * 100;
+      ((initialDistanceMeters - remainingDistanceMeters) /
+        initialDistanceMeters) *
+      100;
 
     return Math.min(100, Math.max(0, Math.round(rawProgress)));
-  }, [remainingDistanceMeters]);
+  }, [initialDistanceMeters, remainingDistanceMeters]);
 
   useEffect(() => {
     customerAddressRef.current = booking?.customer_address ?? null;
@@ -1077,13 +1080,15 @@ export default function TrackWorker() {
         displayWorkerLocation(location, fitMap);
       }
     },
-    [booking?.worker_id, displayWorkerLocation, trackingFinished],
+    [booking, displayWorkerLocation, trackingFinished],
   );
 
   useEffect(() => {
     if (!booking?.worker_id || !mapReady || trackingFinished) {
-      setRealtimeConnected(false);
-      return;
+      const timer = window.setTimeout(() => {
+        setRealtimeConnected(false);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
 
     let mounted = true;

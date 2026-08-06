@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   useLanguage,
   type AppLanguage,
-} from "../../../context/LanguageContext";
+} from "../../../context/LanguageContextValue";
 
 const LANGUAGE_OPTIONS: Array<{
   value: AppLanguage;

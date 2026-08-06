@@ -245,7 +245,11 @@ export default function Bookings() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const loadBookings = useCallback(async (refresh = false) => {
-    refresh ? setIsRefreshing(true) : setIsLoading(true);
+    if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setPageError(null);
 
     try {

@@ -74,8 +74,11 @@ export default function AvailabilityCalendar({
 
   useEffect(() => {
     if (!workerId) {
-      setUnavailableDates([]);
-      return;
+      const timer = window.setTimeout(() => {
+        setUnavailableDates([]);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     let active = true;

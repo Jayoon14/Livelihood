@@ -287,7 +287,11 @@ export default function Reports() {
   );
 
   useEffect(() => {
-    void loadReports();
+    const timer = window.setTimeout(() => {
+      void loadReports();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadReports]);
 
   useEffect(() => {

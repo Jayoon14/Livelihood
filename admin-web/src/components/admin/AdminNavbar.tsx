@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-import { useProfile } from "../../context/ProfileContext";
+import { useProfile } from "../../context/ProfileContextValue";
 import { logout } from "../../services/authService";
 import ThemeDropdown from "../common/ThemeDropdown";
 import NotificationDropdown from "../notifications/NotificationDropdown";

@@ -20,13 +20,19 @@ import {
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
-import { getUpcomingBooking } from "../../../services/reminderService";
+import {
+  getUpcomingBooking,
+  type UpcomingBookingReminder,
+} from "../../../services/reminderService";
 import {
   getCategories,
   getFeaturedWorkers,
   getRecommendedWorkers,
   isWorkerAvailable,
   searchDashboard,
+  type WorkerSearchResult,
+  type WorkerServiceRecord,
+  type WorkerWithServices,
 } from "../../../services/workerService";
 import { getWorkerAverageRating } from "../../../services/reviewService";
 import {
@@ -35,7 +41,28 @@ import {
   removeFavorite,
 } from "../../../services/favoriteService";
 import { getCustomerAnalytics } from "../../../services/customerAnalyticsService";
-import { getRecentlyViewed } from "../../../services/recentlyViewedService";
+import {
+  getRecentlyViewed,
+  type RecentlyViewedRecord,
+  type RecentlyViewedWorker,
+} from "../../../services/recentlyViewedService";
+
+interface DashboardWorker {
+  id: string;
+  first_name?: string | null;
+  middle_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  profile_picture?: string | null;
+  profile_image?: string | null;
+  avatar_url?: string | null;
+  services?: WorkerServiceRecord[];
+}
+
+interface DashboardUpcomingBooking
+  extends UpcomingBookingReminder {
+  address?: string | null;
+}
 
 type WorkerPresenceRecord = {
   id: string;
@@ -175,19 +202,19 @@ function DashboardSkeleton() {
 export default function CustomerDashboard() {
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState<any[]>([]);
-  const [recommendedWorkers, setRecommendedWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<WorkerWithServices[]>([]);
+  const [recommendedWorkers, setRecommendedWorkers] = useState<WorkerWithServices[]>([]);
   const [, setCategories] = useState<string[]>([]);
-  const [recentWorkers, setRecentWorkers] = useState<any[]>([]);
+  const [recentWorkers, setRecentWorkers] = useState<RecentlyViewedRecord[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
   const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
-  const [upcomingBooking, setUpcomingBooking] = useState<any>(null);
+  const [upcomingBooking, setUpcomingBooking] = useState<DashboardUpcomingBooking | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [customerName, setCustomerName] = useState("Customer");
   const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<WorkerSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -350,18 +377,25 @@ export default function CustomerDashboard() {
       const combinedWorkers = [
         ...workerData,
         ...recommended,
-        ...recent.map((item: any) => item?.worker).filter(Boolean),
+        ...recent
+          .map((item) => item.worker)
+          .filter(
+            (
+              worker,
+            ): worker is RecentlyViewedWorker =>
+              Boolean(worker),
+          ),
       ];
       const uniqueWorkers = Array.from(
         new Map(
-          combinedWorkers.map((worker: any) => [String(worker.id), worker]),
+          combinedWorkers.map((worker) => [String(worker.id), worker]),
         ).values(),
       );
 
       const [ratingEntries, favoriteEntries] = await Promise.all([
         Promise.all(
           uniqueWorkers.map(
-            async (worker: any) =>
+            async (worker) =>
               [
                 String(worker.id),
                 await getWorkerAverageRating(worker.id),
@@ -370,7 +404,7 @@ export default function CustomerDashboard() {
         ),
         Promise.all(
           workerData.map(
-            async (worker: any) =>
+            async (worker) =>
               [
                 String(worker.id),
                 (await isFavorite(user.id, worker.id)) === true,
@@ -382,7 +416,7 @@ export default function CustomerDashboard() {
       setRatings(Object.fromEntries(ratingEntries));
       setFavorites(Object.fromEntries(favoriteEntries));
       await refreshWorkerStates(
-        uniqueWorkers.map((worker: any) => String(worker.id)),
+        uniqueWorkers.map((worker) => String(worker.id)),
       );
     } catch (caughtError) {
       console.error(caughtError);
@@ -397,7 +431,10 @@ export default function CustomerDashboard() {
   }, [refreshWorkerStates]);
 
   useEffect(() => {
-    void loadDashboard();
+    const timer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadDashboard]);
 
   useEffect(() => {
@@ -429,7 +466,7 @@ export default function CustomerDashboard() {
 
   const filteredWorkers = useMemo(() => workers, [workers]);
 
-  function getWorkerDisplayName(worker: any): string {
+  function getWorkerDisplayName(worker: DashboardWorker): string {
     return (
       [worker.first_name, worker.middle_name, worker.last_name]
         .filter(Boolean)
@@ -440,7 +477,7 @@ export default function CustomerDashboard() {
     );
   }
 
-  function getWorkerImage(worker: any): string | null {
+  function getWorkerImage(worker: DashboardWorker): string | null {
     return (
       worker.profile_picture?.trim?.() ||
       worker.profile_image?.trim?.() ||
@@ -449,15 +486,15 @@ export default function CustomerDashboard() {
     );
   }
 
-  function getMatchingServices(worker: any): any[] {
+  function getMatchingServices(worker: DashboardWorker): WorkerServiceRecord[] {
     const keyword = search.trim().toLowerCase();
-    const services = Array.isArray(worker.services) ? worker.services : [];
+    const services = worker.services ?? [];
 
     if (!keyword) {
       return services.slice(0, 3);
     }
 
-    const matching = services.filter((service: any) =>
+    const matching = services.filter((service) =>
       [
         service.service_name,
         service.category,
@@ -786,7 +823,7 @@ export default function CustomerDashboard() {
 
                               <div className="mt-3 flex flex-wrap gap-2 pl-0 sm:pl-16">
                                 {matchingServices.length > 0 ? (
-                                  matchingServices.map((service: any) => (
+                                  matchingServices.map((service) => (
                                     <button
                                       key={String(service.id)}
                                       type="button"
@@ -1086,8 +1123,7 @@ export default function CustomerDashboard() {
                   <div className="relative h-44 overflow-hidden bg-slate-100 dark:bg-slate-800">
                     <img
                       src={
-                        worker.profile?.profile_picture ||
-                        worker.profile_picture ||
+                        getWorkerImage(worker) ||
                         "https://placehold.co/600x400"
                       }
                       alt={`${worker.first_name || "Worker"} profile`}
@@ -1246,7 +1282,7 @@ export default function CustomerDashboard() {
               Recently viewed
             </h2>
             <div className="mt-5 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
-              {recentWorkers.map((item: any) => {
+              {recentWorkers.map((item) => {
                 const worker = item.worker;
                 if (!worker) return null;
                 return (

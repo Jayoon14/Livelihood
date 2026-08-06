@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import AuthSplitLayout from "../../components/auth/AuthSplitLayout";
 import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
 import EmailOtpModal from "../../components/auth/EmailOtpModal";
-import { useLoading } from "../../context/LoadingContext";
+import { useLoading } from "../../context/LoadingContextValue";
 import {
   getRememberedEmail,
   getRememberPreference,
@@ -52,9 +52,13 @@ export default function Login() {
   const { showLoading, hideLoading } = useLoading();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() =>
+    getRememberPreference()
+      ? getRememberedEmail()
+      : "",
+  );
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(getRememberPreference);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
@@ -76,16 +80,6 @@ export default function Login() {
     email?: string;
     password?: string;
   }>({});
-
-  useEffect(() => {
-    const remembered = getRememberPreference();
-
-    setRememberMe(remembered);
-
-    if (remembered) {
-      setEmail(getRememberedEmail());
-    }
-  }, []);
 
   useEffect(() => {
     if (resendCooldown <= 0) {

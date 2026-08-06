@@ -275,7 +275,8 @@ function serializeForm(form: ServiceFormState): string {
 
 export default function Services() {
   const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialFormRef = useRef<ServiceFormState>(EMPTY_FORM);
+  const [initialForm, setInitialForm] =
+    useState<ServiceFormState>(EMPTY_FORM);
 
   const [workerId, setWorkerId] = useState<string | null>(null);
   const [services, setServices] = useState<WorkerService[]>([]);
@@ -300,8 +301,8 @@ export default function Services() {
 
   const hasUnsavedChanges = useMemo(
     () =>
-      formOpen && serializeForm(form) !== serializeForm(initialFormRef.current),
-    [form, formOpen],
+      formOpen && serializeForm(form) !== serializeForm(initialForm),
+    [form, formOpen, initialForm],
   );
 
   const loadServices = useCallback(
@@ -429,29 +430,11 @@ export default function Services() {
   }, [hasUnsavedChanges]);
 
   useEffect(() => {
-    if (!formOpen) {
-      return;
-    }
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
 
-    const previousOverflow = document.body.style.overflow;
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === "Escape") {
-        void requestCloseForm();
-      }
-    }
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [formOpen, hasUnsavedChanges]);
-
-  useEffect(() => {
-    setPage(1);
+    return () => window.clearTimeout(timer);
   }, [search, sort, statusFilter]);
 
   const statistics = useMemo(
@@ -527,9 +510,15 @@ export default function Services() {
   }, [filteredServices, page]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page <= totalPages) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setPage(totalPages);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   function updateFormField<K extends keyof ServiceFormState>(
@@ -554,7 +543,7 @@ export default function Services() {
 
     setEditingService(null);
     setForm(nextForm);
-    initialFormRef.current = nextForm;
+    setInitialForm(nextForm);
     setFormErrors({});
     setMessage(null);
     setFormOpen(true);
@@ -565,13 +554,13 @@ export default function Services() {
 
     setEditingService(service);
     setForm(nextForm);
-    initialFormRef.current = nextForm;
+    setInitialForm(nextForm);
     setFormErrors({});
     setMessage(null);
     setFormOpen(true);
   }
 
-  async function requestCloseForm(): Promise<void> {
+  const requestCloseForm = useCallback(async (): Promise<void> => {
     if (saving) {
       return;
     }
@@ -589,13 +578,35 @@ export default function Services() {
     setFormOpen(false);
     setEditingService(null);
     setForm(EMPTY_FORM);
-    initialFormRef.current = EMPTY_FORM;
+    setInitialForm(EMPTY_FORM);
     setFormErrors({});
-  }
+  }, [hasUnsavedChanges, saving]);
+
+  useEffect(() => {
+    if (!formOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        void requestCloseForm();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [formOpen, hasUnsavedChanges, requestCloseForm]);
 
   function resetForm(): void {
     setForm({
-      ...initialFormRef.current,
+      ...initialForm,
     });
     setFormErrors({});
     setMessage(null);
@@ -664,7 +675,7 @@ export default function Services() {
       setFormOpen(false);
       setEditingService(null);
       setForm(EMPTY_FORM);
-      initialFormRef.current = EMPTY_FORM;
+      setInitialForm(EMPTY_FORM);
       setFormErrors({});
     } catch (error) {
       const text = getErrorMessage(error, "Unable to save the service.");

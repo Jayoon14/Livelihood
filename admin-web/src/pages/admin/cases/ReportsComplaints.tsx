@@ -14,7 +14,17 @@ export default function ReportsComplaints(){
  const [items,setItems]=useState<AdminCaseListItem[]>([]); const [summary,setSummary]=useState<Record<string,number>>({});
  const [loading,setLoading]=useState(true); const [search,setSearch]=useState(""); const [status,setStatus]=useState(""); const [priority,setPriority]=useState(""); const [caseType,setCaseType]=useState("");
  const load=useCallback(async()=>{try{setLoading(true);const [rows,stats]=await Promise.all([getAdminCases({search,status,priority,caseType}),getAdminCaseSummary()]);setItems(rows);setSummary(stats);}catch(e){toast.error(e instanceof Error?e.message:"Unable to load cases.");}finally{setLoading(false)}},[search,status,priority,caseType]);
- useEffect(()=>{void load();return subscribeToAdminCases(()=>void load())},[load]);
+ useEffect(()=>{
+  const timer=window.setTimeout(()=>{void load()},0);
+  const unsubscribe=subscribeToAdminCases(
+    ()=>void load(),
+  );
+
+  return()=>{
+    window.clearTimeout(timer);
+    unsubscribe();
+  };
+ },[load]);
  const cards=useMemo(()=>[
   ["Total Cases",summary.total??0,ShieldAlert,"text-slate-700 bg-slate-100"],
   ["Submitted",summary.submitted??0,Clock3,"text-amber-700 bg-amber-100"],

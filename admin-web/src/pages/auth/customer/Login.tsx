@@ -4,7 +4,7 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { login } from "../../../services/authService";
-import { useLoading } from "../../../context/LoadingContext";
+import { useLoading } from "../../../context/LoadingContextValue";
 
 export default function CustomerLogin() {
   const navigate = useNavigate();

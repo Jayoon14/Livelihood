@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-import { useLoading } from "../../context/LoadingContext";
+import { useLoading } from "../../context/LoadingContextValue";
 
 const NAVIGATION_LOADER_DURATION = 700;
 

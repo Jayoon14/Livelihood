@@ -1,30 +1,39 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
-import { getWorkersByCategory } from "../../../services/workerService";
+import {
+  getWorkersByCategory,
+  type WorkerProfile,
+} from "../../../services/workerService";
 
 export default function WorkersByCategory() {
   const { category } = useParams();
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<WorkerProfile[]>([]);
 
-  useEffect(() => {
-    loadWorkers();
-  }, [category]);
-
-  async function loadWorkers() {
-    if (!category) return;
+  const loadWorkers = useCallback(async () => {
+    if (!category) {
+      setWorkers([]);
+      return;
+    }
 
     try {
       const data = await getWorkersByCategory(category);
-
       setWorkers(data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, [category]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadWorkers();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadWorkers]);
 
   return (
     <CustomerLayout>

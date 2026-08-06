@@ -1,23 +1,29 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import AdminLayout from "../../../layouts/AdminLayout";
 
-import { getCustomers } from "../../../services/customerService";
+import {
+  getCustomers,
+  type Customer,
+} from "../../../services/customerService";
 
 export default function Customers() {
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    loadCustomers();
+  const loadCustomers = useCallback(async () => {
+    const data = await getCustomers();
+    setCustomers(data);
   }, []);
 
-  async function loadCustomers() {
-    const data = await getCustomers();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadCustomers();
+    }, 0);
 
-    setCustomers(data);
-  }
+    return () => window.clearTimeout(timer);
+  }, [loadCustomers]);
 
   async function handleSearch(value: string) {
     setSearch(value);
@@ -27,7 +33,7 @@ export default function Customers() {
     setCustomers(data);
   }
 
-  function getFullName(customer: any) {
+  function getFullName(customer: Customer) {
     return [customer.first_name, customer.middle_name, customer.last_name]
       .filter(Boolean)
       .join(" ");

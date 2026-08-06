@@ -121,7 +121,11 @@ export default function Services() {
   }, []);
 
   useEffect(() => {
-    void loadServices();
+    const timer = window.setTimeout(() => {
+      void loadServices();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadServices]);
 
   useEffect(() => {
@@ -146,7 +150,11 @@ export default function Services() {
   }, [loadServices]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [search, statusFilter, sortOption]);
 
   useEffect(() => {

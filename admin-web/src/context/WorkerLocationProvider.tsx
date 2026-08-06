@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -10,25 +8,11 @@ import {
 } from "react";
 
 import { supabase } from "../lib/supabase";
-
-export interface WorkerLocation {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  heading: number | null;
-  speed: number | null;
-  updatedAt: string;
-}
-
-interface WorkerLocationContextValue {
-  workerLocation: WorkerLocation | null;
-  isOnline: boolean;
-  isTracking: boolean;
-  locating: boolean;
-  message: string;
-  goOnline: () => Promise<void>;
-  goOffline: () => Promise<void>;
-}
+import {
+  WorkerLocationContext,
+  type WorkerLocation,
+  type WorkerLocationContextValue,
+} from "./WorkerLocationContext";
 
 interface WorkerLocationProviderProps {
   children: ReactNode;
@@ -38,10 +22,6 @@ interface PendingWorkerLocation {
   workerId: string;
   location: WorkerLocation;
 }
-
-const WorkerLocationContext = createContext<WorkerLocationContextValue | null>(
-  null,
-);
 
 const WORKER_ONLINE_STORAGE_KEY = "livelihoodgo_worker_online";
 const PENDING_LOCATION_STORAGE_KEY = "livelihoodgo_pending_worker_location";
@@ -433,13 +413,8 @@ export function WorkerLocationProvider({
        * Obtain one deterministic initial fix first. This makes Go Online
        * reliable on browsers that do not immediately call watchPosition().
        */
-      let initialPosition: GeolocationPosition;
-
-      try {
-        initialPosition = await getInitialPosition();
-      } catch (error) {
-        throw error;
-      }
+      const initialPosition =
+        await getInitialPosition();
 
       if (sessionId !== trackingSessionRef.current) return;
 
@@ -846,14 +821,3 @@ export function WorkerLocationProvider({
   );
 }
 
-export function useWorkerLocation() {
-  const context = useContext(WorkerLocationContext);
-
-  if (!context) {
-    throw new Error(
-      "useWorkerLocation must be used inside WorkerLocationProvider.",
-    );
-  }
-
-  return context;
-}

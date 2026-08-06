@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type { Marker } from "maplibre-gl";
 import type { Coordinates } from "../types";
 
 interface UseMarkerHeadingParams {
-  marker: Marker | null;
+  markerRef: RefObject<Marker | null>;
   coordinates: Coordinates | null;
   gpsHeading?: number | null;
   minimumMovementMeters?: number;
@@ -64,7 +64,7 @@ function calculateBearing(
 }
 
 export function useMarkerHeading({
-  marker,
+  markerRef,
   coordinates,
   gpsHeading,
   minimumMovementMeters = 3,
@@ -75,6 +75,8 @@ export function useMarkerHeading({
   const previousHeadingRef = useRef(0);
 
   useEffect(() => {
+    const marker = markerRef.current;
+
     if (!marker || !coordinates) {
       return;
     }
@@ -121,9 +123,9 @@ export function useMarkerHeading({
 
     previousCoordinatesRef.current = coordinates;
   }, [
-    marker,
     coordinates,
     gpsHeading,
     minimumMovementMeters,
+    markerRef,
   ]);
 }

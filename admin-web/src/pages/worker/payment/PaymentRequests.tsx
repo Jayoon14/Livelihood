@@ -165,18 +165,20 @@ function getStatusClass(status: string): string {
   }
 }
 
-function getMethodIcon(method: string | null) {
+function renderMethodIcon(
+  method: string | null,
+) {
   const value = method?.trim().toLowerCase();
 
   if (value === "cash") {
-    return Banknote;
+    return <Banknote className="h-4 w-4" />;
   }
 
   if (value === "bank transfer") {
-    return Landmark;
+    return <Landmark className="h-4 w-4" />;
   }
 
-  return CreditCard;
+  return <CreditCard className="h-4 w-4" />;
 }
 
 function isImageProof(url: string): boolean {
@@ -343,7 +345,11 @@ export default function PaymentRequests() {
   }, [loadPayments]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [filter, search]);
 
   useEffect(() => {
@@ -426,9 +432,15 @@ export default function PaymentRequests() {
   }, [filteredPayments, page]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page <= totalPages) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setPage(totalPages);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   const handleRefresh = useCallback(async (): Promise<void> => {
@@ -922,7 +934,6 @@ function PaymentCard({
   onOpenProof: (url: string) => void;
   onCopyReference: (reference: string) => Promise<void>;
 }) {
-  const MethodIcon = getMethodIcon(payment.payment_method);
   const customerName = getCustomerName(payment);
   const booking = payment.payment?.booking;
   const isPending = payment.transaction_status === "Pending";
@@ -970,7 +981,7 @@ function PaymentCard({
           />
 
           <InfoRow
-            icon={<MethodIcon className="h-4 w-4" />}
+            icon={renderMethodIcon(payment.payment_method)}
             label="Payment Method"
             value={payment.payment_method || "Not provided"}
           />
@@ -1125,7 +1136,11 @@ function CustomerAvatar({
     }`.toUpperCase() || "C";
 
   useEffect(() => {
-    setImageError(false);
+    const timer = window.setTimeout(() => {
+      setImageError(false);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [profilePicture]);
 
   if (profilePicture && !imageError) {

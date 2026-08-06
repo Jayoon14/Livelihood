@@ -349,9 +349,13 @@ export default function Notifications() {
   );
 
   useEffect(() => {
-    void loadNotifications({
-      requestedPage: 1,
-    });
+    const timer = window.setTimeout(() => {
+      void loadNotifications({
+        requestedPage: 1,
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadNotifications]);
 
   useEffect(() => {

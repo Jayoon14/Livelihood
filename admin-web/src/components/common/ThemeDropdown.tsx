@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, MonitorCog, Moon, Settings, Sun } from "lucide-react";
 
-import { useTheme, type ThemeMode } from "../../context/ThemeContext";
+import { useTheme, type ThemeMode } from "../../context/ThemeContextValue";
 
 const options: Array<{
   mode: ThemeMode;

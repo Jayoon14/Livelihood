@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -28,7 +28,11 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 
 import { supabase } from "../../../lib/supabase";
 
-import { getBookingById } from "../../../services/bookingService";
+import {
+  getBookingById,
+  type BookingProfile,
+  type BookingRecord,
+} from "../../../services/bookingService";
 
 import {
   createPaymentSummary,
@@ -36,9 +40,13 @@ import {
   getPaymentByBooking,
   getPaymentTransactionSummary,
   uploadPaymentProof,
+  type PaymentRecord,
 } from "../../../services/paymentService";
 
-import { getWorkerPaymentInformation } from "../../../services/paymentInformationService";
+import {
+  getWorkerPaymentInformation,
+  type WorkerPaymentInformation,
+} from "../../../services/paymentInformationService";
 
 type PaymentMethod = "Cash" | "GCash" | "Maya" | "Bank Transfer";
 
@@ -55,6 +63,22 @@ type SuccessDetails = {
   projectedRemaining: number;
   method: PaymentMethod;
 };
+
+type PaymentBookingDetails = BookingRecord & {
+  worker?: BookingProfile | BookingProfile[] | null;
+  worker_profile?: BookingProfile | null;
+  profiles?: BookingProfile | null;
+  worker_name?: string | null;
+  service_name?: string | null;
+  services?: { service_name?: string | null } | null;
+  service?: { service_name?: string | null } | null;
+};
+
+function normalizeBookingProfile(
+  value: BookingProfile | BookingProfile[] | null | undefined,
+): BookingProfile | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
 
 const paymentMethods: Array<{
   value: PaymentMethod;
@@ -97,14 +121,13 @@ export default function Payment() {
   const [pageLoading, setPageLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [booking, setBooking] = useState<any>(null);
-  const [paymentInfo, setPaymentInfo] = useState<any>(null);
-  const [existingPayment, setExistingPayment] = useState<any>(null);
+  const [booking, setBooking] = useState<PaymentBookingDetails | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<WorkerPaymentInformation | null>(null);
+  const [existingPayment, setExistingPayment] = useState<PaymentRecord | null>(null);
 
   const [summary, setSummary] = useState<PaymentSummary | null>(null);
 
   const [proof, setProof] = useState<File | null>(null);
-  const [proofPreview, setProofPreview] = useState("");
 
   const [referenceNumber, setReferenceNumber] = useState("");
   const [paidAmount, setPaidAmount] = useState<number>(0);
@@ -114,25 +137,22 @@ export default function Payment() {
     null,
   );
 
-  useEffect(() => {
-    void loadData();
-  }, [id]);
+  const proofPreview = useMemo(
+    () => (proof ? URL.createObjectURL(proof) : ""),
+    [proof],
+  );
 
   useEffect(() => {
-    if (!proof) {
-      setProofPreview("");
+    if (!proofPreview) {
       return;
     }
 
-    const previewUrl = URL.createObjectURL(proof);
-    setProofPreview(previewUrl);
-
     return () => {
-      URL.revokeObjectURL(previewUrl);
+      URL.revokeObjectURL(proofPreview);
     };
-  }, [proof]);
+  }, [proofPreview]);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     if (!id) {
       setErrorMessage("Booking ID is missing.");
       setPageLoading(false);
@@ -144,7 +164,7 @@ export default function Payment() {
       setErrorMessage("");
 
       const bookingData = await getBookingById(Number(id));
-      setBooking(bookingData);
+      setBooking(bookingData as PaymentBookingDetails);
 
       const [paymentData, currentPayment] = await Promise.all([
         getWorkerPaymentInformation(bookingData.worker_id).catch(() => null),
@@ -178,16 +198,27 @@ export default function Payment() {
 
         setPaidAmount(totalAmount);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Payment load error:", error);
 
       setErrorMessage(
-        error?.message || "Unable to load the payment information.",
+        error instanceof Error
+          ? error.message
+          : "Unable to load the payment information.",
       );
     } finally {
       setPageLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadData]);
+
 
   const totalAmount = Number(summary?.totalAmount ?? booking?.price ?? 0);
 
@@ -243,8 +274,9 @@ export default function Payment() {
   }
 
   function getWorkerName() {
-    const worker =
-      booking?.worker ?? booking?.worker_profile ?? booking?.profiles ?? null;
+    const worker = normalizeBookingProfile(
+      booking?.worker,
+    ) ?? booking?.worker_profile ?? booking?.profiles ?? null;
 
     const fullName = [
       worker?.first_name,
@@ -275,7 +307,6 @@ export default function Payment() {
   function resetOnlineFields() {
     setReferenceNumber("");
     setProof(null);
-    setProofPreview("");
   }
 
   function selectPaymentMethod(paymentMethod: PaymentMethod) {
@@ -401,10 +432,14 @@ export default function Payment() {
       });
 
       await loadData();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Payment submission error:", error);
 
-      setErrorMessage(error?.message || "Payment submission failed.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Payment submission failed.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -1145,7 +1180,7 @@ function PaymentAccountCard({
   copyText,
 }: {
   method: PaymentMethod;
-  paymentInfo: any;
+  paymentInfo: WorkerPaymentInformation | null;
   copyText: (value?: string) => Promise<void>;
 }) {
   if (method === "Cash") {

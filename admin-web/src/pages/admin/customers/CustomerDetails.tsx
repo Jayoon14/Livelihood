@@ -163,7 +163,11 @@ export default function CustomerDetails() {
   );
 
   useEffect(() => {
-    void loadCustomer();
+    const timer = window.setTimeout(() => {
+      void loadCustomer();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadCustomer]);
 
   useEffect(() => {

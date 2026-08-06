@@ -174,9 +174,12 @@ export default function ChatRoom() {
 
   useEffect(() => {
     if (!Number.isFinite(bookingId)) {
-      setError("Invalid booking conversation.");
-      setLoading(false);
-      return;
+      const timer = window.setTimeout(() => {
+        setError("Invalid booking conversation.");
+        setLoading(false);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     let cancelled = false;

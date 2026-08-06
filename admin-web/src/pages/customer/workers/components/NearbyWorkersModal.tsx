@@ -71,9 +71,13 @@ export default function NearbyWorkersModal({
 
   useEffect(() => {
     if (!open) {
-      setSelectedWorker(null);
-      setRouteTarget(null);
-      setRouteRequestKey(0);
+      const timer = window.setTimeout(() => {
+        setSelectedWorker(null);
+        setRouteTarget(null);
+        setRouteRequestKey(0);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
       return;
     }
 

@@ -284,7 +284,11 @@ export default function Payments() {
   }, []);
 
   useEffect(() => {
-    void loadPayments();
+    const timer = window.setTimeout(() => {
+      void loadPayments();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadPayments]);
 
   useEffect(() => {
@@ -475,13 +479,30 @@ export default function Payments() {
   );
 
   useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    customEnd,
+    customStart,
+    dateFilter,
+    search,
+    sortOption,
+    statusFilter,
+  ]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page <= totalPages) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setPage(totalPages);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   async function approveTransaction(transaction: PaymentTransaction) {

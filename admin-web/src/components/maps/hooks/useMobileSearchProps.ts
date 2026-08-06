@@ -1,13 +1,15 @@
+import type { SearchResult } from "../types";
+
 interface Props {
   searchText: string;
   searching: boolean;
   locating: boolean;
-  results: any[];
+  results: SearchResult[];
 
   searchAddress: (value: string) => void;
   clearSearch: () => void;
   handleCurrentLocation: () => void;
-  handleSearchResultSelect: (result: any) => void;
+  handleSearchResultSelect: (result: SearchResult) => void;
 }
 
 export function useMobileSearchProps(props: Props) {

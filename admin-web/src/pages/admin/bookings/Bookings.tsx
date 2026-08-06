@@ -304,7 +304,11 @@ export default function Bookings() {
   }, []);
 
   useEffect(() => {
-    void loadBookings();
+    const timer = window.setTimeout(() => {
+      void loadBookings();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadBookings]);
 
   useEffect(() => {
@@ -360,7 +364,11 @@ export default function Bookings() {
   }, [loadBookings]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
 
   const filteredBookings = useMemo(() => {

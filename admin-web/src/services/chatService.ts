@@ -330,10 +330,16 @@ async function insertMessage(
     result.error &&
     String(result.error.message).toLowerCase().includes("receiver_id")
   ) {
-    const {
-      receiver_id: _receiverId,
-      ...payloadWithoutReceiver
-    } = insertPayload;
+    const payloadWithoutReceiver = {
+      booking_id: insertPayload.booking_id,
+      sender_id: insertPayload.sender_id,
+      message: insertPayload.message,
+      image_url: insertPayload.image_url,
+      file_url: insertPayload.file_url,
+      file_name: insertPayload.file_name,
+      is_read: insertPayload.is_read,
+      seen_at: insertPayload.seen_at,
+    };
 
     result = await supabase
       .from("messages")

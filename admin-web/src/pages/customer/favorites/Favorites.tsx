@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -18,6 +18,7 @@ import { supabase } from "../../../lib/supabase";
 import {
   getFavoriteWorkers,
   removeFavorite,
+  type FavoriteWorker,
 } from "../../../services/favoriteService";
 
 import { getWorkerAverageRating } from "../../../services/reviewService";
@@ -25,16 +26,12 @@ import { getWorkerAverageRating } from "../../../services/reviewService";
 export default function Favorites() {
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<FavoriteWorker[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  async function loadFavorites() {
+  const loadFavorites = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -53,7 +50,7 @@ export default function Favorites() {
       setWorkers(favoriteWorkers);
 
       const ratingEntries = await Promise.all(
-        favoriteWorkers.map(async (worker: any) => {
+        favoriteWorkers.map(async (worker) => {
           const rating = await getWorkerAverageRating(worker.id);
 
           return [worker.id, rating] as const;
@@ -67,7 +64,16 @@ export default function Favorites() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadFavorites();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadFavorites]);
 
   async function handleRemoveFavorite(workerId: string) {
     try {
@@ -91,7 +97,7 @@ export default function Favorites() {
     }
   }
 
-  function getWorkerName(worker: any) {
+  function getWorkerName(worker: FavoriteWorker) {
     return [worker.first_name, worker.middle_name, worker.last_name]
       .filter(Boolean)
       .join(" ");

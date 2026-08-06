@@ -83,10 +83,6 @@ export default function TrustedWorkers() {
     null,
   );
 
-  useEffect(() => {
-    void loadTrustedWorkers();
-  }, []);
-
   async function loadTrustedWorkers() {
     try {
       setLoading(true);
@@ -128,6 +124,14 @@ export default function TrustedWorkers() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadTrustedWorkers();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function handleRemoveTrustedWorker(workerId: string) {
     if (removingId) return;

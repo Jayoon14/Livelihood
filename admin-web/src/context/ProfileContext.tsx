@@ -1,27 +1,41 @@
-import { createContext, useContext, useEffect, useState } from "react";
-
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { supabase } from "../lib/supabase";
+import {
+  ProfileContext,
+  type ProfileContextValue,
+  type ProfileData,
+} from "./ProfileContextValue";
 
-interface ProfileContextType {
-  profile: any;
-  setProfile: (profile: any) => void;
-  refreshProfile: () => Promise<void>;
-  updateProfileState: (data: any) => void;
-}
+export function ProfileProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [profile, setProfile] =
+    useState<ProfileData | null>(null);
 
-const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
-
-export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<any>(null);
-
-  async function refreshProfile() {
+  const refreshProfile = useCallback(async () => {
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (authError) {
+      console.error(authError);
+      return;
+    }
+
+    if (!user) {
+      setProfile(null);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("profiles")
@@ -34,40 +48,48 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setProfile(data);
-  }
-
-  function updateProfileState(data: any) {
-    setProfile({
-      ...profile,
-      ...data,
-    });
-  }
-
-  useEffect(() => {
-    refreshProfile();
+    setProfile(data as ProfileData);
   }, []);
 
+  const updateProfileState = useCallback(
+    (data: Partial<ProfileData>) => {
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              ...data,
+            }
+          : current,
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refreshProfile();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [refreshProfile]);
+
+  const value = useMemo<ProfileContextValue>(
+    () => ({
+      profile,
+      setProfile,
+      refreshProfile,
+      updateProfileState,
+    }),
+    [
+      profile,
+      refreshProfile,
+      updateProfileState,
+    ],
+  );
+
   return (
-    <ProfileContext.Provider
-      value={{
-        profile,
-        setProfile,
-        refreshProfile,
-        updateProfileState,
-      }}
-    >
+    <ProfileContext.Provider value={value}>
       {children}
     </ProfileContext.Provider>
   );
-}
-
-export function useProfile() {
-  const context = useContext(ProfileContext);
-
-  if (!context) {
-    throw new Error("useProfile must be used inside ProfileProvider");
-  }
-
-  return context;
 }

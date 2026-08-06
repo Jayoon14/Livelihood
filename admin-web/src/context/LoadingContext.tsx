@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -10,13 +8,7 @@ import {
 
 import PageLoader from "../components/common/PageLoader";
 
-type LoadingContextValue = {
-  isLoading: boolean;
-  showLoading: (minimumDuration?: number) => void;
-  hideLoading: () => void;
-};
-
-const LoadingContext = createContext<LoadingContextValue | null>(null);
+import { LoadingContext } from "./LoadingContextValue";
 
 const DEFAULT_MINIMUM_DURATION = 700;
 
@@ -64,14 +56,4 @@ export function LoadingProvider({ children }: { children: ReactNode }) {
       {isLoading && <PageLoader />}
     </LoadingContext.Provider>
   );
-}
-
-export function useLoading() {
-  const context = useContext(LoadingContext);
-
-  if (!context) {
-    throw new Error("useLoading must be used inside LoadingProvider.");
-  }
-
-  return context;
 }

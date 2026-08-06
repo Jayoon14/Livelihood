@@ -134,7 +134,11 @@ export default function WorkerDetails() {
         setLoading(false);
         return;
       }
-      background ? setRefreshing(true) : setLoading(true);
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
         const [
@@ -183,7 +187,13 @@ export default function WorkerDetails() {
     [id],
   );
 
-  useEffect(() => void loadWorker(), [loadWorker]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadWorker();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadWorker]);
 
   useEffect(() => {
     if (!id) return;

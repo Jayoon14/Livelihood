@@ -231,7 +231,11 @@ export default function Profile() {
   }, []);
 
   useEffect(() => {
-    void loadProfile();
+    const timer = window.setTimeout(() => {
+      void loadProfile();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadProfile]);
 
   useEffect(() => {

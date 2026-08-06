@@ -375,8 +375,11 @@ export default function FloatingChatWidget() {
 
   useEffect(() => {
     if (!selectedConversation) {
-      setSelectedBookingId(null);
-      return;
+      const timer = window.setTimeout(() => {
+        setSelectedBookingId(null);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     const currentBookingStillValid =
@@ -386,7 +389,13 @@ export default function FloatingChatWidget() {
       );
 
     if (!currentBookingStillValid) {
-      setSelectedBookingId(selectedConversation.latestBooking.bookingId);
+      const timer = window.setTimeout(() => {
+        setSelectedBookingId(
+          selectedConversation.latestBooking.bookingId,
+        );
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
   }, [selectedBookingId, selectedConversation]);
 

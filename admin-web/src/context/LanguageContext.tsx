@@ -1,23 +1,15 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 
-export type AppLanguage = "en" | "fil";
+import { LanguageContext, type AppLanguage, type LanguageContextValue } from "./LanguageContextValue";
 
 interface TranslationTree {
   [key: string]: string | TranslationTree;
-}
-
-interface LanguageContextValue {
-  language: AppLanguage;
-  setLanguage: (language: AppLanguage) => void;
-  t: (key: string, fallback?: string) => string;
 }
 
 const STORAGE_KEY = "livelihood-language";
@@ -138,8 +130,6 @@ const translations: Record<AppLanguage, TranslationTree> = {
   },
 };
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
-
 function isAppLanguage(value: string | null): value is AppLanguage {
   return value === "en" || value === "fil";
 }
@@ -220,16 +210,4 @@ export function LanguageProvider({
       {children}
     </LanguageContext.Provider>
   );
-}
-
-export function useLanguage(): LanguageContextValue {
-  const context = useContext(LanguageContext);
-
-  if (!context) {
-    throw new Error(
-      "useLanguage must be used inside LanguageProvider.",
-    );
-  }
-
-  return context;
 }

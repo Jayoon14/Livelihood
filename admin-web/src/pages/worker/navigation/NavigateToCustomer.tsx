@@ -16,7 +16,7 @@ import {
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
-import { useWorkerLocation } from "../../../context/WorkerLocationProvider";
+import { useWorkerLocation } from "../../../context/WorkerLocationContext";
 
 import { supabase } from "../../../lib/supabase";
 
@@ -214,7 +214,11 @@ export default function NavigateToCustomer() {
   );
 
   useEffect(() => {
-    void loadBooking();
+    const timer = window.setTimeout(() => {
+      void loadBooking();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadBooking]);
 
   useEffect(() => {

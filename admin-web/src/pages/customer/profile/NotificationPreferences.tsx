@@ -18,7 +18,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { useLanguage } from "../../../context/LanguageContext";
+import { useLanguage } from "../../../context/LanguageContextValue";
 import { supabase } from "../../../lib/supabase";
 import {
   getNotificationPreference,
@@ -205,7 +205,11 @@ export default function NotificationPreferences() {
   }, [isFilipino]);
 
   useEffect(() => {
-    void loadPreferences();
+    const timer = window.setTimeout(() => {
+      void loadPreferences();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadPreferences]);
 
   function togglePreference(key: keyof PreferenceSettings) {

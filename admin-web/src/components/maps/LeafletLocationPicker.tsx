@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayersControl,
   MapContainer,
@@ -20,7 +20,13 @@ import {
 
 import "leaflet/dist/leaflet.css";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+type LeafletDefaultIconPrototype = typeof L.Icon.Default.prototype & {
+  _getIconUrl?: unknown;
+};
+
+delete (
+  L.Icon.Default.prototype as LeafletDefaultIconPrototype
+)._getIconUrl;
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -156,11 +162,11 @@ export default function LocationPicker({
 
   const searchTimeout = useRef<number | null>(null);
 
-  async function selectLocation(
+  const selectLocation = useCallback(async (
     latitude: number,
     longitude: number,
     providedAddress?: string,
-  ) {
+  ) => {
     const address =
       providedAddress ?? (await reverseGeocode(latitude, longitude));
 
@@ -171,9 +177,9 @@ export default function LocationPicker({
     setSearchResults([]);
 
     onLocationSelect(latitude, longitude, address);
-  }
+  }, [onLocationSelect]);
 
-  function useCurrentLocation() {
+  const handleCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setLocationError("Geolocation is not supported by your browser.");
       setLoadingLocation(false);
@@ -207,11 +213,15 @@ export default function LocationPicker({
         maximumAge: 0,
       },
     );
-  }
+  }, [selectLocation]);
 
   useEffect(() => {
-    useCurrentLocation();
-  }, []);
+    const timer = window.setTimeout(() => {
+      handleCurrentLocation();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [handleCurrentLocation]);
 
   function searchAddress(value: string) {
     setSearchText(value);
@@ -318,7 +328,7 @@ function saveEditedAddress() {
             }}
           />
 
-          <FloatingMapControls onCurrentLocation={useCurrentLocation} />
+          <FloatingMapControls onCurrentLocation={handleCurrentLocation} />
         </MapContainer>
 
         <div className="absolute left-4 right-4 top-4 z-[1000] mx-auto max-w-2xl">
@@ -338,7 +348,7 @@ function saveEditedAddress() {
             ) : (
               <button
                 type="button"
-                onClick={useCurrentLocation}
+                onClick={handleCurrentLocation}
                 title="Use current location"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition hover:bg-blue-100"
               >

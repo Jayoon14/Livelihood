@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -39,7 +39,7 @@ import type {
   NearbyWorker,
 } from "./hooks/useNearbyWorkers";
 
-import { useWorkerLocation } from "../../context/WorkerLocationProvider";
+import { useWorkerLocation } from "../../context/WorkerLocationContext";
 
 import { useSearchHistory } from "./hooks/useSearchHistory";
 import { useRouteLayer } from "./hooks/useRouteLayer";
@@ -250,12 +250,31 @@ export default function LocationPicker({
     ],
   );
 
-  const getCurrentLocation = useCurrentLocation({
+  const getCurrentLocationBase = useCurrentLocation({
     currentLocationRef,
     saveLocation,
     setLocating,
     setMessage,
   });
+
+  const [hasCurrentLocation, setHasCurrentLocation] =
+    useState(false);
+
+  const getCurrentLocation = useCallback(
+    async (selectAsDestination = true) => {
+      const coordinates =
+        await getCurrentLocationBase(
+          selectAsDestination,
+        );
+
+      if (coordinates) {
+        setHasCurrentLocation(true);
+      }
+
+      return coordinates;
+    },
+    [getCurrentLocationBase],
+  );
 
 const {
   workerLocation,
@@ -264,16 +283,19 @@ const {
   goOnline,
 } = useWorkerLocation();
 
-const liveLocation =
-  isOnline && workerLocation
-    ? {
-        coordinates: [
-          workerLocation.longitude,
-          workerLocation.latitude,
-        ] as Coordinates,
-        heading: workerLocation.heading,
-      }
-    : null;
+const liveLocation = useMemo(
+  () =>
+    isOnline && workerLocation
+      ? {
+          coordinates: [
+            workerLocation.longitude,
+            workerLocation.latitude,
+          ] as Coordinates,
+          heading: workerLocation.heading,
+        }
+      : null,
+  [isOnline, workerLocation],
+);
 useEffect(() => {
   // Worker navigation: use the worker's live GPS.
   if (navigationMode && isOnline && liveLocation) {
@@ -297,17 +319,17 @@ useEffect(() => {
 }, [isOnline, liveLocation, mapReady]);
 
   useSmoothMarker({
-    marker: markerRef.current,
+    markerRef,
     coordinates: liveLocation?.coordinates ?? null,
   });
   useMarkerHeading({
-    marker: markerRef.current,
+    markerRef,
     coordinates: liveLocation?.coordinates ?? null,
     gpsHeading: liveLocation?.heading ?? null,
     minimumMovementMeters: 3,
   });
   useFollowLocation({
-    map: mapRef.current,
+    mapRef,
     coordinates: liveLocation?.coordinates ?? null,
     enabled:
     isOnline &&
@@ -452,7 +474,7 @@ useEffect(() => {
     coordinates: liveLocation?.coordinates ?? null,
 
     enabled:
-      isTracking && showDirections && selectedCoordinatesRef.current !== null,
+      isTracking && showDirections,
 
     refreshRoute: getDirections,
 
@@ -589,7 +611,7 @@ useEffect(() => {
     setMessage,
     setSelectedAddress,
     setSearchText,
-    callback: callbackRef.current,
+    callback: onLocationSelect,
   });
 
   const confirmAddress = useCallback(() => {
@@ -666,7 +688,9 @@ const handleCurrentLocation = useCallback(() => {
     selectedAddress,
     distance,
     duration,
-    hasCurrentLocation: currentLocationRef.current !== null,
+    hasCurrentLocation:
+      hasCurrentLocation ||
+      (navigationMode && Boolean(liveLocation)),
 
     searchAddress,
     clearSearch,

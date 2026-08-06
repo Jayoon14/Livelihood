@@ -1,4 +1,3 @@
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import {
   AlertCircle,
   Award,
@@ -274,7 +273,7 @@ export default function Reviews() {
               table: "reviews",
               filter: `worker_id=eq.${user.id}`,
             },
-            (_payload: RealtimePostgresChangesPayload<WorkerReview>) => {
+            () => {
               if (realtimeTimerRef.current) {
                 clearTimeout(realtimeTimerRef.current);
               }
@@ -317,7 +316,11 @@ export default function Reviews() {
   }, [loadReviews]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [search, ratingFilter, sort]);
 
   const statistics = useMemo(() => {
@@ -407,9 +410,15 @@ export default function Reviews() {
   }, [filteredReviews, page]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
+    if (page <= totalPages) {
+      return;
     }
+
+    const timer = window.setTimeout(() => {
+      setPage(totalPages);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   const getRatingPercentage = useCallback(

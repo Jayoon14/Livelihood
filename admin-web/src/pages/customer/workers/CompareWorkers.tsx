@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
@@ -6,6 +6,8 @@ import CustomerLayout from "../../../layouts/CustomerLayout";
 import {
   getFeaturedWorkers,
   getCompleteWorkerProfile,
+  type CompleteWorkerProfile,
+  type WorkerWithServices,
 } from "../../../services/workerService";
 
 import { getWorkerAverageRating } from "../../../services/reviewService";
@@ -19,13 +21,13 @@ function winner(left: number, right: number) {
 export default function CompareWorkers() {
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<WorkerWithServices[]>([]);
 
   const [leftId, setLeftId] = useState("");
   const [rightId, setRightId] = useState("");
 
-  const [leftWorker, setLeftWorker] = useState<any>(null);
-  const [rightWorker, setRightWorker] = useState<any>(null);
+  const [leftWorker, setLeftWorker] = useState<CompleteWorkerProfile | null>(null);
+  const [rightWorker, setRightWorker] = useState<CompleteWorkerProfile | null>(null);
 
   const [leftRating, setLeftRating] = useState(0);
   const [rightRating, setRightRating] = useState(0);
@@ -63,19 +65,22 @@ export default function CompareWorkers() {
   if (priceWinner === "left") leftScore++;
   if (priceWinner === "right") rightScore++;
 
-  useEffect(() => {
-    loadWorkers();
-  }, []);
-
-  async function loadWorkers() {
+  const loadWorkers = useCallback(async () => {
     try {
       const data = await getFeaturedWorkers(100);
-
       setWorkers(data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadWorkers();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadWorkers]);
 
   useEffect(() => {
     async function loadComparison() {
@@ -209,7 +214,7 @@ export default function CompareWorkers() {
                   <b>Services:</b>
 
                   <ul className="list-disc ml-5 mt-2">
-                    {leftWorker.services?.map((service: any) => (
+                    {leftWorker.services.map((service) => (
                       <li key={service.id}>{service.service_name}</li>
                     ))}
                   </ul>
@@ -297,7 +302,7 @@ export default function CompareWorkers() {
                   <b>Services:</b>
 
                   <ul className="list-disc ml-5 mt-2">
-                    {rightWorker.services?.map((service: any) => (
+                    {rightWorker.services.map((service) => (
                       <li key={service.id}>{service.service_name}</li>
                     ))}
                   </ul>

@@ -71,7 +71,11 @@
     const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const loadWorkers = useCallback(async (background = false) => {
-      background ? setRefreshing(true) : setLoading(true);
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
         setWorkers(await getAdminWorkers());
@@ -88,7 +92,13 @@
       }
     }, []);
 
-    useEffect(() => void loadWorkers(), [loadWorkers]);
+    useEffect(() => {
+      const timer = window.setTimeout(() => {
+        void loadWorkers();
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }, [loadWorkers]);
 
     useEffect(() => {
       let mounted = true;
@@ -161,7 +171,13 @@
       };
     }, [loadWorkers]);
 
-    useEffect(() => setPage(1), [search, status, sort]);
+    useEffect(() => {
+      const timer = window.setTimeout(() => {
+        setPage(1);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }, [search, status, sort]);
 
     const filtered = useMemo(() => {
       const term = search.trim().toLowerCase();

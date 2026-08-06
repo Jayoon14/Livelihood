@@ -20,7 +20,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import AdminLayout from "../../../layouts/AdminLayout";
-import { useRealtimeTableVersion } from "../../../providers/RealtimeProvider";
+import { useRealtimeTableVersion } from "../../../providers/RealtimeContext";
 import {
   getBookingStatusCounts,
   getDashboardStats,
@@ -305,7 +305,11 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    void loadDashboard();
+    const timer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadDashboard]);
 
   useEffect(() => {

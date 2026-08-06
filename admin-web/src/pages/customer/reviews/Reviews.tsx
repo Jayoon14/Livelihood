@@ -1,20 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 import {
   getWorkerReviews,
   getAverageRating,
+  type WorkerReview,
 } from "../../../services/reviewService";
 
 export default function Reviews() {
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<WorkerReview[]>([]);
   const [average, setAverage] = useState(0);
 
-  useEffect(() => {
-    loadReviews();
-  }, []);
-
-  async function loadReviews() {
+  const loadReviews = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -27,7 +24,16 @@ export default function Reviews() {
 
     setReviews(data);
     setAverage(avg);
-  }
+  }, []);
+
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadReviews();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadReviews]);
 
   return (
     <WorkerLayout>

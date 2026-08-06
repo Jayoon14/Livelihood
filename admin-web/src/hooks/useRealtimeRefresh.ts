@@ -1,20 +1,18 @@
 import {
   useEffect,
   useRef,
-  type DependencyList,
 } from "react";
 
 import {
   useRealtimeTableVersion,
   type RealtimeTable,
-} from "../providers/RealtimeProvider";
+} from "../providers/RealtimeContext";
 
 interface UseRealtimeRefreshOptions {
   table: RealtimeTable;
   refresh: () => void | Promise<void>;
   enabled?: boolean;
   delayMilliseconds?: number;
-  dependencies?: DependencyList;
 }
 
 export default function useRealtimeRefresh({
@@ -22,7 +20,6 @@ export default function useRealtimeRefresh({
   refresh,
   enabled = true,
   delayMilliseconds = 150,
-  dependencies = [],
 }: UseRealtimeRefreshOptions) {
   const version = useRealtimeTableVersion(table);
 
@@ -59,10 +56,5 @@ export default function useRealtimeRefresh({
         timeoutRef.current = null;
       }
     };
-  }, [
-    version,
-    enabled,
-    delayMilliseconds,
-    ...dependencies,
-  ]);
+  }, [version, enabled, delayMilliseconds]);
 }

@@ -16,8 +16,8 @@ import ThemeDropdown from "../common/ThemeDropdown";
 import AccountActivityModal from "../account/AccountActivityModal";
 
 import { logout } from "../../services/authService";
-import { useProfile } from "../../context/ProfileContext";
-import { useWorkerLocation } from "../../context/WorkerLocationProvider";
+import { useProfile } from "../../context/ProfileContextValue";
+import { useWorkerLocation } from "../../context/WorkerLocationContext";
 
 interface WorkerNavbarProps {
   onMenuClick: () => void;

@@ -5,7 +5,7 @@ import WorkerNavbar from "../components/worker/WorkerNavbar";
 import Footer from "../components/common/Footer";
 import FloatingChatWidget from "../components/chat/FloatingChatWidget";
 import { ProfileProvider } from "../context/ProfileContext";
-import { useWorkerLocation } from "../context/WorkerLocationProvider";
+import { useWorkerLocation } from "../context/WorkerLocationContext";
 import {
   WORKER_HEARTBEAT_INTERVAL_MS,
   markCurrentWorkerOffline,

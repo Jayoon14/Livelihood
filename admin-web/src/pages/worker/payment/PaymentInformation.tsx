@@ -16,7 +16,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -95,8 +94,8 @@ function serializeForm(form: PaymentForm): string {
 }
 
 export default function PaymentInformation() {
-  const initialFormRef =
-    useRef<PaymentForm>({
+  const [initialForm, setInitialForm] =
+    useState<PaymentForm>({
       ...defaultPaymentForm,
     });
 
@@ -117,8 +116,8 @@ export default function PaymentInformation() {
   const hasUnsavedChanges = useMemo(
     () =>
       serializeForm(form) !==
-      serializeForm(initialFormRef.current),
-    [form],
+      serializeForm(initialForm),
+    [form, initialForm],
   );
 
   const activePaymentMethods = useMemo(
@@ -158,7 +157,7 @@ export default function PaymentInformation() {
           const nextForm = toForm(data);
 
           setForm(nextForm);
-          initialFormRef.current = nextForm;
+          setInitialForm(nextForm);
           setMessage(null);
         } catch (error) {
           setMessage({
@@ -177,7 +176,11 @@ export default function PaymentInformation() {
     );
 
   useEffect(() => {
-    void loadPaymentInformation();
+    const timer = window.setTimeout(() => {
+      void loadPaymentInformation();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadPaymentInformation]);
 
   useEffect(() => {
@@ -226,10 +229,10 @@ export default function PaymentInformation() {
 
       await saveMyPaymentInformation(form);
 
-      initialFormRef.current = {
+      setInitialForm({
         ...form,
         card_expiration: "",
-      };
+      });
 
       setForm((current) => ({
         ...current,
@@ -261,7 +264,7 @@ export default function PaymentInformation() {
 
   function handleReset(): void {
     setForm({
-      ...initialFormRef.current,
+      ...initialForm,
     });
     setMessage(null);
   }

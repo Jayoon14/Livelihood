@@ -442,27 +442,35 @@ export default function ChatList() {
   }, [loadChats]);
 
   useEffect(() => {
-    if (!selectedConversation) {
-      setSelectedBookingId(null);
+    const nextBookingId = !selectedConversation
+      ? null
+      : selectedBookingId !== null &&
+          selectedConversation.bookings.some(
+            (booking) =>
+              booking.bookingId === selectedBookingId,
+          )
+        ? selectedBookingId
+        : selectedConversation.latestBooking.bookingId;
+
+    if (nextBookingId === selectedBookingId) {
       return;
     }
 
-    const selectedStillBelongsToUser =
-      selectedBookingId !== null &&
-      selectedConversation.bookings.some(
-        (booking) => booking.bookingId === selectedBookingId,
-      );
+    const timer = window.setTimeout(() => {
+      setSelectedBookingId(nextBookingId);
+    }, 0);
 
-    if (!selectedStillBelongsToUser) {
-      setSelectedBookingId(selectedConversation.latestBooking.bookingId);
-    }
+    return () => window.clearTimeout(timer);
   }, [selectedBookingId, selectedConversation]);
 
   useEffect(() => {
     if (!selectedBookingId || !currentUserId) {
-      setMessages([]);
-      setContext(null);
-      return;
+      const timer = window.setTimeout(() => {
+        setMessages([]);
+        setContext(null);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     let cancelled = false;

@@ -68,9 +68,13 @@ export default function EmailOtpModal({
       return;
     }
 
-    setDigits(
-      Array.from({ length: OTP_LENGTH }, () => ""),
-    );
+    const timer = window.setTimeout(() => {
+      setDigits(
+        Array.from({ length: OTP_LENGTH }, () => ""),
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
     setCooldown(RESEND_COOLDOWN_SECONDS);
 
     window.setTimeout(() => {

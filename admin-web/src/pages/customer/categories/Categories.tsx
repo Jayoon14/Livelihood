@@ -1,24 +1,30 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 
-import { getCategoryPreview } from "../../../services/serviceService";
+import {
+  getCategoryPreview,
+  type CategoryPreview,
+} from "../../../services/serviceService";
 
 export default function Categories() {
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryPreview[]>([]);
 
-  useEffect(() => {
-    loadCategories();
+  const loadCategories = useCallback(async () => {
+    const data = await getCategoryPreview();
+    setCategories(data);
   }, []);
 
-  async function loadCategories() {
-    const data = await getCategoryPreview();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadCategories();
+    }, 0);
 
-    setCategories(data);
-  }
+    return () => window.clearTimeout(timer);
+  }, [loadCategories]);
 
   function getCategoryIcon(category: string) {
     if (category === "Cleaning") return "🧹";
@@ -56,7 +62,7 @@ export default function Categories() {
                 <h2 className="font-bold text-lg mt-3">{category.category}</h2>
 
                 <div className="space-y-1 mt-3 w-full">
-                  {category.workers.slice(0, 3).map((worker: any) => (
+                  {category.workers.slice(0, 3).map((worker) => (
                     <div key={worker.id} className="text-sm text-gray-600">
                       ⭐ {worker.first_name} {worker.last_name}
                     </div>

@@ -11,7 +11,28 @@ function statusClass(status:string){if(status==="resolved")return"bg-emerald-100
 export default function MyReportsPage({role,layout:Layout}:Props){
  const [items,setItems]=useState<ReportCase[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState("");const [selected,setSelected]=useState<{report:ReportCase;evidence:Array<ReportEvidence&{signed_url:string|null}>;logs:ReportLog[]}|null>(null);const [detailsLoading,setDetailsLoading]=useState(false);
  const load=useCallback(async()=>{try{setError("");setItems(await getMyReports());}catch(e){setError(e instanceof Error?e.message:"Unable to load reports.");}finally{setLoading(false);}},[]);
- useEffect(()=>{void load();let cleanup=()=>{};void supabase.auth.getUser().then(({data})=>{if(data.user)cleanup=subscribeToMyReports(data.user.id,()=>void load());});return()=>cleanup();},[load]);
+ useEffect(()=>{
+  let cancelled=false;
+  let cleanup=()=>{};
+
+  const timer=window.setTimeout(()=>{
+    void load();
+
+    void supabase.auth.getUser().then(({data})=>{
+      if(cancelled||!data.user)return;
+      cleanup=subscribeToMyReports(
+        data.user.id,
+        ()=>void load(),
+      );
+    });
+  },0);
+
+  return()=>{
+    cancelled=true;
+    window.clearTimeout(timer);
+    cleanup();
+  };
+ },[load]);
  async function open(id:string){setDetailsLoading(true);try{setSelected(await getMyReportDetails(id));}finally{setDetailsLoading(false);}}
  return <Layout><div className="mx-auto max-w-6xl p-4 sm:p-8"><div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-wider text-blue-600">Case Management</p><h1 className="mt-1 text-3xl font-black text-slate-900 dark:text-white">My Reports & Complaints</h1><p className="mt-2 text-slate-500">Track cases you submitted as a {role}.</p></div><button onClick={()=>void load()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold"><RefreshCw size={18}/>Refresh</button></div>
  {loading?<div className="flex min-h-64 items-center justify-center"><Loader2 className="animate-spin"/></div>:error?<div className="rounded-2xl bg-red-50 p-5 text-red-700">{error}</div>:items.length===0?<div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm"><AlertTriangle className="mx-auto text-slate-400" size={44}/><h2 className="mt-4 text-xl font-black">No cases submitted</h2><p className="mt-2 text-slate-500">Use Report User or File Complaint from a booking.</p></div>:<div className="grid gap-4">{items.map(item=><button key={item.id} onClick={()=>void open(item.id)} className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600"><FileText/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-black capitalize">{item.case_type}: {item.subject}</p><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusClass(item.status)}`}>{labels[item.status]??item.status}</span></div><p className="mt-1 text-sm text-slate-500">Booking #{item.booking_id} · {item.category} · {new Date(item.created_at).toLocaleString("en-PH")}</p></div><ChevronRight className="text-slate-400"/></button>)}</div>}

@@ -31,6 +31,14 @@ export interface TrustedWorkerStats {
   totalHires: number;
 }
 
+interface TrustedWorkerQueryRow
+  extends TrustedWorkerRecord {
+  worker:
+    | TrustedWorkerProfile
+    | TrustedWorkerProfile[]
+    | null;
+}
+
 /**
  * Check kung trusted na ang worker ng current customer.
  */
@@ -204,12 +212,16 @@ export async function getTrustedWorkers(
     throw error;
   }
 
-  return (data ?? []).map((item: any) => ({
-    ...item,
-    worker: Array.isArray(item.worker)
-      ? item.worker[0] ?? null
-      : item.worker ?? null,
-  })) as TrustedWorkerWithProfile[];
+  return (
+    (data ?? []) as TrustedWorkerQueryRow[]
+  ).map(
+    (item): TrustedWorkerWithProfile => ({
+      ...item,
+      worker: Array.isArray(item.worker)
+        ? item.worker[0] ?? null
+        : item.worker,
+    }),
+  );
 }
 
 /**

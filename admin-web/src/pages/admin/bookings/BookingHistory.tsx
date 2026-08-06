@@ -60,14 +60,15 @@ export default function BookingHistory() {
   }, [bookingId]);
 
   useEffect(() => {
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+    const initialLoadTimer = window.setTimeout(() => {
       void loadBooking();
-      return;
+    }, 0);
+
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return () => window.clearTimeout(initialLoadTimer);
     }
 
     let mounted = true;
-
-    void loadBooking();
 
     const channel = supabase
       .channel(`admin-booking-history-${bookingId}`)

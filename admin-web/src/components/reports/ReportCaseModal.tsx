@@ -41,10 +41,20 @@ export default function ReportCaseModal({
   );
 
   useEffect(() => {
-    if (!open) return;
-    setCaseType(defaultCaseType);
-    setCategory(""); setSubject(""); setDescription("");
-    setRequestedResolution(""); setFiles([]);
+    if (!open) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCaseType(defaultCaseType);
+      setCategory("");
+      setSubject("");
+      setDescription("");
+      setRequestedResolution("");
+      setFiles([]);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [defaultCaseType, open]);
 
   if (!open) return null;

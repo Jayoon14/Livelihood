@@ -225,14 +225,22 @@ export default function ActivityLogs() {
       return;
     }
 
-    const range = resolveDateRange(datePreset);
-    setDateFrom(range.from);
-    setDateTo(range.to);
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      const range = resolveDateRange(datePreset);
+      setDateFrom(range.from);
+      setDateTo(range.to);
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [datePreset]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [moduleFilter, actionFilter]);
 
   const query = useMemo(
@@ -314,11 +322,19 @@ export default function ActivityLogs() {
   }, []);
 
   useEffect(() => {
-    void loadLogs();
+    const timer = window.setTimeout(() => {
+      void loadLogs();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadLogs]);
 
   useEffect(() => {
-    void loadMeta();
+    const timer = window.setTimeout(() => {
+      void loadMeta();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadMeta]);
 
   useEffect(() => {
@@ -347,6 +363,7 @@ export default function ActivityLogs() {
           (
             _payload: RealtimePostgresChangesPayload<ActivityLog>,
           ) => {
+            void _payload;
             void loadLogs(true);
             void loadMeta();
           },

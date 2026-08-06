@@ -1,6 +1,6 @@
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -14,29 +14,85 @@ import {
   rejectWorker,
 } from "../../../services/workerService";
 
+interface WorkerDetailsProfile {
+  id: string;
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  suffix: string | null;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  gender: string | null;
+  civil_status: string | null;
+  religion: string | null;
+  address: string | null;
+  status: string | null;
+}
+
+interface EducationDetails {
+  highest_attainment?: string | null;
+  elementary?: string | null;
+  secondary?: string | null;
+  senior_high?: string | null;
+  college?: string | null;
+  course?: string | null;
+  year_graduated?: string | number | null;
+  tesda?: string | null;
+  prc?: string | null;
+  trainings?: string | null;
+}
+
+interface ExperienceDetails {
+  id: string | number;
+  company?: string | null;
+  position?: string | null;
+  employment_status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  description?: string | null;
+}
+
+interface SkillDetails {
+  id: string | number;
+  skill_name?: string | null;
+}
+
+interface DocumentDetails {
+  valid_id?: string | null;
+  resume?: string | null;
+  tesda_certificate?: string | null;
+  barangay_clearance?: string | null;
+  police_clearance?: string | null;
+  nbi_clearance?: string | null;
+}
+
+interface ServiceDetails {
+  id: string | number;
+  service_name?: string | null;
+  category?: string | null;
+  price?: string | number | null;
+  status?: string | null;
+  description?: string | null;
+}
+
 export default function WorkerDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
 
-  const [worker, setWorker] = useState<any>(null);
-  const [education, setEducation] = useState<any>(null);
-  const [experience, setExperience] = useState<any[]>([]);
-  const [skills, setSkills] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any>(null);
-  const [services, setServices] = useState<any[]>([]);
+  const [worker, setWorker] = useState<WorkerDetailsProfile | null>(null);
+  const [education, setEducation] = useState<EducationDetails | null>(null);
+  const [experience, setExperience] = useState<ExperienceDetails[]>([]);
+  const [skills, setSkills] = useState<SkillDetails[]>([]);
+  const [documents, setDocuments] = useState<DocumentDetails | null>(null);
+  const [services, setServices] = useState<ServiceDetails[]>([]);
 
-  useEffect(() => {
-    if (id) {
-      loadWorker();
-    }
-  }, [id]);
-
-  async function loadWorker() {
+  const loadWorker = useCallback(async () => {
     try {
       const profile = await getWorker(id!);
-      setWorker(profile);
+      setWorker(profile as unknown as WorkerDetailsProfile);
 
       const [educationData, workData, skillsData, documentsData, servicesData] =
         await Promise.all([
@@ -47,17 +103,30 @@ export default function WorkerDetails() {
           getServices(id!),
         ]);
 
-      setEducation(educationData);
-      setExperience(workData);
-      setSkills(skillsData);
-      setDocuments(documentsData);
-      setServices(servicesData);
+      setEducation(educationData as EducationDetails | null);
+      setExperience(workData as ExperienceDetails[]);
+      setSkills(skillsData as SkillDetails[]);
+      setDocuments(documentsData as DocumentDetails | null);
+      setServices(servicesData as ServiceDetails[]);
     } catch (error) {
       console.error("Error loading worker:", error);
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
+      void loadWorker();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [id, loadWorker]);
 
   async function handleApprove() {
     if (!worker) return;
@@ -95,6 +164,10 @@ export default function WorkerDetails() {
 
   if (loading) {
     return <div className="p-10 text-xl">Loading...</div>;
+  }
+
+  if (!worker) {
+    return <div className="p-10 text-xl">Worker not found.</div>;
   }
 
   return (
@@ -313,7 +386,7 @@ export default function WorkerDetails() {
 
                 {documents[key as keyof typeof documents] ? (
                   <a
-                    href={documents[key as keyof typeof documents]}
+                    href={documents[key as keyof DocumentDetails] ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 font-semibold hover:underline"

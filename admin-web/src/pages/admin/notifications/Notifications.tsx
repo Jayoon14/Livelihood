@@ -197,7 +197,11 @@ export default function Notifications() {
   );
 
   useEffect(() => {
-    void loadNotifications();
+    const timer = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadNotifications]);
 
   useEffect(() => {

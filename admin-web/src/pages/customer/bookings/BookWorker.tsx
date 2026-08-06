@@ -7,7 +7,7 @@ import {
 
 import AvailabilityCalendar from "../../../components/customer/AvailabilityCalendar";
 import LocationPicker from "../../../components/maps/LocationPicker";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContextValue";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 
 import {

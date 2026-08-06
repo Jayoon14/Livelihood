@@ -19,6 +19,7 @@ import {
   getCategories,
   getCustomerWorkerCardMetrics,
   isWorkerAvailable,
+  type WorkerSearchResult,
 } from "../../../services/workerService";
 import NearbyWorkersModal from "./components/NearbyWorkersModal";
 import WorkerBadges from "../../../components/reputation/WorkerBadges";
@@ -28,13 +29,21 @@ const inter = { fontFamily: "'Inter', sans-serif" };
 
 const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 
+type WorkerCardResult = WorkerSearchResult & {
+  category?: string | null;
+  service_name?: string | null;
+  description?: string | null;
+  review_count?: number;
+};
+
+
 const selectClass =
   "rounded-2xl border border-slate-200 px-5 py-4 outline-none bg-white text-slate-700 transition-colors focus:border-[#0A1930] focus:ring-2 focus:ring-[#0A1930]/10";
 
 export default function Workers() {
   const navigate = useNavigate();
 
-  const [workers, setWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<WorkerCardResult[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [priceRange, setPriceRange] = useState("");
@@ -48,22 +57,25 @@ export default function Workers() {
 
   const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     try {
       const data = await getCategories();
       setCategories(data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadCategories();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadCategories]);
 
   const refreshWorkerStatuses = useCallback(
-    async (workerList: any[]): Promise<void> => {
+    async (workerList: WorkerCardResult[]): Promise<void> => {
       const workerIds = workerList
         .map((worker) => String(worker.id))
         .filter(Boolean);
@@ -151,7 +163,7 @@ export default function Workers() {
       let filtered = data;
 
       if (rating) {
-        filtered = filtered.filter((worker: any) => {
+        filtered = filtered.filter((worker) => {
           const average = Number(worker.average_rating ?? 0);
 
           return average >= Number(rating);
@@ -189,7 +201,11 @@ export default function Workers() {
   ]);
 
   useEffect(() => {
-    void loadWorkers();
+    const timer = window.setTimeout(() => {
+      void loadWorkers();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadWorkers]);
 
   useEffect(() => {

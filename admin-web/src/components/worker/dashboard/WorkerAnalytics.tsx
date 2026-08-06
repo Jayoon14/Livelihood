@@ -268,10 +268,10 @@ function AnalyticsTooltip({
 export default function WorkerAnalytics({
   bookings,
 }: WorkerAnalyticsProps) {
-  const safeBookings =
-    Array.isArray(bookings)
-      ? bookings
-      : [];
+  const safeBookings = useMemo(
+    () => (Array.isArray(bookings) ? bookings : []),
+    [bookings],
+  );
 
   const weeklyData = useMemo(
     () =>

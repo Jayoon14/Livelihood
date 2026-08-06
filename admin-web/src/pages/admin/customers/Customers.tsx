@@ -208,7 +208,11 @@ export default function Customers() {
   }, []);
 
   useEffect(() => {
-    void loadCustomers();
+    const timer = window.setTimeout(() => {
+      void loadCustomers();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [loadCustomers]);
 
   useEffect(() => {
@@ -265,7 +269,11 @@ export default function Customers() {
   }, [loadCustomers]);
 
   useEffect(() => {
-    setPage(1);
+    const timer = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [search, statusFilter, dateFilter, customStart, customEnd, sortOption]);
 
   const filteredCustomers = useMemo(() => {

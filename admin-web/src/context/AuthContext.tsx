@@ -1,9 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -13,30 +11,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { releaseActiveSession } from "../services/activeSessionService";
 
-export type UserRole = "admin" | "worker" | "customer";
-
-export interface UserProfile {
-  id: string;
-  role: UserRole;
-  status: string | null;
-  first_name?: string | null;
-  middle_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  loading: boolean;
-  error: string | null;
-
-  role: UserRole | null;
-  status: string | null;
-
-  refreshProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
-}
+import { AuthContext, type AuthContextType, type UserProfile, type UserRole } from "./AuthContextValue";
 
 interface ProfileRow {
   id: string;
@@ -47,8 +22,6 @@ interface ProfileRow {
   last_name?: string | null;
   email?: string | null;
 }
-
-const AuthContext = createContext<AuthContextType | null>(null);
 
 function normalizeRole(role: unknown): UserRole | null {
   if (typeof role !== "string") {
@@ -301,16 +274,4 @@ export function AuthProvider({
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error(
-      "useAuth must be used inside AuthProvider.",
-    );
-  }
-
-  return context;
 }

@@ -8,7 +8,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { useLanguage } from "../../../context/LanguageContext";
+import { useLanguage } from "../../../context/LanguageContextValue";
 
 type ThemePreference = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
@@ -104,7 +104,9 @@ export default function ThemeSettings() {
   );
 
   useEffect(() => {
-    setResolvedTheme(applyTheme(theme));
+    const timer = window.setTimeout(() => {
+      setResolvedTheme(applyTheme(theme));
+    }, 0);
 
     if (theme !== "system") {
       return;
@@ -122,6 +124,7 @@ export default function ThemeSettings() {
     );
 
     return () => {
+      window.clearTimeout(timer);
       mediaQuery.removeEventListener(
         "change",
         handleSystemThemeChange,

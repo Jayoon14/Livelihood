@@ -8,12 +8,13 @@ import {
   getWorkers,
   approveWorker,
   rejectWorker,
+  type WorkerProfile,
 } from "../../../services/workerService";
 
 export default function Workers() {
   console.log("ADMIN WORKERS PAGE");
 
-  const [workers, setWorkers] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<WorkerProfile[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
 

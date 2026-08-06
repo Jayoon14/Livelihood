@@ -1,6 +1,6 @@
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -144,6 +144,39 @@ export default function Notifications() {
     });
   }, [notifications, searchText, selectedFilter]);
 
+  const loadNotifications = useCallback(async (currentUserId?: string) => {
+    try {
+      let userId = currentUserId;
+
+      if (!userId) {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error) {
+          throw error;
+        }
+
+        userId = user?.id;
+      }
+
+      if (!userId) {
+        setNotifications([]);
+
+        return;
+      }
+
+      const data = await getNotifications(userId);
+
+      setNotifications((data ?? []) as NotificationItem[]);
+    } catch (error) {
+      console.error("Load notifications error:", error);
+    } finally {
+      setLoading(false);
+    }
+    }, []);
+
   useEffect(() => {
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
@@ -258,40 +291,8 @@ export default function Notifications() {
         channel = null;
       }
     };
-  }, []);
+  }, [loadNotifications]);
 
-  async function loadNotifications(currentUserId?: string) {
-    try {
-      let userId = currentUserId;
-
-      if (!userId) {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-
-        if (error) {
-          throw error;
-        }
-
-        userId = user?.id;
-      }
-
-      if (!userId) {
-        setNotifications([]);
-
-        return;
-      }
-
-      const data = await getNotifications(userId);
-
-      setNotifications((data ?? []) as NotificationItem[]);
-    } catch (error) {
-      console.error("Load notifications error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
   async function handleRead(id: number) {
     try {
       await markAsRead(id);
@@ -511,6 +512,7 @@ export default function Notifications() {
         }).length;
 
       case "all":
+        return notifications.length;
 
       default:
         return notifications.length;

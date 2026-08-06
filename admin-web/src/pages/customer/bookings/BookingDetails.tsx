@@ -329,9 +329,12 @@ export default function BookingDetails() {
     mountedRef.current = true;
     statusRef.current = null;
 
-    void loadBooking(true);
+    const initialLoadTimer = window.setTimeout(() => {
+      void loadBooking(true);
+    }, 0);
 
     return () => {
+      window.clearTimeout(initialLoadTimer);
       mountedRef.current = false;
     };
   }, [loadBooking]);

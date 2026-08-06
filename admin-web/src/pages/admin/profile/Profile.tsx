@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 
 import AdminLayout from "../../../layouts/AdminLayout";
-import { useProfile } from "../../../context/ProfileContext";
+import { useProfile } from "../../../context/ProfileContextValue";
 import {
   removeAvatar,
   updateAdminProfile,
@@ -68,17 +68,21 @@ export default function AdminProfile() {
     useState(false);
 
   useEffect(() => {
-    const nextForm: FormState = {
-      first_name: profile?.first_name ?? "",
-      middle_name: profile?.middle_name ?? "",
-      last_name: profile?.last_name ?? "",
-      suffix: profile?.suffix ?? "",
-      phone: profile?.phone ?? "",
-      address: profile?.address ?? "",
-    };
+    const timer = window.setTimeout(() => {
+      const nextForm: FormState = {
+        first_name: profile?.first_name ?? "",
+        middle_name: profile?.middle_name ?? "",
+        last_name: profile?.last_name ?? "",
+        suffix: profile?.suffix ?? "",
+        phone: profile?.phone ?? "",
+        address: profile?.address ?? "",
+      };
 
-    setForm(nextForm);
-    setInitialForm(nextForm);
+      setForm(nextForm);
+      setInitialForm(nextForm);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [profile]);
 
   useEffect(() => {
