@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { confirmAction } from "../../../components/ui/confirmAction";
+import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 import {
@@ -209,41 +210,6 @@ function getNotificationIcon(item: Notification): {
     wrapperClassName:
       "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
   };
-}
-
-function getNotificationRoute(item: Notification): string | null {
-  const text = `${item.title} ${item.message}`.toLowerCase();
-
-  if (
-    text.includes("payment") ||
-    text.includes("receipt") ||
-    text.includes("refund")
-  ) {
-    return "/worker/payments";
-  }
-
-  if (
-    text.includes("review") ||
-    text.includes("rating") ||
-    text.includes("feedback")
-  ) {
-    return "/worker/reviews";
-  }
-
-  if (text.includes("message") || text.includes("chat")) {
-    return item.booking_id ? `/chat/${item.booking_id}` : "/chat";
-  }
-
-  if (
-    text.includes("booking") ||
-    text.includes("schedule") ||
-    text.includes("job") ||
-    item.booking_id
-  ) {
-    return "/worker/bookings";
-  }
-
-  return null;
 }
 
 function formatNotificationDate(value: string): string {
@@ -712,7 +678,7 @@ export default function Notifications() {
         await handleRead(item.id);
       }
 
-      const route = getNotificationRoute(item);
+      const route = getNotificationRoute(item, "worker");
 
       if (route) {
         navigate(route);

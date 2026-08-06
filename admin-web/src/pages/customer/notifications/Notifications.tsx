@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 import { timeAgo } from "../../../utils/timeAgo";
@@ -407,43 +408,7 @@ export default function Notifications() {
         await handleRead(notification.id);
       }
 
-      const title = notification.title.toLowerCase();
-      const message = notification.message.toLowerCase();
-      const securityText = `${title} ${message}`;
-
-      if (
-        securityText.includes("security") ||
-        securityText.includes("sign-in attempt") ||
-        securityText.includes("another device") ||
-        securityText.includes("password")
-      ) {
-        navigate("/customer/settings");
-        return;
-      }
-
-      if (title.includes("payment") || title.includes("receipt")) {
-        navigate("/customer/payments");
-
-        return;
-      }
-
-      if (title.includes("review") || title.includes("rating")) {
-        if (notification.booking_id) {
-          navigate(`/customer/review/${notification.booking_id}`);
-        } else {
-          navigate("/customer/bookings");
-        }
-
-        return;
-      }
-
-      if (notification.booking_id) {
-        navigate(`/customer/bookings/${notification.booking_id}`);
-
-        return;
-      }
-
-      navigate("/customer/notifications");
+      navigate(getNotificationRoute(notification, "customer"));
     } catch (error) {
       console.error("Open notification error:", error);
     }

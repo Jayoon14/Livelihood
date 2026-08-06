@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Bell,
   ChevronDown,
   LogOut,
   Pencil,
@@ -11,55 +10,19 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { useProfile } from "../../context/ProfileContext";
-import { useRealtimeTableVersion } from "../../providers/RealtimeProvider";
-import { supabase } from "../../lib/supabase";
 import { logout } from "../../services/authService";
-import { getUnreadCount } from "../../services/notificationService";
 import ThemeDropdown from "../common/ThemeDropdown";
+import NotificationDropdown from "../notifications/NotificationDropdown";
 
 export default function AdminNavbar() {
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const { profile } = useProfile();
 
-  const notificationsVersion =
-    useRealtimeTableVersion("notifications");
-
-  const loadUnread = useCallback(async () => {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        throw userError;
-      }
-
-      if (!user) {
-        setUnreadCount(0);
-        return;
-      }
-
-      const count = await getUnreadCount(user.id);
-
-      setUnreadCount(count);
-    } catch (error) {
-      console.error(
-        "Unable to load admin notification count:",
-        error,
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadUnread();
-  }, [loadUnread, notificationsVersion]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -141,27 +104,7 @@ export default function AdminNavbar() {
       <div className="flex items-center gap-4">
         <ThemeDropdown />
 
-        <button
-          type="button"
-          onClick={() => navigate("/admin/notifications")}
-          className="relative rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-slate-800"
-          aria-label={`Notifications${
-            unreadCount > 0
-              ? `, ${unreadCount} unread`
-              : ""
-          }`}
-        >
-          <Bell
-            size={24}
-            className="text-gray-700 dark:text-slate-200"
-          />
-
-          {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
-        </button>
+        <NotificationDropdown role="admin" />
 
         <div className="relative" ref={dropdownRef}>
           <button

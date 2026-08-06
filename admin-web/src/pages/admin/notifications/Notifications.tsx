@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
 import AdminLayout from "../../../layouts/AdminLayout";
 import { supabase } from "../../../lib/supabase";
 import {
@@ -83,30 +84,6 @@ function formatRelativeDate(value: string): string {
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
-}
-
-function resolveNotificationRoute(item: Notification): string {
-  const title = normalizeText(item.title);
-  const message = normalizeText(item.message);
-  const combined = `${title} ${message}`;
-
-  if (combined.includes("worker")) {
-    return "/admin/workers";
-  }
-
-  if (combined.includes("payment")) {
-    return "/admin/payments";
-  }
-
-  if (combined.includes("booking") || item.booking_id) {
-    return "/admin/bookings";
-  }
-
-  if (combined.includes("customer")) {
-    return "/admin/customers";
-  }
-
-  return "/admin/dashboard";
 }
 
 function iconForNotification(item: Notification) {
@@ -471,7 +448,7 @@ export default function Notifications() {
       await handleRead(item.id);
     }
 
-    navigate(resolveNotificationRoute(item));
+    navigate(getNotificationRoute(item, "admin"));
   }
 
   async function handleLoadMore() {

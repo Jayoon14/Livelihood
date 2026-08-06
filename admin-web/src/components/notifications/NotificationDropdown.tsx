@@ -16,9 +16,13 @@ import {
 } from "../../services/notificationService";
 import NotificationItem from "./NotificationItem";
 import NotificationToast from "./NotificationToast";
+import {
+  getNotificationRoute,
+  type NotificationRole,
+} from "./notificationRouting";
 
 interface NotificationDropdownProps {
-  role: "worker" | "customer";
+  role: NotificationRole;
 }
 
 const DROPDOWN_PAGE_SIZE = 10;
@@ -42,50 +46,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
-}
-
-function getNotificationRoute(
-  notification: Notification,
-  role: "worker" | "customer",
-): string {
-  const text = `${notification.title} ${notification.message}`.toLowerCase();
-
-  if (
-    text.includes("security") ||
-    text.includes("sign-in attempt") ||
-    text.includes("another device") ||
-    text.includes("password")
-  ) {
-    return role === "worker" ? "/worker/settings" : "/customer/settings";
-  }
-
-  if (text.includes("message") || text.includes("chat")) {
-    return notification.booking_id
-      ? `/chat/${notification.booking_id}`
-      : "/chat";
-  }
-
-  if (role === "worker") {
-    if (
-      text.includes("payment") ||
-      text.includes("receipt") ||
-      text.includes("refund")
-    ) {
-      return "/worker/payments";
-    }
-
-    if (
-      text.includes("review") ||
-      text.includes("rating") ||
-      text.includes("feedback")
-    ) {
-      return "/worker/reviews";
-    }
-
-    return "/worker/bookings";
-  }
-
-  return "/customer/bookings";
 }
 
 function sortNotifications(items: Notification[]): Notification[] {
