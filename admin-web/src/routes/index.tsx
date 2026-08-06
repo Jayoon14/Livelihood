@@ -41,6 +41,7 @@ import { lazy, Suspense } from "react";
   const Reports = lazy(() => import("../pages/admin/reports/Reports"));
   const ReportsComplaints = lazy(() => import("../pages/admin/cases/ReportsComplaints"));
   const CaseReview = lazy(() => import("../pages/admin/cases/CaseReview"));
+  const RiskManagement = lazy(() => import("../pages/admin/enforcement/RiskManagement"));
   const AdminServices = lazy(
     () => import("../pages/admin/services/Services"),
   );
@@ -121,6 +122,7 @@ import { lazy, Suspense } from "react";
   );
   const Payment = lazy(() => import("../pages/customer/payments/Payment"));
   const CustomerMyReports = lazy(() => import("../pages/customer/reports/MyReports"));
+  const CustomerMyAppeals = lazy(() => import("../pages/customer/appeals/MyAppeals"));
 
   // ================= WORKER =================
   const WorkerDashboard = lazy(
@@ -159,6 +161,7 @@ import { lazy, Suspense } from "react";
     () => import("../pages/worker/notifications/Notifications"),
   );
   const WorkerMyReports = lazy(() => import("../pages/worker/reports/MyReports"));
+  const WorkerMyAppeals = lazy(() => import("../pages/worker/appeals/MyAppeals"));
 
   // ================= CHAT =================
   const ChatRoom = lazy(() => import("../pages/chat/ChatRoom"));
@@ -348,6 +351,7 @@ import { lazy, Suspense } from "react";
                 />
 
                 <Route path="/customer/reports" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerMyReports /></ProtectedRoute>} />
+                <Route path="/customer/appeals" element={<ProtectedRoute allowedRoles={["customer"]}><CustomerMyAppeals /></ProtectedRoute>} />
 
                 <Route
                   path="/customer/bookings"
@@ -492,6 +496,7 @@ import { lazy, Suspense } from "react";
                 />
 
                 <Route path="/worker/reports" element={<ProtectedRoute allowedRoles={["worker"]}><WorkerMyReports /></ProtectedRoute>} />
+                <Route path="/worker/appeals" element={<ProtectedRoute allowedRoles={["worker"]}><WorkerMyAppeals /></ProtectedRoute>} />
 
                 <Route
                   path="/worker/bookings"
@@ -725,6 +730,15 @@ import { lazy, Suspense } from "react";
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
                       <CaseReview />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/risk-management"
+                  element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                      <RiskManagement />
                     </ProtectedRoute>
                   }
                 />

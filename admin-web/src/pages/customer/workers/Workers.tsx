@@ -21,6 +21,7 @@ import {
   isWorkerAvailable,
 } from "../../../services/workerService";
 import NearbyWorkersModal from "./components/NearbyWorkersModal";
+import WorkerBadges from "../../../components/reputation/WorkerBadges";
 
 const heading = { fontFamily: "'Sora', sans-serif" };
 const inter = { fontFamily: "'Inter', sans-serif" };
@@ -594,6 +595,18 @@ export default function Workers() {
                         </span>
                       )}
                     </div>
+
+                    <WorkerBadges
+                      compact
+                      showScore
+                      maxBadges={2}
+                      metrics={{
+                        averageRating: Number(worker.average_rating ?? 0),
+                        completedJobs: Number(worker.completed_jobs ?? 0),
+                        reviewCount: Number(worker.review_count ?? 0),
+                      }}
+                      className="mb-4"
+                    />
 
                     <p className="text-slate-500 mt-5 leading-7 line-clamp-3 min-h-21 text-sm">
                       {worker.description ||

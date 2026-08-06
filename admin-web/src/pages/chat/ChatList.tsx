@@ -442,28 +442,6 @@ export default function ChatList() {
   }, [loadChats]);
 
   useEffect(() => {
-    if (!currentUserId) {
-      return;
-    }
-
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void loadChats(currentUserId);
-      }
-    };
-
-    window.addEventListener("online", refresh);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-
-    return () => {
-      window.removeEventListener("online", refresh);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [currentUserId, loadChats]);
-
-  useEffect(() => {
     if (!selectedConversation) {
       setSelectedBookingId(null);
       return;

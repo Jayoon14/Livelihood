@@ -8,6 +8,7 @@ import {
   Wallet,
   MessageCircle,
   Flag,
+  Gavel,
   Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -63,9 +64,14 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
       path: "/worker/reports",
     },
     {
+      name: "My Appeals",
+      icon: Gavel,
+      path: "/worker/appeals",
+    },
+    {
       name: "Messages",
       icon: MessageCircle,
-      path: "/worker/messages",
+      path: "/chat",
     },
   ];
 

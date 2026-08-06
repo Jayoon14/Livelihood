@@ -200,6 +200,8 @@ export async function issueCaseWarning(reportId: string, userId: string, booking
   const note = message.trim();
   if (note.length < 10) throw new Error("Warning message must contain at least 10 characters.");
   await createNotification(userId, bookingId, "Account Warning", note);
+  const enforcement = await supabase.from("enforcement_actions").insert({ report_id: reportId, user_id: userId, action_type: "warning", points: 1, reason: note, issued_by: adminId });
+  if (enforcement.error) throw enforcement.error;
   const { error } = await supabase.from("report_logs").insert({
     report_id: reportId, actor_id: adminId, action: "warning_issued", note, is_public: false,
   });
@@ -213,6 +215,8 @@ export async function suspendReportedUser(reportId: string, userId: string, reas
   if (note.length < 10) throw new Error("Suspension reason must contain at least 10 characters.");
   const { error } = await supabase.from("profiles").update({ status: "Disabled" }).eq("id", userId);
   if (error) throw error;
+  const enforcement = await supabase.from("enforcement_actions").insert({ report_id: reportId, user_id: userId, action_type: "suspension", points: 5, reason: note, issued_by: adminId, ends_at: new Date(Date.now() + 7 * 86400000).toISOString() });
+  if (enforcement.error) throw enforcement.error;
   await Promise.allSettled([
     createNotification(userId, null, "Account Suspended", note),
     supabase.from("report_logs").insert({ report_id: reportId, actor_id: adminId, action: "account_suspended", note, is_public: false }),

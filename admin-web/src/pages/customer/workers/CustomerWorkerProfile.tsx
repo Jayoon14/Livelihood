@@ -24,10 +24,14 @@ import { FaFacebook, FaInstagram } from "react-icons/fa";
 
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import LocationPicker from "../../../components/maps/LocationPicker";
+import WorkerBadges from "../../../components/reputation/WorkerBadges";
 
 import { supabase } from "../../../lib/supabase";
 import { saveRecentlyViewed } from "../../../services/recentlyViewedService";
-import { getCustomerWorkerProfile } from "../../../services/workerService";
+import {
+  getCustomerWorkerCardMetrics,
+  getCustomerWorkerProfile,
+} from "../../../services/workerService";
 import { getWorkerAverageRating } from "../../../services/reviewService";
 import { getApprovedServices } from "../../../services/serviceService";
 import {
@@ -169,6 +173,7 @@ export default function CustomerWorkerProfile() {
 
   const [worker, setWorker] = useState<WorkerProfileData | null>(null);
   const [rating, setRating] = useState(0);
+  const [completedJobs, setCompletedJobs] = useState(0);
   const [schedule, setSchedule] = useState<WorkerSchedule[]>([]);
   const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>(
     [],
@@ -361,19 +366,26 @@ export default function CustomerWorkerProfile() {
       setWorkerBookingState("checking");
 
       const data = (await getCustomerWorkerProfile(id)) as WorkerProfileData;
-      const [services, averageRating, weeklySchedule, unavailable] =
-        await Promise.all([
-          getApprovedServices(id),
-          getWorkerAverageRating(id),
-          getWorkerSchedule(id),
-          getUnavailableDates(id),
-        ]);
+      const [
+        services,
+        averageRating,
+        weeklySchedule,
+        unavailable,
+        publicMetrics,
+      ] = await Promise.all([
+        getApprovedServices(id),
+        getWorkerAverageRating(id),
+        getWorkerSchedule(id),
+        getUnavailableDates(id),
+        getCustomerWorkerCardMetrics([id]),
+      ]);
 
       data.services = (services ?? []) as WorkerService[];
 
       setWorker(data);
       setSelectedService(null);
       setRating(Number(averageRating) || 0);
+      setCompletedJobs(Number(publicMetrics.get(id)?.completed_jobs ?? 0));
       setSchedule((weeklySchedule ?? []) as WorkerSchedule[]);
       setUnavailableDates((unavailable ?? []) as UnavailableDate[]);
 
@@ -975,6 +987,16 @@ export default function CustomerWorkerProfile() {
                             ? "Checking worker status"
                             : "Worker is currently offline"}
                     </p>
+
+                <WorkerBadges
+                  showScore
+                  maxBadges={4}
+                  metrics={{
+                    averageRating: rating,
+                    completedJobs,
+                  }}
+                  className="mt-4"
+                />
                     <p className="mt-1 text-sm leading-5 opacity-80">
                       {workerBookingState === "available"
                         ? "You may select a service, date, and available time."

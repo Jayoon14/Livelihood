@@ -5,6 +5,7 @@ import {
   MessageCircle,
   ShieldCheck,
   Flag,
+  Gavel,
   Users,
   Wallet,
   Wrench,
@@ -51,6 +52,11 @@ const menus = [
     path: "/customer/reports",
   },
   {
+    name: "My Appeals",
+    icon: Gavel,
+    path: "/customer/appeals",
+  },
+  {
     name: "Payments",
     icon: Wallet,
     path: "/customer/payments",
@@ -58,7 +64,7 @@ const menus = [
   {
     name: "Messages",
     icon: MessageCircle,
-    path: "/customer/messages",
+    path: "/chat",
   },
 ];
 

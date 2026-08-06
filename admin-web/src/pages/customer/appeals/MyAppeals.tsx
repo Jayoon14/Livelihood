@@ -1,0 +1,1 @@
+import CustomerLayout from "../../../layouts/CustomerLayout";import MyAppealsPage from "../../../components/enforcement/MyAppealsPage";export default function MyAppeals(){return <MyAppealsPage role="customer" layout={CustomerLayout}/>;}

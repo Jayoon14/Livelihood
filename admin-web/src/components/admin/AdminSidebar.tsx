@@ -3,6 +3,7 @@ import {
   ClipboardList,
   History,
   ShieldAlert,
+  Gavel,
   LayoutDashboard,
   UserRound,
   Users,
@@ -46,6 +47,11 @@ const menus = [
     icon: ShieldAlert,
     label: "Reports & Complaints",
     path: "/admin/cases",
+  },
+  {
+    icon: Gavel,
+    label: "Risk & Appeals",
+    path: "/admin/risk-management",
   },
   {
     icon: Wrench,
