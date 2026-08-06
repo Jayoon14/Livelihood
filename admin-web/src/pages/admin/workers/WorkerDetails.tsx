@@ -15,6 +15,9 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  TrendingUp,
+  Percent,
+  ShieldAlert,
 } from "lucide-react";
 import {
   useCallback,
@@ -28,6 +31,10 @@ import { toast } from "sonner";
 
 import { confirmAction } from "../../../components/ui/confirmAction";
 import AdminLayout from "../../../layouts/AdminLayout";
+import {
+  getWorkerPerformanceDetails,
+  type WorkerPerformanceDetails,
+} from "../../../services/advancedAnalyticsService";
 import { supabase } from "../../../lib/supabase";
 import {
   getCompleteWorkerProfile,
@@ -110,6 +117,8 @@ export default function WorkerDetails() {
   const [details, setDetails] = useState<CompleteWorkerProfile | null>(null);
   const [bookings, setBookings] = useState<WorkerBookingSummary[]>([]);
   const [reviews, setReviews] = useState<WorkerReviewSummary[]>([]);
+  const [performance, setPerformance] =
+    useState<WorkerPerformanceDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -128,12 +137,17 @@ export default function WorkerDetails() {
       background ? setRefreshing(true) : setLoading(true);
       setError(null);
       try {
-        const [profileResult, bookingsResult, reviewsResult] =
-          await Promise.allSettled([
-            getCompleteWorkerProfile(id),
-            getWorkerBookings(id),
-            getWorkerReviews(id),
-          ]);
+        const [
+          profileResult,
+          bookingsResult,
+          reviewsResult,
+          performanceResult,
+        ] = await Promise.allSettled([
+          getCompleteWorkerProfile(id),
+          getWorkerBookings(id),
+          getWorkerReviews(id),
+          getWorkerPerformanceDetails(id),
+        ]);
         if (profileResult.status === "rejected") throw profileResult.reason;
         setDetails(profileResult.value);
         if (bookingsResult.status === "fulfilled")
@@ -147,6 +161,12 @@ export default function WorkerDetails() {
         else {
           setReviews([]);
           toast.warning("Worker loaded, but reviews are unavailable.");
+        }
+        if (performanceResult.status === "fulfilled") {
+          setPerformance(performanceResult.value);
+        } else {
+          setPerformance(null);
+          toast.warning("Worker loaded, but advanced performance metrics are unavailable.");
         }
       } catch (loadError) {
         const message =
@@ -476,6 +496,7 @@ export default function WorkerDetails() {
         </section>
 
         {isApproved ? (
+          <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               title="Total bookings"
@@ -514,6 +535,57 @@ export default function WorkerDetails() {
               iconClass="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
             />
           </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Advanced performance</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">Worker performance score</h2>
+                <p className="mt-1 text-sm text-slate-500">Completion 45% · customer rating 35% · cancellation control 10% · complaint control 10%</p>
+              </div>
+              <div className="rounded-2xl bg-violet-50 px-6 py-4 text-center dark:bg-violet-500/10">
+                <p className="text-xs font-bold uppercase text-violet-600">Score</p>
+                <p className="text-3xl font-black text-violet-700 dark:text-violet-300">{performance?.performanceScore.toFixed(1) ?? "—"}</p>
+                <p className="text-xs text-slate-500">out of 100</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                title="Completion rate"
+                value={performance ? `${performance.completionRate.toFixed(1)}%` : "—"}
+                description={`${performance?.completedJobs ?? 0} completed of ${performance?.totalBookings ?? 0} bookings`}
+                icon={<TrendingUp className="h-5 w-5" />}
+                accentClass="from-emerald-500 to-teal-600"
+                iconClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+              />
+              <MetricCard
+                title="Cancellation rate"
+                value={performance ? `${performance.cancellationRate.toFixed(1)}%` : "—"}
+                description={`${performance?.cancelledJobs ?? 0} cancelled or rejected`}
+                icon={<Percent className="h-5 w-5" />}
+                accentClass="from-rose-500 to-red-600"
+                iconClass="bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300"
+              />
+              <MetricCard
+                title="Complaint rate"
+                value={performance ? `${performance.complaintRate.toFixed(1)}%` : "—"}
+                description={`${performance?.complaints ?? 0} reports or complaints`}
+                icon={<ShieldAlert className="h-5 w-5" />}
+                accentClass="from-amber-500 to-orange-600"
+                iconClass="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+              />
+              <MetricCard
+                title="Quality rating"
+                value={performance?.averageRating.toFixed(1) ?? "—"}
+                description="Average verified customer rating"
+                icon={<Star className="h-5 w-5" />}
+                accentClass="from-violet-500 to-fuchsia-600"
+                iconClass="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
+              />
+            </div>
+          </section>
+          </>
         ) : (
           <section className="relative overflow-hidden rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 via-white to-blue-50 p-6 shadow-sm dark:border-amber-500/20 dark:from-amber-500/10 dark:via-slate-900 dark:to-blue-500/10">
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-amber-300/20 blur-2xl" />

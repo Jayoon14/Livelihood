@@ -9,6 +9,9 @@ import {
   Star,
   Users,
   XCircle,
+  ShieldAlert,
+  Repeat2,
+  TrendingUp,
 } from "lucide-react";
 import {
   useCallback,
@@ -34,6 +37,12 @@ import {
 import { toast } from "sonner";
 
 import AdminLayout from "../../../layouts/AdminLayout";
+import {
+  getAdvancedAnalytics,
+  type AdvancedAnalyticsData,
+  type ServiceDemandItem,
+  type WorkerPerformanceItem,
+} from "../../../services/advancedAnalyticsService";
 import { supabase } from "../../../lib/supabase";
 import {
   exportReportsCsv,
@@ -63,6 +72,17 @@ type DatePreset =
   | "This month"
   | "This year"
   | "Custom";
+
+const EMPTY_ADVANCED_DATA: AdvancedAnalyticsData = {
+  totalComplaints: 0,
+  activeComplaints: 0,
+  complaintRate: 0,
+  repeatCustomerRate: 0,
+  uniqueCustomers: 0,
+  repeatCustomers: 0,
+  serviceDemand: [],
+  workerPerformance: [],
+};
 
 const EMPTY_DATA: ReportsData = {
   summary: {
@@ -194,6 +214,8 @@ function dateRangeLabel(
 export default function Reports() {
   const [data, setData] =
     useState<ReportsData>(EMPTY_DATA);
+  const [advancedData, setAdvancedData] =
+    useState<AdvancedAnalyticsData>(EMPTY_ADVANCED_DATA);
   const [preset, setPreset] =
     useState<DatePreset>("All time");
   const [startDate, setStartDate] = useState("");
@@ -223,12 +245,18 @@ export default function Reports() {
       setError("");
 
       try {
-        const result = await getReportsData({
+        const filters = {
           startDate: startDate || undefined,
           endDate: endDate || undefined,
-        });
+        };
+
+        const [result, advanced] = await Promise.all([
+          getReportsData(filters),
+          getAdvancedAnalytics(filters),
+        ]);
 
         setData(result);
+        setAdvancedData(advanced);
         setGeneratedAt(new Date());
 
         if (background) {
@@ -477,6 +505,38 @@ export default function Reports() {
     },
   ];
 
+  const advancedCards: Array<{
+    label: string;
+    value: string;
+    subtitle: string;
+    icon: ComponentType<{ className?: string }>;
+  }> = [
+    {
+      label: "Complaint rate",
+      value: `${advancedData.complaintRate.toFixed(1)}%`,
+      subtitle: `${advancedData.totalComplaints} cases in selected period`,
+      icon: ShieldAlert,
+    },
+    {
+      label: "Active complaints",
+      value: advancedData.activeComplaints.toLocaleString(),
+      subtitle: "Cases still requiring action",
+      icon: XCircle,
+    },
+    {
+      label: "Repeat customer rate",
+      value: `${advancedData.repeatCustomerRate.toFixed(1)}%`,
+      subtitle: `${advancedData.repeatCustomers} of ${advancedData.uniqueCustomers} customers booked again`,
+      icon: Repeat2,
+    },
+    {
+      label: "Top performance score",
+      value: advancedData.workerPerformance[0]?.performance_score.toFixed(1) ?? "0.0",
+      subtitle: advancedData.workerPerformance[0]?.worker_name ?? "No worker activity",
+      icon: TrendingUp,
+    },
+  ];
+
   return (
     <AdminLayout>
       <div className="space-y-6 p-4 sm:p-6 lg:p-8 print:p-0">
@@ -718,6 +778,29 @@ export default function Reports() {
               />
             </section>
 
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {advancedCards.map(({ label, value, subtitle, icon: Icon }) => (
+                <article
+                  key={label}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-slate-500">{label}</p>
+                    <Icon className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
+                    {loading ? "…" : value}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">{subtitle}</p>
+                </article>
+              ))}
+            </section>
+
+            <section className="grid gap-6 xl:grid-cols-2">
+              <ServiceDemandTable data={advancedData.serviceDemand} loading={loading} />
+              <WorkerPerformanceTable data={advancedData.workerPerformance} loading={loading} />
+            </section>
+
             <section className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
               <RecentBookingsTable
                 bookings={data.recentBookings}
@@ -733,6 +816,69 @@ export default function Reports() {
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function ServiceDemandTable({
+  data,
+  loading,
+}: {
+  data: ServiceDemandItem[];
+  loading: boolean;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <h2 className="text-lg font-bold text-slate-900 dark:text-white">Most requested services</h2>
+      <p className="mt-1 text-xs text-slate-500">Ranked by booking demand in the selected period.</p>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs uppercase text-slate-400">
+            <tr><th className="pb-3">Service</th><th className="pb-3">Bookings</th><th className="pb-3">Completed</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {loading ? (
+              <tr><td colSpan={3} className="py-8 text-center text-slate-500">Loading service demand…</td></tr>
+            ) : data.length ? data.map((item) => (
+              <tr key={item.service_id}>
+                <td className="py-3"><p className="font-semibold text-slate-800 dark:text-slate-100">{item.service_name}</p><p className="text-xs text-slate-500">{item.category}</p></td>
+                <td className="py-3 font-bold">{item.bookings}</td>
+                <td className="py-3 text-emerald-600">{item.completed}</td>
+              </tr>
+            )) : <tr><td colSpan={3} className="py-8 text-center text-slate-500">No service activity found.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function WorkerPerformanceTable({
+  data,
+  loading,
+}: {
+  data: WorkerPerformanceItem[];
+  loading: boolean;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <h2 className="text-lg font-bold text-slate-900 dark:text-white">Worker performance ranking</h2>
+      <p className="mt-1 text-xs text-slate-500">Score combines completion, rating, cancellations, and complaints.</p>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs uppercase text-slate-400"><tr><th className="pb-3">Worker</th><th className="pb-3">Score</th><th className="pb-3">Completion</th><th className="pb-3">Complaints</th></tr></thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {loading ? <tr><td colSpan={4} className="py-8 text-center text-slate-500">Loading performance…</td></tr> : data.length ? data.map((item) => (
+              <tr key={item.worker_id}>
+                <td className="py-3"><Link to={`/workers/${item.worker_id}`} className="font-semibold text-blue-600 hover:underline">{item.worker_name}</Link><p className="text-xs text-slate-500">{item.completed_jobs} completed · {item.average_rating.toFixed(1)} rating</p></td>
+                <td className="py-3 font-bold text-violet-600">{item.performance_score.toFixed(1)}</td>
+                <td className="py-3">{item.completion_rate.toFixed(1)}%</td>
+                <td className="py-3">{item.complaint_count}</td>
+              </tr>
+            )) : <tr><td colSpan={4} className="py-8 text-center text-slate-500">No worker activity found.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
