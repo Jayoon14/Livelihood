@@ -6,11 +6,14 @@ import {
   Pencil,
   LogOut,
   Menu,
+  Flag,
+  Gavel,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import NotificationDropdown from "../notifications/NotificationDropdown";
 import ThemeDropdown from "../common/ThemeDropdown";
+import AccountActivityModal from "../account/AccountActivityModal";
 
 import { logout } from "../../services/authService";
 import { useProfile } from "../../context/ProfileContext";
@@ -26,6 +29,8 @@ export default function WorkerNavbar({ onMenuClick }: WorkerNavbarProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityView, setActivityView] = useState<"reports" | "appeals">("reports");
 
   const { profile } = useProfile();
 
@@ -174,7 +179,39 @@ async function handleLogout() {
                 <span>Edit Profile</span>
               </button>
 
-              <hr className="border-slate-100" />
+              <hr className="border-slate-100 dark:border-slate-700" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setActivityView("reports");
+                  setActivityModalOpen(true);
+                }}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-500/10">
+                  <Flag size={16} className="text-rose-600 dark:text-rose-400" />
+                </div>
+                <span>My Reports</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setActivityView("appeals");
+                  setActivityModalOpen(true);
+                }}
+                className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-500/10">
+                  <Gavel size={16} className="text-violet-600 dark:text-violet-400" />
+                </div>
+                <span>My Appeals</span>
+              </button>
+
+              <hr className="border-slate-100 dark:border-slate-700" />
 
               <button
                 type="button"
@@ -190,6 +227,14 @@ async function handleLogout() {
           )}
         </div>
       </div>
+
+      <AccountActivityModal
+        open={activityModalOpen}
+        role="worker"
+        activeView={activityView}
+        onActiveViewChange={setActivityView}
+        onClose={() => setActivityModalOpen(false)}
+      />
     </header>
   );
 }

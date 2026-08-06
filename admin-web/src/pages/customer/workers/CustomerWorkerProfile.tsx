@@ -105,7 +105,7 @@ type WorkerBookingState =
   | "working"
   | "available";
 
-const ONLINE_STATUS_STALE_MS = 2 * 60 * 1000;
+const ONLINE_STATUS_STALE_MS = 15 * 60 * 1000;
 
 function locationIsFresh(updatedAt?: string | null): boolean {
   if (!updatedAt) return false;
@@ -118,8 +118,8 @@ function locationIsFresh(updatedAt?: string | null): boolean {
   );
 }
 
-const MAX_BOOKING_DISTANCE_KILOMETERS = 20;
-const WORKER_LOCATION_STALE_MS = 2 * 60 * 1000;
+const MAX_BOOKING_DISTANCE_KILOMETERS = 50;
+const WORKER_LOCATION_STALE_MS = 15 * 60 * 1000;
 
 type BookableWorkerLocation = {
   worker_id: string;

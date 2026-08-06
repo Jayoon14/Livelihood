@@ -60,7 +60,7 @@ type ActivityItem = {
   } | null;
 };
 
-const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 const heading = { fontFamily: "'Sora', sans-serif" };
 
 function isWorkerOnline(lastSeen?: string | null): boolean {

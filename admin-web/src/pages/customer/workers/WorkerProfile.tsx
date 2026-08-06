@@ -101,8 +101,8 @@ const fieldClass =
 const secondaryButtonClass =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100";
 
-const MAX_BOOKING_DISTANCE_KILOMETERS = 20;
-const WORKER_LOCATION_STALE_MS = 2 * 60 * 1000;
+const MAX_BOOKING_DISTANCE_KILOMETERS = 50;
+const WORKER_LOCATION_STALE_MS = 15 * 60 * 1000;
 
 type BookableWorkerLocation = {
   worker_id: string;

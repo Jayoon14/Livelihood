@@ -7,8 +7,6 @@ import {
   CreditCard,
   Wallet,
   MessageCircle,
-  Flag,
-  Gavel,
   Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -57,16 +55,6 @@ export default function WorkerSidebar({ isOpen, onClose }: WorkerSidebarProps) {
       name: "Payment Requests",
       icon: Wallet,
       path: "/worker/payments",
-    },
-    {
-      name: "My Reports",
-      icon: Flag,
-      path: "/worker/reports",
-    },
-    {
-      name: "My Appeals",
-      icon: Gavel,
-      path: "/worker/appeals",
     },
     {
       name: "Messages",

@@ -39,7 +39,7 @@ import { getMyActiveReportCasesForBookings } from "../../../services/caseReportS
 import type { ReportCase } from "../../../types/report";
 import { formatBookingDate, formatBookingTime, formatDateTime } from "./utils/dateTime";
 
-const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 
 function isRecentLastSeen(lastSeen?: string | null): boolean {
   if (!lastSeen) return false;

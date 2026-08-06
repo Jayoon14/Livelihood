@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
+  Flag,
+  Gavel,
   LogOut,
   Menu,
   Settings,
@@ -13,6 +15,7 @@ import { logout } from "../../services/authService";
 import { useProfile } from "../../context/ProfileContext";
 import NotificationDropdown from "../notifications/NotificationDropdown";
 import ThemeDropdown from "../common/ThemeDropdown";
+import AccountActivityModal from "../account/AccountActivityModal";
 
 interface CustomerNavbarProps {
   onMenuClick: () => void;
@@ -25,6 +28,8 @@ export default function CustomerNavbar({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityView, setActivityView] = useState<"reports" | "appeals">("reports");
   const { profile } = useProfile();
 
   useEffect(() => {
@@ -177,6 +182,40 @@ export default function CustomerNavbar({
                 <button
                   type="button"
                   role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setActivityView("reports");
+                    setActivityModalOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-(--app-text) transition hover:bg-(--app-hover)"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/10">
+                    <Flag size={17} className="text-rose-500" />
+                  </span>
+                  My Reports
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setActivityView("appeals");
+                    setActivityModalOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-(--app-text) transition hover:bg-(--app-hover)"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+                    <Gavel size={17} className="text-violet-500" />
+                  </span>
+                  My Appeals
+                </button>
+
+                <div className="my-1 border-t border-(--app-border)" />
+
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => void handleLogout()}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-rose-500 transition hover:bg-rose-500/10"
                 >
@@ -190,6 +229,14 @@ export default function CustomerNavbar({
           </div>
         </div>
       </div>
+
+      <AccountActivityModal
+        open={activityModalOpen}
+        role="customer"
+        activeView={activityView}
+        onActiveViewChange={setActivityView}
+        onClose={() => setActivityModalOpen(false)}
+      />
     </header>
   );
 }

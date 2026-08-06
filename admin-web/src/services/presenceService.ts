@@ -1,7 +1,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 
-export const WORKER_ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+export const WORKER_ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 export const WORKER_HEARTBEAT_INTERVAL_MS = 30 * 1000;
 
 export interface WorkerPresenceRecord {
