@@ -228,6 +228,13 @@ export default function LocationPicker({
         }
       }
 
+      if (!navigationMode && locationConfirmed) {
+        setMessage(
+          "Service location is locked. Choose Change Location before selecting another point.",
+        );
+        return;
+      }
+
       if (!navigationMode) {
         userSelectedLocationRef.current = true;
         setLocationConfirmed(false);
@@ -244,6 +251,7 @@ export default function LocationPicker({
     [
       initialLocation?.latitude,
       initialLocation?.longitude,
+      locationConfirmed,
       navigationMode,
       onLocationConfirmedChange,
       saveLocationBase,
@@ -756,13 +764,13 @@ const layersModalProps = useLayersModalProps({
             </div>
           )}
           {showNearbyWorkers && (
-            <div className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] sm:left-4 sm:top-4">
-              <div className="pointer-events-auto w-fit max-w-56 rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">
+            <div className="pointer-events-none absolute left-2 top-15 z-20 max-w-[calc(100%-1rem)] sm:left-4 sm:top-20 md:top-4">
+              <div className="pointer-events-auto w-fit max-w-44 rounded-lg border border-white/70 bg-white/95 px-2.5 py-1.5 shadow-md backdrop-blur sm:max-w-52 sm:rounded-xl sm:px-3 sm:py-2 md:max-w-56 md:rounded-2xl md:px-4 md:py-3">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[10px] md:text-xs">
                   {selectedWorkerId ? "Selected Worker" : "Nearby Workers"}
                 </p>
 
-                <p className="mt-1 truncate text-sm font-bold text-slate-900 sm:text-base">
+                <p className="mt-0.5 truncate text-xs font-bold text-slate-900 sm:text-sm md:mt-1 md:text-base">
                   {selectedWorkerId
                     ? loadingWorkers
                       ? "Checking worker..."
@@ -775,7 +783,7 @@ const layersModalProps = useLayersModalProps({
                 </p>
 
                 {selectedWorkerId && selectedNearbyWorker && (
-                  <p className="mt-1 text-[11px] font-semibold text-emerald-700 sm:text-xs">
+                  <p className="mt-0.5 text-[9px] font-semibold text-emerald-700 sm:text-[10px] md:mt-1 md:text-xs">
                     Online nearby worker
                   </p>
                 )}
@@ -794,7 +802,7 @@ const layersModalProps = useLayersModalProps({
                   <button
                     type="button"
                     onClick={() => fitNearbyWorkers()}
-                    className="pointer-events-auto mt-2 min-h-8 w-full rounded-lg bg-blue-600 px-3 text-[11px] font-bold text-white transition hover:bg-blue-700 sm:min-h-9 sm:text-xs"
+                    className="pointer-events-auto mt-1.5 min-h-7 w-full rounded-md bg-blue-600 px-2 text-[9px] font-bold text-white transition hover:bg-blue-700 sm:min-h-8 sm:rounded-lg sm:px-3 sm:text-[11px] md:mt-2 md:min-h-9 md:text-xs"
                   >
                     Focus worker
                   </button>
@@ -811,7 +819,7 @@ const layersModalProps = useLayersModalProps({
         </div>
 
         {/* Mobile map actions */}
-        <div className="absolute bottom-3 right-3 z-30 flex gap-2 md:hidden">
+        <div className="absolute bottom-9 right-3 z-30 flex gap-2 sm:bottom-10 md:hidden">
           <button
             type="button"
             onClick={() => setShowLayers(true)}

@@ -79,11 +79,11 @@ async function handleLogout() {
 
   return (
     <header
-      className="flex h-20 items-center justify-between border-b border-slate-100 bg-white px-4 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950 sm:px-6 lg:px-8"
+      className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-950/95 sm:min-h-20 sm:px-5 sm:py-0 lg:px-7 xl:px-8"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* LEFT */}
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         {/* Mobile Hamburger */}
         <button
           type="button"
@@ -96,7 +96,7 @@ async function handleLogout() {
 
         <div>
           <h1
-            className="text-xl font-bold text-slate-900 sm:text-2xl"
+            className="truncate text-base font-bold text-slate-900 dark:text-white sm:text-2xl"
             style={{ fontFamily: "'Sora', sans-serif" }}
           >
             Worker Dashboard
@@ -109,7 +109,7 @@ async function handleLogout() {
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-4 sm:gap-6">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2 lg:gap-4">
         {/* Theme */}
         <ThemeDropdown />
 
@@ -121,16 +121,16 @@ async function handleLogout() {
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
-            className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-slate-100 sm:px-3"
+            className="flex items-center gap-1.5 rounded-xl px-1 py-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 sm:gap-3 sm:px-2 sm:py-2"
           >
             {avatar ? (
               <img
                 src={avatar}
                 alt={`${fullName} profile`}
-                className="h-11 w-11 rounded-full border-2 border-amber-500 object-cover"
+                className="h-9 w-9 shrink-0 rounded-full border-2 border-amber-500 object-cover sm:h-11 sm:w-11"
               />
             ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 border border-slate-100">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-amber-50 sm:h-11 sm:w-11">
                 <UserCircle size={26} className="text-amber-600" />
               </div>
             )}
@@ -143,14 +143,14 @@ async function handleLogout() {
 
             <ChevronDown
               size={18}
-              className={`text-slate-400 transition-transform ${
+              className={`hidden text-slate-400 transition-transform sm:block ${
                 open ? "rotate-180" : ""
               }`}
             />
           </button>
 
           {open && (
-            <div className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,.12)] dark:border-slate-700 dark:bg-slate-900">
+            <div className="absolute right-0 z-50 mt-3 w-[min(16rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_20px_50px_rgba(15,23,42,.12)] dark:border-slate-700 dark:bg-slate-900">
               <button
                 type="button"
                 onClick={() => {

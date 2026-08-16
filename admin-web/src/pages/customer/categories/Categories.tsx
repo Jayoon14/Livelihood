@@ -55,7 +55,7 @@ export default function Categories() {
               className="bg-white rounded-2xl shadow hover:shadow-xl transition p-6"
             >
               <div className="flex flex-col items-center">
-                <div className="text-5xl">
+                <div className="text-3xl sm:text-5xl">
                   {getCategoryIcon(category.category)}
                 </div>
 

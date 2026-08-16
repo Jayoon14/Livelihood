@@ -283,7 +283,7 @@ export default function PaymentInformation() {
             }}
           />
 
-          <section className="relative w-full max-w-xl rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="relative w-full max-w-xl rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
               <LoaderCircle className="h-7 w-7 animate-spin" />
             </div>

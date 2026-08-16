@@ -608,11 +608,11 @@ export default function Notifications() {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           {loading ? (
-            <div className="p-10 text-center text-sm text-slate-500">
+            <div className="p-5 sm:p-7 lg:p-10 text-center text-sm text-slate-500">
               Loading notifications...
             </div>
           ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center p-12 text-center">
+            <div className="flex flex-col items-center p-5 sm:p-8 lg:p-12 text-center">
               <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
                 <Bell className="h-8 w-8 text-slate-400" />
               </div>

@@ -256,7 +256,7 @@ export default function Workers() {
 
   return (
     <CustomerLayout>
-      <div className="p-8" style={inter}>
+      <div className="p-4 sm:p-6 lg:p-8" style={inter}>
         {/* HERO */}
 
         <div
@@ -339,7 +339,7 @@ export default function Workers() {
 
         {/* FILTERS */}
 
-        <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="mb-8 rounded-3xl border border-slate-100 bg-white p-4 sm:p-6 lg:p-8 shadow-sm">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-blue-50">
@@ -440,12 +440,12 @@ export default function Workers() {
 
         {/* RESULT HEADER */}
 
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-slate-900" style={heading}>
+        <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
+          <h2 className="text-lg font-bold text-slate-900 sm:text-2xl" style={heading}>
             Available Workers
           </h2>
 
-          <div className="bg-blue-50 text-blue-700 px-5 py-2.5 rounded-full font-semibold flex items-center gap-2 text-sm">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm">
             <BadgeCheck size={17} />
             {workers.length} Workers Found
           </div>
@@ -510,7 +510,7 @@ export default function Workers() {
             </button>
           </div>
         ) : (
-          <div className="grid xl:grid-cols-3 md:grid-cols-2 gap-7">
+          <div className="grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3 xl:gap-7">
             {workers.map((worker) => {
               const averageRating = Number(worker.average_rating ?? 0).toFixed(
                 1,
@@ -526,7 +526,8 @@ export default function Workers() {
                   className="
                     group
                     bg-white
-                    rounded-3xl
+                    rounded-2xl
+                    sm:rounded-3xl
                     border
                     border-slate-100
                     shadow-lg
@@ -539,7 +540,7 @@ export default function Workers() {
                 >
                   {/* IMAGE */}
 
-                  <div className="relative h-60 overflow-hidden bg-slate-100">
+                  <div className="relative h-44 overflow-hidden bg-slate-100 sm:h-52 lg:h-60">
                     <img
                       src={
                         worker.profile_picture ||
@@ -558,16 +559,16 @@ export default function Workers() {
 
                     <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent" />
 
-                    <div className="absolute top-4 right-4">
-                      <span className="inline-flex items-center gap-1 bg-white/95 text-amber-600 px-4 py-2 rounded-full font-bold shadow-lg text-sm">
+                    <div className="absolute right-3 top-3 sm:right-4 sm:top-4">
+                      <span className="inline-flex items-center gap-1 bg-white/95 text-amber-600 px-3 py-1.5 rounded-full font-bold shadow-lg text-xs sm:px-4 sm:py-2 sm:text-sm">
                         <Star size={16} fill="currentColor" />
                         {averageRating}
                       </span>
                     </div>
 
-                    <div className="absolute bottom-5 left-5 right-5">
+                    <div className="absolute bottom-3 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5">
                       <h2
-                        className="text-xl font-bold text-white"
+                        className="text-lg font-bold text-white sm:text-xl"
                         style={heading}
                       >
                         {worker.first_name} {worker.last_name}
@@ -581,32 +582,32 @@ export default function Workers() {
 
                   {/* CARD BODY */}
 
-                  <div className="p-6">
-                    <div className="flex items-center flex-wrap gap-2 mb-4">
-                      <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-semibold">
+                  <div className="p-4 sm:p-5 lg:p-6">
+                    <div className="mb-3 flex flex-wrap items-center gap-1.5 sm:mb-4 sm:gap-2">
+                      <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-semibold sm:px-3 sm:py-1.5 sm:text-xs">
                         <BadgeCheck size={14} />
                         Verified Worker
                       </span>
 
                       {bookingState === "available" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 sm:px-3 sm:py-1.5 sm:text-xs">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           Available
                         </span>
                       ) : bookingState === "working" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 sm:px-3 sm:py-1.5 sm:text-xs">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
                           Working
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 sm:px-3 sm:py-1.5 sm:text-xs">
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                           Offline
                         </span>
                       )}
 
                       {worker.service_name && (
-                        <span className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-xs font-semibold">
+                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-semibold sm:px-3 sm:py-1.5 sm:text-xs">
                           {worker.service_name}
                         </span>
                       )}
@@ -621,31 +622,31 @@ export default function Workers() {
                         completedJobs: Number(worker.completed_jobs ?? 0),
                         reviewCount: Number(worker.review_count ?? 0),
                       }}
-                      className="mb-4"
+                      className="mb-3 sm:mb-4"
                     />
 
-                    <p className="text-slate-500 mt-5 leading-7 line-clamp-3 min-h-21 text-sm">
+                    <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500 sm:mt-5 sm:min-h-21 sm:line-clamp-3 sm:text-sm sm:leading-7">
                       {worker.description ||
                         "Professional and reliable worker ready to provide quality service."}
                     </p>
 
                     {/* DETAILS */}
 
-                    <div className="mt-6 grid grid-cols-2 items-stretch gap-4">
-                      <div className="flex h-28 flex-col justify-between rounded-2xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-emerald-100 p-5 shadow-sm">
+                    <div className="mt-4 grid grid-cols-2 items-stretch gap-2.5 sm:mt-6 sm:gap-4">
+                      <div className="flex h-20 flex-col justify-between rounded-xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-emerald-100 p-3 shadow-sm sm:h-28 sm:rounded-2xl sm:p-5">
                         <p className="text-xs uppercase tracking-wide text-emerald-700 font-semibold">
                           Completed Jobs
                         </p>
 
                         <p
-                          className="text-2xl font-bold text-emerald-700 mt-1"
+                          className="mt-1 text-lg font-bold text-emerald-700 sm:text-2xl"
                           style={heading}
                         >
                           {worker.completed_jobs ?? 0}
                         </p>
                       </div>
 
-                      <div className="flex h-28 flex-col justify-between rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50 to-orange-100 p-5 shadow-sm">
+                      <div className="flex h-20 flex-col justify-between rounded-xl border border-amber-200 bg-linear-to-br from-amber-50 to-orange-100 p-3 shadow-sm sm:h-28 sm:rounded-2xl sm:p-5">
                         <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">
                           Rating
                         </p>
@@ -658,7 +659,7 @@ export default function Workers() {
                           />
 
                           <p
-                            className="text-2xl font-bold text-amber-700"
+                            className="text-lg font-bold text-amber-700 sm:text-2xl"
                             style={heading}
                           >
                             {averageRating}
@@ -671,7 +672,7 @@ export default function Workers() {
 
                     {bookingState !== "available" && (
                       <div
-                        className={`mt-5 rounded-2xl border p-4 text-sm ${
+                        className={`mt-4 rounded-xl border p-3 text-xs sm:mt-5 sm:rounded-2xl sm:p-4 sm:text-sm ${
                           bookingState === "working"
                             ? "border-amber-200 bg-amber-50 text-amber-800"
                             : "border-rose-200 bg-rose-50 text-rose-800"
@@ -692,22 +693,26 @@ export default function Workers() {
 
                     {/* ACTIONS */}
 
-                    <div className="my-6 border-t border-slate-100" />
+                    <div className="my-4 border-t border-slate-100 sm:my-6" />
 
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2.5 sm:block sm:space-y-3">
                       <Link
                         to={`/customer/workers/${worker.id}`}
                         className="
                           block
                           w-full
-                          rounded-2xl
+                          rounded-xl
+                          sm:rounded-2xl
                           bg-linear-to-r
                           from-blue-700
                           via-blue-600
                           to-indigo-600
-                          py-3.5
+                          py-2.5
+                          sm:py-3.5
                           text-center
+                          text-xs
                           font-semibold
+                          sm:text-base
                           text-white
                           shadow-lg
                           shadow-blue-500/20
@@ -718,7 +723,7 @@ export default function Workers() {
                           hover:shadow-blue-500/30
                         "
                       >
-                        View Worker Profile
+                        View Profile
                       </Link>
 
                       <button
@@ -727,12 +732,16 @@ export default function Workers() {
                         }
                         className="
                           w-full
-                          rounded-2xl
+                          rounded-xl
+                          sm:rounded-2xl
                           border-2
                           border-slate-200
                           bg-white
-                          py-3.5
+                          py-2.5
+                          text-xs
                           font-semibold
+                          sm:py-3.5
+                          sm:text-base
                           text-slate-700
                           transition-all
                           duration-300
@@ -742,7 +751,7 @@ export default function Workers() {
                           hover:text-blue-700
                         "
                       >
-                        Compare Worker
+                        Compare
                       </button>
                     </div>
                   </div>

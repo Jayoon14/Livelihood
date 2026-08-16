@@ -119,7 +119,7 @@ export default function SkillsCertification() {
           </div>
 
           {data.skills.length===0 ?(
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-4 sm:p-6 lg:p-8 text-center">
               <Hammer className="mx-auto h-10 w-10 text-slate-300"/>
               <p className="mt-3 font-bold text-slate-500">
                 No skills selected yet

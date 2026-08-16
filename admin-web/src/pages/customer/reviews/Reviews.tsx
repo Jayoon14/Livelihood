@@ -37,13 +37,13 @@ export default function Reviews() {
 
   return (
     <WorkerLayout>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-3xl font-bold mb-8">Customer Reviews</h1>
 
         <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h2 className="text-xl font-bold">Overall Rating</h2>
 
-          <p className="text-5xl text-yellow-500 font-bold mt-4">
+          <p className="text-3xl sm:text-5xl text-yellow-500 font-bold mt-4">
             ⭐ {average}
           </p>
 
@@ -51,7 +51,7 @@ export default function Reviews() {
         </div>
 
         {reviews.length === 0 && (
-          <div className="bg-white rounded-xl shadow p-8 text-center">
+          <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8 text-center">
             <p className="text-gray-500">No reviews yet.</p>
           </div>
         )}

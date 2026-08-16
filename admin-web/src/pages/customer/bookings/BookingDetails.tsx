@@ -458,7 +458,7 @@ export default function BookingDetails() {
   if (loading) {
     return (
       <CustomerLayout>
-        <div className="flex min-h-80 flex-col items-center justify-center gap-4 p-10 text-center">
+        <div className="flex min-h-80 flex-col items-center justify-center gap-4 p-5 sm:p-7 lg:p-10 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
 
           <p className="font-medium text-gray-600">
@@ -473,7 +473,7 @@ export default function BookingDetails() {
     return (
       <CustomerLayout>
         <div className="mx-auto max-w-3xl p-6">
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-7 lg:p-10 text-center">
             <h1 className="text-2xl font-bold text-red-700">
               Booking not found
             </h1>

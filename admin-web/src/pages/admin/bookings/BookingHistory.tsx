@@ -128,11 +128,11 @@ export default function BookingHistory() {
         </div>
 
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8 lg:p-12 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">
             Loading booking details...
           </div>
         ) : error || !booking ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-950/20">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center dark:border-red-900/50 dark:bg-red-950/20">
             <p className="font-semibold text-red-700 dark:text-red-300">
               {error || "Booking not found."}
             </p>

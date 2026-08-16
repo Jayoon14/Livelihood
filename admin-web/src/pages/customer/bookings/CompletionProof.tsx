@@ -774,7 +774,7 @@ export default function CompletionProof() {
           )}
 
           {loading ? (
-            <section className="flex min-h-105 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <section className="flex min-h-105 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
 
               <h1 className="mt-5 text-xl font-bold text-slate-900 dark:text-white">
@@ -787,7 +787,7 @@ export default function CompletionProof() {
               </p>
             </section>
           ) : !booking || !proof ? (
-            <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <section className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
 
               <h1 className="mt-4 text-2xl font-bold text-slate-900 dark:text-white">
@@ -949,7 +949,7 @@ export default function CompletionProof() {
                 </div>
 
                 {images.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-700">
+                  <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-5 sm:p-7 lg:p-10 text-center dark:border-slate-700">
                     <ImageIcon className="mx-auto h-10 w-10 text-slate-400" />
 
                     <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">

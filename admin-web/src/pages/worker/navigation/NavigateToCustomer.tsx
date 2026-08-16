@@ -513,7 +513,7 @@ export default function NavigateToCustomer() {
     return (
       <WorkerLayout>
         <main className="min-h-screen bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
-          <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
             <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
               Loading customer location

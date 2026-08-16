@@ -655,7 +655,7 @@ export default function ChatRoom() {
             backgroundSize: "42px 42px",
           }}
         />
-        <div className="relative flex w-full max-w-md flex-col items-center gap-3 rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="relative flex w-full max-w-md flex-col items-center gap-3 rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-500/15 dark:text-blue-300">
             <LoaderCircle className="h-7 w-7 animate-spin text-blue-600" />
           </div>
@@ -680,7 +680,7 @@ export default function ChatRoom() {
             backgroundSize: "42px 42px",
           }}
         />
-        <div className="relative w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="relative w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
             <MessageCircleIcon />
           </div>

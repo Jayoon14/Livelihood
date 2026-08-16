@@ -461,7 +461,7 @@ export default function Documents() {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/75 p-8 text-center dark:border-slate-600 dark:bg-slate-900/50">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/75 p-4 sm:p-6 lg:p-8 text-center dark:border-slate-600 dark:bg-slate-900/50">
               <GraduationCap className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
 
               <p className="mt-3 font-black text-slate-600 dark:text-slate-300">

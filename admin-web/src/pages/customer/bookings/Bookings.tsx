@@ -659,8 +659,8 @@ export default function Bookings() {
           {loading ? (
             <BookingsSkeleton />
           ) : filteredBookings.length === 0 ? (
-            <div className="p-10 text-center">
-              <div className="text-6xl">📅</div>
+            <div className="p-5 sm:p-7 lg:p-10 text-center">
+              <div className="text-2xl sm:text-4xl sm:text-6xl">📅</div>
 
               <h2 className="text-2xl font-bold mt-4">
                 You don't have any bookings yet.
@@ -991,13 +991,13 @@ export default function Bookings() {
               {/* Close */}
               <button
                 onClick={closeBookingDetails}
-                className="absolute top-5 right-6 text-4xl text-white hover:text-red-300 z-10"
+                className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/15 text-2xl text-white transition hover:bg-black/25 hover:text-red-200 sm:right-6 sm:top-5 sm:text-4xl"
               >
                 ×
               </button>
 
               {/* Header */}
-              <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-t-3xl p-8">
+              <div className="bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-t-3xl p-4 sm:p-6 lg:p-8">
                 <div className="flex items-center gap-6">
                   <img
                     src={
@@ -1030,7 +1030,7 @@ export default function Bookings() {
 
               {/* Body */}
 
-              <div className="p-8 space-y-8">
+              <div className="p-4 sm:p-6 lg:p-8 space-y-8">
                 {/* Summary */}
 
                 <div className="grid md:grid-cols-3 gap-5">
@@ -1109,7 +1109,7 @@ export default function Bookings() {
                     </div>
 
                     {loadingCompletionProof ? (
-                      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center text-slate-500">
                         Loading completion proof...
                       </div>
                     ) : completionProofError ? (
@@ -1203,7 +1203,7 @@ export default function Bookings() {
 
                 <button
                   onClick={() => setReceiptBooking(null)}
-                  className="text-4xl hover:text-red-300"
+                  className="text-2xl sm:text-4xl hover:text-red-300"
                 >
                   ×
                 </button>

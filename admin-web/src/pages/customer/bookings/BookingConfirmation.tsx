@@ -126,7 +126,7 @@ function BookingConfirmationContent() {
 
   if (!routeState) {
     return (
-      <div className="p-10 text-center">
+      <div className="p-5 sm:p-7 lg:p-10 text-center">
         Booking information not found.
       </div>
     );
@@ -238,7 +238,7 @@ function BookingConfirmationContent() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="rounded-2xl bg-white p-8 shadow-lg">
+      <div className="rounded-2xl bg-white p-4 sm:p-6 lg:p-8 shadow-lg">
         <h1 className="mb-2 text-3xl font-bold">
           Confirm Scheduled Booking
         </h1>

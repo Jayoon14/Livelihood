@@ -317,11 +317,11 @@ export default function CustomerDetails() {
         </header>
 
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8 lg:p-12 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">
             Loading customer details...
           </div>
         ) : error || !customer ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center dark:border-red-900 dark:bg-red-950/30">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-7 lg:p-10 text-center dark:border-red-900 dark:bg-red-950/30">
             <p className="font-semibold text-red-700 dark:text-red-300">
               {error || "Customer not found."}
             </p>
@@ -343,7 +343,7 @@ export default function CustomerDetails() {
                   className="h-24 w-24 rounded-full border border-slate-200 object-cover dark:border-slate-700"
                 />
               ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-4xl font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-2xl sm:text-4xl font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                   {customer.full_name
                     .charAt(0)
                     .toUpperCase()}
@@ -662,7 +662,7 @@ function EmptyState({
   text: string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-950/40">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:p-6 lg:p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-950/40">
       <div className="mx-auto mb-2 w-fit text-slate-400">
         {icon}
       </div>

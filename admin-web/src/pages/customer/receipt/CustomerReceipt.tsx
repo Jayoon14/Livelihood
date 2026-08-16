@@ -459,7 +459,7 @@ export default function CustomerReceipt() {
     return (
       <CustomerLayout>
         <div className="min-h-[70vh] bg-gray-50 px-4 py-10 sm:px-6">
-          <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
               <ReceiptText size={30} />
             </div>

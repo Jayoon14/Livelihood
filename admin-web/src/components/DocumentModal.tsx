@@ -20,7 +20,7 @@ export default function DocumentModal({
   const url = URL.createObjectURL(file);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex justify-center items-center p-8">
+    <div className="fixed inset-0 z-50 bg-black/70 flex justify-center items-center p-4 sm:p-6 lg:p-8">
 
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
 

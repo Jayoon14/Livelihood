@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
   Wrench,
+  X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -65,9 +66,21 @@ const menus = [
   },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function AdminSidebar({
+  isOpen,
+  onClose,
+}: AdminSidebarProps) {
   return (
-    <aside className="flex min-h-screen w-72 flex-col bg-slate-900 text-white">
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col overflow-y-auto bg-slate-900 text-white shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:min-h-dvh lg:w-72 lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
       <div className="border-b border-slate-700 p-6">
         <div className="flex items-center gap-3">
           <img
@@ -75,10 +88,18 @@ export default function AdminSidebar() {
             alt="SerbisyoGo logo"
             className="h-14 w-16 rounded-xl object-cover object-center"
           />
-          <div>
-            <h1 className="text-2xl font-bold">SerbisyoGo</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-bold">SerbisyoGo</h1>
             <p className="mt-1 text-sm text-slate-300">Administrator Panel</p>
           </div>
+          <button
+            type="button"
+            aria-label="Close admin sidebar"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-slate-800 hover:text-white lg:hidden"
+          >
+            <X size={20} />
+          </button>
         </div>
       </div>
 
@@ -90,9 +111,10 @@ export default function AdminSidebar() {
             <NavLink
               key={menu.label}
               to={menu.path}
+              onClick={onClose}
               className={({ isActive }) =>
                 [
-                  "flex items-center gap-4 px-8 py-4 transition",
+                  "flex items-center gap-4 px-6 py-3.5 transition sm:px-8 sm:py-4",
                   isActive
                     ? "bg-blue-600 font-semibold text-white"
                     : "text-slate-200 hover:bg-slate-800 hover:text-white",

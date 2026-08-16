@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import AdminSidebar from "../components/admin/AdminSidebar";
 import AdminNavbar from "../components/admin/AdminNavbar";
@@ -11,23 +11,43 @@ interface AdminLayoutProps {
 export default function AdminLayout({
   children,
 }: AdminLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
   return (
-    <div className="min-h-screen bg-slate-100 flex">
+    <div className="flex min-h-dvh min-w-0 bg-(--app-bg) text-(--app-text)">
+      <AdminSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <AdminSidebar />
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close admin sidebar"
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/45 lg:hidden"
+        />
+      )}
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+        <AdminNavbar onMenuClick={() => setSidebarOpen(true)} />
 
-        <AdminNavbar />
-
-        <main className="flex-1 p-8 overflow-auto">
-          {children}
+        <main className="min-w-0 flex-1 overflow-x-hidden">
+          <div className="mx-auto w-full max-w-[1800px] px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-8 xl:px-8">
+            {children}
+          </div>
         </main>
 
         <Footer />
-
       </div>
-
     </div>
   );
 }

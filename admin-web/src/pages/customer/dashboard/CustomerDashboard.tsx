@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Bell,
   CalendarCheck,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Heart,
@@ -219,6 +220,20 @@ export default function CustomerDashboard() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const recommendedScrollRef = useRef<HTMLDivElement | null>(null);
+  const featuredScrollRef = useRef<HTMLDivElement | null>(null);
+  const recentScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollMobileRail = (
+    ref: { current: HTMLDivElement | null },
+    direction: "left" | "right",
+  ) => {
+    ref.current?.scrollBy({
+      left: direction === "left" ? -260 : 260,
+      behavior: "smooth",
+    });
+  };
 
   const [analytics, setAnalytics] = useState({
     totalBookings: 0,
@@ -1010,7 +1025,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:p-6 lg:p-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
                 <CalendarCheck className="mx-auto h-8 w-8 text-slate-300" />
                 <h3 className="mt-3 font-black text-slate-800 dark:text-white">
                   No upcoming booking
@@ -1020,7 +1035,7 @@ export default function CustomerDashboard() {
                 </p>
                 <button
                   onClick={() => navigate("/customer/workers")}
-                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-indigo-700"
+                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black sm:py-2.5 sm:text-sm text-white transition hover:-translate-y-0.5 hover:bg-indigo-700"
                 >
                   Browse workers
                 </button>
@@ -1108,19 +1123,44 @@ export default function CustomerDashboard() {
               </div>
               <button
                 onClick={() => navigate("/customer/workers")}
-                className="text-sm font-black text-indigo-600 hover:underline dark:text-indigo-400"
+                className="text-xs font-black text-indigo-600 hover:underline dark:text-indigo-400 sm:text-sm"
               >
-                Explore all workers
+                Explore all
               </button>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <p className="mt-3 text-[11px] font-semibold text-slate-400 sm:hidden">
+              Swipe or use the arrows to browse
+            </p>
+
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Previous recommended worker"
+                onClick={() => scrollMobileRail(recommendedScrollRef, "left")}
+                className="absolute left-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white sm:hidden"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                aria-label="Next recommended worker"
+                onClick={() => scrollMobileRail(recommendedScrollRef, "right")}
+                className="absolute right-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition active:scale-95 sm:hidden"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              <div
+                ref={recommendedScrollRef}
+                className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-5 pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mt-6 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-3"
+              >
               {recommendedWorkers.slice(0, 3).map((worker) => (
                 <article
                   key={worker.id}
-                  className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900"
+                  className="w-[74vw] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-[1.25rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 md:w-auto md:max-w-none md:shrink"
                 >
-                  <div className="relative h-44 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <div className="relative h-32 overflow-hidden bg-slate-100 dark:bg-slate-800 sm:h-36 md:h-44">
                     <img
                       src={
                         getWorkerImage(worker) ||
@@ -1136,7 +1176,7 @@ export default function CustomerDashboard() {
                       />
                     </div>
                   </div>
-                  <div className="p-5">
+                  <div className="p-4 sm:p-5">
                     <h3
                       className="font-black text-slate-900 dark:text-white"
                       style={heading}
@@ -1156,13 +1196,14 @@ export default function CustomerDashboard() {
                     </div>
                     <button
                       onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                      className="mt-5 w-full rounded-xl bg-linear-to-r from-blue-700 via-blue-600 to-indigo-600 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30"
+                      className="mt-4 w-full rounded-xl bg-linear-to-r from-blue-700 via-blue-600 to-indigo-600 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30"
                     >
                       View profile
                     </button>
                   </div>
                 </article>
               ))}
+              </div>
             </div>
           </section>
         )}
@@ -1182,23 +1223,44 @@ export default function CustomerDashboard() {
             </div>
             <button
               onClick={() => navigate("/customer/workers")}
-              className="shrink-0 text-sm font-black text-indigo-600 hover:underline dark:text-indigo-400"
+              className="shrink-0 text-xs font-black text-indigo-600 hover:underline dark:text-indigo-400 sm:text-sm"
             >
               View all
             </button>
           </div>
 
-          <p className="mt-3 text-xs font-semibold text-slate-400 sm:hidden">
-            Swipe sideways to browse workers
+          <p className="mt-3 text-[11px] font-semibold text-slate-400 sm:hidden">
+            Swipe or use the arrows to browse
           </p>
 
-          <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-3 pr-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Previous featured worker"
+              onClick={() => scrollMobileRail(featuredScrollRef, "left")}
+              className="absolute left-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white sm:hidden"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next featured worker"
+              onClick={() => scrollMobileRail(featuredScrollRef, "right")}
+              className="absolute right-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition active:scale-95 sm:hidden"
+            >
+              <ChevronRight size={18} />
+            </button>
+
+            <div
+              ref={featuredScrollRef}
+              className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-5 pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-6 sm:gap-4 sm:px-0 sm:pb-3 sm:[scrollbar-width:thin]"
+            >
             {filteredWorkers.map((worker) => (
               <article
                 key={worker.id}
-                className="group w-[82vw] max-w-sm shrink-0 snap-start overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:w-[360px] lg:w-[380px]"
+                className="group w-[74vw] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] dark:border-slate-700 dark:bg-slate-900 sm:w-[340px] sm:max-w-sm lg:w-[380px]"
               >
-                <div className="relative h-40 overflow-hidden bg-slate-100 dark:bg-slate-800">
+                <div className="relative h-32 overflow-hidden sm:h-40 bg-slate-100 dark:bg-slate-800">
                   <img
                     src={
                       worker.profile_picture || "https://placehold.co/600x400"
@@ -1220,7 +1282,7 @@ export default function CustomerDashboard() {
                     />
                   </button>
                 </div>
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3
@@ -1270,18 +1332,43 @@ export default function CustomerDashboard() {
                 </div>
               </article>
             ))}
+            </div>
           </div>
         </section>
 
         {recentWorkers.length > 0 && (
           <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-7">
-            <h2
-              className="text-xl font-black text-slate-900 dark:text-white"
-              style={heading}
-            >
-              Recently viewed
-            </h2>
-            <div className="mt-5 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:thin]">
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                className="text-xl font-black text-slate-900 dark:text-white"
+                style={heading}
+              >
+                Recently viewed
+              </h2>
+
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Previous recently viewed worker"
+                onClick={() => scrollMobileRail(recentScrollRef, "left")}
+                className="absolute left-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-700 shadow-lg backdrop-blur transition active:scale-95 dark:border-slate-700 dark:bg-slate-800/95 dark:text-white sm:hidden"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                aria-label="Next recently viewed worker"
+                onClick={() => scrollMobileRail(recentScrollRef, "right")}
+                className="absolute right-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition active:scale-95 sm:hidden"
+              >
+                <ChevronRight size={18} />
+              </button>
+
+              <div
+                ref={recentScrollRef}
+                className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-5 sm:px-0 sm:[scrollbar-width:thin]"
+              >
               {recentWorkers.map((item) => {
                 const worker = item.worker;
                 if (!worker) return null;
@@ -1289,14 +1376,14 @@ export default function CustomerDashboard() {
                   <button
                     key={worker.id}
                     onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                    className="flex min-w-55 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-indigo-500/10"
+                    className="flex min-w-[190px] max-w-[220px] snap-start items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-indigo-500/10"
                   >
                     <img
                       src={
                         worker.profile_picture || "https://placehold.co/100x100"
                       }
                       alt="Worker"
-                      className="h-12 w-12 rounded-xl object-cover"
+                      className="h-10 w-10 rounded-xl object-cover sm:h-12 sm:w-12"
                     />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-slate-800 dark:text-slate-200">
@@ -1313,6 +1400,7 @@ export default function CustomerDashboard() {
                   </button>
                 );
               })}
+              </div>
             </div>
           </section>
         )}

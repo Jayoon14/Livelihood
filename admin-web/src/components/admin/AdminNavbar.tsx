@@ -6,6 +6,7 @@ import {
   Settings,
   User,
   UserCircle,
+  Menu,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +15,13 @@ import { logout } from "../../services/authService";
 import ThemeDropdown from "../common/ThemeDropdown";
 import NotificationDropdown from "../notifications/NotificationDropdown";
 
-export default function AdminNavbar() {
+interface AdminNavbarProps {
+  onMenuClick: () => void;
+}
+
+export default function AdminNavbar({
+  onMenuClick,
+}: AdminNavbarProps) {
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -90,18 +97,28 @@ export default function AdminNavbar() {
   const avatar = profile?.profile_picture ?? "";
 
   return (
-    <header className="flex h-20 items-center justify-between border-b border-slate-200 bg-white px-8 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-950">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+    <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-950/95 sm:min-h-20 sm:px-5 sm:py-0 lg:px-8">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open admin sidebar"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 lg:hidden"
+        >
+          <Menu size={21} />
+        </button>
+        <div className="min-w-0">
+        <h1 className="truncate text-base font-bold text-gray-800 dark:text-white sm:text-2xl">
           Administrator Dashboard
         </h1>
 
-        <p className="text-gray-500 dark:text-slate-400">
+        <p className="hidden text-gray-500 dark:text-slate-400 sm:block">
           Welcome back, {fullName}
         </p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2 lg:gap-4">
         <ThemeDropdown />
 
         <NotificationDropdown role="admin" />
@@ -112,7 +129,7 @@ export default function AdminNavbar() {
             onClick={() => {
               setOpen((currentOpen) => !currentOpen);
             }}
-            className="flex items-center gap-3 rounded-xl px-3 py-2 transition hover:bg-gray-100 dark:hover:bg-slate-800"
+            className="flex items-center gap-1.5 rounded-xl px-1 py-1.5 transition hover:bg-gray-100 dark:hover:bg-slate-800 sm:gap-3 sm:px-2 sm:py-2"
             aria-expanded={open}
             aria-haspopup="menu"
           >
@@ -120,12 +137,12 @@ export default function AdminNavbar() {
               <img
                 src={avatar}
                 alt={`${fullName} profile`}
-                className="h-11 w-11 rounded-full border-2 border-red-600 object-cover"
+                className="h-9 w-9 shrink-0 rounded-full border-2 border-red-600 object-cover sm:h-11 sm:w-11"
               />
             ) : (
               <UserCircle
-                size={42}
-                className="text-red-600"
+                size={36}
+                className="shrink-0 text-red-600 sm:h-[42px] sm:w-[42px]"
               />
             )}
 
@@ -152,7 +169,7 @@ export default function AdminNavbar() {
           {open && (
             <div
               role="menu"
-              className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              className="absolute right-0 z-50 mt-3 w-[min(16rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
             >
               <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                 <p className="truncate font-semibold text-slate-900 dark:text-white">

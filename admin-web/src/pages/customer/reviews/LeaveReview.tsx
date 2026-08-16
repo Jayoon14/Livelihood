@@ -193,7 +193,7 @@ export default function LeaveReview() {
     return (
       <CustomerLayout>
         <div className="mx-auto max-w-xl px-4 py-12">
-          <div className="rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <div className="rounded-3xl border border-red-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm">
             <h1 className="text-2xl font-black text-slate-950">Review unavailable</h1>
             <p className="mt-3 text-slate-600">{errorMessage || "Booking not found."}</p>
             <button

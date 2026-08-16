@@ -622,5 +622,5 @@
     );
   }
   function State({ text }: { text: string }) {
-    return <div className="p-12 text-center text-slate-500">{text}</div>;
+    return <div className="p-5 sm:p-8 lg:p-12 text-center text-slate-500">{text}</div>;
   }

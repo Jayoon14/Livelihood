@@ -6,7 +6,7 @@ type Props = {
 
 export default function AuthCard({ children }: Props) {
   return (
-    <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
+    <div className="bg-white shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md">
       {children}
     </div>
   );

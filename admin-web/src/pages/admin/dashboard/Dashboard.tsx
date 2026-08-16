@@ -847,7 +847,7 @@ function EmptyRow({
     <tr>
       <td
         colSpan={columns}
-        className="p-10 text-center text-slate-500 dark:text-slate-400"
+        className="p-5 sm:p-7 lg:p-10 text-center text-slate-500 dark:text-slate-400"
       >
         {text}
       </td>

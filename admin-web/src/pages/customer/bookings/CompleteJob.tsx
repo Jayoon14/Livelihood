@@ -984,7 +984,7 @@ export default function CompleteJob() {
           )}
 
           {loadingBooking ? (
-            <section className="flex min-h-96 flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <section className="flex min-h-96 flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <Loader2 className="h-11 w-11 animate-spin text-blue-600" />
               <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
                 Loading booking
@@ -994,7 +994,7 @@ export default function CompleteJob() {
               </p>
             </section>
           ) : !booking ? (
-            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300">
                 <FileText className="h-10 w-10" />
               </div>

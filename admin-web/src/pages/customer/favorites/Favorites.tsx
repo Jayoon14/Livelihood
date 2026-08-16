@@ -142,7 +142,7 @@ export default function Favorites() {
 
         {/* Loading */}
         {loading && (
-          <div className="flex min-h-64 items-center justify-center rounded-2xl border border-gray-100 bg-white p-8 shadow-sm sm:rounded-3xl">
+          <div className="flex min-h-64 items-center justify-center rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 lg:p-8 shadow-sm sm:rounded-3xl">
             <div className="text-center">
               <Loader2
                 size={38}

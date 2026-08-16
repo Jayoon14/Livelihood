@@ -335,7 +335,7 @@ export default function BookWorker() {
   if (error && !worker) {
     return (
       <CustomerLayout>
-        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center">
           <h1 className="text-2xl font-bold text-red-800">
             Unable to open booking page
           </h1>
@@ -357,7 +357,7 @@ export default function BookWorker() {
   if (!worker) {
     return (
       <CustomerLayout>
-        <div className="p-10 text-center">
+        <div className="p-5 sm:p-7 lg:p-10 text-center">
           Worker profile not found.
         </div>
       </CustomerLayout>
@@ -374,7 +374,7 @@ export default function BookWorker() {
 
   return (
     <CustomerLayout>
-      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow">
+      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-4 sm:p-6 lg:p-8 shadow">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-900">
             Schedule Worker

@@ -235,7 +235,7 @@ function Avatar({
 
 function EmptyChat() {
   return (
-    <div className="flex h-full items-center justify-center bg-linear-to-br from-slate-50 to-blue-50/60 p-8 text-center dark:from-slate-950 dark:to-blue-950/30">
+    <div className="flex h-full items-center justify-center bg-linear-to-br from-slate-50 to-blue-50/60 p-4 sm:p-6 lg:p-8 text-center dark:from-slate-950 dark:to-blue-950/30">
       <div>
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[28px] bg-blue-600 text-white shadow-xl shadow-blue-600/25">
           <MessageCircle className="h-9 w-9" />
@@ -878,14 +878,14 @@ export default function ChatList() {
                 ))}
               </div>
             ) : listError ? (
-              <div className="p-8 text-center">
+              <div className="p-4 sm:p-6 lg:p-8 text-center">
                 <MessageCircle className="mx-auto h-10 w-10 text-red-300" />
                 <p className="mt-3 text-sm font-bold text-red-600 dark:text-red-300">
                   {listError}
                 </p>
               </div>
             ) : filteredConversations.length === 0 ? (
-              <div className="p-10 text-center">
+              <div className="p-5 sm:p-7 lg:p-10 text-center">
                 <Inbox className="mx-auto h-10 w-10 text-slate-300" />
 
                 <h2 className="mt-3 font-black text-slate-800 dark:text-white">

@@ -405,7 +405,7 @@ export default function WorkerDetails() {
   if (loading)
     return (
       <AdminLayout>
-        <div className="p-12 text-center text-slate-500">
+        <div className="p-5 sm:p-8 lg:p-12 text-center text-slate-500">
           Loading worker details...
         </div>
       </AdminLayout>
@@ -413,8 +413,8 @@ export default function WorkerDetails() {
   if (error || !details || !worker)
     return (
       <AdminLayout>
-        <div className="p-8">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+        <div className="p-4 sm:p-6 lg:p-8">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center text-red-700">
             <p>{error || "Worker was not found."}</p>
             <button
               onClick={() => void loadWorker()}
@@ -459,7 +459,7 @@ export default function WorkerDetails() {
               className="h-24 w-24 rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-4xl font-bold text-blue-700">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-100 text-2xl sm:text-4xl font-bold text-blue-700">
               {fullName.charAt(0)}
             </div>
           )}
@@ -1054,7 +1054,7 @@ function MetricCard({
 }
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-950/40">
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 sm:p-6 lg:p-8 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-950/40">
       {text}
     </div>
   );

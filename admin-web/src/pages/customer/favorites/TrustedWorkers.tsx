@@ -517,7 +517,7 @@ export default function TrustedWorkers() {
         </div>
 
         {loading && (
-          <div className="flex min-h-64 items-center justify-center rounded-2xl border border-gray-100 bg-white p-8 shadow-sm sm:rounded-3xl">
+          <div className="flex min-h-64 items-center justify-center rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 lg:p-8 shadow-sm sm:rounded-3xl">
             <div className="text-center">
               <Loader2
                 size={38}
@@ -556,7 +556,7 @@ export default function TrustedWorkers() {
         )}
 
         {!loading && records.length > 0 && filteredRecords.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm sm:rounded-3xl">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 lg:p-10 text-center shadow-sm sm:rounded-3xl">
             <Search size={36} className="mx-auto text-slate-400" />
             <h2 className="mt-4 text-xl font-bold text-slate-900">
               No matching worker

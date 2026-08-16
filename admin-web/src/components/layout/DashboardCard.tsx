@@ -14,7 +14,7 @@ export default function DashboardCard({
         {title}
       </p>
 
-      <h2 className="text-4xl font-bold mt-3">
+      <h2 className="text-2xl sm:text-4xl font-bold mt-3">
         {value}
       </h2>
 

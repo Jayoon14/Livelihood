@@ -682,11 +682,11 @@ export default function Customers() {
         </section>
 
         {loading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-8 lg:p-12 text-center text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             Loading customers...
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-950/30">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center dark:border-red-900 dark:bg-red-950/30">
             <p className="font-semibold text-red-700 dark:text-red-300">
               {error}
             </p>
@@ -699,7 +699,7 @@ export default function Customers() {
             </button>
           </div>
         ) : pageCustomers.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 sm:p-8 lg:p-12 text-center dark:border-slate-700 dark:bg-slate-900">
             <Users className="mx-auto h-10 w-10 text-slate-400" />
             <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">
               No customers found

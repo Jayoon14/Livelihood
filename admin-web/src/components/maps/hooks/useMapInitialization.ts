@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type {
   Dispatch,
   MutableRefObject,
@@ -166,6 +166,12 @@ export function useMapInitialization({
   initialLocation,
   navigationMode,
 }: UseMapInitializationParams) {
+  const saveLocationRef = useRef(saveLocation);
+
+  useEffect(() => {
+    saveLocationRef.current = saveLocation;
+  }, [saveLocation]);
+
   useEffect(() => {
     const container = mapContainerRef.current;
 
@@ -206,7 +212,7 @@ if (navigationMode) {
         event.lngLat.lat,
       ]);
 
-      await saveLocation(
+      await saveLocationRef.current(
         event.lngLat.lat,
         event.lngLat.lng,
       );
@@ -282,7 +288,6 @@ if (navigationMode) {
   markerRef,
   navigationMode,
   routeCoordinatesRef,
-  saveLocation,
   setBearing,
   setMapReady,
   setMouseCoordinates,

@@ -744,7 +744,7 @@ export default function Bookings() {
         </section>
 
         {isLoading ? (
-          <section className="flex min-h-80 flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="flex min-h-80 flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
             <h2 className="mt-5 text-xl font-bold">Loading bookings</h2>
             <p className="mt-2 text-slate-500">
@@ -752,7 +752,7 @@ export default function Bookings() {
             </p>
           </section>
         ) : visibleBookingGroups.length === 0 ? (
-          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
               <CalendarDays className="h-10 w-10 text-blue-600" />
             </div>
@@ -1301,8 +1301,8 @@ function BookingProgress({ status }: { status: BookingStatus }) {
   ];
 
   return (
-    <div className="overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:thin]">
-      <div className="relative min-w-[760px]">
+    <div className="max-w-full overflow-x-auto overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+      <div className="relative min-w-[680px] sm:min-w-[760px]">
         <div className="absolute left-12 right-12 top-7 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
         <div className="relative z-10 grid grid-cols-5 gap-4">
           {steps.map((label, index) => {

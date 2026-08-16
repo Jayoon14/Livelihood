@@ -12,7 +12,7 @@ export default function ProofImageGallery({ images }: Props) {
       </button>)}
     </div>
     {active && <div className="fixed inset-0 z-120 flex items-center justify-center bg-black/85 p-4" onMouseDown={(e) => e.target === e.currentTarget && setActive(null)}>
-      <button type="button" onClick={() => setActive(null)} className="absolute right-5 top-4 text-4xl text-white">×</button>
+      <button type="button" onClick={() => setActive(null)} className="absolute right-5 top-4 text-2xl sm:text-4xl text-white">×</button>
       <img src={active} alt="Completion proof preview" className="max-h-[90vh] max-w-[95vw] rounded-xl object-contain"/>
     </div>}
   </>;

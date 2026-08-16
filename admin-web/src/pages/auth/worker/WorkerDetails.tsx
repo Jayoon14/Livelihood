@@ -163,19 +163,19 @@ export default function WorkerDetails() {
   }
 
   if (loading) {
-    return <div className="p-10 text-xl">Loading...</div>;
+    return <div className="p-5 sm:p-7 lg:p-10 text-xl">Loading...</div>;
   }
 
   if (!worker) {
-    return <div className="p-10 text-xl">Worker not found.</div>;
+    return <div className="p-5 sm:p-7 lg:p-10 text-xl">Worker not found.</div>;
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       <h1 className="text-3xl font-bold">Worker Details</h1>
 
       {/* PERSONAL INFORMATION */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Personal Information</h2>
 
         <div className="grid grid-cols-2 gap-6">
@@ -250,7 +250,7 @@ export default function WorkerDetails() {
       </div>
 
       {/* EDUCATION */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Educational Background</h2>
 
         {education ? (
@@ -302,7 +302,7 @@ export default function WorkerDetails() {
       </div>
 
       {/* WORK EXPERIENCE */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Work Experience</h2>
 
         {experience.length > 0 ? (
@@ -324,7 +324,7 @@ export default function WorkerDetails() {
       </div>
 
       {/* SKILLS */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Skills</h2>
 
         {skills.length > 0 ? (
@@ -344,7 +344,7 @@ export default function WorkerDetails() {
       </div>
 
       {/* SERVICES */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Services Offered</h2>
 
         {services.length > 0 ? (
@@ -365,7 +365,7 @@ export default function WorkerDetails() {
       </div>
 
       {/* DOCUMENTS */}
-      <div className="bg-white rounded-xl shadow p-8">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 lg:p-8">
         <h2 className="text-xl font-bold mb-6">Uploaded Documents</h2>
 
         {documents ? (

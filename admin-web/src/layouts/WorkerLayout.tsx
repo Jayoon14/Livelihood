@@ -98,7 +98,7 @@ export default function WorkerLayout({ children }: WorkerLayoutProps) {
 
   return (
     <ProfileProvider>
-      <div className="flex min-h-screen bg-slate-100">
+      <div className="flex min-h-dvh min-w-0 bg-(--app-bg) text-(--app-text)">
         <WorkerSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
         {sidebarOpen && (
@@ -110,11 +110,13 @@ export default function WorkerLayout({ children }: WorkerLayoutProps) {
           />
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
           <WorkerNavbar onMenuClick={openSidebar} />
 
-          <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
-            {children}
+          <main className="min-w-0 flex-1 overflow-x-hidden">
+            <div className="mx-auto w-full max-w-[1800px] px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-8 xl:px-8">
+              {children}
+            </div>
           </main>
 
           <Footer />

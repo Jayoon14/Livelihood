@@ -779,7 +779,7 @@ export default function FloatingChatWidget() {
                   <LoaderCircle className="h-7 w-7 animate-spin text-blue-600" />
                 </div>
               ) : filteredConversations.length === 0 ? (
-                <div className="p-8 text-center">
+                <div className="p-4 sm:p-6 lg:p-8 text-center">
                   <MessageCircle className="mx-auto h-9 w-9 text-slate-300" />
                   <p className="mt-3 text-sm font-bold text-slate-700">
                     No conversations found

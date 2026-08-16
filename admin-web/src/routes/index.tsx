@@ -170,7 +170,7 @@ import { lazy, Suspense } from "react";
   function UnauthorizedPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <section className="w-full max-w-lg rounded-2xl sm:rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-xl">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">
             !
           </div>
@@ -198,7 +198,7 @@ import { lazy, Suspense } from "react";
   function AccountPendingPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <section className="w-full max-w-lg rounded-2xl sm:rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-xl">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">
             ⏳
           </div>
@@ -227,7 +227,7 @@ import { lazy, Suspense } from "react";
   function NotFoundPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-        <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+        <section className="w-full max-w-lg rounded-2xl sm:rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-xl">
           <p className="text-7xl font-black text-emerald-600">404</p>
 
           <h1 className="mt-4 text-3xl font-black text-slate-900">

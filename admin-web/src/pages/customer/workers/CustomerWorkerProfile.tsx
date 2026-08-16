@@ -816,7 +816,7 @@ export default function CustomerWorkerProfile() {
     return (
       <CustomerLayout>
         <div className="mx-auto flex min-h-[60vh] w-full max-w-[1800px] items-center justify-center px-4 py-10">
-          <div className="w-full max-w-lg rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-red-100 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
               <Briefcase size={26} />
             </div>

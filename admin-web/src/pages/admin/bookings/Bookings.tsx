@@ -847,11 +847,11 @@ export default function Bookings() {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           {loading ? (
-            <div className="p-12 text-center text-sm text-slate-500">
+            <div className="p-5 sm:p-8 lg:p-12 text-center text-sm text-slate-500">
               Loading bookings...
             </div>
           ) : error ? (
-            <div className="p-12 text-center">
+            <div className="p-5 sm:p-8 lg:p-12 text-center">
               <p className="font-semibold text-red-600">{error}</p>
               <button
                 type="button"
@@ -862,7 +862,7 @@ export default function Bookings() {
               </button>
             </div>
           ) : visibleBookings.length === 0 ? (
-            <div className="p-12 text-center text-sm text-slate-500">
+            <div className="p-5 sm:p-8 lg:p-12 text-center text-sm text-slate-500">
               No bookings match the current search and filters.
             </div>
           ) : (

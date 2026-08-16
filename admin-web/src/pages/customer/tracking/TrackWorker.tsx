@@ -1267,7 +1267,7 @@ export default function TrackWorker() {
   if (loading) {
     return (
       <CustomerLayout>
-        <div className="p-10 text-center">Loading live worker tracking...</div>
+        <div className="p-5 sm:p-7 lg:p-10 text-center">Loading live worker tracking...</div>
       </CustomerLayout>
     );
   }
@@ -1275,7 +1275,7 @@ export default function TrackWorker() {
   if (errorMessage || !booking || !customerCoordinates) {
     return (
       <CustomerLayout>
-        <div className="mx-auto max-w-3xl p-8">
+        <div className="mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
             {errorMessage || "This booking has no saved customer coordinates."}
           </div>

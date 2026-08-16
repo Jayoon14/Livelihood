@@ -119,7 +119,7 @@ export default function CompareWorkers() {
   }, [leftId, rightId]);
   return (
     <CustomerLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         <h1 className="text-3xl font-bold">Compare Workers</h1>
 
         {leftScore > rightScore && leftWorker && (

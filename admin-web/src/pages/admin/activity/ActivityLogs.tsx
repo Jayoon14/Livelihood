@@ -792,7 +792,7 @@ export default function ActivityLogs() {
         </section>
 
         {error ? (
-          <section className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/40 dark:bg-red-950/20">
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center dark:border-red-900/40 dark:bg-red-950/20">
             <p className="font-semibold text-red-700 dark:text-red-300">
               {error}
             </p>
