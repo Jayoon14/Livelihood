@@ -22,7 +22,7 @@ export default function AdminLayout({
   }, [sidebarOpen]);
 
   return (
-    <div className="flex min-h-dvh min-w-0 bg-(--app-bg) text-(--app-text)">
+    <div className="admin-responsive flex min-h-dvh min-w-0 bg-(--app-bg) text-(--app-text)">
       <AdminSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

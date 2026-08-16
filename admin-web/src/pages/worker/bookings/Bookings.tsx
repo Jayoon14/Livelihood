@@ -24,6 +24,7 @@ import {
   X,
   Flag,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
@@ -235,6 +236,9 @@ export default function Bookings() {
   const [activeCasesByBooking, setActiveCasesByBooking] = useState<
     Record<number, ReportCase[]>
   >({});
+  const [expandedBookingIds, setExpandedBookingIds] = useState<Set<number>>(
+    () => new Set(),
+  );
   const [selectedBooking, setSelectedBooking] = useState<WorkerBooking | null>(
     null,
   );
@@ -243,6 +247,20 @@ export default function Bookings() {
   const [actionState, setActionState] = useState<ActionState | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const toggleBookingExpanded = useCallback((bookingId: number) => {
+    setExpandedBookingIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(bookingId)) {
+        next.delete(bookingId);
+      } else {
+        next.add(bookingId);
+      }
+
+      return next;
+    });
+  }, []);
 
   const loadBookings = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -800,38 +818,68 @@ export default function Bookings() {
                         key={booking.id}
                         className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900"
                       >
-                        <div className="relative bg-linear-to-br from-blue-700 via-blue-600 to-indigo-600 p-5 text-white sm:p-6">
-                          <span
-                            className={`absolute right-4 top-4 rounded-full px-3 py-1.5 text-xs font-bold ${getStatusBadgeClass(booking.status)}`}
-                          >
-                            {booking.status}
-                          </span>
-
-                          <div className="flex min-w-0 items-center gap-4 pr-24">
-                            {booking.customer?.profile_picture ? (
-                              <img
-                                src={booking.customer.profile_picture}
-                                alt={customerName}
-                                className="h-14 w-14 shrink-0 rounded-2xl border-4 border-white object-cover shadow-md sm:h-16 sm:w-16"
-                              />
-                            ) : (
-                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-4 border-white bg-white font-black text-blue-700 shadow-md sm:h-16 sm:w-16">
-                                {getCustomerInitials(booking.customer)}
+                        <div className="relative bg-linear-to-br from-blue-700 via-blue-600 to-indigo-600 p-4 text-white sm:p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              {booking.customer?.profile_picture ? (
+                                <img
+                                  src={booking.customer.profile_picture}
+                                  alt={customerName}
+                                  className="h-12 w-12 shrink-0 rounded-xl border-2 border-white object-cover shadow-md sm:h-14 sm:w-14"
+                                />
+                              ) : (
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-white bg-white font-black text-blue-700 shadow-md sm:h-14 sm:w-14">
+                                  {getCustomerInitials(booking.customer)}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <h3 className="truncate text-base font-black sm:text-lg">
+                                  {customerName}
+                                </h3>
+                                <p className="text-xs text-blue-100 sm:text-sm">Customer</p>
+                                <p className="mt-0.5 text-[11px] text-blue-100 sm:text-xs">
+                                  Booking #{booking.id}
+                                </p>
                               </div>
-                            )}
-                            <div className="min-w-0">
-                              <h3 className="truncate text-lg font-black sm:text-xl">
-                                {customerName}
-                              </h3>
-                              <p className="text-sm text-blue-100">Customer</p>
-                              <p className="mt-1 text-xs text-blue-100">
-                                Booking #{booking.id}
-                              </p>
+                            </div>
+
+                            <div className="flex shrink-0 items-start gap-2">
+                              <span
+                                className={`rounded-full px-3 py-1.5 text-xs font-bold ${getStatusBadgeClass(booking.status)}`}
+                              >
+                                {booking.status}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleBookingExpanded(booking.id)}
+                                aria-expanded={expandedBookingIds.has(booking.id)}
+                                aria-label={
+                                  expandedBookingIds.has(booking.id)
+                                    ? "Collapse booking details"
+                                    : "Expand booking details"
+                                }
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 md:hidden"
+                              >
+                                <ChevronDown
+                                  size={19}
+                                  className={`transition-transform duration-200 ${
+                                    expandedBookingIds.has(booking.id)
+                                      ? "rotate-180"
+                                      : ""
+                                  }`}
+                                />
+                              </button>
                             </div>
                           </div>
                         </div>
 
-                        <div className="p-4 sm:p-5">
+                        <div
+                          className={`border-t p-4 sm:p-5 ${
+                            expandedBookingIds.has(booking.id)
+                              ? "block"
+                              : "hidden"
+                          } md:block`}
+                        >
                           <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
                             <p className="text-sm text-slate-500 dark:text-slate-400">Service</p>
                             <h3 className="mt-1 text-xl font-black text-blue-700 dark:text-blue-300 sm:text-2xl">

@@ -4,6 +4,7 @@ import {
   Circle,
   FileText,
   ImagePlus,
+  Smile,
   LoaderCircle,
   MoreVertical,
   Paperclip,
@@ -150,6 +151,7 @@ export default function ChatRoom() {
   const [otherLastSeen, setOtherLastSeen] = useState<string | null>(null);
 
   const [error, setError] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -523,6 +525,14 @@ export default function ChatRoom() {
         updated_at: new Date().toISOString(),
       });
     }, 1200);
+  }
+
+  const emojiOptions = ["😀","😂","😊","😍","🥰","😎","🤔","😢","😮","👍","👎","👏","🙏","💪","❤️","💙","✨","🎉","✅","📍","🛠️","💬","👌","🔥"];
+
+  function insertEmoji(emoji: string) {
+    setMessage((current) => `${current}${emoji}`);
+    setEmojiOpen(false);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   async function handleSend() {
@@ -934,12 +944,12 @@ export default function ChatRoom() {
                             href={item.image_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="block overflow-hidden"
+                            className="block w-fit max-w-[220px] overflow-hidden sm:max-w-[260px]"
                           >
                             <img
                               src={item.image_url}
                               alt="Chat attachment"
-                              className="max-h-107.5 w-full min-w-52.5 object-cover transition duration-300 hover:scale-[1.02]"
+                              className="max-h-44 w-auto max-w-[220px] rounded-xl object-cover transition duration-300 hover:scale-[1.02] sm:max-h-52 sm:max-w-[260px]"
                             />
                           </a>
                         )}
@@ -1061,16 +1071,15 @@ export default function ChatRoom() {
             </div>
           )}
 
-          <div className="flex items-end gap-2">
-            <div className="flex shrink-0 items-center">
+          <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
+            <div className="flex shrink-0 items-center gap-0.5">
               <label
                 aria-label="Upload image"
-                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
+                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 ${
                   uploading ? "pointer-events-none opacity-50" : ""
                 }`}
               >
                 <ImagePlus className="h-5 w-5" />
-
                 <input
                   hidden
                   type="file"
@@ -1082,12 +1091,11 @@ export default function ChatRoom() {
 
               <label
                 aria-label="Upload file"
-                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-slate-500 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 ${
+                className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 ${
                   uploading ? "pointer-events-none opacity-50" : ""
                 }`}
               >
                 <Paperclip className="h-5 w-5" />
-
                 <input
                   hidden
                   type="file"
@@ -1098,7 +1106,7 @@ export default function ChatRoom() {
               </label>
             </div>
 
-            <div className="flex min-h-12 flex-1 items-end rounded-2xl border border-slate-200 bg-slate-50 px-4 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:bg-slate-900">
+            <div className="relative flex min-h-11 min-w-0 flex-1 items-end rounded-[1.35rem] border border-slate-300 bg-slate-50 pl-4 pr-1.5 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:bg-slate-900 dark:focus-within:ring-blue-500/10">
               <textarea
                 ref={textareaRef}
                 value={message}
@@ -1107,13 +1115,34 @@ export default function ChatRoom() {
                 rows={1}
                 maxLength={2000}
                 placeholder={`Message ${otherName}...`}
-                className="max-h-32 min-h-11 flex-1 resize-none bg-transparent py-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+                className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
               />
 
-              {message.length > 0 && (
-                <span className="mb-3 ml-2 shrink-0 text-[10px] text-slate-400">
-                  {message.length}/2000
-                </span>
+              <button
+                type="button"
+                aria-label="Choose emoji"
+                aria-expanded={emojiOpen}
+                onClick={() => setEmojiOpen((open) => !open)}
+                className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-300"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+
+              {emojiOpen && (
+                <div className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                  <div className="grid grid-cols-8 gap-1">
+                    {emojiOptions.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => insertEmoji(emoji)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1122,7 +1151,7 @@ export default function ChatRoom() {
               disabled={!message.trim() || sending || uploading}
               onClick={() => void handleSend()}
               aria-label="Send message"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-none disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700 sm:h-12 sm:w-12"
             >
               {sending ? (
                 <LoaderCircle className="h-5 w-5 animate-spin" />

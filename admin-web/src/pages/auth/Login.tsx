@@ -671,10 +671,6 @@ export default function Login() {
 
         {loginForm}
 
-        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
-          <ShieldCheck className="h-4 w-4 text-amber-500" />
-          10,000+ jobs completed by verified pros
-        </div>
       </div>
 
       <EmailOtpModal

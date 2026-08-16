@@ -3,6 +3,7 @@ import {
   CheckCheck,
   FileText,
   ImagePlus,
+  Smile,
   Inbox,
   LoaderCircle,
   MessageCircle,
@@ -278,6 +279,7 @@ export default function ChatList() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingChannel = useRef<ReturnType<typeof supabase.channel> | null>(
@@ -631,6 +633,17 @@ export default function ChatList() {
     typingTimer.current = setTimeout(() => {
       void typingChannel.current?.track({ typing: false });
     }, 1200);
+  }
+
+  const emojiOptions = [
+    "😀", "😂", "😊", "😍", "🥰", "😎", "🤔", "😢",
+    "😮", "👍", "👎", "👏", "🙏", "💪", "❤️", "💙",
+    "✨", "🎉", "✅", "📍", "🛠️", "💬", "👌", "🔥",
+  ];
+
+  function insertEmoji(emoji: string) {
+    setMessage((current) => `${current}${emoji}`);
+    setEmojiOpen(false);
   }
 
   async function handleSend() {
@@ -1110,11 +1123,12 @@ export default function ChatList() {
                                     href={item.image_url}
                                     target="_blank"
                                     rel="noreferrer"
+                                    className="block w-fit max-w-[220px] overflow-hidden sm:max-w-[260px]"
                                   >
                                     <img
                                       src={item.image_url}
                                       alt="Chat attachment"
-                                      className="max-h-96 w-full object-cover"
+                                      className="max-h-44 w-auto max-w-full rounded-xl object-cover sm:max-h-52"
                                     />
                                   </a>
                                 )}
@@ -1207,19 +1221,48 @@ export default function ChatList() {
                       />
                     </label>
 
-                    <textarea
-                      value={message}
-                      onChange={(event) =>
-                        handleTyping(event.target.value)
-                      }
-                      onKeyDown={handleKeyDown}
-                      rows={1}
-                      maxLength={2000}
-                      placeholder={`Message ${getName(
-                        selectedConversation.user,
-                      )}...`}
-                      className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
-                    />
+                    <div className="relative flex min-h-11 min-w-0 flex-1 items-end rounded-[1.35rem] border border-slate-200 bg-slate-50 pl-4 pr-1.5 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:focus-within:bg-slate-900">
+                      <textarea
+                        value={message}
+                        onChange={(event) =>
+                          handleTyping(event.target.value)
+                        }
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        maxLength={2000}
+                        placeholder={`Message ${getName(
+                          selectedConversation.user,
+                        )}...`}
+                        className="max-h-28 min-h-10 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-sm text-slate-900 outline-none dark:text-white dark:placeholder:text-slate-500"
+                      />
+
+                      <button
+                        type="button"
+                        aria-label="Choose emoji"
+                        aria-expanded={emojiOpen}
+                        onClick={() => setEmojiOpen((open) => !open)}
+                        className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-amber-500/10 dark:hover:text-amber-300"
+                      >
+                        <Smile className="h-5 w-5" />
+                      </button>
+
+                      {emojiOpen && (
+                        <div className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+                          <div className="grid grid-cols-8 gap-1">
+                            {emojiOptions.map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => insertEmoji(emoji)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <button
                       type="button"
@@ -1227,7 +1270,7 @@ export default function ChatList() {
                         !message.trim() || sending || uploading
                       }
                       onClick={() => void handleSend()}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-slate-300 disabled:shadow-none dark:disabled:bg-slate-700"
                       aria-label="Send message"
                     >
                       {sending || uploading ? (

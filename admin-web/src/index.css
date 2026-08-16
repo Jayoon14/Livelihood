@@ -581,3 +581,60 @@ main > *,
     overflow-wrap: anywhere;
   }
 }
+
+
+/* =========================================================
+   ADMIN PORTAL RESPONSIVE SAFETY
+   ========================================================= */
+
+.admin-responsive,
+.admin-responsive main,
+.admin-responsive main > div,
+.admin-responsive section,
+.admin-responsive article {
+  min-width: 0;
+}
+
+.admin-responsive main img,
+.admin-responsive main video,
+.admin-responsive main canvas {
+  max-width: 100%;
+}
+
+.admin-responsive main input,
+.admin-responsive main select,
+.admin-responsive main textarea {
+  max-width: 100%;
+}
+
+.admin-responsive main .overflow-x-auto {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .admin-responsive main {
+    overflow-x: hidden;
+  }
+
+  .admin-responsive main h1,
+  .admin-responsive main h2,
+  .admin-responsive main h3,
+  .admin-responsive main p,
+  .admin-responsive main td,
+  .admin-responsive main th {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-responsive main table {
+    font-size: 0.75rem;
+  }
+
+  .admin-responsive main button,
+  .admin-responsive main a,
+  .admin-responsive main input,
+  .admin-responsive main select,
+  .admin-responsive main textarea {
+    min-width: 0;
+  }
+}

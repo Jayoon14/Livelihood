@@ -23,6 +23,7 @@ import {
   X,
   Flag,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 import {
   checkWorkerAvailability,
@@ -79,6 +80,9 @@ export default function Bookings() {
   const [activeCasesByBooking, setActiveCasesByBooking] = useState<
     Record<number, ReportCase[]>
   >({});
+  const [expandedBookingIds, setExpandedBookingIds] = useState<Set<number>>(
+    () => new Set(),
+  );
 
   const [availabilityMessage, setAvailabilityMessage] = useState("");
   const [activeAction, setActiveAction] = useState<{
@@ -91,6 +95,20 @@ export default function Bookings() {
       activeAction?.type === type && activeAction.bookingId === bookingId,
     [activeAction],
   );
+
+  const toggleBookingExpanded = useCallback((bookingId: number) => {
+    setExpandedBookingIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(bookingId)) {
+        next.delete(bookingId);
+      } else {
+        next.add(bookingId);
+      }
+
+      return next;
+    });
+  }, []);
 
   const navigate = useNavigate();
 
@@ -678,7 +696,7 @@ export default function Bookings() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6 p-6">
+            <div className="space-y-3 p-3 sm:space-y-4 sm:p-5 lg:p-6">
               {filteredBookings.map((booking) => (
                 <div
                   key={booking.id}
@@ -686,23 +704,23 @@ export default function Bookings() {
                 >
                   {/* HEADER */}
 
-                  <div className="flex justify-between items-start border-b p-6">
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-start justify-between gap-3 p-4 sm:p-5 lg:p-6">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <img
                         src={
                           booking.worker?.profile_picture ||
                           "https://placehold.co/70x70"
                         }
                         alt="Worker"
-                        className="w-16 h-16 rounded-full object-cover border"
+                        className="h-12 w-12 shrink-0 rounded-full border object-cover sm:h-14 sm:w-14 lg:h-16 lg:w-16"
                       />
 
-                      <div>
+                      <div className="min-w-0">
                         <button
                           onClick={() =>
                             navigate(`/customer/workers/${booking.worker_id}`)
                           }
-                          className="text-xl font-bold hover:text-blue-600"
+                          className="max-w-full truncate text-left text-base font-bold hover:text-blue-600 sm:text-lg lg:text-xl"
                         >
                           {[
                             booking.worker?.first_name,
@@ -713,54 +731,80 @@ export default function Bookings() {
                             .join(" ")}
                         </button>
 
-                        <p className="text-gray-500 mt-1">
+                        <p className="mt-0.5 truncate text-xs text-gray-500 sm:mt-1 sm:text-sm">
                           {booking.services?.service_name || "Service"}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <StatusBadge status={booking.status} />
+                    <div className="flex shrink-0 items-start gap-2 sm:gap-3">
+                      <div className="text-right">
+                        <StatusBadge status={booking.status} />
 
-                      <p className="text-gray-400 mt-3 text-sm">Total Amount</p>
+                        <p className="mt-2 text-[10px] text-gray-400 sm:mt-3 sm:text-xs lg:text-sm">
+                          Total Amount
+                        </p>
 
-                      <h2 className="text-3xl font-bold text-blue-700">
-                        ₱{booking.price ?? 0}
-                      </h2>
+                        <h2 className="text-xl font-bold text-blue-700 sm:text-2xl lg:text-3xl">
+                          ₱{booking.price ?? 0}
+                        </h2>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleBookingExpanded(booking.id)}
+                        aria-expanded={expandedBookingIds.has(booking.id)}
+                        aria-label={
+                          expandedBookingIds.has(booking.id)
+                            ? "Collapse booking details"
+                            : "Expand booking details"
+                        }
+                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:h-10 sm:w-10"
+                      >
+                        <ChevronDown
+                          size={19}
+                          className={`transition-transform duration-200 ${
+                            expandedBookingIds.has(booking.id)
+                              ? "rotate-180"
+                              : ""
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
 
                   {/* DETAILS */}
-                  <div className="p-5">
-                    <div className="grid grid-cols-2 gap-5 mt-5">
-                      <div className="bg-gray-50 rounded-xl p-4 border">
+                  {expandedBookingIds.has(booking.id) && (
+                  <div className="border-t p-4 sm:p-5">
+                    <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:gap-5">
+                      <div className="rounded-xl border bg-gray-50 p-3 sm:p-4">
                         <p className="flex items-center gap-2 text-gray-500 text-sm">
                           <Calendar size={18} />
                           Booking Date
                         </p>
 
-                        <p className="font-semibold text-lg">
+                        <p className="mt-1 text-sm font-semibold sm:text-base lg:text-lg">
                           {formatBookingDate(booking.booking_date)}
                         </p>
                       </div>
 
-                      <div className="bg-gray-50 rounded-xl p-4 border">
+                      <div className="rounded-xl border bg-gray-50 p-3 sm:p-4">
                         <p className="flex items-center gap-2 text-gray-500 text-sm">
                           <Clock size={18} />
                           Booking Time
                         </p>
-                        <p className="font-semibold text-lg">
+                        <p className="mt-1 text-sm font-semibold sm:text-base lg:text-lg">
                           {formatBookingTime(booking.booking_time)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-4 sm:mt-6">
                       <BookingTimeline status={booking.status} />
                     </div>
 
                     {/* ACTIONS */}
-                    <div className="flex flex-wrap gap-3 mt-8">
+                    <div className="mt-5 flex flex-wrap gap-2 sm:mt-8 sm:gap-3">
                       {booking.status === "Pending" && (
                         <>
                           <span className="text-yellow-600 font-medium self-center">
@@ -955,6 +999,7 @@ export default function Bookings() {
                       </button>
                     </div>
                   </div>
+                  )}
                 </div>
               ))}
             </div>

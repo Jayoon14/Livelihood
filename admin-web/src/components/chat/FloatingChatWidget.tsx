@@ -5,6 +5,7 @@ import {
   Expand,
   FileText,
   ImagePlus,
+  Smile,
   LoaderCircle,
   MessageCircle,
   Minus,
@@ -227,6 +228,7 @@ export default function FloatingChatWidget() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingChannel = useRef<ReturnType<typeof supabase.channel> | null>(
@@ -569,6 +571,13 @@ export default function FloatingChatWidget() {
     typingTimer.current = setTimeout(() => {
       void typingChannel.current?.track({ typing: false });
     }, 1200);
+  }
+
+  const emojiOptions = ["😀","😂","😊","😍","🥰","😎","🤔","😢","😮","👍","👎","👏","🙏","💪","❤️","💙","✨","🎉","✅","📍","🛠️","💬","👌","🔥"];
+
+  function insertEmoji(emoji: string) {
+    setDraft((current) => `${current}${emoji}`);
+    setEmojiOpen(false);
   }
 
   async function handleSend() {
@@ -996,11 +1005,12 @@ export default function FloatingChatWidget() {
                                     href={item.image_url}
                                     target="_blank"
                                     rel="noreferrer"
+                                    className="block w-fit max-w-[180px] overflow-hidden sm:max-w-[210px]"
                                   >
                                     <img
                                       src={item.image_url}
                                       alt="Chat attachment"
-                                      className="max-h-64 w-full object-cover"
+                                      className="max-h-40 w-auto max-w-full rounded-xl object-cover sm:max-h-44"
                                     />
                                   </a>
                                 )}
@@ -1088,15 +1098,44 @@ export default function FloatingChatWidget() {
                       />
                     </label>
 
-                    <textarea
-                      value={draft}
-                      onChange={(event) => handleTyping(event.target.value)}
-                      onKeyDown={handleKeyDown}
-                      rows={1}
-                      maxLength={2000}
-                      placeholder="Type a message..."
-                      className="max-h-24 min-h-10 flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
-                    />
+                    <div className="relative flex min-h-10 min-w-0 flex-1 items-end rounded-2xl border border-slate-300 bg-slate-50 pl-3 pr-1 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100">
+                      <textarea
+                        value={draft}
+                        onChange={(event) => handleTyping(event.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        maxLength={2000}
+                        placeholder="Type a message..."
+                        className="max-h-24 min-h-9 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-sm outline-none"
+                      />
+
+                      <button
+                        type="button"
+                        aria-label="Choose emoji"
+                        aria-expanded={emojiOpen}
+                        onClick={() => setEmojiOpen((open) => !open)}
+                        className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-amber-50 hover:text-amber-500"
+                      >
+                        <Smile className="h-5 w-5" />
+                      </button>
+
+                      {emojiOpen && (
+                        <div className="absolute bottom-[calc(100%+0.5rem)] right-0 z-50 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
+                          <div className="grid grid-cols-8 gap-0.5">
+                            {emojiOptions.map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => insertEmoji(emoji)}
+                                className="flex h-7 w-7 items-center justify-center rounded-md text-base transition hover:bg-slate-100"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <button
                       type="button"
