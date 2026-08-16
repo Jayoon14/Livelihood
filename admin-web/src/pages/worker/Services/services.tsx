@@ -200,12 +200,12 @@ function formatCurrency(value: number): string {
 function getPricingLabel(type: PricingType): string {
   switch (type) {
     case "hourly":
-      return "Orasan";
+      return "Hourly Rate";
     case "daily":
-      return "Arawan";
+      return "Daily Rate";
     case "fixed":
     default:
-      return "Pakyawan";
+      return "Fixed Price";
   }
 }
 
@@ -1288,13 +1288,13 @@ function ServiceFormModal({
 
             <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
               <h3 className="font-black text-emerald-950 dark:text-emerald-100">Pricing</h3>
-              <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">Pakyawan is one agreed total, Arawan is per working day, and Orasan is per hour.</p>
+              <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">Fixed Price is one agreed total, Daily Rate is charged per working day, and Hourly Rate is charged per hour.</p>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <Field label="Pricing Type">
                   <select value={form.pricingType} onChange={(event) => onFieldChange("pricingType", event.target.value as PricingType)} disabled={saving} className={inputClassName(false)}>
-                    <option value="fixed">Pakyawan (Fixed Contract)</option>
-                    <option value="daily">Arawan (Daily Rate)</option>
-                    <option value="hourly">Orasan (Hourly Rate)</option>
+                    <option value="fixed">Fixed Price</option>
+                    <option value="daily">Daily Rate</option>
+                    <option value="hourly">Hourly Rate</option>
                   </select>
                 </Field>
                 <Field label={getPriceLabel(form.pricingType)} error={errors.price}>

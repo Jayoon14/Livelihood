@@ -1220,6 +1220,7 @@ export default function CustomerWorkerProfile() {
                         }
                       }}
                       showNearbyWorkers
+                      selectedWorkerId={worker.profile.id}
                       nearbyWorkerRadiusKilometers={
                         MAX_BOOKING_DISTANCE_KILOMETERS
                       }

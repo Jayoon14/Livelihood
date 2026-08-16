@@ -19,7 +19,6 @@ import MouseCoordinates from "./components/MouseCoordinates";
 import MapSidebar from "./components/MapSidebar";
 import MobileSearch from "./components/MobileSearch";
 import RouteCard from "./components/RouteCard";
-import CurrentLocationButton from "./components/CurrentLocationButton";
 import { useMapInitialization } from "./hooks/useMapInitialization";
 import { useConfirmAddress } from "./hooks/useConfirmAddress";
 import { useSaveLocation } from "./hooks/useSaveLocation";
@@ -74,6 +73,7 @@ interface Props {
 
   showNearbyWorkers?: boolean;
   nearbyWorkerRadiusKilometers?: number;
+  selectedWorkerId?: string;
 
   onNearbyWorkerSelect?: (
     worker: NearbyWorker,
@@ -91,6 +91,7 @@ export default function LocationPicker({
   onLocationConfirmedChange,
   showNearbyWorkers = false,
   nearbyWorkerRadiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM,
+  selectedWorkerId,
   onNearbyWorkerSelect,
   initialLocation,
   navigationMode = false,
@@ -545,6 +546,7 @@ const {
     navigationMode ? currentLocationRef : selectedCoordinatesRef,
   enabled: showNearbyWorkers && mapReady,
   radiusKilometers: nearbyWorkerRadiusKilometers,
+  selectedWorkerId,
   onWorkerSelect: onNearbyWorkerSelect,
 });
 
@@ -720,6 +722,20 @@ const layersModalProps = useLayersModalProps({
   setStyle,
 });
 
+  const selectedNearbyWorker = selectedWorkerId
+    ? nearbyWorkers.find((worker) => worker.worker_id === selectedWorkerId) ?? null
+    : null;
+
+  const selectedNearbyWorkerName = selectedNearbyWorker?.profile
+    ? [
+        selectedNearbyWorker.profile.first_name,
+        selectedNearbyWorker.profile.middle_name,
+        selectedNearbyWorker.profile.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:rounded-[28px]">
       <div className="relative flex h-[68dvh] min-h-[500px] max-h-[760px] w-full overflow-hidden sm:h-[650px]">
@@ -740,25 +756,47 @@ const layersModalProps = useLayersModalProps({
             </div>
           )}
           {showNearbyWorkers && (
-            <div className="pointer-events-none absolute right-3 top-3 z-20 sm:right-4 sm:top-4">
-              <div className="pointer-events-auto rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Nearby Workers
+            <div className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] sm:left-4 sm:top-4">
+              <div className="pointer-events-auto w-fit max-w-56 rounded-xl border border-white/70 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:rounded-2xl sm:px-4 sm:py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">
+                  {selectedWorkerId ? "Selected Worker" : "Nearby Workers"}
                 </p>
 
-                <p className="mt-1 text-sm font-bold text-slate-900 sm:text-lg">
-                  {loadingWorkers
-                    ? "Loading..."
-                    : `${nearbyWorkersCount} available`}
+                <p className="mt-1 truncate text-sm font-bold text-slate-900 sm:text-base">
+                  {selectedWorkerId
+                    ? loadingWorkers
+                      ? "Checking worker..."
+                      : selectedNearbyWorker
+                        ? selectedNearbyWorkerName || "Selected worker"
+                        : "Worker unavailable"
+                    : loadingWorkers
+                      ? "Loading..."
+                      : `${nearbyWorkersCount} available`}
                 </p>
 
-                {nearbyWorkersCount > 0 && (
+                {selectedWorkerId && selectedNearbyWorker && (
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-700 sm:text-xs">
+                    Online nearby worker
+                  </p>
+                )}
+
+                {!selectedWorkerId && nearbyWorkersCount > 0 && (
                   <button
                     type="button"
                     onClick={() => fitNearbyWorkers()}
                     className="pointer-events-auto mt-2 min-h-9 w-full rounded-lg bg-emerald-600 px-3 text-xs font-bold text-white transition hover:bg-emerald-700"
                   >
                     Show workers
+                  </button>
+                )}
+
+                {selectedWorkerId && selectedNearbyWorker && (
+                  <button
+                    type="button"
+                    onClick={() => fitNearbyWorkers()}
+                    className="pointer-events-auto mt-2 min-h-8 w-full rounded-lg bg-blue-600 px-3 text-[11px] font-bold text-white transition hover:bg-blue-700 sm:min-h-9 sm:text-xs"
+                  >
+                    Focus worker
                   </button>
                 )}
 
@@ -798,10 +836,6 @@ const layersModalProps = useLayersModalProps({
 
         <CompassIndicator bearing={bearing} />
 
-        <CurrentLocationButton
-          locating={locating}
-          onClick={handleCurrentLocation}
-        />
         <LayersModal {...layersModalProps} />
 
         <RouteCard

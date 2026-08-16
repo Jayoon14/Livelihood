@@ -40,6 +40,7 @@ interface UseNearbyWorkersParams {
   currentLocationRef: MutableRefObject<Coordinates | null>;
   enabled: boolean;
   radiusKilometers?: number;
+  selectedWorkerId?: string;
   onWorkerSelect?: (worker: NearbyWorker) => void;
 }
 
@@ -191,6 +192,7 @@ export function useNearbyWorkers({
   currentLocationRef,
   enabled,
   radiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM,
+  selectedWorkerId,
   onWorkerSelect,
 }: UseNearbyWorkersParams) {
   const markerRecordsRef = useRef<Map<string, WorkerMarkerRecord>>(new Map());
@@ -384,6 +386,11 @@ export function useNearbyWorkers({
         return;
       }
 
+      if (selectedWorkerId && worker.worker_id !== selectedWorkerId) {
+        removeWorker(worker.worker_id);
+        return;
+      }
+
       if (!isValidCoordinates(worker.longitude, worker.latitude)) {
         removeWorker(worker.worker_id);
         publishWorkers();
@@ -545,6 +552,7 @@ export function useNearbyWorkers({
       publishWorkers,
       radiusKilometers,
       removeWorker,
+      selectedWorkerId,
     ],
   );
 
@@ -570,12 +578,16 @@ export function useNearbyWorkers({
       }
 
       const rows = (data ?? []) as WorkerLocationRow[];
+      const relevantRows = selectedWorkerId
+        ? rows.filter((row) => row.worker_id === selectedWorkerId)
+        : rows;
+
       const receivedIds = new Set(
-        rows.map((row) => row.worker_id),
+        relevantRows.map((row) => row.worker_id),
       );
 
       await Promise.all(
-        rows.map((row) =>
+        relevantRows.map((row) =>
           processWorker(row, "refresh"),
         ),
       );
@@ -623,7 +635,13 @@ export function useNearbyWorkers({
         setLoadingWorkers(false);
       }
     }
-  }, [enabled, processWorker, publishWorkers, removeWorker]);
+  }, [
+    enabled,
+    processWorker,
+    publishWorkers,
+    removeWorker,
+    selectedWorkerId,
+  ]);
 
   useEffect(() => {
     mountedRef.current = true;

@@ -936,6 +936,7 @@ export default function TrustedWorkers() {
                             setBookingError(null);
                           }}
                           showNearbyWorkers
+                          selectedWorkerId={bookingRecord.worker_id}
                           nearbyWorkerRadiusKilometers={20}
                         />
 

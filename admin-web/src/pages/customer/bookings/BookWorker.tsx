@@ -539,6 +539,7 @@ export default function BookWorker() {
                 setError(null);
               }}
               showNearbyWorkers
+              selectedWorkerId={worker.profile.id}
               nearbyWorkerRadiusKilometers={20}
             />
 

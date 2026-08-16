@@ -222,10 +222,10 @@ export default function CustomerWorkerProfile() {
       ? "Daily rate"
       : "Contract price";
   const pricingMethodLabel = selectedPricingType === "hourly"
-    ? "Orasan"
+    ? "Hourly Rate"
     : selectedPricingType === "daily"
-      ? "Arawan"
-      : "Pakyawan";
+      ? "Daily Rate"
+      : "Fixed Price";
 
   const estimatedCompletion = useMemo(() => {
     if (!bookingDate || !bookingTime || !selectedService) {
@@ -901,10 +901,10 @@ export default function CustomerWorkerProfile() {
                           {service.service_name} — ₱
                           {Number(service.price).toLocaleString("en-PH")} · {
                             service.pricing_type === "daily"
-                              ? "Arawan"
+                              ? "Daily Rate"
                               : service.pricing_type === "hourly"
-                                ? "Orasan"
-                                : "Pakyawan"
+                                ? "Hourly Rate"
+                                : "Fixed Price"
                           }
                         </option>
                       ))}
@@ -1061,6 +1061,7 @@ export default function CustomerWorkerProfile() {
                         }
                       }}
                       showNearbyWorkers
+                      selectedWorkerId={worker.profile.id}
                       nearbyWorkerRadiusKilometers={
                         MAX_BOOKING_DISTANCE_KILOMETERS
                       }
