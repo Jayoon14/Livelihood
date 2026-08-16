@@ -116,7 +116,15 @@ html.dark .bg-white {
 }
 
 html.dark .bg-slate-50,
-html.dark .bg-gray-50 {
+html.dark .bg-gray-50,
+html.dark .bg-slate-50\/60,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/75,
+html.dark .bg-slate-50\/80,
+html.dark .bg-gray-50\/60,
+html.dark .bg-gray-50\/70,
+html.dark .bg-gray-50\/75,
+html.dark .bg-gray-50\/80 {
   background-color: var(--app-surface-soft) !important;
 }
 
@@ -125,8 +133,10 @@ html.dark .bg-gray-100 {
   background-color: var(--app-bg) !important;
 }
 
+html.dark .text-slate-950,
 html.dark .text-slate-900,
 html.dark .text-slate-800,
+html.dark .text-gray-950,
 html.dark .text-gray-900,
 html.dark .text-gray-800,
 html.dark .text-black {

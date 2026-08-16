@@ -15,13 +15,13 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
-  <ThemeProvider>
-    <LoadingProvider>
-      <AuthProvider>
+  <LoadingProvider>
+    <AuthProvider>
+      <ThemeProvider>
         <ProfileProvider>
           <App />
         </ProfileProvider>
-      </AuthProvider>
-    </LoadingProvider>
-  </ThemeProvider>,
+      </ThemeProvider>
+    </AuthProvider>
+  </LoadingProvider>,
 );

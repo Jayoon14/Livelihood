@@ -1212,7 +1212,7 @@ export default function Bookings() {
 
             {/* Body */}
 
-            <div className="p-8 space-y-6">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 text-slate-900 dark:text-slate-100 sm:p-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="text-gray-500">Worker</p>
@@ -1517,22 +1517,31 @@ export default function Bookings() {
         </div>
       )}
       {rebookBooking && (
-        <div className="fixed inset-0 z-80 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden">
+        <div className="fixed inset-0 z-80 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm sm:p-5">
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900">
             {/* HEADER */}
 
-            <div className="bg-linear-to-r from-indigo-600 to-blue-600 p-7 text-white">
-              <div className="flex items-center gap-5">
+            <div className="relative shrink-0 bg-linear-to-r from-indigo-600 to-blue-600 px-5 py-5 text-white sm:px-6">
+              <button
+                type="button"
+                onClick={() => setRebookBooking(null)}
+                className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/70"
+                aria-label="Close rebook form"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex items-center gap-4 pr-12">
                 <img
                   src={
                     rebookBooking.worker?.profile_picture ||
                     "https://placehold.co/100x100"
                   }
-                  className="w-20 h-20 rounded-full border-4 border-white object-cover"
+                  className="h-16 w-16 rounded-full border-4 border-white object-cover sm:h-20 sm:w-20"
                 />
 
                 <div>
-                  <h2 className="text-3xl font-bold">Rebook Service</h2>
+                  <h2 className="text-2xl font-bold sm:text-3xl">Rebook Service</h2>
 
                   <p className="opacity-90">
                     {[
@@ -1549,8 +1558,8 @@ export default function Bookings() {
 
             {/* BODY */}
 
-            <div className="p-8 space-y-6">
-              <div className="bg-gray-50 rounded-2xl border p-5">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 text-slate-900 dark:text-slate-100 sm:p-6">
+              <div className="rounded-2xl border border-slate-200 bg-gray-50 p-5 dark:border-slate-700 dark:bg-slate-800">
                 <h3 className="font-semibold mb-2">Previous Service</h3>
 
                 <p>
@@ -1614,6 +1623,9 @@ export default function Bookings() {
                     focus:ring-2
                     focus:ring-blue-500
                     outline-none
+                    dark:border-slate-700
+                    dark:bg-slate-800
+                    dark:text-slate-100
                   "
                 />
               </div>
@@ -1639,7 +1651,7 @@ export default function Bookings() {
                 <select
                   value={preferredTime}
                   onChange={(e) => setPreferredTime(e.target.value)}
-                  className="w-full mt-2 border rounded-xl px-4 py-3"
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
                   <option value="">Select Available Time</option>
 
@@ -1670,7 +1682,7 @@ export default function Bookings() {
                   value={rebookNotes}
                   onChange={(e) => setRebookNotes(e.target.value)}
                   placeholder="Special requests..."
-                  className="w-full mt-2 border rounded-xl px-4 py-3 resize-none"
+                  className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>
               <div>
@@ -1683,7 +1695,7 @@ export default function Bookings() {
                   value={rebookAddress}
                   onChange={(e) => setRebookAddress(e.target.value)}
                   placeholder="Enter your service address..."
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none resize-none"
+                  className="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
 
                 <p className="text-xs text-gray-500 mt-2">
@@ -1692,17 +1704,24 @@ export default function Bookings() {
                 </p>
               </div>
 
-              <div className="bg-blue-50 rounded-2xl border p-5">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900/70 dark:bg-blue-950/30">
                 <div className="flex justify-between">
                   <span>Total Amount</span>
 
-                  <span className="font-bold text-2xl text-blue-700">
+                  <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                     ₱{rebookBooking.price}
                   </span>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4">
+              <div className="sticky bottom-0 -mx-5 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/95 sm:-mx-6 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setRebookBooking(null)}
+                  className="rounded-xl border border-slate-300 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
                 <button
                   disabled={!preferredDate || !preferredTime || Boolean(activeAction)}
                   onClick={handleConfirmRebook}

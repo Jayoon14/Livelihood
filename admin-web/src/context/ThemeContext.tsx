@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useAuth } from "./AuthContextValue";
 import {
   ThemeContext,
   type ResolvedTheme,
@@ -13,7 +14,8 @@ import {
   type ThemeMode,
 } from "./ThemeContextValue";
 
-const STORAGE_KEY = "livelihood-theme";
+const STORAGE_KEY_PREFIX = "livelihood-theme";
+const DEFAULT_THEME: ThemeMode = "light";
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "light";
@@ -22,21 +24,43 @@ function getSystemTheme(): ResolvedTheme {
     : "light";
 }
 
-function getSavedMode(): ThemeMode {
-  if (typeof window === "undefined") return "auto";
-  const saved = window.localStorage.getItem(STORAGE_KEY);
+function getStorageKey(userId: string) {
+  return `${STORAGE_KEY_PREFIX}:${userId}`;
+}
+
+function getSavedMode(userId: string): ThemeMode {
+  if (typeof window === "undefined") return DEFAULT_THEME;
+
+  const saved = window.localStorage.getItem(getStorageKey(userId));
   return saved === "light" || saved === "dark" || saved === "auto"
     ? saved
-    : "auto";
+    : DEFAULT_THEME;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(getSavedMode);
+  const { user } = useAuth();
+  const [themeRevision, setThemeRevision] = useState(0);
   const [systemTheme, setSystemTheme] =
     useState<ResolvedTheme>(getSystemTheme);
 
+  const currentUserId = user?.id ?? null;
+  const mode = useMemo<ThemeMode>(() => {
+    // Re-read the current account preference after setMode updates storage.
+    void themeRevision;
+
+    if (!currentUserId) {
+      return DEFAULT_THEME;
+    }
+
+    return getSavedMode(currentUserId);
+  }, [currentUserId, themeRevision]);
+
   const resolvedTheme: ResolvedTheme =
-    mode === "auto" ? systemTheme : mode;
+    !currentUserId
+      ? "light"
+      : mode === "auto"
+        ? systemTheme
+        : mode;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(
@@ -65,10 +89,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.colorScheme = resolvedTheme;
   }, [resolvedTheme]);
 
-  const setMode = useCallback((nextMode: ThemeMode) => {
-    setModeState(nextMode);
-    window.localStorage.setItem(STORAGE_KEY, nextMode);
-  }, []);
+  const setMode = useCallback(
+    (nextMode: ThemeMode) => {
+      if (!currentUserId) {
+        return;
+      }
+
+      window.localStorage.setItem(
+        getStorageKey(currentUserId),
+        nextMode,
+      );
+      setThemeRevision((currentRevision) => currentRevision + 1);
+    },
+    [currentUserId],
+  );
 
   const value = useMemo<ThemeContextValue>(
     () => ({ mode, resolvedTheme, setMode }),

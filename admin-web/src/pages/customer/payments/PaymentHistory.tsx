@@ -352,7 +352,7 @@ export default function PaymentHistory() {
       return {
         icon: CheckCircle2,
         label: "Paid",
-        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
       };
     }
 
@@ -360,7 +360,7 @@ export default function PaymentHistory() {
       return {
         icon: Clock3,
         label: "Pending Approval",
-        className: "border-amber-200 bg-amber-50 text-amber-700",
+        className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
       };
     }
 
@@ -368,14 +368,14 @@ export default function PaymentHistory() {
       return {
         icon: XCircle,
         label: "Rejected",
-        className: "border-red-200 bg-red-50 text-red-700",
+        className: "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
       };
     }
 
     return {
       icon: Clock3,
       label: "Pending",
-      className: "border-gray-200 bg-gray-50 text-gray-700",
+      className: "border-gray-200 bg-gray-50 text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
     };
   }
 
@@ -393,7 +393,7 @@ export default function PaymentHistory() {
 
   return (
     <CustomerLayout>
-      <div className="min-h-full bg-gray-50/80 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-full bg-gray-50/80 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100 sm:p-6 lg:p-8">
         <div className="mx-auto w-full max-w-[1700px] space-y-6">
           {/* HEADER */}
 
@@ -414,6 +414,9 @@ export default function PaymentHistory() {
                   border-gray-200
                   bg-white
                   text-gray-600
+                  dark:border-slate-700
+                  dark:bg-slate-900
+                  dark:text-slate-300
                   shadow-sm
                   transition-all
                   duration-200
@@ -421,6 +424,8 @@ export default function PaymentHistory() {
                   hover:border-gray-300
                   hover:bg-gray-50
                   hover:text-gray-900
+                  dark:hover:bg-slate-800
+                  dark:hover:text-white
                   hover:shadow
                 "
                 aria-label="Go back"
@@ -435,11 +440,11 @@ export default function PaymentHistory() {
                   </div>
 
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                       Payment History
                     </h1>
 
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                       Track your payments, transaction statuses, and available
                       receipts.
                     </p>
@@ -464,16 +469,22 @@ export default function PaymentHistory() {
                 border-gray-200
                 bg-white
                 px-4
+                dark:border-slate-700
+                dark:bg-slate-900
                 py-2.5
                 text-sm
                 font-medium
                 text-gray-700
                 shadow-sm
+                dark:text-slate-200
                 transition-all
                 hover:-translate-y-0.5
                 hover:border-blue-200
                 hover:bg-blue-50
                 hover:text-blue-700
+                dark:hover:border-blue-500/40
+                dark:hover:bg-blue-500/10
+                dark:hover:text-blue-300
                 hover:shadow
                 disabled:cursor-not-allowed
                 disabled:opacity-60
@@ -528,12 +539,12 @@ export default function PaymentHistory() {
 
           {/* SEARCH AND FILTERS */}
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900 sm:p-5">
             <div className="flex flex-col gap-4">
               <div className="relative">
                 <Search
                   size={19}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500"
                 />
 
                 <input
@@ -547,16 +558,21 @@ export default function PaymentHistory() {
                     border
                     border-gray-200
                     bg-gray-50
+                    dark:border-slate-700
+                    dark:bg-slate-950/60
                     py-3
                     pl-11
                     pr-4
                     text-sm
                     text-gray-800
                     outline-none
+                    dark:text-slate-100
                     transition
                     placeholder:text-gray-400
+                    dark:placeholder:text-slate-500
                     focus:border-blue-500
                     focus:bg-white
+                    dark:focus:bg-slate-950
                     focus:ring-2
                     focus:ring-blue-100
                   "
@@ -587,7 +603,7 @@ export default function PaymentHistory() {
                           ${
                             active
                               ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                              : "border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                           }
                         `}
                     >
@@ -602,7 +618,7 @@ export default function PaymentHistory() {
                             ${
                               active
                                 ? "bg-white/20 text-white"
-                                : "bg-gray-100 text-gray-500"
+                                : "bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
                             }
                           `}
                       >
@@ -618,7 +634,7 @@ export default function PaymentHistory() {
           {/* ERROR MESSAGE */}
 
           {errorMessage && (
-            <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-red-700">
+            <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
               <XCircle size={20} className="mt-0.5 shrink-0" />
 
               <div className="flex-1">
@@ -639,7 +655,7 @@ export default function PaymentHistory() {
 
           {/* PAYMENT CONTENT */}
 
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900">
             {loading ? (
               <LoadingState />
             ) : filteredPayments.length === 0 ? (
@@ -658,7 +674,7 @@ export default function PaymentHistory() {
 
                 <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-237.5">
-                    <thead className="border-b border-gray-200 bg-gray-50">
+                    <thead className="border-b border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-950/60">
                       <tr>
                         <TableHeader>Worker</TableHeader>
 
@@ -676,7 +692,7 @@ export default function PaymentHistory() {
                       </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                       {filteredPayments.map((payment) => {
                         const status = getStatusStyle(payment);
 
@@ -684,11 +700,11 @@ export default function PaymentHistory() {
                         return (
                           <tr
                             key={payment.id}
-                            className="group transition hover:bg-blue-50/40"
+                            className="group transition hover:bg-blue-50/40 dark:hover:bg-blue-500/5"
                           >
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-blue-600 ring-2 ring-white">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 text-blue-600 ring-2 ring-white dark:bg-blue-500/15 dark:text-blue-300 dark:ring-slate-900">
                                   {getWorkerProfileImage(payment) ? (
                                     <img
                                       src={getWorkerProfileImage(payment) ?? ""}
@@ -705,11 +721,11 @@ export default function PaymentHistory() {
                                 </div>
 
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-semibold text-gray-900">
+                                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                                     {getWorkerName(payment)}
                                   </p>
 
-                                  <p className="mt-0.5 text-xs text-gray-400">
+                                  <p className="mt-0.5 text-xs text-gray-400 dark:text-slate-500">
                                     Worker
                                   </p>
                                 </div>
@@ -717,7 +733,7 @@ export default function PaymentHistory() {
                             </td>
 
                             <td className="px-5 py-4">
-                              <p className="max-w-55 truncate text-sm font-medium text-gray-700">
+                              <p className="max-w-55 truncate text-sm font-medium text-gray-700 dark:text-slate-300">
                                 {getServiceName(payment)}
                               </p>
                             </td>
@@ -846,7 +862,7 @@ export default function PaymentHistory() {
 
                 {/* MOBILE CARDS */}
 
-                <div className="divide-y divide-gray-100 lg:hidden">
+                <div className="divide-y divide-gray-100 dark:divide-slate-800 lg:hidden">
                   {filteredPayments.map((payment) => {
                     const status = getStatusStyle(payment);
 
@@ -858,10 +874,10 @@ export default function PaymentHistory() {
                     return (
                       <article
                         key={payment.id}
-                        className="p-4 transition hover:bg-gray-50 sm:p-5"
+                        className="p-4 transition hover:bg-gray-50 dark:hover:bg-slate-800/60 sm:p-5"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-100 text-blue-600">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300">
                             {getWorkerProfileImage(payment) ? (
                               <img
                                 src={getWorkerProfileImage(payment) ?? ""}
@@ -879,11 +895,11 @@ export default function PaymentHistory() {
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div>
-                                <h2 className="font-semibold text-gray-900">
+                                <h2 className="font-semibold text-gray-900 dark:text-white">
                                   {getWorkerName(payment)}
                                 </h2>
 
-                                <p className="mt-0.5 text-sm text-gray-500">
+                                <p className="mt-0.5 text-sm text-gray-500 dark:text-slate-400">
                                   {getServiceName(payment)}
                                 </p>
                               </div>
@@ -968,14 +984,14 @@ export default function PaymentHistory() {
 
                 {/* FOOTER */}
 
-                <div className="flex flex-col gap-2 border-t border-gray-200 bg-gray-50/80 px-5 py-3 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 border-t border-gray-200 bg-gray-50/80 px-5 py-3 text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
                   <span>
                     Showing{" "}
-                    <strong className="font-semibold text-gray-700">
+                    <strong className="font-semibold text-gray-700 dark:text-slate-200">
                       {filteredPayments.length}
                     </strong>{" "}
                     of{" "}
-                    <strong className="font-semibold text-gray-700">
+                    <strong className="font-semibold text-gray-700 dark:text-slate-200">
                       {payments.length}
                     </strong>{" "}
                     payments
@@ -983,7 +999,7 @@ export default function PaymentHistory() {
 
                   <span>
                     Total displayed:{" "}
-                    <strong className="font-semibold text-gray-700">
+                    <strong className="font-semibold text-gray-700 dark:text-slate-200">
                       {formatCurrency(
                         filteredPayments.reduce(
                           (total, payment) =>
@@ -1023,16 +1039,16 @@ function SummaryCard({
   iconClassName,
 }: SummaryCardProps) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{title}</p>
 
-          <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900">
+          <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
             {value}
           </p>
 
-          <p className="mt-1 text-xs text-gray-400">{description}</p>
+          <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">{description}</p>
         </div>
 
         <div
@@ -1057,7 +1073,7 @@ type TableHeaderProps = {
 function TableHeader({ children, align = "left" }: TableHeaderProps) {
   return (
     <th
-      className={`px-5 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
+      className={`px-5 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 ${
         align === "right" ? "text-right" : "text-left"
       }`}
     >
@@ -1077,10 +1093,10 @@ type MobileDetailProps = {
 
 function MobileDetail({ label, value }: MobileDetailProps) {
   return (
-    <div className="rounded-xl bg-gray-50 px-3 py-2.5">
-      <p className="text-xs font-medium text-gray-400">{label}</p>
+    <div className="rounded-xl bg-gray-50 px-3 py-2.5 dark:bg-slate-800/70">
+      <p className="text-xs font-medium text-gray-400 dark:text-slate-500">{label}</p>
 
-      <p className="mt-1 truncate text-sm font-semibold text-gray-700">
+      <p className="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-slate-200">
         {value}
       </p>
     </div>
@@ -1096,11 +1112,11 @@ function LoadingState() {
     <div className="flex min-h-80 flex-col items-center justify-center px-6 py-14 text-center">
       <div className="h-11 w-11 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
 
-      <p className="mt-4 font-medium text-gray-700">
+      <p className="mt-4 font-medium text-gray-700 dark:text-slate-200">
         Loading payment history...
       </p>
 
-      <p className="mt-1 text-sm text-gray-400">
+      <p className="mt-1 text-sm text-gray-400 dark:text-slate-500">
         Please wait while we retrieve your transactions.
       </p>
     </div>
@@ -1129,17 +1145,17 @@ function EmptyState({
 
   return (
     <div className="flex min-h-96 flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
         <CreditCard size={34} />
       </div>
 
-      <h2 className="mt-5 text-xl font-bold text-gray-900">
+      <h2 className="mt-5 text-xl font-bold text-gray-900 dark:text-white">
         {hasPayments && hasActiveFilter
           ? "No matching payments"
           : "No payment history yet"}
       </h2>
 
-      <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
+      <p className="mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-slate-400">
         {hasPayments && hasActiveFilter
           ? "No transactions match your current search or status filter."
           : "Once you complete your first payment, your transaction details and receipts will appear here."}
