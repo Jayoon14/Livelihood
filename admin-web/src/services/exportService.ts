@@ -32,7 +32,7 @@ export function exportToPDF(summary: ReportSummary): void {
   const doc = new jsPDF();
 
   doc.setFontSize(20);
-  doc.text("LivelihoodGo Report", 14, 20);
+  doc.text("SerbisyoGo Report", 14, 20);
 
   autoTable(doc, {
     startY: 35,
@@ -45,7 +45,7 @@ export function exportToPDF(summary: ReportSummary): void {
     ],
   });
 
-  doc.save("LivelihoodGo-Report.pdf");
+  doc.save("SerbisyoGo-Report.pdf");
 }
 
 export function exportToExcel(summary: ReportSummary): void {
@@ -72,6 +72,6 @@ export function exportToExcel(summary: ReportSummary): void {
     new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     }),
-    "LivelihoodGo-Report.xlsx",
+    "SerbisyoGo-Report.xlsx",
   );
 }

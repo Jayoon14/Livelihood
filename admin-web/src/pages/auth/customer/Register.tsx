@@ -248,7 +248,7 @@ export default function CustomerRegister() {
                 className="font-black leading-none text-slate-950 dark:text-white"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
-                LivelihoodGo
+                SerbisyoGo
               </p>
               <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 Trusted local services

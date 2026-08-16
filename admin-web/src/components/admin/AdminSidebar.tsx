@@ -68,14 +68,18 @@ const menus = [
 export default function AdminSidebar() {
   return (
     <aside className="flex min-h-screen w-72 flex-col bg-slate-900 text-white">
-      <div className="border-b border-slate-700 p-8">
-        <h1 className="text-3xl font-bold">
-          LivelihoodGo
-        </h1>
-
-        <p className="mt-1 text-sm text-slate-300">
-          Administrator Panel
-        </p>
+      <div className="border-b border-slate-700 p-6">
+        <div className="flex items-center gap-3">
+          <img
+            src="/serbisyogo-logo.png"
+            alt="SerbisyoGo logo"
+            className="h-14 w-16 rounded-xl object-cover object-center"
+          />
+          <div>
+            <h1 className="text-2xl font-bold">SerbisyoGo</h1>
+            <p className="mt-1 text-sm text-slate-300">Administrator Panel</p>
+          </div>
+        </div>
       </div>
 
       <nav className="mt-6 flex-1">

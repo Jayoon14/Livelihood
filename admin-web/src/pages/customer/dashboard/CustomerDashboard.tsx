@@ -473,7 +473,7 @@ export default function CustomerDashboard() {
         .join(" ")
         .trim() ||
       worker.email ||
-      "LivelihoodGo Worker"
+      "SerbisyoGo Worker"
     );
   }
 

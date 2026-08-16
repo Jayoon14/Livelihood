@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ShieldCheck,
-  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -28,7 +27,7 @@ export default function AuthSplitLayout({
   heroTitle,
   heroDescription,
   features = [],
-  mobileTitle = "LivelihoodGo",
+  mobileTitle = "SerbisyoGo",
   desktopBackgroundImage,
   floatingCard = true,
 }: AuthSplitLayoutProps) {
@@ -80,10 +79,11 @@ export default function AuthSplitLayout({
             to="/"
             className="relative z-10 flex w-fit items-center gap-3"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400 shadow-lg shadow-slate-950/20">
-              <Wrench
-                className="h-6 w-6 text-slate-900"
-                strokeWidth={2.5}
+            <div className="flex h-14 w-16 items-center justify-center rounded-2xl bg-white p-1.5 shadow-xl shadow-slate-950/25 ring-1 ring-white/70">
+              <img
+                src="/serbisyogo-logo.png"
+                alt="SerbisyoGo logo"
+                className="h-full w-full rounded-xl object-cover object-center"
               />
             </div>
 
@@ -92,7 +92,7 @@ export default function AuthSplitLayout({
                 className="text-lg font-bold tracking-tight"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
-                LivelihoodGo
+                SerbisyoGo
               </p>
 
               <p className="text-xs text-blue-100/75">
@@ -136,7 +136,7 @@ export default function AuthSplitLayout({
           </div>
 
           <p className="relative z-10 text-xs text-blue-100/70">
-            © {new Date().getFullYear()} LivelihoodGo. All rights reserved.
+            © {new Date().getFullYear()} SerbisyoGo. All rights reserved.
           </p>
         </section>
 
@@ -183,10 +183,11 @@ export default function AuthSplitLayout({
 
             <div className="relative z-10 mx-auto w-full max-w-xl">
               <Link to="/" className="flex w-fit items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400 shadow-lg shadow-slate-950/20">
-                  <Wrench
-                    className="h-5 w-5 text-slate-900"
-                    strokeWidth={2.5}
+                <div className="flex h-14 w-16 items-center justify-center rounded-2xl bg-white p-1.5 shadow-xl shadow-slate-950/25 ring-1 ring-white/70">
+                  <img
+                    src="/serbisyogo-logo.png"
+                    alt="SerbisyoGo logo"
+                    className="h-full w-full rounded-xl object-cover object-center"
                   />
                 </div>
 
@@ -248,7 +249,7 @@ export default function AuthSplitLayout({
 
               <div className="mt-10 flex items-center justify-center gap-2 text-xs text-slate-400 lg:hidden">
                 <ShieldCheck className="h-4 w-4 text-amber-500" />
-                Secure LivelihoodGo authentication
+                Secure SerbisyoGo authentication
               </div>
             </div>
           </div>

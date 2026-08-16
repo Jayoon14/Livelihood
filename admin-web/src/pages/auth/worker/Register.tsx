@@ -238,7 +238,7 @@ export default function WorkerRegister() {
                 className="truncate text-base font-black leading-none text-slate-950 sm:text-lg"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
-                LivelihoodGo
+                SerbisyoGo
               </p>
 
               <p className="mt-1 truncate text-[11px] text-slate-500 sm:text-xs">

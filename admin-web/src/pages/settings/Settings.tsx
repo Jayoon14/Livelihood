@@ -429,7 +429,7 @@ export default function Settings() {
                   <SystemInfoItem
                     icon={ServerCog}
                     label="System"
-                    value="LivelihoodGo"
+                    value="SerbisyoGo"
                   />
 
                   <SystemInfoItem

@@ -173,7 +173,7 @@ export default function BankSection({
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
 
                   <p className="leading-6">
-                    LivelihoodGo should never collect
+                    SerbisyoGo should never collect
                     or store card expiration dates,
                     CVVs, PINs, or OTPs in this form.
                   </p>

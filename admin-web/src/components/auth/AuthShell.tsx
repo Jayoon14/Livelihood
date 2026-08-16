@@ -4,7 +4,6 @@ import {
   MapPin,
   ShieldCheck,
   Sparkles,
-  Wrench,
 } from "lucide-react";
 
 interface AuthShellProps {
@@ -29,13 +28,15 @@ export default function AuthShell({
           <div className="absolute -right-20 bottom-16 h-72 w-72 rounded-full bg-violet-200/20 blur-3xl" />
 
           <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 shadow-xl shadow-slate-950/20">
-              <Wrench className="h-6 w-6 text-slate-950" strokeWidth={2.5} />
-            </div>
+            <img
+              src="/serbisyogo-logo.png"
+              alt="SerbisyoGo logo"
+              className="h-14 w-16 rounded-xl object-cover object-center shadow-xl shadow-slate-950/20"
+            />
 
             <div>
               <p className="text-xl font-extrabold tracking-tight">
-                LivelihoodGo
+                SerbisyoGo
               </p>
               <p className="text-xs font-medium text-white/70">
                 Trusted local services
@@ -87,20 +88,22 @@ export default function AuthShell({
           </div>
 
           <p className="relative z-10 text-xs text-white/55">
-            © 2026 LivelihoodGo. All rights reserved.
+            © 2026 SerbisyoGo. All rights reserved.
           </p>
         </section>
 
         <section className="flex min-h-dvh items-center justify-center px-4 py-7 sm:px-6 sm:py-10 lg:px-10 xl:px-16">
           <div className={`w-full ${compact ? "max-w-md" : "max-w-lg"}`}>
             <div className="mb-6 flex items-center gap-3 lg:hidden">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 shadow-lg">
-                <Wrench className="h-5 w-5 text-slate-950" />
-              </div>
+              <img
+                src="/serbisyogo-logo.png"
+                alt="SerbisyoGo logo"
+                className="h-11 w-12 rounded-xl object-cover object-center shadow-lg"
+              />
 
               <div>
                 <p className="font-extrabold text-[var(--app-text)]">
-                  LivelihoodGo
+                  SerbisyoGo
                 </p>
                 <p className="text-xs text-[var(--app-text-muted)]">
                   Trusted local services

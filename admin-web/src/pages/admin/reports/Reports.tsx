@@ -546,7 +546,7 @@ export default function Reports() {
       <div className="space-y-6 p-4 sm:p-6 lg:p-8 print:p-0">
         <header className="hidden print:block">
           <h1 className="text-3xl font-bold">
-            LivelihoodGo
+            SerbisyoGo
           </h1>
           <h2 className="mt-1 text-xl font-semibold">
             Reports & Analytics

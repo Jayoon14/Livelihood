@@ -246,7 +246,7 @@ export default function CustomerReceipt() {
     const doc = new jsPDF();
 
     doc.setFontSize(20);
-    doc.text("LivelihoodGo", 14, 18);
+    doc.text("SerbisyoGo", 14, 18);
 
     doc.setFontSize(13);
     doc.text("Official Payment Receipt", 14, 27);
@@ -422,9 +422,9 @@ export default function CustomerReceipt() {
       finalY + 12,
     );
 
-    doc.text("Thank you for using LivelihoodGo.", 14, finalY + 19);
+    doc.text("Thank you for using SerbisyoGo.", 14, finalY + 19);
 
-    doc.save(`LivelihoodGo-Receipt-${receipt.id}.pdf`);
+    doc.save(`SerbisyoGo-Receipt-${receipt.id}.pdf`);
   }
 
   /* ==========================
@@ -550,7 +550,7 @@ export default function CustomerReceipt() {
 
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">
-                      LivelihoodGo
+                      SerbisyoGo
                     </p>
 
                     <h1 className="mt-1 text-3xl font-bold tracking-tight">
@@ -917,7 +917,7 @@ export default function CustomerReceipt() {
 
               <footer className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-center">
                 <p className="text-sm font-semibold text-blue-900">
-                  Thank you for using LivelihoodGo.
+                  Thank you for using SerbisyoGo.
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-blue-600">

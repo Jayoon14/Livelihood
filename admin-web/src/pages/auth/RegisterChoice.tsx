@@ -81,7 +81,7 @@ export default function RegisterChoice() {
         </h1>
 
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Choose how you will use LivelihoodGo.
+          Choose how you will use SerbisyoGo.
         </p>
       </div>
 

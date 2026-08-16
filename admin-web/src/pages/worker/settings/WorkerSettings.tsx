@@ -526,7 +526,7 @@ export default function WorkerSettings() {
                 className="block text-base font-black leading-none text-slate-950 dark:text-white sm:text-lg"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
-                LivelihoodGo
+                SerbisyoGo
               </span>
 
               <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
@@ -897,7 +897,7 @@ export default function WorkerSettings() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-emerald-700/90 dark:text-emerald-300/90">
-                  Never share OTP codes or passwords. LivelihoodGo
+                  Never share OTP codes or passwords. SerbisyoGo
                   administrators should never ask for them.
                 </p>
               </div>

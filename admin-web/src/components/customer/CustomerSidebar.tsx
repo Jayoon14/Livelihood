@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   Users,
   Wallet,
-  Wrench,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -106,13 +105,15 @@ export default function CustomerSidebar({
 
         {/* Logo */}
         <div className="relative z-10 flex min-h-24 items-center gap-3 border-b border-white/10 px-6 dark:border-white/[0.06]">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 shadow-xl shadow-amber-900/30">
-            <Wrench className="h-5 w-5 text-slate-900" />
-          </div>
+          <img
+            src="/serbisyogo-logo.png"
+            alt="SerbisyoGo logo"
+            className="h-14 w-16 shrink-0 rounded-2xl bg-white p-1.5 object-cover object-center shadow-xl shadow-slate-950/25 ring-1 ring-white/70"
+          />
 
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-xl font-extrabold tracking-tight text-white">
-              Livelihood
+              SerbisyoGo
             </h1>
 
             <p className="mt-0.5 text-xs font-medium text-white/65">
@@ -178,7 +179,7 @@ export default function CustomerSidebar({
         {/* Footer */}
         <div className="relative z-10 border-t border-white/10 px-6 py-5 dark:border-white/[0.06]">
           <p className="text-center text-xs text-white/55">
-            © 2026 LivelihoodGo
+            © 2026 SerbisyoGo
           </p>
         </div>
       </aside>

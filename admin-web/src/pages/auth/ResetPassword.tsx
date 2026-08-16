@@ -109,7 +109,7 @@ export default function ResetPassword() {
           secure password.
         </>
       }
-      heroDescription="Your recovery code was verified. Create a new password for your LivelihoodGo account."
+      heroDescription="Your recovery code was verified. Create a new password for your SerbisyoGo account."
       features={[
         {
           icon: ShieldCheck,

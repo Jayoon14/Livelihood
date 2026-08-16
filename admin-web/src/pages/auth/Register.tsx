@@ -480,7 +480,7 @@ export default function Register() {
                 className="block truncate text-base font-black leading-none text-slate-950 dark:text-white sm:text-lg"
                 style={{ fontFamily: "'Sora', sans-serif" }}
               >
-                LivelihoodGo
+                SerbisyoGo
               </span>
 
               <span className="mt-1 block truncate text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">

@@ -729,7 +729,7 @@ export default function CustomerWorkerProfile() {
       if (navigator.share) {
         await navigator.share({
           title: fullName,
-          text: `View ${fullName}'s services on LivelihoodGo.`,
+          text: `View ${fullName}'s services on SerbisyoGo.`,
           url,
         });
         return;
