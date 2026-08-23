@@ -100,6 +100,25 @@ export default function ProtectedRoute({
     );
   }
 
+  const normalizedStatus = status?.trim().toLowerCase() ?? "";
+
+  if (role !== "admin" && (normalizedStatus === "disabled" || normalizedStatus === "blocked" || normalizedStatus === "rejected")) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          message:
+            normalizedStatus === "disabled"
+              ? "Your account has been disabled. Please contact the administrator for assistance."
+              : normalizedStatus === "blocked"
+                ? "Your account has been blocked. Please contact the administrator for assistance."
+                : "Your account is not allowed to access the system.",
+        }}
+      />
+    );
+  }
+
   if (requireApproved && !isApproved(status)) {
     return (
       <Navigate

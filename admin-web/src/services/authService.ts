@@ -134,8 +134,49 @@ export async function login(
       },
     });
 
-    if (result.error || !result.data.session) {
+    if (result.error || !result.data.session || !result.data.user) {
       return result;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", result.data.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      await supabase.auth.signOut({ scope: "local" });
+      throw new Error(`Unable to verify your account status: ${profileError.message}`);
+    }
+
+    if (!profile) {
+      await supabase.auth.signOut({ scope: "local" });
+      throw new Error("Your account profile was not found.");
+    }
+
+    const role = String(profile.role ?? "").trim().toLowerCase();
+    const status = String(profile.status ?? "").trim().toLowerCase();
+
+    if (role !== "admin" && status !== "approved") {
+      await supabase.auth.signOut({ scope: "local" });
+
+      const message =
+        status === "disabled"
+          ? "Your account has been disabled. Please contact the administrator for assistance."
+          : status === "blocked"
+            ? "Your account has been blocked. Please contact the administrator for assistance."
+            : status === "rejected"
+              ? "Your account has been rejected. Please contact the administrator for assistance."
+              : "Your account is not approved yet. Please wait for administrator approval.";
+
+      return {
+        data: { user: null, session: null },
+        error: {
+          name: "AccountStatusError",
+          message,
+          status: 403,
+        } as AuthError,
+      };
     }
 
     const allowed = await claimActiveSession();

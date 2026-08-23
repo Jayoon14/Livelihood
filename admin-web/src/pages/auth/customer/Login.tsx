@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { login } from "../../../services/authService";
 import { useLoading } from "../../../context/LoadingContextValue";
+import CaptchaVerificationModal from "../../../components/auth/CaptchaVerificationModal";
 
 export default function CustomerLogin() {
   const navigate = useNavigate();
@@ -14,6 +15,12 @@ export default function CustomerLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
 
   useEffect(() => {
     const message = sessionStorage.getItem("auth-message");
@@ -29,22 +36,15 @@ export default function CustomerLogin() {
     }
   }, []);
 
-  async function handleLogin() {
-    if (!email || !password) {
-      toast.warning("Please fill all fields.");
-      return;
-    }
-
+  async function completeLogin(captchaToken: string) {
     setLoading(true);
     showLoading(700);
 
     try {
-      const { data, error } = await login(email, password);
+      const { data, error } = await login(email, password, captchaToken);
 
       if (error) {
-        toast.error(error.message, {
-          duration: 6000,
-        });
+        toast.error(error.message, { duration: 6000 });
         return;
       }
 
@@ -53,13 +53,29 @@ export default function CustomerLogin() {
         return;
       }
 
-      navigate("/customer/dashboard", {
-        replace: true,
-      });
+      setCaptchaOpen(false);
+      navigate("/customer/dashboard", { replace: true });
     } finally {
       setLoading(false);
       hideLoading();
     }
+  }
+
+  function handleLogin() {
+    if (!email || !password) {
+      toast.warning("Please fill all fields.");
+      return;
+    }
+
+    if (!turnstileSiteKey) {
+      toast.error(
+        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+      );
+      return;
+    }
+
+    setCaptchaWidgetKey((value) => value + 1);
+    setCaptchaOpen(true);
   }
 
   return (
@@ -135,6 +151,28 @@ export default function CustomerLogin() {
           </p>
         </div>
       </div>
+
+      <CaptchaVerificationModal
+        open={captchaOpen}
+        siteKey={turnstileSiteKey ?? ""}
+        widgetKey={captchaWidgetKey}
+        processing={loading}
+        title="Verify before signing in"
+        description="Complete this quick security check to continue to your account."
+        onClose={() => {
+          if (!loading) setCaptchaOpen(false);
+        }}
+        onSuccess={(token) => {
+          void completeLogin(token);
+        }}
+        onExpire={() => {
+          setCaptchaWidgetKey((value) => value + 1);
+        }}
+        onError={() => {
+          setCaptchaWidgetKey((value) => value + 1);
+          toast.error("Security verification failed. Please try again.");
+        }}
+      />
     </div>
   );
 }

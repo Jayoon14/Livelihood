@@ -4,9 +4,10 @@ import { supabase } from "../../lib/supabase";
 import {
   claimActiveSession,
   refreshActiveSession,
+  releaseActiveSession,
 } from "../../services/activeSessionService";
 
-const SESSION_HEARTBEAT_INTERVAL_MS = 30_000;
+const SESSION_HEARTBEAT_INTERVAL_MS = 10_000;
 
 export default function ActiveSessionManager() {
   useEffect(() => {
@@ -21,20 +22,52 @@ export default function ActiveSessionManager() {
       }
     };
 
-    const forceSessionLogout = async () => {
+    const forceSessionLogout = async (message = "Your account session is no longer active on this device.") => {
       if (!mounted) {
         return;
       }
 
       stopHeartbeat();
 
-      sessionStorage.setItem(
-        "auth-message",
-        "Your account session is no longer active on this device.",
-      );
+      sessionStorage.setItem("auth-message", message);
 
+      await releaseActiveSession().catch(() => false);
       await supabase.auth.signOut({ scope: "local" });
       window.location.replace("/");
+    };
+
+    const verifyAccountStatus = async (userId: string): Promise<boolean> => {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role, status")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!profile) {
+        await forceSessionLogout("Your account profile could no longer be verified. Please sign in again.");
+        return false;
+      }
+
+      const role = String(profile.role ?? "").trim().toLowerCase();
+      const status = String(profile.status ?? "").trim().toLowerCase();
+
+      if (role !== "admin" && (status === "disabled" || status === "blocked" || status === "rejected")) {
+        const message =
+          status === "disabled"
+            ? "Your account has been disabled by the administrator."
+            : status === "blocked"
+              ? "Your account has been blocked by the administrator."
+              : "Your account is no longer allowed to access the system.";
+
+        await forceSessionLogout(message);
+        return false;
+      }
+
+      return true;
     };
 
     const sendHeartbeat = async () => {
@@ -51,6 +84,12 @@ export default function ActiveSessionManager() {
 
         if (!session) {
           stopHeartbeat();
+          return;
+        }
+
+        const accountAllowed = await verifyAccountStatus(session.user.id);
+
+        if (!accountAllowed) {
           return;
         }
 
@@ -71,6 +110,8 @@ export default function ActiveSessionManager() {
       if (heartbeatTimer !== null) {
         return;
       }
+
+      void sendHeartbeat();
 
       heartbeatTimer = window.setInterval(() => {
         void sendHeartbeat();
@@ -96,6 +137,12 @@ export default function ActiveSessionManager() {
 
         if (!session) {
           stopHeartbeat();
+          return;
+        }
+
+        const accountAllowed = await verifyAccountStatus(session.user.id);
+
+        if (!accountAllowed) {
           return;
         }
 

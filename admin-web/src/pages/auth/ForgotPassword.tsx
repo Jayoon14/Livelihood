@@ -13,6 +13,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import AuthSplitLayout from "../../components/auth/AuthSplitLayout";
+import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
 import { supabase } from "../../lib/supabase";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,6 +30,12 @@ export default function ForgotPassword() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -42,6 +49,7 @@ export default function ForgotPassword() {
 
   async function sendRecoveryOtp(
     event?: FormEvent<HTMLFormElement>,
+    captchaToken?: string,
   ): Promise<void> {
     event?.preventDefault();
 
@@ -54,11 +62,29 @@ export default function ForgotPassword() {
 
     if (loading || cooldown > 0) return;
 
+    if (!captchaToken?.trim()) {
+      if (!turnstileSiteKey) {
+        toast.error(
+          "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+        );
+        return;
+      }
+
+      setCaptchaWidgetKey((value) => value + 1);
+      setCaptchaOpen(true);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const { error } =
-        await supabase.auth.resetPasswordForEmail(normalizedEmail);
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+          captchaToken: captchaToken.trim(),
+        },
+      );
 
       if (error) throw error;
 
@@ -66,9 +92,12 @@ export default function ForgotPassword() {
       setOtp("");
       setStage("otp");
       setCooldown(RESEND_SECONDS);
+      setCaptchaOpen(false);
 
       toast.success("Password recovery code sent.");
     } catch (error) {
+      setCaptchaWidgetKey((value) => value + 1);
+      setCaptchaOpen(false);
       toast.error(
         error instanceof Error
           ? error.message
@@ -309,6 +338,28 @@ export default function ForgotPassword() {
           </Link>
         </div>
       </div>
+
+      <CaptchaVerificationModal
+        open={captchaOpen}
+        siteKey={turnstileSiteKey ?? ""}
+        widgetKey={captchaWidgetKey}
+        processing={loading}
+        title="Verify before sending recovery code"
+        description="Complete this quick security check to request a password recovery code."
+        onClose={() => {
+          if (!loading) setCaptchaOpen(false);
+        }}
+        onSuccess={(token) => {
+          void sendRecoveryOtp(undefined, token);
+        }}
+        onExpire={() => {
+          setCaptchaWidgetKey((value) => value + 1);
+        }}
+        onError={() => {
+          setCaptchaWidgetKey((value) => value + 1);
+          toast.error("Security verification failed. Please try again.");
+        }}
+      />
     </AuthSplitLayout>
   );
 }
