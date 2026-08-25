@@ -560,6 +560,14 @@ import { lazy, Suspense } from "react";
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                    path="/worker/profile/edit"
+                    element={
+                      <ProtectedRoute allowedRoles={["worker"]} requireApproved>
+                        <WorkerProfile />
+                      </ProtectedRoute>
+                    }
+                  />
 
                 <Route
                   path="/worker/settings"

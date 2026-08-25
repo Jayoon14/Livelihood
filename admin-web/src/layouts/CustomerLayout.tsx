@@ -10,16 +10,28 @@ interface Props {
   children: ReactNode;
 }
 
-export default function CustomerLayout({ children }: Props) {
+export default function CustomerLayout({
+  children,
+}: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = sidebarOpen ? "hidden" : "";
+    document.body.style.overflow = sidebarOpen
+      ? "hidden"
+      : "";
 
     return () => {
       document.body.style.overflow = "";
     };
   }, [sidebarOpen]);
+
+  function closeSidebar(): void {
+    setSidebarOpen(false);
+  }
+
+  function openSidebar(): void {
+    setSidebarOpen(true);
+  }
 
   return (
     <ProfileProvider>
@@ -27,11 +39,23 @@ export default function CustomerLayout({ children }: Props) {
         <div className="flex min-h-dvh min-w-0">
           <CustomerSidebar
             isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
+            onClose={closeSidebar}
           />
 
+          {/* Mobile sidebar overlay */}
+          {sidebarOpen && (
+            <button
+              type="button"
+              aria-label="Close sidebar"
+              onClick={closeSidebar}
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            />
+          )}
+
           <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-            <CustomerNavbar onMenuClick={() => setSidebarOpen(true)} />
+            <CustomerNavbar
+              onMenuClick={openSidebar}
+            />
 
             <main className="min-w-0 flex-1 overflow-x-hidden">
               <div className="mx-auto w-full max-w-[1800px] px-3 py-4 sm:px-5 sm:py-6 lg:px-7 xl:px-8">
