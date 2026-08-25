@@ -1,4 +1,9 @@
-import type { AuthError, Session, User } from "@supabase/supabase-js";
+import type {
+  AuthError,
+  Session,
+  User,
+} from "@supabase/supabase-js";
+
 import { supabase } from "../lib/supabase";
 import { logActivity } from "./activityService";
 import { createNotification } from "./notificationService";
@@ -7,7 +12,11 @@ import {
   releaseActiveSession,
 } from "./activeSessionService";
 
-export type UserRole = "admin" | "worker" | "customer" | string;
+export type UserRole =
+  | "admin"
+  | "worker"
+  | "customer"
+  | string;
 
 export interface RegisterData {
   firstName: string;
@@ -52,8 +61,14 @@ export interface CurrentSessionResult {
   error: AuthError | null;
 }
 
+// =========================
+// VALIDATION HELPERS
+// =========================
 
-function normalizeRequiredText(value: string, fieldName: string): string {
+function normalizeRequiredText(
+  value: string,
+  fieldName: string,
+): string {
   const normalizedValue = value.trim();
 
   if (!normalizedValue) {
@@ -63,38 +78,113 @@ function normalizeRequiredText(value: string, fieldName: string): string {
   return normalizedValue;
 }
 
-function normalizeOptionalText(value?: string): string | null {
+function normalizeOptionalText(
+  value?: string,
+): string | null {
   const normalizedValue = value?.trim();
+
   return normalizedValue ? normalizedValue : null;
 }
 
 function normalizeEmail(email: string): string {
-  const normalizedEmail = normalizeRequiredText(email, "Email").toLowerCase();
+  const normalizedEmail = normalizeRequiredText(
+    email,
+    "Email",
+  ).toLowerCase();
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailPattern =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (!emailPattern.test(normalizedEmail)) {
-    throw new Error("Please enter a valid email address.");
+    throw new Error(
+      "Please enter a valid email address.",
+    );
   }
 
   return normalizedEmail;
 }
 
-function validatePassword(password: string): string {
+function validatePassword(
+  password: string,
+): string {
   if (!password) {
     throw new Error("Password is required.");
   }
 
   if (password.length < 6) {
-    throw new Error("Password must contain at least 6 characters.");
+    throw new Error(
+      "Password must contain at least 6 characters.",
+    );
   }
 
   return password;
 }
 
-function normalizeRole(role: UserRole): string {
-  return normalizeRequiredText(String(role), "Role").toLowerCase();
+function normalizeRole(
+  role: UserRole,
+): string {
+  return normalizeRequiredText(
+    String(role),
+    "Role",
+  ).toLowerCase();
 }
+
+// =========================
+// PASSWORD RECOVERY
+// =========================
+
+export async function requestPasswordReset(
+  email: string,
+  captchaToken: string,
+): Promise<void> {
+  try {
+    const normalizedEmail =
+      normalizeEmail(email);
+
+    const normalizedCaptchaToken =
+      normalizeOptionalText(captchaToken);
+
+    if (!normalizedCaptchaToken) {
+      throw new Error(
+        "Please complete the security verification.",
+      );
+    }
+
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+          captchaToken:
+            normalizedCaptchaToken,
+        },
+      );
+
+    if (error) {
+      console.error(
+        "Password recovery request error:",
+        error,
+      );
+
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error(
+      "requestPasswordReset failed:",
+      error,
+    );
+
+    throw error instanceof Error
+      ? error
+      : new Error(
+          "Unable to send the password recovery code.",
+        );
+  }
+}
+
+// =========================
+// ACTIVITY LOGGING
+// =========================
 
 async function logActivitySafely(
   userId: string,
@@ -103,7 +193,12 @@ async function logActivitySafely(
   description: string,
 ): Promise<void> {
   try {
-    await logActivity(userId, action, module, description);
+    await logActivity(
+      userId,
+      action,
+      module,
+      description,
+    );
   } catch {
     // Authentication must remain successful even if activity logging fails.
   }
@@ -119,46 +214,95 @@ export async function login(
   captchaToken?: string,
 ): Promise<AuthResult> {
   try {
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedPassword = validatePassword(password);
+    const normalizedEmail =
+      normalizeEmail(email);
 
-    if (typeof captchaToken !== "string" || !captchaToken.trim()) {
-      throw new Error("Please complete the security verification.");
+    const normalizedPassword =
+      validatePassword(password);
+
+    if (
+      typeof captchaToken !== "string" ||
+      !captchaToken.trim()
+    ) {
+      throw new Error(
+        "Please complete the security verification.",
+      );
     }
 
-    const result = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password: normalizedPassword,
-      options: {
-        captchaToken: captchaToken.trim(),
-      },
-    });
+    const result =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: normalizedPassword,
+        options: {
+          captchaToken:
+            captchaToken.trim(),
+        },
+      });
 
-    if (result.error || !result.data.session || !result.data.user) {
+    if (
+      result.error ||
+      !result.data.session ||
+      !result.data.user
+    ) {
       return result;
     }
 
-    const { data: profile, error: profileError } = await supabase
+    // =========================
+    // CHECK PROFILE
+    // =========================
+
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
       .from("profiles")
       .select("role, status")
       .eq("id", result.data.user.id)
       .maybeSingle();
 
     if (profileError) {
-      await supabase.auth.signOut({ scope: "local" });
-      throw new Error(`Unable to verify your account status: ${profileError.message}`);
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      throw new Error(
+        `Unable to verify your account status: ${profileError.message}`,
+      );
     }
 
     if (!profile) {
-      await supabase.auth.signOut({ scope: "local" });
-      throw new Error("Your account profile was not found.");
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      throw new Error(
+        "Your account profile was not found.",
+      );
     }
 
-    const role = String(profile.role ?? "").trim().toLowerCase();
-    const status = String(profile.status ?? "").trim().toLowerCase();
+    const role = String(
+      profile.role ?? "",
+    )
+      .trim()
+      .toLowerCase();
 
-    if (role !== "admin" && status !== "approved") {
-      await supabase.auth.signOut({ scope: "local" });
+    const status = String(
+      profile.status ?? "",
+    )
+      .trim()
+      .toLowerCase();
+
+    // =========================
+    // ACCOUNT STATUS CHECK
+    // =========================
+
+    if (
+      role !== "admin" &&
+      status !== "approved"
+    ) {
+      await supabase.auth.signOut({
+        scope: "local",
+      });
 
       const message =
         status === "disabled"
@@ -170,7 +314,10 @@ export async function login(
               : "Your account is not approved yet. Please wait for administrator approval.";
 
       return {
-        data: { user: null, session: null },
+        data: {
+          user: null,
+          session: null,
+        },
         error: {
           name: "AccountStatusError",
           message,
@@ -179,13 +326,19 @@ export async function login(
       };
     }
 
-    const allowed = await claimActiveSession();
+    // =========================
+    // CLAIM ACTIVE SESSION
+    // =========================
+
+    const allowed =
+      await claimActiveSession();
 
     if (!allowed) {
       const activeSessionMessage =
         "This account is already logged in on another device.";
 
-      const activeUserId = result.data.user?.id;
+      const activeUserId =
+        result.data.user?.id;
 
       if (activeUserId) {
         try {
@@ -197,8 +350,8 @@ export async function login(
           );
         } catch (notificationError) {
           /*
-           * The login attempt must still be blocked even if the security
-           * notification cannot be inserted.
+           * The login attempt must still be blocked even if
+           * the security notification cannot be inserted.
            */
           console.error(
             "Unable to create blocked-login security notification:",
@@ -207,9 +360,14 @@ export async function login(
         }
       }
 
-      sessionStorage.setItem("auth-message", activeSessionMessage);
+      sessionStorage.setItem(
+        "auth-message",
+        activeSessionMessage,
+      );
 
-      await supabase.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut({
+        scope: "local",
+      });
 
       return {
         data: {
@@ -218,11 +376,33 @@ export async function login(
         },
         error: {
           name: "ActiveSessionError",
-          message: activeSessionMessage,
+          message:
+            activeSessionMessage,
           status: 403,
         } as AuthError,
       };
     }
+
+    // =========================
+    // ACTIVE SESSION CLAIMED
+    // =========================
+
+    /*
+     * IMPORTANT:
+     *
+     * The login has successfully claimed
+     * the active device session.
+     *
+     * ActiveSessionManager should start its
+     * heartbeat/refresh logic only after this event.
+     *
+     * This prevents the SIGNED_IN event from calling
+     * refreshActiveSession() before claimActiveSession()
+     * has completed.
+     */
+    window.dispatchEvent(
+      new Event("active-session-claimed"),
+    );
 
     return result;
   } catch (error) {
@@ -240,7 +420,8 @@ export async function login(
             } as AuthError)
           : ({
               name: "AuthValidationError",
-              message: "Unable to sign in.",
+              message:
+                "Unable to sign in.",
               status: 400,
             } as AuthError),
     };
@@ -255,36 +436,64 @@ export async function registerUser(
   userData: RegisterData,
 ): Promise<AuthResult> {
   try {
-    const firstName = normalizeRequiredText(
-      userData.firstName,
-      "First name",
-    );
-    const middleName = normalizeOptionalText(
-      userData.middleName,
-    );
-    const lastName = normalizeRequiredText(
-      userData.lastName,
-      "Last name",
+    const firstName =
+      normalizeRequiredText(
+        userData.firstName,
+        "First name",
+      );
+
+    const middleName =
+      normalizeOptionalText(
+        userData.middleName,
+      );
+
+    const lastName =
+      normalizeRequiredText(
+        userData.lastName,
+        "Last name",
+      );
+
+    const email = normalizeEmail(
+      userData.email,
     );
 
-    const email = normalizeEmail(userData.email);
-    const phone = normalizeRequiredText(
-      userData.phone,
-      "Phone number",
+    const phone =
+      normalizeRequiredText(
+        userData.phone,
+        "Phone number",
+      );
+
+    const password =
+      validatePassword(
+        userData.password,
+      );
+
+    const role = normalizeRole(
+      userData.role,
     );
-    const password = validatePassword(
-      userData.password,
-    );
-    const role = normalizeRole(userData.role);
+
+    // =========================
+    // CAPTCHA
+    // =========================
+
     const captchaToken =
-      normalizeOptionalText(userData.captchaToken) ??
-      undefined;
+      normalizeOptionalText(
+        userData.captchaToken,
+      );
+
+    if (!captchaToken) {
+      throw new Error(
+        "Please complete the security verification before creating your account.",
+      );
+    }
 
     /*
-     * Kapag naka-enable ang Confirm Email, walang authenticated
-     * session pagkatapos ng signUp. Kaya ang profile data ay
-     * ipinapasa bilang user metadata at ise-save ng database
-     * trigger na on_auth_user_created.
+     * Kapag naka-enable ang Confirm Email,
+     * walang authenticated session pagkatapos
+     * ng signUp.
+     *
+     * Kaya ang profile data ay ipinapasa bilang
+     * user metadata at ise-save ng database trigger.
      */
     const { data, error } =
       await supabase.auth.signUp({
@@ -292,41 +501,62 @@ export async function registerUser(
         password,
         options: {
           captchaToken,
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo:
+            window.location.origin,
           data: {
             first_name: firstName,
             middle_name: middleName,
             last_name: lastName,
             email,
             phone,
-            gender: normalizeOptionalText(
-              userData.gender,
-            ),
-            birth_date: normalizeOptionalText(
-              userData.birthDate,
-            ),
-            civil_status: normalizeOptionalText(
-              userData.civilStatus,
-            ),
-            religion: normalizeOptionalText(
-              userData.religion,
-            ),
-            house_no: normalizeOptionalText(
-              userData.houseNo,
-            ),
-            street: normalizeOptionalText(
-              userData.street,
-            ),
-            barangay: normalizeOptionalText(
-              userData.barangay,
-            ),
-            municipality: normalizeOptionalText(
-              userData.municipality,
-            ),
-            province: normalizeOptionalText(
-              userData.province,
-            ),
+
+            gender:
+              normalizeOptionalText(
+                userData.gender,
+              ),
+
+            birth_date:
+              normalizeOptionalText(
+                userData.birthDate,
+              ),
+
+            civil_status:
+              normalizeOptionalText(
+                userData.civilStatus,
+              ),
+
+            religion:
+              normalizeOptionalText(
+                userData.religion,
+              ),
+
+            house_no:
+              normalizeOptionalText(
+                userData.houseNo,
+              ),
+
+            street:
+              normalizeOptionalText(
+                userData.street,
+              ),
+
+            barangay:
+              normalizeOptionalText(
+                userData.barangay,
+              ),
+
+            municipality:
+              normalizeOptionalText(
+                userData.municipality,
+              ),
+
+            province:
+              normalizeOptionalText(
+                userData.province,
+              ),
+
             role,
+
             status:
               role === "customer"
                 ? "Approved"
@@ -350,19 +580,23 @@ export async function registerUser(
         },
         error: {
           name: "UserCreationError",
-          message: "User creation failed.",
+          message:
+            "User creation failed.",
           status: 500,
         } as AuthError,
       };
     }
 
     /*
-     * Huwag mag-upload o mag-insert mula sa frontend kapag
-     * session=null. Ang profile row ay gagawin ng database
+     * Huwag mag-upload o mag-insert mula sa
+     * frontend kapag session=null.
+     *
+     * Ang profile row ay gagawin ng database
      * trigger kahit hinihintay pa ang email verification.
      *
-     * Ang optional profile picture ay maaaring i-upload
-     * pagkatapos ma-verify at makapag-login ang customer.
+     * Ang optional profile picture ay maaaring
+     * i-upload pagkatapos ma-verify at
+     * makapag-login ang customer.
      */
     return {
       data,
@@ -383,7 +617,8 @@ export async function registerUser(
             } as AuthError)
           : ({
               name: "RegistrationError",
-              message: "Unable to register user.",
+              message:
+                "Unable to register user.",
               status: 400,
             } as AuthError),
     };
@@ -410,7 +645,9 @@ export async function logout() {
     await releaseActiveSession();
   }
 
-  return supabase.auth.signOut({ scope: "local" });
+  return supabase.auth.signOut({
+    scope: "local",
+  });
 }
 
 // =========================

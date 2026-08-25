@@ -6,12 +6,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import CaptchaVerificationModal from "./CaptchaVerificationModal";
@@ -32,7 +27,7 @@ interface EmailOtpModalProps {
     | ((context: EmailOtpVerifiedContext) => Promise<void>);
 }
 
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function EmailOtpModal({
@@ -42,45 +37,44 @@ export default function EmailOtpModal({
   onClose,
   onVerified,
 }: EmailOtpModalProps) {
-  const inputRefs =
-    useRef<Array<HTMLInputElement | null>>([]);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [digits, setDigits] = useState<string[]>(
     Array.from({ length: OTP_LENGTH }, () => ""),
   );
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(
-    RESEND_COOLDOWN_SECONDS,
-  );
+  const [cooldown, setCooldown] = useState(0);
   const [captchaOpen, setCaptchaOpen] = useState(false);
-  const [captchaWidgetKey, setCaptchaWidgetKey] =
-    useState(0);
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
 
-  const turnstileSiteKey = import.meta.env
-    .VITE_TURNSTILE_SITE_KEY as string | undefined;
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
 
   const normalizedEmail = email.trim().toLowerCase();
   const otp = useMemo(() => digits.join(""), [digits]);
 
+  /*
+   * The OTP state is reset by the open event rather than by
+   * synchronously calling setState() inside useEffect.
+   *
+   * This effect is only responsible for focusing the first
+   * OTP input after the modal has rendered.
+   */
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      setDigits(
-        Array.from({ length: OTP_LENGTH }, () => ""),
-      );
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
-
-    window.setTimeout(() => {
+    const focusTimer = window.setTimeout(() => {
       inputRefs.current[0]?.focus();
     }, 100);
-  }, [open, normalizedEmail]);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || cooldown <= 0) {
@@ -88,9 +82,7 @@ export default function EmailOtpModal({
     }
 
     const timer = window.setInterval(() => {
-      setCooldown((current) =>
-        current > 0 ? current - 1 : 0,
-      );
+      setCooldown((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
 
     return () => {
@@ -102,13 +94,14 @@ export default function EmailOtpModal({
     return null;
   }
 
-  function updateDigit(
-    index: number,
-    value: string,
-  ): void {
-    const normalized = value
-      .replace(/\D/g, "")
-      .slice(-1);
+  function resetOtpState(): void {
+    setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+  }
+
+  function updateDigit(index: number, value: string): void {
+    const normalized = value.replace(/\D/g, "").slice(-1);
 
     setDigits((current) => {
       const next = [...current];
@@ -125,11 +118,7 @@ export default function EmailOtpModal({
     index: number,
     event: React.KeyboardEvent<HTMLInputElement>,
   ): void {
-    if (
-      event.key === "Backspace" &&
-      !digits[index] &&
-      index > 0
-    ) {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
 
@@ -137,17 +126,12 @@ export default function EmailOtpModal({
       inputRefs.current[index - 1]?.focus();
     }
 
-    if (
-      event.key === "ArrowRight" &&
-      index < OTP_LENGTH - 1
-    ) {
+    if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   }
 
-  function handlePaste(
-    event: React.ClipboardEvent<HTMLDivElement>,
-  ): void {
+  function handlePaste(event: React.ClipboardEvent<HTMLDivElement>): void {
     const pasted = event.clipboardData
       .getData("text")
       .replace(/\D/g, "")
@@ -160,15 +144,10 @@ export default function EmailOtpModal({
     event.preventDefault();
 
     setDigits(
-      Array.from(
-        { length: OTP_LENGTH },
-        (_, index) => pasted[index] ?? "",
-      ),
+      Array.from({ length: OTP_LENGTH }, (_, index) => pasted[index] ?? ""),
     );
 
-    inputRefs.current[
-      Math.min(pasted.length, OTP_LENGTH - 1)
-    ]?.focus();
+    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
   }
 
   async function verifyOtp(): Promise<void> {
@@ -178,9 +157,7 @@ export default function EmailOtpModal({
     }
 
     if (otp.length !== OTP_LENGTH) {
-      toast.warning(
-        `Enter the complete ${OTP_LENGTH}-digit OTP code.`,
-      );
+      toast.warning(`Enter the complete ${OTP_LENGTH}-digit OTP code.`);
       return;
     }
 
@@ -219,13 +196,9 @@ export default function EmailOtpModal({
           ? "Email verified. Your application is waiting for administrator approval."
           : "Email verified successfully. You may now sign in.",
       );
-
-      // The caller has already completed its post-verification work.
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to verify the OTP.";
+        error instanceof Error ? error.message : "Unable to verify the OTP.";
 
       toast.error(
         message.toLowerCase().includes("expired")
@@ -238,11 +211,7 @@ export default function EmailOtpModal({
   }
 
   function requestResend(): void {
-    if (
-      resending ||
-      verifying ||
-      cooldown > 0
-    ) {
+    if (resending || verifying || cooldown > 0) {
       return;
     }
 
@@ -254,12 +223,11 @@ export default function EmailOtpModal({
     }
 
     setCaptchaWidgetKey((current) => current + 1);
+
     setCaptchaOpen(true);
   }
 
-  async function completeResend(
-    captchaToken: string,
-  ): Promise<void> {
+  async function completeResend(captchaToken: string): Promise<void> {
     try {
       setResending(true);
 
@@ -277,29 +245,23 @@ export default function EmailOtpModal({
       }
 
       setCaptchaOpen(false);
-      setDigits(
-        Array.from({ length: OTP_LENGTH }, () => ""),
-      );
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+
+      resetOtpState();
+
       inputRefs.current[0]?.focus();
 
-      toast.success(
-        "A new OTP code was sent to your email.",
-      );
+      toast.success("A new OTP code was sent to your email.");
     } catch (error) {
       setCaptchaOpen(false);
+
       setCaptchaWidgetKey((current) => current + 1);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to resend the OTP.";
+        error instanceof Error ? error.message : "Unable to resend the OTP.";
 
       toast.error(
         message.toLowerCase().includes("rate limit") ||
-          message
-            .toLowerCase()
-            .includes("security purposes")
+          message.toLowerCase().includes("security purposes")
           ? "Please wait before requesting another OTP code."
           : message,
       );
@@ -356,10 +318,7 @@ export default function EmailOtpModal({
               Enter {OTP_LENGTH}-digit OTP
             </div>
 
-            <div
-              onPaste={handlePaste}
-              className="mt-5 grid grid-cols-8 gap-2"
-            >
+            <div onPaste={handlePaste} className="mt-5 grid grid-cols-6 gap-2">
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -368,23 +327,12 @@ export default function EmailOtpModal({
                   }}
                   type="text"
                   inputMode="numeric"
-                  autoComplete={
-                    index === 0
-                      ? "one-time-code"
-                      : "off"
-                  }
+                  autoComplete={index === 0 ? "one-time-code" : "off"}
                   maxLength={1}
                   value={digit}
                   disabled={busy}
-                  onChange={(event) =>
-                    updateDigit(
-                      index,
-                      event.target.value,
-                    )
-                  }
-                  onKeyDown={(event) =>
-                    handleKeyDown(index, event)
-                  }
+                  onChange={(event) => updateDigit(index, event.target.value)}
+                  onKeyDown={(event) => handleKeyDown(index, event)}
                   aria-label={`OTP digit ${index + 1}`}
                   className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
                 />
@@ -394,9 +342,7 @@ export default function EmailOtpModal({
             <button
               type="button"
               onClick={() => void verifyOtp()}
-              disabled={
-                busy || otp.length !== OTP_LENGTH
-              }
+              disabled={busy || otp.length !== OTP_LENGTH}
               className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
             >
               {verifying ? (
@@ -460,9 +406,8 @@ export default function EmailOtpModal({
         onExpire={() => undefined}
         onError={() => {
           setCaptchaWidgetKey((current) => current + 1);
-          toast.error(
-            "Security verification failed. Please try again.",
-          );
+
+          toast.error("Security verification failed. Please try again.");
         }}
       />
     </>

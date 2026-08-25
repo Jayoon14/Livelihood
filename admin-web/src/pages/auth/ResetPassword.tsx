@@ -29,17 +29,58 @@ export default function ResetPassword() {
   const [validRecoverySession, setValidRecoverySession] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // =========================
+  // CHECK RECOVERY SESSION
+  // =========================
+
   useEffect(() => {
     let active = true;
 
     async function checkRecoverySession() {
+      /*
+       * A normal authenticated session is NOT enough.
+       *
+       * ResetPassword must only be accessible after the
+       * recovery OTP has been successfully verified.
+       */
+      const recoveryActive =
+        sessionStorage.getItem("password-recovery-active") === "true";
+
+      if (!recoveryActive) {
+        if (active) {
+          setValidRecoverySession(false);
+          setCheckingSession(false);
+        }
+
+        return;
+      }
+
       const {
         data: { session },
+        error,
       } = await supabase.auth.getSession();
 
-      if (!active) return;
+      if (!active) {
+        return;
+      }
 
-      setValidRecoverySession(Boolean(session));
+      /*
+       * The recovery flag exists, but the Supabase recovery
+       * session is no longer available.
+       *
+       * Clear the recovery state so it cannot be reused.
+       */
+      if (error || !session) {
+        sessionStorage.removeItem("password-recovery-active");
+        sessionStorage.removeItem("password-recovery-email");
+
+        setValidRecoverySession(false);
+        setCheckingSession(false);
+
+        return;
+      }
+
+      setValidRecoverySession(true);
       setCheckingSession(false);
     }
 
@@ -49,6 +90,10 @@ export default function ResetPassword() {
       active = false;
     };
   }, []);
+
+  // =========================
+  // PASSWORD VALIDATION
+  // =========================
 
   const checks = useMemo(
     () => ({
@@ -63,32 +108,109 @@ export default function ResetPassword() {
   );
 
   const score = Object.values(checks).filter(Boolean).length;
+
   const strength = score <= 2 ? "Weak" : score <= 4 ? "Medium" : "Strong";
+
+  const allRequirementsPassed = Object.values(checks).every(Boolean);
+
+  // =========================
+  // SAVE NEW PASSWORD
+  // =========================
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!Object.values(checks).every(Boolean)) {
+    /*
+     * Double-check that this is still a recovery flow.
+     */
+    const recoveryActive =
+      sessionStorage.getItem("password-recovery-active") === "true";
+
+    if (!recoveryActive) {
+      toast.error(
+        "Your recovery session is no longer valid. Please request a new recovery code.",
+      );
+
+      navigate("/forgot-password", {
+        replace: true,
+      });
+
+      return;
+    }
+
+    if (!allRequirementsPassed) {
       toast.warning("Complete all password requirements.");
+
+      return;
+    }
+
+    if (loading) {
       return;
     }
 
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.updateUser({ password });
+      /*
+       * Make sure the recovery session still exists
+       * before changing the password.
+       */
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (error) throw error;
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!session) {
+        throw new Error(
+          "Your recovery session has expired. Please request a new recovery code.",
+        );
+      }
+
+      /*
+       * Update password using the temporary recovery
+       * session created by verifyOtp(type: "recovery").
+       */
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
 
       setSuccess(true);
+
+      /*
+       * Recovery session is now consumed.
+       *
+       * Clear these BEFORE signing out so ActiveSessionManager
+       * cannot treat the recovery session as a normal app session.
+       */
+      sessionStorage.removeItem("password-recovery-active");
+
+      sessionStorage.removeItem("password-recovery-email");
+
       toast.success("Password updated successfully.");
 
-      await supabase.auth.signOut();
+      /*
+       * Do not keep the temporary recovery session alive.
+       */
+      await supabase.auth.signOut({
+        scope: "local",
+      });
 
       window.setTimeout(() => {
-        navigate("/", { replace: true });
+        navigate("/", {
+          replace: true,
+        });
       }, 1800);
     } catch (error) {
+      console.error("Password update failed:", error);
+
       toast.error(
         error instanceof Error
           ? error.message
@@ -126,6 +248,7 @@ export default function ResetPassword() {
       {checkingSession ? (
         <div className="py-14 text-center">
           <Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" />
+
           <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
             Verifying your recovery session...
           </p>
@@ -138,7 +261,9 @@ export default function ResetPassword() {
 
           <h1
             className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
-            style={{ fontFamily: "'Sora', sans-serif" }}
+            style={{
+              fontFamily: "'Sora', sans-serif",
+            }}
           >
             Verification required
           </h1>
@@ -160,7 +285,9 @@ export default function ResetPassword() {
 
           <h1
             className="mt-5 text-3xl font-black text-slate-900 dark:text-white"
-            style={{ fontFamily: "'Sora', sans-serif" }}
+            style={{
+              fontFamily: "'Sora', sans-serif",
+            }}
           >
             Password updated
           </h1>
@@ -182,7 +309,9 @@ export default function ResetPassword() {
 
             <h1
               className="mt-3 text-3xl font-black text-slate-900 dark:text-white"
-              style={{ fontFamily: "'Sora', sans-serif" }}
+              style={{
+                fontFamily: "'Sora', sans-serif",
+              }}
             >
               Reset your password
             </h1>
@@ -241,23 +370,30 @@ export default function ResetPassword() {
                         ? "bg-amber-500"
                         : "bg-rose-500"
                   }`}
-                  style={{ width: `${Math.max(12, (score / 6) * 100)}%` }}
+                  style={{
+                    width: `${Math.max(12, (score / 6) * 100)}%`,
+                  }}
                 />
               </div>
             </div>
 
             <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60 sm:grid-cols-2">
               <Requirement ok={checks.length} text="At least 8 characters" />
+
               <Requirement ok={checks.upper} text="Uppercase letter" />
+
               <Requirement ok={checks.lower} text="Lowercase letter" />
+
               <Requirement ok={checks.number} text="Number" />
+
               <Requirement ok={checks.special} text="Special character" />
+
               <Requirement ok={checks.match} text="Passwords match" />
             </div>
 
             <button
               type="submit"
-              disabled={loading || !Object.values(checks).every(Boolean)}
+              disabled={loading || !allRequirementsPassed}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] text-sm font-bold text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
             >
               {loading ? (
@@ -288,6 +424,10 @@ export default function ResetPassword() {
     </AuthSplitLayout>
   );
 }
+
+// =========================
+// PASSWORD INPUT
+// =========================
 
 function PasswordInput({
   id,
@@ -331,7 +471,8 @@ function PasswordInput({
         <button
           type="button"
           onClick={onToggle}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white"
+          disabled={loading}
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-700 dark:hover:text-white"
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? <EyeOff size={19} /> : <Eye size={19} />}
@@ -340,6 +481,10 @@ function PasswordInput({
     </div>
   );
 }
+
+// =========================
+// PASSWORD REQUIREMENT
+// =========================
 
 function Requirement({ ok, text }: { ok: boolean; text: string }) {
   return (
@@ -359,6 +504,7 @@ function Requirement({ ok, text }: { ok: boolean; text: string }) {
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
         )}
       </span>
+
       {text}
     </div>
   );

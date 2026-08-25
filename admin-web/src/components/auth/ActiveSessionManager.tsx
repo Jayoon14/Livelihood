@@ -22,7 +22,9 @@ export default function ActiveSessionManager() {
       }
     };
 
-    const forceSessionLogout = async (message = "Your account session is no longer active on this device.") => {
+    const forceSessionLogout = async (
+      message = "Your account session is no longer active on this device.",
+    ) => {
       if (!mounted) {
         return;
       }
@@ -32,11 +34,19 @@ export default function ActiveSessionManager() {
       sessionStorage.setItem("auth-message", message);
 
       await releaseActiveSession().catch(() => false);
-      await supabase.auth.signOut({ scope: "local" });
-      window.location.replace("/");
+
+      await supabase.auth.signOut({
+        scope: "local",
+      });
+
+      if (mounted) {
+        window.location.replace("/");
+      }
     };
 
-    const verifyAccountStatus = async (userId: string): Promise<boolean> => {
+    const verifyAccountStatus = async (
+      userId: string,
+    ): Promise<boolean> => {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role, status")
@@ -48,22 +58,48 @@ export default function ActiveSessionManager() {
       }
 
       if (!profile) {
-        await forceSessionLogout("Your account profile could no longer be verified. Please sign in again.");
+        await forceSessionLogout(
+          "Your account profile could no longer be verified. Please sign in again.",
+        );
+
         return false;
       }
 
-      const role = String(profile.role ?? "").trim().toLowerCase();
-      const status = String(profile.status ?? "").trim().toLowerCase();
+      const role = String(profile.role ?? "")
+        .trim()
+        .toLowerCase();
 
-      if (role !== "admin" && (status === "disabled" || status === "blocked" || status === "rejected")) {
-        const message =
-          status === "disabled"
-            ? "Your account has been disabled by the administrator."
-            : status === "blocked"
-              ? "Your account has been blocked by the administrator."
-              : "Your account is no longer allowed to access the system.";
+      const status = String(profile.status ?? "")
+        .trim()
+        .toLowerCase();
+
+      /*
+       * Admin accounts are allowed according to the existing login logic.
+       * Customer and Worker accounts must remain approved.
+       */
+      const accountAllowed =
+        role === "admin" || status === "approved";
+
+      if (!accountAllowed) {
+        let message =
+          "Your account is currently not allowed to access the system.";
+
+        if (status === "disabled") {
+          message =
+            "Your account has been disabled by the administrator.";
+        } else if (status === "blocked") {
+          message =
+            "Your account has been blocked by the administrator.";
+        } else if (status === "rejected") {
+          message =
+            "Your account has been rejected by the administrator.";
+        } else if (status === "pending") {
+          message =
+            "Your account is still pending administrator approval.";
+        }
 
         await forceSessionLogout(message);
+
         return false;
       }
 
@@ -71,7 +107,11 @@ export default function ActiveSessionManager() {
     };
 
     const sendHeartbeat = async () => {
-      if (!mounted || requestInProgress || !navigator.onLine) {
+      if (
+        !mounted ||
+        requestInProgress ||
+        !navigator.onLine
+      ) {
         return;
       }
 
@@ -87,27 +127,35 @@ export default function ActiveSessionManager() {
           return;
         }
 
-        const accountAllowed = await verifyAccountStatus(session.user.id);
+        const accountAllowed =
+          await verifyAccountStatus(session.user.id);
 
         if (!accountAllowed) {
           return;
         }
 
-        const stillOwnsSession = await refreshActiveSession();
+        const stillOwnsSession =
+          await refreshActiveSession();
 
         if (!stillOwnsSession) {
           await forceSessionLogout();
         }
       } catch (error) {
-        // Temporary connectivity errors must not force a logout.
-        console.error("Active session heartbeat error:", error);
+        /*
+         * Temporary network/Supabase errors must not
+         * automatically log the user out.
+         */
+        console.error(
+          "Active session heartbeat error:",
+          error,
+        );
       } finally {
         requestInProgress = false;
       }
     };
 
     const startHeartbeat = () => {
-      if (heartbeatTimer !== null) {
+      if (!mounted || heartbeatTimer !== null) {
         return;
       }
 
@@ -119,9 +167,8 @@ export default function ActiveSessionManager() {
     };
 
     /*
-     * Used only for a session restored when the app first loads.
-     * New form logins are validated by authService.login(), so they must not
-     * be claimed again here during the SIGNED_IN event.
+     * Only used for an already-existing session restored
+     * when the application first loads.
      */
     const validateRestoredSession = async () => {
       if (!mounted || requestInProgress) {
@@ -140,7 +187,8 @@ export default function ActiveSessionManager() {
           return;
         }
 
-        const accountAllowed = await verifyAccountStatus(session.user.id);
+        const accountAllowed =
+          await verifyAccountStatus(session.user.id);
 
         if (!accountAllowed) {
           return;
@@ -149,16 +197,32 @@ export default function ActiveSessionManager() {
         const allowed = await claimActiveSession();
 
         if (!allowed) {
-          await forceSessionLogout();
+          await forceSessionLogout(
+            "This account is already active on another device.",
+          );
+
           return;
         }
 
         startHeartbeat();
       } catch (error) {
-        console.error("Restored session validation error:", error);
+        console.error(
+          "Restored session validation error:",
+          error,
+        );
       } finally {
         requestInProgress = false;
       }
+    };
+
+    const handleSessionClaimed = () => {
+      /*
+       * A new login has successfully completed
+       * claimActiveSession().
+       *
+       * Only now should the heartbeat begin.
+       */
+      startHeartbeat();
     };
 
     const handleOnline = () => {
@@ -173,37 +237,70 @@ export default function ActiveSessionManager() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) {
-        return;
-      }
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) {
+          return;
+        }
 
-      if (event === "SIGNED_OUT" || !session) {
-        stopHeartbeat();
-        return;
-      }
+        if (event === "SIGNED_OUT" || !session) {
+          stopHeartbeat();
+          return;
+        }
 
-      if (event === "SIGNED_IN") {
         /*
-         * authService.login() already claimed this newly created session.
-         * Starting the heartbeat here avoids a duplicate claim and prevents
-         * the manager from redirecting before the login page can show errors.
+         * IMPORTANT:
+         *
+         * Do NOT immediately start the heartbeat here.
+         *
+         * SIGNED_IN fires before authService.login()
+         * finishes claimActiveSession(), which caused the
+         * login -> loading -> logout race condition.
+         *
+         * New sessions are started through the
+         * "active-session-claimed" event instead.
          */
-        startHeartbeat();
-      }
-    });
+      },
+    );
 
-    window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener(
+      "active-session-claimed",
+      handleSessionClaimed,
+    );
+
+    window.addEventListener(
+      "online",
+      handleOnline,
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
 
     void validateRestoredSession();
 
     return () => {
       mounted = false;
+
       stopHeartbeat();
+
       subscription.unsubscribe();
-      window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      window.removeEventListener(
+        "active-session-claimed",
+        handleSessionClaimed,
+      );
+
+      window.removeEventListener(
+        "online",
+        handleOnline,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
     };
   }, []);
 

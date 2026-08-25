@@ -7,11 +7,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
@@ -22,7 +18,7 @@ interface VerifyEmailLocationState {
   accountType?: "customer" | "worker";
 }
 
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyEmailOtp() {
@@ -30,25 +26,23 @@ export default function VerifyEmailOtp() {
   const location = useLocation();
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  const state =
-    (location.state as VerifyEmailLocationState | null) ?? null;
+  const state = (location.state as VerifyEmailLocationState | null) ?? null;
 
-  const [email, setEmail] = useState(
-    state?.email?.trim().toLowerCase() ?? "",
-  );
+  const [email, setEmail] = useState(state?.email?.trim().toLowerCase() ?? "");
+
   const [digits, setDigits] = useState<string[]>(
     Array.from({ length: OTP_LENGTH }, () => ""),
   );
+
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [captchaOpen, setCaptchaOpen] = useState(false);
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
-  const [cooldown, setCooldown] = useState(
-    RESEND_COOLDOWN_SECONDS,
-  );
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
 
-  const turnstileSiteKey = import.meta.env
-    .VITE_TURNSTILE_SITE_KEY as string | undefined;
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+    | string
+    | undefined;
 
   const accountType = state?.accountType ?? "customer";
 
@@ -60,9 +54,7 @@ export default function VerifyEmailOtp() {
     }
 
     const timer = window.setInterval(() => {
-      setCooldown((current) =>
-        current > 0 ? current - 1 : 0,
-      );
+      setCooldown((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
 
     return () => {
@@ -88,11 +80,7 @@ export default function VerifyEmailOtp() {
     index: number,
     event: React.KeyboardEvent<HTMLInputElement>,
   ): void {
-    if (
-      event.key === "Backspace" &&
-      !digits[index] &&
-      index > 0
-    ) {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
 
@@ -100,17 +88,12 @@ export default function VerifyEmailOtp() {
       inputRefs.current[index - 1]?.focus();
     }
 
-    if (
-      event.key === "ArrowRight" &&
-      index < OTP_LENGTH - 1
-    ) {
+    if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   }
 
-  function handlePaste(
-    event: React.ClipboardEvent<HTMLDivElement>,
-  ): void {
+  function handlePaste(event: React.ClipboardEvent<HTMLDivElement>): void {
     const pasted = event.clipboardData
       .getData("text")
       .replace(/\D/g, "")
@@ -129,10 +112,7 @@ export default function VerifyEmailOtp() {
 
     setDigits(next);
 
-    const nextFocusIndex = Math.min(
-      pasted.length,
-      OTP_LENGTH - 1,
-    );
+    const nextFocusIndex = Math.min(pasted.length, OTP_LENGTH - 1);
 
     inputRefs.current[nextFocusIndex]?.focus();
   }
@@ -146,9 +126,7 @@ export default function VerifyEmailOtp() {
     }
 
     if (otp.length !== OTP_LENGTH) {
-      toast.warning(
-        `Enter the complete ${OTP_LENGTH}-digit OTP code.`,
-      );
+      toast.warning(`Enter the complete ${OTP_LENGTH}-digit OTP code.`);
       return;
     }
 
@@ -185,9 +163,7 @@ export default function VerifyEmailOtp() {
       });
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to verify the OTP.";
+        error instanceof Error ? error.message : "Unable to verify the OTP.";
 
       toast.error(
         message.toLowerCase().includes("expired")
@@ -222,9 +198,7 @@ export default function VerifyEmailOtp() {
     setCaptchaOpen(true);
   }
 
-  async function completeResendOtp(
-    captchaToken: string,
-  ): Promise<void> {
+  async function completeResendOtp(captchaToken: string): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
@@ -244,9 +218,9 @@ export default function VerifyEmailOtp() {
       }
 
       setCaptchaOpen(false);
-      setDigits(
-        Array.from({ length: OTP_LENGTH }, () => ""),
-      );
+
+      setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+
       setCooldown(RESEND_COOLDOWN_SECONDS);
       inputRefs.current[0]?.focus();
 
@@ -258,9 +232,7 @@ export default function VerifyEmailOtp() {
       setCaptchaOpen(false);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to resend the OTP.";
+        error instanceof Error ? error.message : "Unable to resend the OTP.";
 
       toast.error(
         message.toLowerCase().includes("rate limit") ||
@@ -290,13 +262,11 @@ export default function VerifyEmailOtp() {
               <ShieldCheck className="h-7 w-7" />
             </div>
 
-            <h1 className="mt-5 text-3xl font-black">
-              Verify your email
-            </h1>
+            <h1 className="mt-5 text-3xl font-black">Verify your email</h1>
 
             <p className="mt-2 text-sm leading-6 text-blue-100">
-              Enter the one-time code sent to your email to
-              activate your account.
+              Enter the one-time code sent to your email to activate your
+              account.
             </p>
           </div>
 
@@ -307,12 +277,11 @@ export default function VerifyEmailOtp() {
 
             <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 dark:border-slate-700 dark:bg-slate-800">
               <Mail className="h-5 w-5 shrink-0 text-slate-400" />
+
               <input
                 type="email"
                 value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
-                }
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 className="w-full bg-transparent py-3.5 text-sm outline-none"
               />
@@ -325,7 +294,7 @@ export default function VerifyEmailOtp() {
 
               <div
                 onPaste={handlePaste}
-                className="mt-4 grid grid-cols-8 gap-2"
+                className="mt-4 grid grid-cols-6 gap-2"
               >
                 {digits.map((digit, index) => (
                   <input
@@ -335,17 +304,11 @@ export default function VerifyEmailOtp() {
                     }}
                     type="text"
                     inputMode="numeric"
-                    autoComplete={
-                      index === 0 ? "one-time-code" : "off"
-                    }
+                    autoComplete={index === 0 ? "one-time-code" : "off"}
                     maxLength={1}
                     value={digit}
-                    onChange={(event) =>
-                      updateDigit(index, event.target.value)
-                    }
-                    onKeyDown={(event) =>
-                      handleKeyDown(index, event)
-                    }
+                    onChange={(event) => updateDigit(index, event.target.value)}
+                    onKeyDown={(event) => handleKeyDown(index, event)}
                     aria-label={`OTP digit ${index + 1}`}
                     className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800"
                   />
@@ -356,11 +319,7 @@ export default function VerifyEmailOtp() {
             <button
               type="button"
               onClick={() => void verifyOtp()}
-              disabled={
-                verifying ||
-                resending ||
-                otp.length !== OTP_LENGTH
-              }
+              disabled={verifying || resending || otp.length !== OTP_LENGTH}
               className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
             >
               {verifying ? (
@@ -384,11 +343,7 @@ export default function VerifyEmailOtp() {
               <button
                 type="button"
                 onClick={requestResendOtp}
-                disabled={
-                  resending ||
-                  verifying ||
-                  cooldown > 0
-                }
+                disabled={resending || verifying || cooldown > 0}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300 dark:hover:bg-amber-500/10"
               >
                 {resending ? (
@@ -428,9 +383,8 @@ export default function VerifyEmailOtp() {
         onExpire={() => undefined}
         onError={() => {
           setCaptchaWidgetKey((current) => current + 1);
-          toast.error(
-            "Security verification failed. Please try again.",
-          );
+
+          toast.error("Security verification failed. Please try again.");
         }}
       />
     </main>

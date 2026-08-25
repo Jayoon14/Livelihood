@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+
 import {
   ArrowLeft,
   CheckCircle2,
@@ -9,12 +10,13 @@ import {
   RotateCcw,
   ShieldCheck,
 } from "lucide-react";
+
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import AuthSplitLayout from "../../components/auth/AuthSplitLayout";
 import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
-import { supabase } from "../../lib/supabase";
+import { requestPasswordReset } from "../../services/authService";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_PATTERN = /^\d{6}$/;
@@ -26,11 +28,17 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const [stage, setStage] = useState<Stage>("email");
+
   const [email, setEmail] = useState("");
+
   const [otp, setOtp] = useState("");
+
   const [loading, setLoading] = useState(false);
+
   const [cooldown, setCooldown] = useState(0);
+
   const [captchaOpen, setCaptchaOpen] = useState(false);
+
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
 
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
@@ -38,13 +46,17 @@ export default function ForgotPassword() {
     | undefined;
 
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (cooldown <= 0) {
+      return;
+    }
 
     const timer = window.setInterval(() => {
       setCooldown((value) => Math.max(0, value - 1));
     }, 1000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+    };
   }, [cooldown]);
 
   async function sendRecoveryOtp(
@@ -60,17 +72,28 @@ export default function ForgotPassword() {
       return;
     }
 
-    if (loading || cooldown > 0) return;
+    if (loading) {
+      return;
+    }
 
+    if (cooldown > 0 && stage === "otp") {
+      return;
+    }
+
+    /*
+     * First submit:
+     * Open CAPTCHA and wait for a valid token.
+     */
     if (!captchaToken?.trim()) {
       if (!turnstileSiteKey) {
         toast.error(
-          "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
+          "Security verification is not configured. Please contact the administrator.",
         );
         return;
       }
 
       setCaptchaWidgetKey((value) => value + 1);
+
       setCaptchaOpen(true);
       return;
     }
@@ -78,15 +101,7 @@ export default function ForgotPassword() {
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-          captchaToken: captchaToken.trim(),
-        },
-      );
-
-      if (error) throw error;
+      await requestPasswordReset(normalizedEmail, captchaToken.trim());
 
       setEmail(normalizedEmail);
       setOtp("");
@@ -94,10 +109,14 @@ export default function ForgotPassword() {
       setCooldown(RESEND_SECONDS);
       setCaptchaOpen(false);
 
-      toast.success("Password recovery code sent.");
+      toast.success("Password recovery code sent. Please check your email.");
     } catch (error) {
+      console.error("Password recovery request failed:", error);
+
       setCaptchaWidgetKey((value) => value + 1);
+
       setCaptchaOpen(false);
+
       toast.error(
         error instanceof Error
           ? error.message
@@ -120,24 +139,58 @@ export default function ForgotPassword() {
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      toast.error("Recovery email is missing. Please request a new code.");
+
+      setStage("email");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: normalizedOtp,
-        type: "recovery",
-      });
+      const { error } = await import("../../lib/supabase").then(
+        ({ supabase }) =>
+          supabase.auth.verifyOtp({
+            email: normalizedEmail,
+            token: normalizedOtp,
+            type: "recovery",
+          }),
+      );
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      toast.success("Code verified.");
+      /*
+       * IMPORTANT:
+       *
+       * OTP verification creates an authenticated
+       * Supabase recovery session.
+       *
+       * This is NOT a normal application login.
+       *
+       * ActiveSessionManager uses this flag to prevent
+       * the recovery session from being claimed as the
+       * user's normal active device session.
+       */
+      sessionStorage.setItem("password-recovery-active", "true");
+
+      sessionStorage.setItem("password-recovery-email", normalizedEmail);
+
+      toast.success("Recovery code verified.");
 
       navigate("/reset-password", {
         replace: true,
-        state: { recoveryEmail: email },
+        state: {
+          recoveryEmail: normalizedEmail,
+        },
       });
     } catch (error) {
+      console.error("Recovery OTP verification failed:", error);
+
       toast.error(
         error instanceof Error
           ? error.message
@@ -186,7 +239,9 @@ export default function ForgotPassword() {
 
               <h1
                 className="mt-3 text-3xl font-black text-slate-900 dark:text-white"
-                style={{ fontFamily: "'Sora', sans-serif" }}
+                style={{
+                  fontFamily: "'Sora', sans-serif",
+                }}
               >
                 Forgot your password?
               </h1>
@@ -236,6 +291,7 @@ export default function ForgotPassword() {
                 ) : (
                   <Mail className="h-5 w-5" />
                 )}
+
                 {loading ? "Sending code..." : "Send recovery code"}
               </button>
             </form>
@@ -253,7 +309,9 @@ export default function ForgotPassword() {
 
               <h1
                 className="mt-3 text-3xl font-black text-slate-900 dark:text-white"
-                style={{ fontFamily: "'Sora', sans-serif" }}
+                style={{
+                  fontFamily: "'Sora', sans-serif",
+                }}
               >
                 Enter your code
               </h1>
@@ -300,6 +358,7 @@ export default function ForgotPassword() {
                 ) : (
                   <CheckCircle2 className="h-5 w-5" />
                 )}
+
                 {loading ? "Verifying code..." : "Verify code"}
               </button>
             </form>
@@ -311,6 +370,7 @@ export default function ForgotPassword() {
               className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             >
               <RotateCcw className="h-4 w-4" />
+
               {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
             </button>
 
@@ -347,7 +407,9 @@ export default function ForgotPassword() {
         title="Verify before sending recovery code"
         description="Complete this quick security check to request a password recovery code."
         onClose={() => {
-          if (!loading) setCaptchaOpen(false);
+          if (!loading) {
+            setCaptchaOpen(false);
+          }
         }}
         onSuccess={(token) => {
           void sendRecoveryOtp(undefined, token);
@@ -357,6 +419,7 @@ export default function ForgotPassword() {
         }}
         onError={() => {
           setCaptchaWidgetKey((value) => value + 1);
+
           toast.error("Security verification failed. Please try again.");
         }}
       />

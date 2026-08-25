@@ -10,7 +10,14 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
@@ -143,9 +150,7 @@ function getManilaDateString(): string {
   }).formatToParts(new Date());
 
   const year = parts.find((part) => part.type === "year")?.value ?? "";
-
   const month = parts.find((part) => part.type === "month")?.value ?? "";
-
   const day = parts.find((part) => part.type === "day")?.value ?? "";
 
   return `${year}-${month}-${day}`;
@@ -171,7 +176,6 @@ export default function Schedule() {
   const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
-   * IMPORTANT:
    * Keeps the latest unsaved state available
    * to the realtime callback without forcing
    * the Supabase channel to be recreated.
@@ -179,10 +183,12 @@ export default function Schedule() {
   const hasUnsavedChangesRef = useRef(false);
 
   /**
-   * Gives every mounted Schedule instance
-   * a unique realtime channel name.
+   * Stable React-generated ID for realtime channel names.
+   *
+   * This replaces Math.random(), which is an impure
+   * operation during render.
    */
-  const realtimeChannelIdRef = useRef(Math.random().toString(36).slice(2));
+  const realtimeChannelId = useId();
 
   const [workerId, setWorkerId] = useState<string | null>(null);
 
@@ -200,13 +206,9 @@ export default function Schedule() {
   const [reason, setReason] = useState("");
 
   const [loading, setLoading] = useState(true);
-
   const [refreshing, setRefreshing] = useState(false);
-
   const [saving, setSaving] = useState(false);
-
   const [addingDate, setAddingDate] = useState(false);
-
   const [deletingDateId, setDeletingDateId] = useState<number | null>(null);
 
   const [message, setMessage] = useState<ScheduleMessage>(null);
@@ -223,10 +225,6 @@ export default function Schedule() {
     [savedSchedule, schedule],
   );
 
-  /**
-   * Keep the ref synchronized with the latest
-   * hasUnsavedChanges value.
-   */
   useEffect(() => {
     hasUnsavedChangesRef.current = hasUnsavedChanges;
   }, [hasUnsavedChanges]);
@@ -278,10 +276,9 @@ export default function Schedule() {
    * REALTIME SUBSCRIPTION
    *
    * IMPORTANT:
-   * Do NOT put hasUnsavedChanges in this
-   * dependency array.
+   * Do NOT put hasUnsavedChanges in this dependency array.
    *
-   * Otherwise every schedule edit causes:
+   * Otherwise every schedule edit can cause:
    *
    * cleanup -> removeChannel -> create channel
    * -> register postgres_changes -> subscribe
@@ -328,9 +325,8 @@ export default function Schedule() {
         /**
          * Debounced realtime refresh.
          *
-         * The callback reads the latest value
-         * from hasUnsavedChangesRef instead of
-         * closing over hasUnsavedChanges.
+         * Reads the latest hasUnsavedChanges value
+         * from the ref instead of closing over state.
          */
         const scheduleRefresh = () => {
           if (realtimeTimerRef.current) {
@@ -345,9 +341,7 @@ export default function Schedule() {
         };
 
         schedulesChannel = supabase
-          .channel(
-            `worker-schedules-${user.id}-${realtimeChannelIdRef.current}`,
-          )
+          .channel(`worker-schedules-${user.id}-${realtimeChannelId}`)
           .on(
             "postgres_changes",
             {
@@ -361,9 +355,7 @@ export default function Schedule() {
           .subscribe();
 
         unavailableChannel = supabase
-          .channel(
-            `worker-unavailable-${user.id}-${realtimeChannelIdRef.current}`,
-          )
+          .channel(`worker-unavailable-${user.id}-${realtimeChannelId}`)
           .on(
             "postgres_changes",
             {
@@ -397,7 +389,6 @@ export default function Schedule() {
 
       if (realtimeTimerRef.current) {
         clearTimeout(realtimeTimerRef.current);
-
         realtimeTimerRef.current = null;
       }
 
@@ -412,13 +403,11 @@ export default function Schedule() {
         );
       }
     };
-  }, [loadData]);
+  }, [loadData, realtimeChannelId]);
 
   /**
    * Browser warning when leaving the page
    * with unsaved schedule changes.
-   *
-   * This dependency is intentionally kept.
    */
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -432,7 +421,9 @@ export default function Schedule() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
   }, [hasUnsavedChanges]);
 
   const updateSchedule = useCallback(
@@ -527,13 +518,11 @@ export default function Schedule() {
 
     if (!newDate) {
       toast.warning("Choose an unavailable date.");
-
       return;
     }
 
     if (newDate < today) {
       toast.warning("Past dates cannot be added.");
-
       return;
     }
 
@@ -665,9 +654,7 @@ export default function Schedule() {
             <div className="h-48 rounded-[1.75rem] bg-slate-200 dark:bg-slate-800 sm:h-56" />
 
             <div className="grid gap-4 md:grid-cols-2">
-              {Array.from({
-                length: 6,
-              }).map((_, index) => (
+              {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
                   className="h-44 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 sm:h-48"
