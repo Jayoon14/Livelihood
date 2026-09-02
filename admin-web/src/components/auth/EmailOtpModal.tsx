@@ -28,7 +28,6 @@ interface EmailOtpModalProps {
 }
 
 const OTP_LENGTH = 6;
-const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function EmailOtpModal({
   open,
@@ -44,7 +43,6 @@ export default function EmailOtpModal({
   );
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
   const [captchaOpen, setCaptchaOpen] = useState(false);
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
 
@@ -76,28 +74,12 @@ export default function EmailOtpModal({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open || cooldown <= 0) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setCooldown((current) => (current > 0 ? current - 1 : 0));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [open, cooldown]);
-
   if (!open) {
     return null;
   }
 
   function resetOtpState(): void {
     setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-
-    setCooldown(RESEND_COOLDOWN_SECONDS);
   }
 
   function updateDigit(index: number, value: string): void {
@@ -211,7 +193,7 @@ export default function EmailOtpModal({
   }
 
   function requestResend(): void {
-    if (resending || verifying || cooldown > 0) {
+    if (resending || verifying) {
       return;
     }
 
@@ -366,7 +348,7 @@ export default function EmailOtpModal({
               <button
                 type="button"
                 onClick={requestResend}
-                disabled={busy || cooldown > 0}
+                disabled={busy}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300 dark:hover:bg-amber-500/10"
               >
                 {resending ? (
@@ -374,8 +356,6 @@ export default function EmailOtpModal({
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sending...
                   </>
-                ) : cooldown > 0 ? (
-                  `Resend available in ${cooldown}s`
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4" />

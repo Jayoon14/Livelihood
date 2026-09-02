@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -19,7 +19,6 @@ interface VerifyEmailLocationState {
 }
 
 const OTP_LENGTH = 6;
-const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyEmailOtp() {
   const navigate = useNavigate();
@@ -38,7 +37,6 @@ export default function VerifyEmailOtp() {
   const [resending, setResending] = useState(false);
   const [captchaOpen, setCaptchaOpen] = useState(false);
   const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
-  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
 
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
     | string
@@ -48,19 +46,7 @@ export default function VerifyEmailOtp() {
 
   const otp = useMemo(() => digits.join(""), [digits]);
 
-  useEffect(() => {
-    if (cooldown <= 0) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setCooldown((current) => (current > 0 ? current - 1 : 0));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [cooldown]);
+  const normalizedEmail = email.trim().toLowerCase();
 
   function updateDigit(index: number, value: string): void {
     const normalized = value.replace(/\D/g, "").slice(-1);
@@ -118,8 +104,6 @@ export default function VerifyEmailOtp() {
   }
 
   async function verifyOtp(): Promise<void> {
-    const normalizedEmail = email.trim().toLowerCase();
-
     if (!normalizedEmail) {
       toast.warning("Enter the email used during registration.");
       return;
@@ -176,14 +160,12 @@ export default function VerifyEmailOtp() {
   }
 
   function requestResendOtp(): void {
-    const normalizedEmail = email.trim().toLowerCase();
-
     if (!normalizedEmail) {
       toast.warning("Enter your email address first.");
       return;
     }
 
-    if (resending || cooldown > 0 || verifying) {
+    if (resending || verifying) {
       return;
     }
 
@@ -199,8 +181,6 @@ export default function VerifyEmailOtp() {
   }
 
   async function completeResendOtp(captchaToken: string): Promise<void> {
-    const normalizedEmail = email.trim().toLowerCase();
-
     try {
       setResending(true);
 
@@ -221,7 +201,6 @@ export default function VerifyEmailOtp() {
 
       setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
 
-      setCooldown(RESEND_COOLDOWN_SECONDS);
       inputRefs.current[0]?.focus();
 
       toast.success(
@@ -307,10 +286,11 @@ export default function VerifyEmailOtp() {
                     autoComplete={index === 0 ? "one-time-code" : "off"}
                     maxLength={1}
                     value={digit}
+                    disabled={verifying || resending}
                     onChange={(event) => updateDigit(index, event.target.value)}
                     onKeyDown={(event) => handleKeyDown(index, event)}
                     aria-label={`OTP digit ${index + 1}`}
-                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800"
+                    className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
                   />
                 ))}
               </div>
@@ -343,7 +323,7 @@ export default function VerifyEmailOtp() {
               <button
                 type="button"
                 onClick={requestResendOtp}
-                disabled={resending || verifying || cooldown > 0}
+                disabled={resending || verifying}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300 dark:hover:bg-amber-500/10"
               >
                 {resending ? (
@@ -351,8 +331,6 @@ export default function VerifyEmailOtp() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sending...
                   </>
-                ) : cooldown > 0 ? (
-                  `Resend available in ${cooldown}s`
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4" />

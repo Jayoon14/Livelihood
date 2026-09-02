@@ -79,6 +79,7 @@ interface RegisterStore {
   completeStep: (step: number) => void;
   updateData: (values: Partial<RegisterData>) => void;
   setErrors: (errors: Record<string, string>) => void;
+  setError: (field: string, message: string) => void;
   clearError: (field: string) => void;
   reset: () => void;
 }
@@ -156,13 +157,6 @@ const initialData: RegisterData = {
   nbiClearance: null,
 };
 
-/**
- * Returns only values that are safe to serialize.
- *
- * Passwords are intentionally excluded for security.
- * File objects are intentionally excluded because JSON/sessionStorage
- * cannot restore real File objects after a page reload.
- */
 function getPersistableData(data: RegisterData): Partial<RegisterData> {
   return {
     firstName: data.firstName,
@@ -259,9 +253,18 @@ export const useRegisterStore = create<RegisterStore>()(
           errors,
         }),
 
+      setError: (field, message) =>
+        set((state) => ({
+          errors: {
+            ...state.errors,
+            [field]: message,
+          },
+        })),
+
       clearError: (field) =>
         set((state) => {
           const newErrors = { ...state.errors };
+
           delete newErrors[field];
 
           return {
@@ -281,17 +284,6 @@ export const useRegisterStore = create<RegisterStore>()(
     {
       name: "livelihoodgo-worker-registration-draft",
 
-      /**
-       * sessionStorage keeps the draft after:
-       * - Alt + Tab
-       * - switching browser tabs
-       * - accidental refresh
-       * - temporary browser tab suspension
-       *
-       * It is cleared when the browser tab/session is fully closed.
-       * Change sessionStorage to localStorage if you want the draft
-       * to remain even after closing and reopening the browser.
-       */
       storage: createJSONStorage(() => sessionStorage),
 
       version: 1,
@@ -304,9 +296,7 @@ export const useRegisterStore = create<RegisterStore>()(
       }),
 
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as
-          | PersistedRegisterState
-          | undefined;
+        const persisted = persistedState as PersistedRegisterState | undefined;
 
         if (!persisted) {
           return currentState;
@@ -314,25 +304,26 @@ export const useRegisterStore = create<RegisterStore>()(
 
         return {
           ...currentState,
+
           step: Math.min(
             MAX_STEP,
             Math.max(1, persisted.step ?? currentState.step),
           ),
+
           completedSteps: Array.isArray(persisted.completedSteps)
             ? persisted.completedSteps
             : currentState.completedSteps,
+
           editingFromReview:
-            persisted.editingFromReview ??
-            currentState.editingFromReview,
+            persisted.editingFromReview ?? currentState.editingFromReview,
+
           data: {
             ...initialData,
             ...persisted.data,
 
-            // Never restore passwords from browser storage.
             password: "",
             confirmPassword: "",
 
-            // File inputs must be selected again after a real reload.
             profilePicture: null,
             juniorHighDiploma: null,
             seniorHighDiploma: null,
@@ -346,6 +337,7 @@ export const useRegisterStore = create<RegisterStore>()(
             policeClearance: null,
             nbiClearance: null,
           },
+
           errors: {},
         };
       },

@@ -36,48 +36,72 @@ interface UploadCardProps {
   description: string;
   field: UploadField;
   optional?: boolean;
+  keywords?: string[];
 }
 
 const REQUIRED_DOCUMENTS: UploadCardProps[] = [
   {
     title: "Valid ID",
-    description: "Upload one clear government-issued identification document.",
+    description:
+      "Upload one clear government-issued identification document.",
     field: "validId",
+    keywords: [
+      "id",
+      "passport",
+      "driver",
+      "license",
+      "philid",
+      "national",
+    ],
   },
   {
     title: "Resume",
-    description: "Provide your latest resume in PDF or image format.",
+    description:
+      "Provide your latest resume in PDF or image format.",
     field: "resume",
+    keywords: ["resume", "cv", "curriculum"],
   },
   {
     title: "TESDA Certificate",
-    description: "Upload your TESDA certificate when available.",
+    description:
+      "Upload your TESDA certificate when available.",
     field: "tesdaCertificate",
     optional: true,
+    keywords: ["tesda"],
   },
   {
     title: "Barangay Clearance",
-    description: "Submit a recent and readable barangay clearance.",
+    description:
+      "Submit a recent and readable barangay clearance.",
     field: "barangayClearance",
+    keywords: ["barangay"],
   },
   {
     title: "Police Clearance",
-    description: "Upload a valid and current police clearance.",
+    description:
+      "Upload a valid and current police clearance.",
     field: "policeClearance",
+    keywords: ["police"],
   },
   {
     title: "NBI Clearance",
-    description: "Submit your latest NBI clearance document.",
+    description:
+      "Submit your latest NBI clearance document.",
     field: "nbiClearance",
+    keywords: ["nbi"],
   },
 ];
 
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
 
   const kilobytes = bytes / 1024;
 
-  if (kilobytes < 1024) return `${kilobytes.toFixed(1)} KB`;
+  if (kilobytes < 1024) {
+    return `${kilobytes.toFixed(1)} KB`;
+  }
 
   return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
@@ -87,14 +111,23 @@ function UploadCard({
   description,
   field,
   optional = false,
+  keywords = [],
 }: UploadCardProps) {
-  const { data, updateData, errors, clearError } = useRegisterStore();
+  const {
+    data,
+    updateData,
+    errors,
+    setError,
+    clearError,
+  } = useRegisterStore();
 
   const file = data[field];
   const error = errors[field];
 
   const previewUrl = useMemo(() => {
-    if (!file || !file.type.startsWith("image/")) return "";
+    if (!file || !file.type.startsWith("image/")) {
+      return "";
+    }
 
     return URL.createObjectURL(file);
   }, [file]);
@@ -107,8 +140,62 @@ function UploadCard({
     };
   }, [previewUrl]);
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>): void {
+  function validateDocument(selectedFile: File): string | null {
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "application/pdf",
+    ];
+
+    const maxFileSize = 10 * 1024 * 1024;
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      return "Only JPG, PNG, and PDF files are allowed.";
+    }
+
+    if (selectedFile.size > maxFileSize) {
+      return "File size must not exceed 10MB.";
+    }
+
+    if (keywords.length > 0) {
+      const fileName = selectedFile.name
+        .toLowerCase()
+        .replace(/[_\-().]+/g, " ");
+
+      const matchesKeyword = keywords.some((keyword) =>
+        fileName.includes(keyword.toLowerCase()),
+      );
+
+      if (!matchesKeyword) {
+        return `Invalid document. Please upload your ${title} only.`;
+      }
+    }
+
+    return null;
+  }
+
+  function handleChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ): void {
     const selectedFile = event.target.files?.[0] ?? null;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const validationError = validateDocument(selectedFile);
+
+    if (validationError) {
+      event.target.value = "";
+
+      updateData({
+        [field]: null,
+      });
+
+      setError(field, validationError);
+
+      return;
+    }
 
     updateData({
       [field]: selectedFile,
@@ -206,14 +293,14 @@ function UploadCard({
             </span>
 
             <span className="mt-1 text-xs leading-5 text-slate-400">
-              JPG, PNG, or PDF
+              JPG, PNG, or PDF · Max 10MB
             </span>
           </label>
 
           <input
             id={`upload-${field}`}
             type="file"
-            accept="image/*,.pdf,application/pdf"
+            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
             onChange={handleChange}
             className="hidden"
           />
@@ -268,7 +355,7 @@ function UploadCard({
             <input
               id={`replace-${field}`}
               type="file"
-              accept="image/*,.pdf,application/pdf"
+              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
               onChange={handleChange}
               className="hidden"
             />
@@ -286,7 +373,10 @@ function UploadCard({
       )}
 
       {error && (
-        <p className="mt-3 text-xs font-semibold text-rose-500">
+        <p
+          role="alert"
+          className="mt-3 text-xs font-semibold text-rose-500"
+        >
           {error}
         </p>
       )}
@@ -300,60 +390,82 @@ export default function Documents() {
   const educationDocuments: UploadCardProps[] = [];
 
   if (
-    ["Junior High", "Senior High", "College", "Master", "Doctorate"].includes(
-      data.highestEducation,
-    )
+    [
+      "Junior High",
+      "Senior High",
+      "College",
+      "Master",
+      "Doctorate",
+    ].includes(data.highestEducation)
   ) {
     educationDocuments.push({
       title: "Junior High Diploma",
-      description: "Optional supporting document for your educational record.",
+      description:
+        "Optional supporting document for your educational record.",
       field: "juniorHighDiploma",
       optional: true,
+      keywords: ["junior", "jhs"],
     });
   }
 
   if (
-    ["Senior High", "College", "Master", "Doctorate"].includes(
+    [
+      "Senior High",
+      "College",
+      "Master",
+      "Doctorate",
+    ].includes(data.highestEducation)
+  ) {
+    educationDocuments.push({
+      title: "Senior High Diploma",
+      description:
+        "Optional supporting document for your educational record.",
+      field: "seniorHighDiploma",
+      optional: true,
+      keywords: ["senior", "shs"],
+    });
+  }
+
+  if (
+    ["College", "Master", "Doctorate"].includes(
       data.highestEducation,
     )
   ) {
     educationDocuments.push({
-      title: "Senior High Diploma",
-      description: "Optional supporting document for your educational record.",
-      field: "seniorHighDiploma",
-      optional: true,
-    });
-  }
-
-  if (["College", "Master", "Doctorate"].includes(data.highestEducation)) {
-    educationDocuments.push({
       title: "College Diploma",
-      description: "Optional college or university diploma.",
+      description:
+        "Optional college or university diploma.",
       field: "collegeDiploma",
       optional: true,
+      keywords: ["college", "diploma"],
     });
   }
 
   if (data.highestEducation === "Master") {
     educationDocuments.push({
       title: "Master's Diploma",
-      description: "Optional proof of completed master's degree.",
+      description:
+        "Optional proof of completed master's degree.",
       field: "mastersDiploma",
       optional: true,
+      keywords: ["master", "masters"],
     });
   }
 
   if (data.highestEducation === "Doctorate") {
     educationDocuments.push({
       title: "Doctorate Diploma",
-      description: "Optional proof of completed doctorate degree.",
+      description:
+        "Optional proof of completed doctorate degree.",
       field: "doctorateDiploma",
       optional: true,
+      keywords: ["doctorate", "phd", "doctoral"],
     });
   }
 
   const requiredUploadedCount = REQUIRED_DOCUMENTS.filter(
-    ({ field, optional }) => !optional && Boolean(data[field]),
+    ({ field, optional }) =>
+      !optional && Boolean(data[field]),
   ).length;
 
   const requiredCount = REQUIRED_DOCUMENTS.filter(
@@ -374,7 +486,6 @@ export default function Documents() {
 
       <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-300/15 blur-3xl dark:bg-indigo-700/10" />
 
-      {/* HEADER */}
       <div className="relative z-10 border-b border-slate-200 bg-[linear-gradient(135deg,#f8faff_0%,#eef3ff_100%)] px-5 py-6 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#172033_100%)] sm:px-7 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -391,8 +502,8 @@ export default function Documents() {
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-              Submit clear and readable files for account verification. Accepted
-              file types are JPG, PNG, and PDF.
+              Submit clear and readable files for account verification.
+              Accepted file types are JPG, PNG, and PDF.
             </p>
           </div>
 
@@ -404,7 +515,6 @@ export default function Documents() {
       </div>
 
       <div className="relative z-10 grid gap-6 p-4 sm:p-6 lg:p-8">
-        {/* REQUIRED DOCUMENTS */}
         <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/75 p-5 dark:border-slate-700 dark:bg-slate-800/45 sm:p-6">
           <div className="mb-6 flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
@@ -427,12 +537,14 @@ export default function Documents() {
 
           <div className="grid gap-5 md:grid-cols-2">
             {REQUIRED_DOCUMENTS.map((document) => (
-              <UploadCard key={document.field} {...document} />
+              <UploadCard
+                key={document.field}
+                {...document}
+              />
             ))}
           </div>
         </section>
 
-        {/* EDUCATIONAL DOCUMENTS */}
         <section className="rounded-[1.5rem] border border-indigo-100 bg-[linear-gradient(135deg,#eef2ff_0%,#f8faff_100%)] p-5 dark:border-indigo-500/20 dark:bg-[linear-gradient(135deg,rgba(49,46,129,.17),rgba(15,23,42,.9))] sm:p-6">
           <div className="mb-6 flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-300">
@@ -457,11 +569,14 @@ export default function Documents() {
           {educationDocuments.length > 0 ? (
             <div className="grid gap-5 md:grid-cols-2">
               {educationDocuments.map((document) => (
-                <UploadCard key={document.field} {...document} />
+                <UploadCard
+                  key={document.field}
+                  {...document}
+                />
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/75 p-4 sm:p-6 lg:p-8 text-center dark:border-slate-600 dark:bg-slate-900/50">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/75 p-4 text-center dark:border-slate-600 dark:bg-slate-900/50 sm:p-6 lg:p-8">
               <GraduationCap className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
 
               <p className="mt-3 font-black text-slate-600 dark:text-slate-300">
@@ -476,7 +591,6 @@ export default function Documents() {
           )}
         </section>
 
-        {/* GUIDELINES */}
         <section className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-5 dark:border-emerald-500/20 dark:bg-emerald-500/10 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm dark:bg-slate-900 dark:text-emerald-300">
@@ -498,7 +612,10 @@ export default function Documents() {
                   "Upload the latest valid clearance documents.",
                   "Check the filename and preview before continuing.",
                 ].map((guide) => (
-                  <p key={guide} className="flex items-start gap-2">
+                  <p
+                    key={guide}
+                    className="flex items-start gap-2"
+                  >
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                     {guide}
                   </p>
