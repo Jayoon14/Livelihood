@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { Marker, type Map as MapLibreMap } from "maplibre-gl";
 
@@ -33,6 +33,12 @@ export interface WorkerProfile {
 export interface NearbyWorker extends WorkerLocationRow {
   distanceMeters: number | null;
   profile: WorkerProfile | null;
+  services: WorkerServiceSummary[];
+}
+
+export interface WorkerServiceSummary {
+  category: string | null;
+  service_name: string | null;
 }
 
 interface UseNearbyWorkersParams {
@@ -42,6 +48,136 @@ interface UseNearbyWorkersParams {
   radiusKilometers?: number;
   selectedWorkerId?: string;
   onWorkerSelect?: (worker: NearbyWorker) => void;
+  searchQuery?: string;
+  categoryFilter?: string;
+}
+
+const WORKER_CATEGORY_COLORS: Record<string, string> = {
+  plumber: "#2563eb",
+  electrician: "#16a34a",
+  carpenter: "#f97316",
+  tutor: "#9333ea",
+  housekeeper: "#dc2626",
+  painter: "#eab308",
+};
+
+const DEFAULT_WORKER_MARKER_COLOR = "#0f766e";
+
+function normalizeText(value: string | null | undefined): string {
+  return value?.trim().toLocaleLowerCase() ?? "";
+}
+
+function getCategoryColor(category: string | null | undefined): string {
+  return (
+    WORKER_CATEGORY_COLORS[normalizeText(category)] ??
+    DEFAULT_WORKER_MARKER_COLOR
+  );
+}
+
+export function getWorkerServiceLabel(
+  services: WorkerServiceSummary[],
+): string {
+  const categories = Array.from(
+    new Set(
+      services
+        .map((service) => service.category?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  if (categories.length > 0) {
+    return categories.join(" / ");
+  }
+
+  const serviceNames = Array.from(
+    new Set(
+      services
+        .map((service) => service.service_name?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  return serviceNames.join(" / ") || "Service";
+}
+
+function getWorkerCategory(services: WorkerServiceSummary[]): string {
+  return (
+    services.find((service) => service.category?.trim())?.category?.trim() ??
+    "Service"
+  );
+}
+
+const WORKER_CATEGORY_ALIASES: Record<string, string[]> = {
+  plumber: ["plumber", "plumbing"],
+  electrician: ["electrician", "electrical", "electric"],
+  carpenter: ["carpenter", "carpentry"],
+  tutor: ["tutor", "tutoring"],
+  housekeeper: ["housekeeper", "housekeeping"],
+  painter: ["painter", "painting"],
+};
+
+function categoryValueMatchesFilter(
+  value: string | null | undefined,
+  normalizedCategory: string,
+): boolean {
+  const normalizedValue = normalizeText(value);
+
+  if (!normalizedCategory || !normalizedValue) {
+    return false;
+  }
+
+  const aliases = WORKER_CATEGORY_ALIASES[normalizedCategory] ?? [
+    normalizedCategory,
+  ];
+
+  return aliases.some(
+    (alias) =>
+      normalizedValue === alias ||
+      normalizedValue.includes(alias) ||
+      alias.includes(normalizedValue),
+  );
+}
+
+function workerMatchesFilters(
+  worker: NearbyWorker,
+  searchQuery: string,
+  categoryFilter: string,
+): boolean {
+  const normalizedSearch = normalizeText(searchQuery);
+  const normalizedCategory = normalizeText(categoryFilter);
+
+  const workerName = worker.profile
+    ? [
+        worker.profile.first_name,
+        worker.profile.middle_name,
+        worker.profile.last_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+
+  const serviceValues = worker.services.flatMap((service) => [
+    service.category ?? "",
+    service.service_name ?? "",
+  ]);
+
+  const matchesCategory =
+    !normalizedCategory ||
+    serviceValues.some((value) =>
+      categoryValueMatchesFilter(value, normalizedCategory),
+    );
+
+  if (!matchesCategory) {
+    return false;
+  }
+
+  if (!normalizedSearch) {
+    return true;
+  }
+
+  return [workerName, ...serviceValues].some((value) =>
+    normalizeText(value).includes(normalizedSearch),
+  );
 }
 
 interface WorkerMarkerRecord {
@@ -67,10 +203,12 @@ function calculateDistanceMeters(
   second: Coordinates,
 ): number {
   const earthRadiusMeters = 6_371_000;
+
   const [firstLongitude, firstLatitude] = first;
   const [secondLongitude, secondLatitude] = second;
 
   const latitudeDifference = degreesToRadians(secondLatitude - firstLatitude);
+
   const longitudeDifference = degreesToRadians(
     secondLongitude - firstLongitude,
   );
@@ -122,7 +260,10 @@ function hasUsableAccuracy(worker: WorkerLocationRow): boolean {
   );
 }
 
-function createWorkerMarkerElement(isAvailable: boolean): HTMLDivElement {
+function createWorkerMarkerElement(
+  isAvailable: boolean,
+  category: string,
+): HTMLDivElement {
   const container = document.createElement("div");
 
   container.className = "livelihood-worker-marker";
@@ -132,6 +273,9 @@ function createWorkerMarkerElement(isAvailable: boolean): HTMLDivElement {
   container.style.alignItems = "center";
   container.style.justifyContent = "center";
   container.style.cursor = "pointer";
+  container.style.position = "relative";
+
+  const categoryColor = getCategoryColor(category);
 
   container.innerHTML = `
     <div
@@ -145,10 +289,12 @@ function createWorkerMarkerElement(isAvailable: boolean): HTMLDivElement {
         justify-content:center;
         border:3px solid white;
         border-radius:9999px;
-        background:${isAvailable ? "#16a34a" : "#f59e0b"};
+        background:${categoryColor};
         box-shadow:
           0 8px 20px rgba(15,23,42,.25),
-          0 0 0 4px ${isAvailable ? "rgba(34,197,94,.18)" : "rgba(245,158,11,.22)"};
+          0 0 0 4px ${
+            isAvailable ? "rgba(34,197,94,.18)" : "rgba(245,158,11,.22)"
+          };
       "
     >
       <svg
@@ -181,6 +327,30 @@ function createWorkerMarkerElement(isAvailable: boolean): HTMLDivElement {
           background:${isAvailable ? "#22c55e" : "#f59e0b"};
         "
       ></span>
+
+      <span
+        data-worker-category-label
+        style="
+          position:absolute;
+          top:46px;
+          left:50%;
+          transform:translateX(-50%);
+          max-width:150px;
+          padding:3px 8px;
+          border:1px solid rgba(255,255,255,.9);
+          border-radius:9999px;
+          background:rgba(255,255,255,.96);
+          color:#0f172a;
+          box-shadow:0 4px 12px rgba(15,23,42,.18);
+          font-size:11px;
+          font-weight:800;
+          line-height:1.2;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          pointer-events:none;
+        "
+      >${category}</span>
     </div>
   `;
 
@@ -194,19 +364,48 @@ export function useNearbyWorkers({
   radiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM,
   selectedWorkerId,
   onWorkerSelect,
+  searchQuery = "",
+  categoryFilter = "",
 }: UseNearbyWorkersParams) {
   const markerRecordsRef = useRef<Map<string, WorkerMarkerRecord>>(new Map());
+
   const animationFramesRef = useRef<Map<string, number>>(new Map());
+
   const workersRef = useRef<Map<string, NearbyWorker>>(new Map());
+
   const workerProfilesRef = useRef<Map<string, WorkerProfile>>(new Map());
+
+  const workerServicesRef = useRef<Map<string, WorkerServiceSummary[]>>(
+    new Map(),
+  );
+
   const lastEligibleAtRef = useRef<Map<string, number>>(new Map());
+
   const consecutiveMissesRef = useRef<Map<string, number>>(new Map());
+
   const mountedRef = useRef(true);
+
   const channelIdRef = useRef(`customer-nearby-workers-${crypto.randomUUID()}`);
 
+  const searchQueryRef = useRef(searchQuery);
+  const categoryFilterRef = useRef(categoryFilter);
+
   const [nearbyWorkers, setNearbyWorkers] = useState<NearbyWorker[]>([]);
+
   const [loadingWorkers, setLoadingWorkers] = useState(false);
+
   const [nearbyWorkersError, setNearbyWorkersError] = useState("");
+
+  /*
+   * Keep the latest filter values in refs.
+   *
+   * This avoids updating refs directly during render, which triggers
+   * the React react-hooks/refs lint rule.
+   */
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+    categoryFilterRef.current = categoryFilter;
+  }, [searchQuery, categoryFilter]);
 
   const publishWorkers = useCallback(() => {
     if (!mountedRef.current) {
@@ -297,6 +496,7 @@ export function useNearbyWorkers({
 
       if (error) {
         console.error("Unable to load nearby worker profile:", error);
+
         return null;
       }
 
@@ -307,6 +507,35 @@ export function useNearbyWorkers({
       }
 
       return profile;
+    },
+    [],
+  );
+
+  const getWorkerServices = useCallback(
+    async (workerId: string): Promise<WorkerServiceSummary[]> => {
+      const cached = workerServicesRef.current.get(workerId);
+
+      if (cached) {
+        return cached;
+      }
+
+      const { data, error } = await supabase
+        .from("services")
+        .select("category, service_name")
+        .eq("worker_id", workerId)
+        .eq("status", "Approved");
+
+      if (error) {
+        console.error("Unable to load nearby worker services:", error);
+
+        return [];
+      }
+
+      const services = (data ?? []) as WorkerServiceSummary[];
+
+      workerServicesRef.current.set(workerId, services);
+
+      return services;
     },
     [],
   );
@@ -330,19 +559,23 @@ export function useNearbyWorkers({
 
       const animate = (now: number) => {
         const progress = Math.min((now - startedAt) / durationMs, 1);
+
         const eased =
           progress < 0.5
             ? 2 * progress * progress
             : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
         const longitude = start[0] + (destination[0] - start[0]) * eased;
+
         const latitude = start[1] + (destination[1] - start[1]) * eased;
 
         record.marker.setLngLat([longitude, latitude]);
 
         if (progress < 1) {
           const frame = requestAnimationFrame(animate);
+
           animationFramesRef.current.set(workerId, frame);
+
           return;
         }
 
@@ -351,6 +584,7 @@ export function useNearbyWorkers({
       };
 
       const frame = requestAnimationFrame(animate);
+
       animationFramesRef.current.set(workerId, frame);
     },
     [],
@@ -370,6 +604,7 @@ export function useNearbyWorkers({
         typeof heading === "number" && Number.isFinite(heading) ? heading : 0;
 
       icon.style.transition = "transform 400ms ease";
+
       icon.style.transform = `rotate(${validHeading}deg)`;
     },
     [],
@@ -399,11 +634,6 @@ export function useNearbyWorkers({
 
       const distanceMeters = getDistance(worker);
 
-      /*
-       * Do not display a worker until the customer's current location is
-       * available. Treating a null distance as inside the radius can show a
-       * worker who is actually far away.
-       */
       const insideRadius =
         distanceMeters !== null && distanceMeters <= radiusKilometers * 1_000;
 
@@ -425,14 +655,8 @@ export function useNearbyWorkers({
 
         const insideGracePeriod =
           workersRef.current.has(worker.worker_id) &&
-          Date.now() - lastEligibleAt <=
-            TRANSIENT_GRACE_PERIOD_MS;
+          Date.now() - lastEligibleAt <= TRANSIENT_GRACE_PERIOD_MS;
 
-        /*
-         * A single refresh can briefly return stale/missing availability while
-         * the worker heartbeat is being updated. Preserve the existing marker
-         * during that short grace period instead of making it flicker.
-         */
         if (source === "refresh" && insideGracePeriod) {
           return;
         }
@@ -451,13 +675,17 @@ export function useNearbyWorkers({
         return;
       }
 
-      lastEligibleAtRef.current.set(
-        worker.worker_id,
-        Date.now(),
-      );
+      lastEligibleAtRef.current.set(worker.worker_id, Date.now());
+
       consecutiveMissesRef.current.set(worker.worker_id, 0);
 
       const profile = await getWorkerProfile(worker.worker_id);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      const services = await getWorkerServices(worker.worker_id);
 
       if (!mountedRef.current) {
         return;
@@ -467,6 +695,7 @@ export function useNearbyWorkers({
         ...worker,
         distanceMeters,
         profile,
+        services,
       };
 
       workersRef.current.set(worker.worker_id, nearbyWorker);
@@ -488,19 +717,27 @@ export function useNearbyWorkers({
 
       if (existing) {
         animateMarker(worker.worker_id, destination);
+
         applyHeading(existing.element, worker.heading);
+
+        existing.element.style.display = workerMatchesFilters(
+          nearbyWorker,
+          searchQueryRef.current,
+          categoryFilterRef.current,
+        )
+          ? "flex"
+          : "none";
 
         const icon = existing.element.querySelector<HTMLElement>(
           "[data-worker-marker-icon]",
         );
+
         const statusDot = existing.element.querySelector<HTMLElement>(
           "[data-worker-status-dot]",
         );
 
         if (icon) {
-          icon.style.background = worker.is_available
-            ? "#16a34a"
-            : "#f59e0b";
+          icon.style.background = getCategoryColor(getWorkerCategory(services));
         }
 
         if (statusDot) {
@@ -509,8 +746,18 @@ export function useNearbyWorkers({
             : "#f59e0b";
         }
 
+        const categoryLabel = existing.element.querySelector<HTMLElement>(
+          "[data-worker-category-label]",
+        );
+
+        if (categoryLabel) {
+          categoryLabel.textContent = getWorkerServiceLabel(services);
+        }
+
         existing.cleanupClick();
+
         existing.element.addEventListener("click", handleClick);
+
         existing.cleanupClick = () => {
           existing.element.removeEventListener("click", handleClick);
         };
@@ -519,9 +766,21 @@ export function useNearbyWorkers({
         return;
       }
 
-      const element = createWorkerMarkerElement(worker.is_available);
+      const element = createWorkerMarkerElement(
+        worker.is_available,
+        getWorkerServiceLabel(services),
+      );
+
+      element.style.display = workerMatchesFilters(
+        nearbyWorker,
+        searchQueryRef.current,
+        categoryFilterRef.current,
+      )
+        ? "flex"
+        : "none";
 
       applyHeading(element, worker.heading);
+
       element.addEventListener("click", handleClick);
 
       const marker = new Marker({
@@ -547,6 +806,7 @@ export function useNearbyWorkers({
       applyHeading,
       getDistance,
       getWorkerProfile,
+      getWorkerServices,
       mapRef,
       onWorkerSelect,
       publishWorkers,
@@ -578,47 +838,35 @@ export function useNearbyWorkers({
       }
 
       const rows = (data ?? []) as WorkerLocationRow[];
+
       const relevantRows = selectedWorkerId
         ? rows.filter((row) => row.worker_id === selectedWorkerId)
         : rows;
 
-      const receivedIds = new Set(
-        relevantRows.map((row) => row.worker_id),
-      );
+      const receivedIds = new Set(relevantRows.map((row) => row.worker_id));
 
       await Promise.all(
-        relevantRows.map((row) =>
-          processWorker(row, "refresh"),
-        ),
+        relevantRows.map((row) => processWorker(row, "refresh")),
       );
 
-      for (const workerId of [
-        ...workersRef.current.keys(),
-      ]) {
+      for (const workerId of [...workersRef.current.keys()]) {
         if (receivedIds.has(workerId)) {
           consecutiveMissesRef.current.set(workerId, 0);
+
           continue;
         }
 
         const nextMisses =
           (consecutiveMissesRef.current.get(workerId) ?? 0) + 1;
 
-        consecutiveMissesRef.current.set(
-          workerId,
-          nextMisses,
-        );
+        consecutiveMissesRef.current.set(workerId, nextMisses);
 
-        const lastEligibleAt =
-          lastEligibleAtRef.current.get(workerId) ?? 0;
+        const lastEligibleAt = lastEligibleAtRef.current.get(workerId) ?? 0;
 
         const graceExpired =
-          Date.now() - lastEligibleAt >
-          TRANSIENT_GRACE_PERIOD_MS;
+          Date.now() - lastEligibleAt > TRANSIENT_GRACE_PERIOD_MS;
 
-        if (
-          nextMisses >= MAX_CONSECUTIVE_MISSES &&
-          graceExpired
-        ) {
+        if (nextMisses >= MAX_CONSECUTIVE_MISSES && graceExpired) {
           removeWorker(workerId);
         }
       }
@@ -635,13 +883,7 @@ export function useNearbyWorkers({
         setLoadingWorkers(false);
       }
     }
-  }, [
-    enabled,
-    processWorker,
-    publishWorkers,
-    removeWorker,
-    selectedWorkerId,
-  ]);
+  }, [enabled, processWorker, publishWorkers, removeWorker, selectedWorkerId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -651,10 +893,6 @@ export function useNearbyWorkers({
     };
   }, []);
 
-  /*
-   * One effect owns exactly one realtime channel.
-   * All postgres_changes callbacks are registered before subscribe().
-   */
   useEffect(() => {
     if (!enabled) {
       clearAllWorkers();
@@ -678,16 +916,14 @@ export function useNearbyWorkers({
 
             if (deleted.worker_id) {
               removeWorker(deleted.worker_id);
+
               publishWorkers();
             }
 
             return;
           }
 
-          void processWorker(
-            payload.new as WorkerLocationRow,
-            "realtime",
-          );
+          void processWorker(payload.new as WorkerLocationRow, "realtime");
         },
       )
       .subscribe((status) => {
@@ -699,6 +935,7 @@ export function useNearbyWorkers({
           setNearbyWorkersError(
             "Realtime worker tracking connection failed. Retrying automatically.",
           );
+
           return;
         }
 
@@ -722,13 +959,18 @@ export function useNearbyWorkers({
     };
 
     window.addEventListener("online", handleOnline);
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.clearInterval(refreshTimer);
+
       window.removeEventListener("online", handleOnline);
+
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+
       void supabase.removeChannel(channel);
+
       clearAllWorkers();
     };
   }, [
@@ -740,14 +982,36 @@ export function useNearbyWorkers({
     removeWorker,
   ]);
 
+  useEffect(() => {
+    for (const [workerId, worker] of workersRef.current.entries()) {
+      const record = markerRecordsRef.current.get(workerId);
+
+      if (!record) {
+        continue;
+      }
+
+      record.element.style.display = workerMatchesFilters(
+        worker,
+        searchQuery,
+        categoryFilter,
+      )
+        ? "flex"
+        : "none";
+    }
+  }, [categoryFilter, searchQuery]);
+
   const refreshNearbyWorkers = useCallback(() => {
     void loadNearbyWorkers();
   }, [loadNearbyWorkers]);
 
   const fitNearbyWorkers = useCallback((): boolean => {
     const map = mapRef.current;
+
     const origin = currentLocationRef.current;
-    const workers = [...workersRef.current.values()];
+
+    const workers = [...workersRef.current.values()].filter((worker) =>
+      workerMatchesFilters(worker, searchQuery, categoryFilter),
+    );
 
     if (!map || workers.length === 0) {
       return false;
@@ -769,6 +1033,7 @@ export function useNearbyWorkers({
         duration: 700,
         essential: true,
       });
+
       return true;
     }
 
@@ -779,8 +1044,11 @@ export function useNearbyWorkers({
 
     for (const [lng, lat] of points) {
       minLng = Math.min(minLng, lng);
+
       maxLng = Math.max(maxLng, lng);
+
       minLat = Math.min(minLat, lat);
+
       maxLat = Math.max(maxLat, lat);
     }
 
@@ -790,7 +1058,12 @@ export function useNearbyWorkers({
         [maxLng, maxLat],
       ],
       {
-        padding: { top: 100, right: 80, bottom: 100, left: 80 },
+        padding: {
+          top: 100,
+          right: 80,
+          bottom: 100,
+          left: 80,
+        },
         maxZoom: 14,
         duration: 850,
         essential: true,
@@ -798,11 +1071,19 @@ export function useNearbyWorkers({
     );
 
     return true;
-  }, [currentLocationRef, mapRef]);
+  }, [categoryFilter, currentLocationRef, mapRef, searchQuery]);
+
+  const visibleNearbyWorkers = useMemo(
+    () =>
+      nearbyWorkers.filter((worker) =>
+        workerMatchesFilters(worker, searchQuery, categoryFilter),
+      ),
+    [nearbyWorkers, searchQuery, categoryFilter],
+  );
 
   return {
-    nearbyWorkers,
-    nearbyWorkersCount: nearbyWorkers.length,
+    nearbyWorkers: visibleNearbyWorkers,
+    nearbyWorkersCount: visibleNearbyWorkers.length,
     loadingWorkers,
     nearbyWorkersError,
     refreshNearbyWorkers,

@@ -1,8 +1,4 @@
-import type {
-  AuthError,
-  Session,
-  User,
-} from "@supabase/supabase-js";
+import type { AuthError, Session, User } from "@supabase/supabase-js";
 
 import { supabase } from "../lib/supabase";
 import { logActivity } from "./activityService";
@@ -12,17 +8,12 @@ import {
   releaseActiveSession,
 } from "./activeSessionService";
 
-export type UserRole =
-  | "admin"
-  | "worker"
-  | "customer"
-  | string;
+export type UserRole = "admin" | "worker" | "customer" | string;
 
 export interface RegisterData {
   firstName: string;
   middleName?: string;
   lastName: string;
-
   email: string;
   phone: string;
   password: string;
@@ -38,7 +29,14 @@ export interface RegisterData {
   municipality?: string;
   province?: string;
 
+  // =========================
+  // CUSTOMER REGISTRATION MAP
+  // =========================
+  latitude?: number | null;
+  longitude?: number | null;
+
   profilePicture?: File | null;
+
   role: UserRole;
   captchaToken?: string;
 }
@@ -65,10 +63,7 @@ export interface CurrentSessionResult {
 // VALIDATION HELPERS
 // =========================
 
-function normalizeRequiredText(
-  value: string,
-  fieldName: string,
-): string {
+function normalizeRequiredText(value: string, fieldName: string): string {
   const normalizedValue = value.trim();
 
   if (!normalizedValue) {
@@ -78,55 +73,38 @@ function normalizeRequiredText(
   return normalizedValue;
 }
 
-function normalizeOptionalText(
-  value?: string,
-): string | null {
+function normalizeOptionalText(value?: string): string | null {
   const normalizedValue = value?.trim();
 
   return normalizedValue ? normalizedValue : null;
 }
 
 function normalizeEmail(email: string): string {
-  const normalizedEmail = normalizeRequiredText(
-    email,
-    "Email",
-  ).toLowerCase();
+  const normalizedEmail = normalizeRequiredText(email, "Email").toLowerCase();
 
-  const emailPattern =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (!emailPattern.test(normalizedEmail)) {
-    throw new Error(
-      "Please enter a valid email address.",
-    );
+    throw new Error("Please enter a valid email address.");
   }
 
   return normalizedEmail;
 }
 
-function validatePassword(
-  password: string,
-): string {
+function validatePassword(password: string): string {
   if (!password) {
     throw new Error("Password is required.");
   }
 
   if (password.length < 6) {
-    throw new Error(
-      "Password must contain at least 6 characters.",
-    );
+    throw new Error("Password must contain at least 6 characters.");
   }
 
   return password;
 }
 
-function normalizeRole(
-  role: UserRole,
-): string {
-  return normalizeRequiredText(
-    String(role),
-    "Role",
-  ).toLowerCase();
+function normalizeRole(role: UserRole): string {
+  return normalizeRequiredText(String(role), "Role").toLowerCase();
 }
 
 // =========================
@@ -138,47 +116,33 @@ export async function requestPasswordReset(
   captchaToken: string,
 ): Promise<void> {
   try {
-    const normalizedEmail =
-      normalizeEmail(email);
+    const normalizedEmail = normalizeEmail(email);
 
-    const normalizedCaptchaToken =
-      normalizeOptionalText(captchaToken);
+    const normalizedCaptchaToken = normalizeOptionalText(captchaToken);
 
     if (!normalizedCaptchaToken) {
-      throw new Error(
-        "Please complete the security verification.",
-      );
+      throw new Error("Please complete the security verification.");
     }
 
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-          captchaToken:
-            normalizedCaptchaToken,
-        },
-      );
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+      {
+        redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken: normalizedCaptchaToken,
+      },
+    );
 
     if (error) {
-      console.error(
-        "Password recovery request error:",
-        error,
-      );
+      console.error("Password recovery request error:", error);
 
       throw new Error(error.message);
     }
   } catch (error) {
-    console.error(
-      "requestPasswordReset failed:",
-      error,
-    );
+    console.error("requestPasswordReset failed:", error);
 
     throw error instanceof Error
       ? error
-      : new Error(
-          "Unable to send the password recovery code.",
-        );
+      : new Error("Unable to send the password recovery code.");
   }
 }
 
@@ -193,14 +157,10 @@ async function logActivitySafely(
   description: string,
 ): Promise<void> {
   try {
-    await logActivity(
-      userId,
-      action,
-      module,
-      description,
-    );
+    await logActivity(userId, action, module, description);
   } catch {
-    // Authentication must remain successful even if activity logging fails.
+    // Authentication must remain successful
+    // even if activity logging fails.
   }
 }
 
@@ -214,36 +174,23 @@ export async function login(
   captchaToken?: string,
 ): Promise<AuthResult> {
   try {
-    const normalizedEmail =
-      normalizeEmail(email);
+    const normalizedEmail = normalizeEmail(email);
 
-    const normalizedPassword =
-      validatePassword(password);
+    const normalizedPassword = validatePassword(password);
 
-    if (
-      typeof captchaToken !== "string" ||
-      !captchaToken.trim()
-    ) {
-      throw new Error(
-        "Please complete the security verification.",
-      );
+    if (typeof captchaToken !== "string" || !captchaToken.trim()) {
+      throw new Error("Please complete the security verification.");
     }
 
-    const result =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password: normalizedPassword,
-        options: {
-          captchaToken:
-            captchaToken.trim(),
-        },
-      });
+    const result = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: normalizedPassword,
+      options: {
+        captchaToken: captchaToken.trim(),
+      },
+    });
 
-    if (
-      result.error ||
-      !result.data.session ||
-      !result.data.user
-    ) {
+    if (result.error || !result.data.session || !result.data.user) {
       return result;
     }
 
@@ -251,10 +198,7 @@ export async function login(
     // CHECK PROFILE
     // =========================
 
-    const {
-      data: profile,
-      error: profileError,
-    } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role, status")
       .eq("id", result.data.user.id)
@@ -275,20 +219,14 @@ export async function login(
         scope: "local",
       });
 
-      throw new Error(
-        "Your account profile was not found.",
-      );
+      throw new Error("Your account profile was not found.");
     }
 
-    const role = String(
-      profile.role ?? "",
-    )
+    const role = String(profile.role ?? "")
       .trim()
       .toLowerCase();
 
-    const status = String(
-      profile.status ?? "",
-    )
+    const status = String(profile.status ?? "")
       .trim()
       .toLowerCase();
 
@@ -296,10 +234,7 @@ export async function login(
     // ACCOUNT STATUS CHECK
     // =========================
 
-    if (
-      role !== "admin" &&
-      status !== "approved"
-    ) {
+    if (role !== "admin" && status !== "approved") {
       await supabase.auth.signOut({
         scope: "local",
       });
@@ -330,15 +265,13 @@ export async function login(
     // CLAIM ACTIVE SESSION
     // =========================
 
-    const allowed =
-      await claimActiveSession();
+    const allowed = await claimActiveSession();
 
     if (!allowed) {
       const activeSessionMessage =
         "This account is already logged in on another device.";
 
-      const activeUserId =
-        result.data.user?.id;
+      const activeUserId = result.data.user?.id;
 
       if (activeUserId) {
         try {
@@ -349,10 +282,6 @@ export async function login(
             "A sign-in attempt to your account was blocked because this account is already active on another device. If this was not you, change your password immediately.",
           );
         } catch (notificationError) {
-          /*
-           * The login attempt must still be blocked even if
-           * the security notification cannot be inserted.
-           */
           console.error(
             "Unable to create blocked-login security notification:",
             notificationError,
@@ -360,10 +289,7 @@ export async function login(
         }
       }
 
-      sessionStorage.setItem(
-        "auth-message",
-        activeSessionMessage,
-      );
+      sessionStorage.setItem("auth-message", activeSessionMessage);
 
       await supabase.auth.signOut({
         scope: "local",
@@ -376,8 +302,7 @@ export async function login(
         },
         error: {
           name: "ActiveSessionError",
-          message:
-            activeSessionMessage,
+          message: activeSessionMessage,
           status: 403,
         } as AuthError,
       };
@@ -395,14 +320,9 @@ export async function login(
      *
      * ActiveSessionManager should start its
      * heartbeat/refresh logic only after this event.
-     *
-     * This prevents the SIGNED_IN event from calling
-     * refreshActiveSession() before claimActiveSession()
-     * has completed.
      */
-    window.dispatchEvent(
-      new Event("active-session-claimed"),
-    );
+
+    window.dispatchEvent(new Event("active-session-claimed"));
 
     return result;
   } catch (error) {
@@ -420,8 +340,7 @@ export async function login(
             } as AuthError)
           : ({
               name: "AuthValidationError",
-              message:
-                "Unable to sign in.",
+              message: "Unable to sign in.",
               status: 400,
             } as AuthError),
     };
@@ -436,55 +355,77 @@ export async function registerUser(
   userData: RegisterData,
 ): Promise<AuthResult> {
   try {
-    const firstName =
-      normalizeRequiredText(
-        userData.firstName,
-        "First name",
-      );
+    const firstName = normalizeRequiredText(userData.firstName, "First name");
 
-    const middleName =
-      normalizeOptionalText(
-        userData.middleName,
-      );
+    const middleName = normalizeOptionalText(userData.middleName);
 
-    const lastName =
-      normalizeRequiredText(
-        userData.lastName,
-        "Last name",
-      );
+    const lastName = normalizeRequiredText(userData.lastName, "Last name");
 
-    const email = normalizeEmail(
-      userData.email,
-    );
+    const email = normalizeEmail(userData.email);
 
-    const phone =
-      normalizeRequiredText(
-        userData.phone,
-        "Phone number",
-      );
+    const phone = normalizeRequiredText(userData.phone, "Phone number");
 
-    const password =
-      validatePassword(
-        userData.password,
-      );
+    const password = validatePassword(userData.password);
 
-    const role = normalizeRole(
-      userData.role,
-    );
+    const role = normalizeRole(userData.role);
 
     // =========================
     // CAPTCHA
     // =========================
 
-    const captchaToken =
-      normalizeOptionalText(
-        userData.captchaToken,
-      );
+    const captchaToken = normalizeOptionalText(userData.captchaToken);
 
     if (!captchaToken) {
       throw new Error(
         "Please complete the security verification before creating your account.",
       );
+    }
+
+    // =========================
+    // MAP LOCATION VALIDATION
+    // =========================
+
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+
+    if (role === "customer") {
+      if (
+        userData.latitude === null ||
+        userData.latitude === undefined ||
+        !Number.isFinite(userData.latitude)
+      ) {
+        throw new Error(
+          "Please select your exact address location on the map.",
+        );
+      }
+
+      if (
+        userData.longitude === null ||
+        userData.longitude === undefined ||
+        !Number.isFinite(userData.longitude)
+      ) {
+        throw new Error(
+          "Please select your exact address location on the map.",
+        );
+      }
+
+      latitude = userData.latitude;
+      longitude = userData.longitude;
+
+      // Basic geographic range validation
+      if (latitude < -90 || latitude > 90) {
+        throw new Error("Invalid latitude value.");
+      }
+
+      if (longitude < -180 || longitude > 180) {
+        throw new Error("Invalid longitude value.");
+      }
+    } else {
+      // Workers/admins may register without
+      // customer map coordinates.
+      latitude = userData.latitude ?? null;
+
+      longitude = userData.longitude ?? null;
     }
 
     /*
@@ -495,75 +436,71 @@ export async function registerUser(
      * Kaya ang profile data ay ipinapasa bilang
      * user metadata at ise-save ng database trigger.
      */
-    const { data, error } =
-      await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          captchaToken,
-          emailRedirectTo:
-            window.location.origin,
-          data: {
-            first_name: firstName,
-            middle_name: middleName,
-            last_name: lastName,
-            email,
-            phone,
 
-            gender:
-              normalizeOptionalText(
-                userData.gender,
-              ),
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
 
-            birth_date:
-              normalizeOptionalText(
-                userData.birthDate,
-              ),
+      options: {
+        captchaToken,
 
-            civil_status:
-              normalizeOptionalText(
-                userData.civilStatus,
-              ),
+        emailRedirectTo: window.location.origin,
 
-            religion:
-              normalizeOptionalText(
-                userData.religion,
-              ),
+        data: {
+          // =========================
+          // PERSONAL INFORMATION
+          // =========================
 
-            house_no:
-              normalizeOptionalText(
-                userData.houseNo,
-              ),
+          first_name: firstName,
 
-            street:
-              normalizeOptionalText(
-                userData.street,
-              ),
+          middle_name: middleName,
 
-            barangay:
-              normalizeOptionalText(
-                userData.barangay,
-              ),
+          last_name: lastName,
 
-            municipality:
-              normalizeOptionalText(
-                userData.municipality,
-              ),
+          email,
 
-            province:
-              normalizeOptionalText(
-                userData.province,
-              ),
+          phone,
 
-            role,
+          gender: normalizeOptionalText(userData.gender),
 
-            status:
-              role === "customer"
-                ? "Approved"
-                : "Pending",
-          },
+          birth_date: normalizeOptionalText(userData.birthDate),
+
+          civil_status: normalizeOptionalText(userData.civilStatus),
+
+          religion: normalizeOptionalText(userData.religion),
+
+          // =========================
+          // ADDRESS
+          // =========================
+
+          house_no: normalizeOptionalText(userData.houseNo),
+
+          street: normalizeOptionalText(userData.street),
+
+          barangay: normalizeOptionalText(userData.barangay),
+
+          municipality: normalizeOptionalText(userData.municipality),
+
+          province: normalizeOptionalText(userData.province),
+
+          // =========================
+          // MAP LOCATION
+          // =========================
+
+          latitude,
+
+          longitude,
+
+          // =========================
+          // ACCOUNT
+          // =========================
+
+          role,
+
+          status: role === "customer" ? "Approved" : "Pending",
         },
-      });
+      },
+    });
 
     if (error) {
       return {
@@ -580,8 +517,7 @@ export async function registerUser(
         },
         error: {
           name: "UserCreationError",
-          message:
-            "User creation failed.",
+          message: "User creation failed.",
           status: 500,
         } as AuthError,
       };
@@ -598,6 +534,7 @@ export async function registerUser(
      * i-upload pagkatapos ma-verify at
      * makapag-login ang customer.
      */
+
     return {
       data,
       error: null,
@@ -617,8 +554,7 @@ export async function registerUser(
             } as AuthError)
           : ({
               name: "RegistrationError",
-              message:
-                "Unable to register user.",
+              message: "Unable to register user.",
               status: 400,
             } as AuthError),
     };

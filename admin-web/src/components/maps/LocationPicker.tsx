@@ -31,6 +31,7 @@ import { useSmoothMarker } from "./hooks/useSmoothMarker";
 import { useLiveRouteRefresh } from "./hooks/useLiveRouteRefresh";
 import { useFollowLocation } from "./hooks/useFollowLocation";
 import {
+  getWorkerServiceLabel,
   useNearbyWorkers,
 } from "./hooks/useNearbyWorkers";
 
@@ -61,6 +62,26 @@ interface ExternalRouteTarget {
   longitude: number;
   address?: string;
 }
+
+const WORKER_CATEGORY_FILTERS = [
+  "All",
+  "Plumber",
+  "Electrician",
+  "Carpenter",
+  "Tutor",
+  "Housekeeper",
+  "Painter",
+] as const;
+
+const WORKER_CATEGORY_DOT_COLORS: Record<string, string> = {
+  All: "#0f172a",
+  Plumber: "#2563eb",
+  Electrician: "#16a34a",
+  Carpenter: "#f97316",
+  Tutor: "#9333ea",
+  Housekeeper: "#dc2626",
+  Painter: "#eab308",
+};
 
 interface Props {
   onLocationSelect: (
@@ -179,6 +200,9 @@ export default function LocationPicker({
   const [followUser] = useState(true);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [routeDisplayAddress, setRouteDisplayAddress] = useState("");
+  const [workerMapSearch, setWorkerMapSearch] = useState("");
+  const [workerCategoryFilter, setWorkerCategoryFilter] = useState("All");
+  const [workerCategoryFilterOpen, setWorkerCategoryFilterOpen] = useState(false);
 
   useEffect(() => {
     callbackRef.current = onLocationSelect;
@@ -556,6 +580,8 @@ const {
   radiusKilometers: nearbyWorkerRadiusKilometers,
   selectedWorkerId,
   onWorkerSelect: onNearbyWorkerSelect,
+  searchQuery: workerMapSearch,
+  categoryFilter: workerCategoryFilter === "All" ? "" : workerCategoryFilter,
 });
 
 useEffect(() => {
@@ -752,6 +778,170 @@ const layersModalProps = useLayersModalProps({
         </div>
         <div className="relative flex-1">
           <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
+
+          {showNearbyWorkers && !selectedWorkerId && (
+            <div className="pointer-events-none absolute left-1/2 top-3 z-30 w-[calc(100%-1.5rem)] max-w-[520px] -translate-x-1/2 sm:top-4 sm:w-[calc(100%-2rem)] md:max-w-[520px]">
+              <div className="pointer-events-auto w-full">
+                <div className="rounded-2xl border border-slate-200/90 bg-white/96 p-2.5 shadow-xl backdrop-blur sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.5-3.5" />
+                      </svg>
+                    </div>
+                    <input
+                      type="search"
+                      value={workerMapSearch}
+                      onChange={(event) => setWorkerMapSearch(event.target.value)}
+                      placeholder="Search service or worker..."
+                      aria-label="Search service or worker"
+                      className="min-w-0 flex-1 bg-transparent px-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                    />
+                    {workerMapSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setWorkerMapSearch("")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                        aria-label="Clear worker search"
+                      >
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {workerMapSearch.trim() && nearbyWorkers.length > 0 && (
+                    <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                      {nearbyWorkers.slice(0, 6).map((worker) => {
+                        const workerName = [
+                          worker.profile?.first_name,
+                          worker.profile?.middle_name,
+                          worker.profile?.last_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" ") || "Worker";
+
+                        const workerCategory = getWorkerServiceLabel(worker.services);
+
+                        return (
+                          <button
+                            key={worker.worker_id}
+                            type="button"
+                            onClick={() => onNearbyWorkerSelect?.(worker)}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50"
+                          >
+                            <span
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  WORKER_CATEGORY_DOT_COLORS[workerCategory] || "#64748b",
+                              }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs font-bold text-slate-900">
+                                {workerName}
+                              </span>
+                              <span className="block truncate text-[11px] text-slate-500">
+                                {workerCategory}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setWorkerCategoryFilterOpen((open) => !open)}
+                      aria-expanded={workerCategoryFilterOpen}
+                      aria-haspopup="listbox"
+                      className="flex min-h-9 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: WORKER_CATEGORY_DOT_COLORS[workerCategoryFilter] }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">
+                          {workerCategoryFilter === "All" ? "All services" : workerCategoryFilter}
+                        </span>
+                      </span>
+                      <svg
+                        className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${workerCategoryFilterOpen ? "rotate-180" : ""}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+
+                    {workerCategoryFilterOpen && (
+                      <div
+                        className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+                        role="listbox"
+                        aria-label="Worker service category"
+                      >
+                        {WORKER_CATEGORY_FILTERS.map((category) => {
+                          const active = workerCategoryFilter === category;
+                          const dotColor = WORKER_CATEGORY_DOT_COLORS[category];
+
+                          return (
+                            <button
+                              key={category}
+                              type="button"
+                              role="option"
+                              aria-selected={active}
+                              onClick={() => {
+                                setWorkerCategoryFilter(category);
+                                setWorkerCategoryFilterOpen(false);
+                              }}
+                              className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-xs font-bold transition ${
+                                active
+                                  ? "bg-slate-900 text-white"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: dotColor }}
+                                aria-hidden="true"
+                              />
+                              <span className="truncate">{category}</span>
+                              {active && (
+                                <svg
+                                  className="ml-auto h-4 w-4 shrink-0"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="m5 12 4 4L19 6" />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {navigationMode && (
             <div className="pointer-events-none absolute left-4 bottom-4 z-20 rounded-xl border border-blue-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">

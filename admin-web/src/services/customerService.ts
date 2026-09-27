@@ -14,25 +14,35 @@ export type CustomerStatus =
 export interface CustomerProfile {
   id: string;
   role: string;
+
   first_name: string | null;
   middle_name: string | null;
   last_name: string | null;
   suffix?: string | null;
+
   email: string | null;
   phone?: string | null;
+
   profile_picture?: string | null;
   profile_image?: string | null;
   avatar_url?: string | null;
+
   gender?: string | null;
   birth_date?: string | null;
   civil_status?: string | null;
   religion?: string | null;
+
   house_no?: string | null;
   street?: string | null;
   address: string | null;
   barangay: string | null;
   municipality: string | null;
   province: string | null;
+
+  // Map-based customer location
+  latitude: number | null;
+  longitude: number | null;
+
   created_at: string | null;
   status?: string | null;
 }
@@ -64,6 +74,10 @@ export interface CustomerReviewSummary {
   created_at: string | null;
   worker_name: string;
 }
+
+// =====================================================
+// ERROR HELPERS
+// =====================================================
 
 function wrapError(error: unknown, fallbackMessage: string): Error {
   if (error instanceof Error) {
@@ -99,6 +113,10 @@ function normalizeSearchTerm(search: string): string {
     .replace(/\s+/g, " ")
     .slice(0, 100);
 }
+
+// =====================================================
+// CUSTOMER STATUS
+// =====================================================
 
 export function normalizeCustomerStatus(
   status?: string | null,
@@ -138,6 +156,7 @@ export function normalizeCustomerStatus(
 
 function validateCustomerStatus(status: string): CustomerStatus {
   const normalized = normalizeCustomerStatus(status);
+
   const allowed = Object.values(CUSTOMER_STATUS) as CustomerStatus[];
 
   if (!allowed.includes(normalized)) {
@@ -146,6 +165,10 @@ function validateCustomerStatus(status: string): CustomerStatus {
 
   return normalized;
 }
+
+// =====================================================
+// CUSTOMER DISPLAY HELPERS
+// =====================================================
 
 function buildFullName(customer: CustomerProfile): string {
   return [
@@ -174,9 +197,7 @@ function buildFullAddress(customer: CustomerProfile): string {
   return Array.from(new Set(parts)).join(", ");
 }
 
-export function getCustomerAvatar(
-  customer: CustomerProfile,
-): string | null {
+export function getCustomerAvatar(customer: CustomerProfile): string | null {
   return (
     customer.profile_picture?.trim() ||
     customer.profile_image?.trim() ||
@@ -185,18 +206,27 @@ export function getCustomerAvatar(
   );
 }
 
+// =====================================================
+// MAP CUSTOMER
+// =====================================================
+
 function mapCustomer(customer: CustomerProfile): Customer {
   return {
     ...customer,
-    full_name:
-      buildFullName(customer) ||
-      customer.email ||
-      "Unnamed customer",
+
+    full_name: buildFullName(customer) || customer.email || "Unnamed customer",
+
     full_address: buildFullAddress(customer),
+
     avatar: getCustomerAvatar(customer),
+
     normalized_status: normalizeCustomerStatus(customer.status),
   };
 }
+
+// =====================================================
+// RELATED PROFILE
+// =====================================================
 
 function relatedProfile(value: unknown): {
   id: string;
@@ -213,24 +243,21 @@ function relatedProfile(value: unknown): {
 
   const row = profile as Record<string, unknown>;
 
-  const name = [
-    row.first_name,
-    row.middle_name,
-    row.last_name,
-    row.suffix,
-  ]
+  const name = [row.first_name, row.middle_name, row.last_name, row.suffix]
     .map((part) => String(part ?? "").trim())
     .filter(Boolean)
     .join(" ");
 
   return {
     id: String(row.id ?? "").trim(),
-    name:
-      name ||
-      String(row.email ?? "").trim() ||
-      "Unknown worker",
+
+    name: name || String(row.email ?? "").trim() || "Unknown worker",
   };
 }
+
+// =====================================================
+// CUSTOMER DATABASE COLUMNS
+// =====================================================
 
 const CUSTOMER_COLUMNS = `
   id,
@@ -254,20 +281,26 @@ const CUSTOMER_COLUMNS = `
   barangay,
   municipality,
   province,
+  latitude,
+  longitude,
   created_at,
   status
 `;
 
-export async function getCustomers(
-  search = "",
-): Promise<Customer[]> {
+// =====================================================
+// GET ALL CUSTOMERS
+// =====================================================
+
+export async function getCustomers(search = ""): Promise<Customer[]> {
   const normalizedSearch = normalizeSearchTerm(search);
 
   let query = supabase
     .from("profiles")
     .select(CUSTOMER_COLUMNS)
     .ilike("role", "customer")
-    .order("created_at", { ascending: false });
+    .order("created_at", {
+      ascending: false,
+    });
 
   if (normalizedSearch) {
     query = query.or(
@@ -294,6 +327,10 @@ export async function getCustomers(
   return ((data ?? []) as CustomerProfile[]).map(mapCustomer);
 }
 
+// =====================================================
+// GET SINGLE CUSTOMER
+// =====================================================
+
 export async function getCustomer(id: string): Promise<Customer> {
   const customerId = requireCustomerId(id);
 
@@ -315,11 +352,16 @@ export async function getCustomer(id: string): Promise<Customer> {
   return mapCustomer(data as CustomerProfile);
 }
 
+// =====================================================
+// UPDATE CUSTOMER STATUS
+// =====================================================
+
 export async function updateCustomerStatus(
   id: string,
   nextStatus: CustomerStatus,
 ): Promise<Customer> {
   const customerId = requireCustomerId(id);
+
   const normalizedStatus = validateCustomerStatus(nextStatus);
 
   const { data, error } = await supabase
@@ -344,6 +386,10 @@ export async function updateCustomerStatus(
 
   return mapCustomer(data as CustomerProfile);
 }
+
+// =====================================================
+// GET CUSTOMER BOOKINGS
+// =====================================================
 
 export async function getCustomerBookings(
   id: string,
@@ -372,7 +418,9 @@ export async function getCustomerBookings(
       `,
     )
     .eq("customer_id", customerId)
-    .order("created_at", { ascending: false })
+    .order("created_at", {
+      ascending: false,
+    })
     .limit(50);
 
   if (error) {
@@ -381,29 +429,32 @@ export async function getCustomerBookings(
 
   return (data ?? []).map((value) => {
     const row = value as unknown as Record<string, unknown>;
+
     const worker = relatedProfile(row.worker);
 
     return {
       id: Number(row.id),
-      worker_id:
-        String(row.worker_id ?? "").trim() || worker.id,
+
+      worker_id: String(row.worker_id ?? "").trim() || worker.id,
+
       status: String(row.status ?? "Unknown"),
-      booking_date: row.booking_date
-        ? String(row.booking_date)
-        : null,
-      booking_time: row.booking_time
-        ? String(row.booking_time)
-        : null,
-      created_at: row.created_at
-        ? String(row.created_at)
-        : null,
-      service_name: row.service_name
-        ? String(row.service_name)
-        : null,
+
+      booking_date: row.booking_date ? String(row.booking_date) : null,
+
+      booking_time: row.booking_time ? String(row.booking_time) : null,
+
+      created_at: row.created_at ? String(row.created_at) : null,
+
+      service_name: row.service_name ? String(row.service_name) : null,
+
       worker_name: worker.name,
     };
   });
 }
+
+// =====================================================
+// GET CUSTOMER REVIEWS
+// =====================================================
 
 export async function getCustomerReviews(
   id: string,
@@ -431,7 +482,9 @@ export async function getCustomerReviews(
       `,
     )
     .eq("customer_id", customerId)
-    .order("created_at", { ascending: false })
+    .order("created_at", {
+      ascending: false,
+    })
     .limit(50);
 
   if (error) {
@@ -440,18 +493,22 @@ export async function getCustomerReviews(
 
   return (data ?? []).map((value) => {
     const row = value as unknown as Record<string, unknown>;
+
     const worker = relatedProfile(row.worker);
 
     return {
       id: Number(row.id),
+
       booking_id: Number(row.booking_id),
-      worker_id:
-        String(row.worker_id ?? "").trim() || worker.id,
+
+      worker_id: String(row.worker_id ?? "").trim() || worker.id,
+
       rating: Number(row.rating ?? 0),
+
       review: row.review ? String(row.review) : null,
-      created_at: row.created_at
-        ? String(row.created_at)
-        : null,
+
+      created_at: row.created_at ? String(row.created_at) : null,
+
       worker_name: worker.name,
     };
   });

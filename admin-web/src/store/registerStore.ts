@@ -93,6 +93,112 @@ type PersistedRegisterState = {
 
 const MAX_STEP = 6;
 
+/*
+ * ============================================================
+ * DOCUMENT VALIDATION
+ * ============================================================
+ *
+ * Accepted:
+ * JPG
+ * PNG
+ * WEBP
+ * PDF
+ *
+ * Maximum:
+ * 50MB per file
+ */
+
+const ALLOWED_DOCUMENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+] as const;
+
+const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
+
+type DocumentField =
+  | "validId"
+  | "resume"
+  | "tesdaCertificate"
+  | "barangayClearance"
+  | "policeClearance"
+  | "nbiClearance"
+  | "juniorHighDiploma"
+  | "seniorHighDiploma"
+  | "collegeDiploma"
+  | "mastersDiploma"
+  | "doctorateDiploma";
+
+const DOCUMENT_LABELS: Record<DocumentField, string> = {
+  validId: "Valid ID",
+  resume: "Resume",
+  tesdaCertificate: "TESDA Certificate",
+  barangayClearance: "Barangay Clearance",
+  policeClearance: "Police Clearance",
+  nbiClearance: "NBI Clearance",
+  juniorHighDiploma: "Junior High Diploma",
+  seniorHighDiploma: "Senior High Diploma",
+  collegeDiploma: "College Diploma",
+  mastersDiploma: "Master's Diploma",
+  doctorateDiploma: "Doctorate Diploma",
+};
+
+function validateDocumentFile(
+  field: DocumentField,
+  file: File | null | undefined,
+): string | null {
+  if (!file) {
+    return null;
+  }
+
+  if (!ALLOWED_DOCUMENT_TYPES.includes(file.type as never)) {
+    return `${DOCUMENT_LABELS[field]} must be a JPG, PNG, WEBP, or PDF file.`;
+  }
+
+  if (file.size > MAX_DOCUMENT_SIZE) {
+    return `${DOCUMENT_LABELS[field]} must not exceed 50MB.`;
+  }
+
+  return null;
+}
+
+function validateDocuments(
+  values: Partial<RegisterData>,
+): Record<string, string> {
+  const documentFields: DocumentField[] = [
+    "validId",
+    "resume",
+    "tesdaCertificate",
+    "barangayClearance",
+    "policeClearance",
+    "nbiClearance",
+    "juniorHighDiploma",
+    "seniorHighDiploma",
+    "collegeDiploma",
+    "mastersDiploma",
+    "doctorateDiploma",
+  ];
+
+  const documentErrors: Record<string, string> = {};
+
+  for (const field of documentFields) {
+    const error = validateDocumentFile(field, values[field]);
+
+    if (error) {
+      documentErrors[field] = error;
+    }
+  }
+
+  return documentErrors;
+}
+
+/*
+ * ============================================================
+ * INITIAL DATA
+ * ============================================================
+ */
+
 const initialData: RegisterData = {
   profilePicture: null,
 
@@ -157,6 +263,22 @@ const initialData: RegisterData = {
   nbiClearance: null,
 };
 
+/*
+ * ============================================================
+ * PERSISTABLE DATA
+ * ============================================================
+ *
+ * IMPORTANT:
+ *
+ * Password and confirmPassword are intentionally NOT stored
+ * in sessionStorage.
+ *
+ * File objects are also NOT stored in sessionStorage.
+ *
+ * This prevents sensitive credentials and File objects from
+ * being persisted.
+ */
+
 function getPersistableData(data: RegisterData): Partial<RegisterData> {
   return {
     firstName: data.firstName,
@@ -171,6 +293,12 @@ function getPersistableData(data: RegisterData): Partial<RegisterData> {
 
     phone: data.phone,
     email: data.email,
+
+    /*
+     * Password intentionally excluded.
+     *
+     * confirmPassword intentionally excluded.
+     */
 
     houseNo: data.houseNo,
     street: data.street,
@@ -204,19 +332,43 @@ function getPersistableData(data: RegisterData): Partial<RegisterData> {
   };
 }
 
+/*
+ * ============================================================
+ * STORE
+ * ============================================================
+ */
+
 export const useRegisterStore = create<RegisterStore>()(
   persist(
     (set) => ({
       step: 1,
-      data: { ...initialData },
+
+      data: {
+        ...initialData,
+      },
+
       completedSteps: [],
+
       errors: {},
+
       editingFromReview: false,
+
+      /*
+       * ======================================================
+       * REVIEW / EDITING
+       * ======================================================
+       */
 
       setEditingFromReview: (value) =>
         set({
           editingFromReview: value,
         }),
+
+      /*
+       * ======================================================
+       * STEP NAVIGATION
+       * ======================================================
+       */
 
       nextStep: () =>
         set((state) => ({
@@ -240,13 +392,79 @@ export const useRegisterStore = create<RegisterStore>()(
             : [...state.completedSteps, step].sort((a, b) => a - b),
         })),
 
+      /*
+       * ======================================================
+       * UPDATE DATA
+       * ======================================================
+       *
+       * IMPORTANT:
+       *
+       * Always merge new values with the existing state.
+       *
+       * This prevents editing Education, Documents, Skills,
+       * Work Experience, etc. from replacing the other
+       * registration information.
+       */
+
       updateData: (values) =>
-        set((state) => ({
-          data: {
+        set((state) => {
+          const updatedData: RegisterData = {
             ...state.data,
             ...values,
-          },
-        })),
+          };
+
+          /*
+           * Validate document files whenever document data
+           * is updated.
+           */
+          const documentErrors = validateDocuments(values);
+
+          /*
+           * Preserve existing errors.
+           */
+          const newErrors = {
+            ...state.errors,
+          };
+
+          const documentFields: DocumentField[] = [
+            "validId",
+            "resume",
+            "tesdaCertificate",
+            "barangayClearance",
+            "policeClearance",
+            "nbiClearance",
+            "juniorHighDiploma",
+            "seniorHighDiploma",
+            "collegeDiploma",
+            "mastersDiploma",
+            "doctorateDiploma",
+          ];
+
+          /*
+           * Only update errors for document fields that
+           * were actually included in this update.
+           */
+          for (const field of documentFields) {
+            if (field in values) {
+              if (documentErrors[field]) {
+                newErrors[field] = documentErrors[field];
+              } else {
+                delete newErrors[field];
+              }
+            }
+          }
+
+          return {
+            data: updatedData,
+            errors: newErrors,
+          };
+        }),
+
+      /*
+       * ======================================================
+       * ERRORS
+       * ======================================================
+       */
 
       setErrors: (errors) =>
         set({
@@ -263,7 +481,9 @@ export const useRegisterStore = create<RegisterStore>()(
 
       clearError: (field) =>
         set((state) => {
-          const newErrors = { ...state.errors };
+          const newErrors = {
+            ...state.errors,
+          };
 
           delete newErrors[field];
 
@@ -272,15 +492,34 @@ export const useRegisterStore = create<RegisterStore>()(
           };
         }),
 
+      /*
+       * ======================================================
+       * RESET
+       * ======================================================
+       */
+
       reset: () =>
         set({
           step: 1,
+
           editingFromReview: false,
+
           completedSteps: [],
+
           errors: {},
-          data: { ...initialData },
+
+          data: {
+            ...initialData,
+          },
         }),
     }),
+
+    /*
+     * ========================================================
+     * PERSIST
+     * ========================================================
+     */
+
     {
       name: "livelihoodgo-worker-registration-draft",
 
@@ -288,12 +527,43 @@ export const useRegisterStore = create<RegisterStore>()(
 
       version: 1,
 
+      /*
+       * Only safe registration draft information is persisted.
+       *
+       * Passwords are NOT persisted.
+       * File objects are NOT persisted.
+       */
       partialize: (state): PersistedRegisterState => ({
         step: state.step,
+
         data: getPersistableData(state.data),
+
         completedSteps: state.completedSteps,
+
         editingFromReview: state.editingFromReview,
       }),
+
+      /*
+       * ======================================================
+       * REHYDRATION
+       * ======================================================
+       *
+       * IMPORTANT FIX:
+       *
+       * Do NOT explicitly set:
+       *
+       * password: ""
+       * confirmPassword: ""
+       *
+       * here.
+       *
+       * Doing that would overwrite the current in-memory
+       * password whenever Zustand rehydrates.
+       *
+       * Because password and confirmPassword are not part of
+       * persisted.data, they will still be empty after an
+       * actual browser refresh, which is intentional.
+       */
 
       merge: (persistedState, currentState) => {
         const persisted = persistedState as PersistedRegisterState | undefined;
@@ -317,27 +587,52 @@ export const useRegisterStore = create<RegisterStore>()(
           editingFromReview:
             persisted.editingFromReview ?? currentState.editingFromReview,
 
+          /*
+           * Merge persisted information into the CURRENT
+           * in-memory data.
+           *
+           * This is important because password and
+           * confirmPassword are intentionally not persisted.
+           */
           data: {
+            ...currentState.data,
+
             ...initialData,
+
             ...persisted.data,
 
-            password: "",
-            confirmPassword: "",
+            /*
+             * Keep sensitive credentials from the current
+             * in-memory state.
+             *
+             * They are never loaded from sessionStorage.
+             */
+            password: currentState.data.password,
+            confirmPassword: currentState.data.confirmPassword,
 
-            profilePicture: null,
-            juniorHighDiploma: null,
-            seniorHighDiploma: null,
-            collegeDiploma: null,
-            mastersDiploma: null,
-            doctorateDiploma: null,
-            validId: null,
-            resume: null,
-            tesdaCertificate: null,
-            barangayClearance: null,
-            policeClearance: null,
-            nbiClearance: null,
+            /*
+             * File objects cannot be restored from
+             * sessionStorage.
+             */
+            profilePicture: currentState.data.profilePicture,
+
+            juniorHighDiploma: currentState.data.juniorHighDiploma,
+            seniorHighDiploma: currentState.data.seniorHighDiploma,
+            collegeDiploma: currentState.data.collegeDiploma,
+            mastersDiploma: currentState.data.mastersDiploma,
+            doctorateDiploma: currentState.data.doctorateDiploma,
+
+            validId: currentState.data.validId,
+            resume: currentState.data.resume,
+            tesdaCertificate: currentState.data.tesdaCertificate,
+            barangayClearance: currentState.data.barangayClearance,
+            policeClearance: currentState.data.policeClearance,
+            nbiClearance: currentState.data.nbiClearance,
           },
 
+          /*
+           * Validation errors should not be persisted.
+           */
           errors: {},
         };
       },

@@ -826,10 +826,10 @@ export async function uploadPaymentProof(
     throw new Error("The selected payment proof file is empty.");
   }
 
-  const maxFileSize = 10 * 1024 * 1024;
+  const maxFileSize = 50 * 1024 * 1024;
 
   if (file.size > maxFileSize) {
-    throw new Error("Payment proof must not exceed 10 MB.");
+    throw new Error("Payment proof must not exceed 50 MB.");
   }
 
   const allowedTypes = [

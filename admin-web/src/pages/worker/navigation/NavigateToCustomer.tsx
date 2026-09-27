@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Clock3,
   Loader2,
   MapPin,
   MessageCircle,
@@ -44,6 +45,8 @@ interface BookingData {
   arrived_at?: string | null;
   trip_started_at?: string | null;
   completed_at?: string | null;
+  booking_date?: string | null;
+  booking_time?: string | null;
 
   customer?: {
     id: string;
@@ -75,7 +78,11 @@ function calculateDistanceMeters(
       Math.cos(secondLatitudeRadians) *
       Math.sin(longitudeDifference / 2) ** 2;
 
-  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (
+    earthRadiusMeters *
+    2 *
+    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  );
 }
 
 function formatRemainingDistance(distanceMeters: number | null): string {
@@ -112,6 +119,58 @@ function formatWorkerEta(
   return `${minutes} min`;
 }
 
+function formatDateTime(value?: string | null): string {
+  if (!value) return "Not recorded";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(date);
+}
+
+function formatDuration(
+  start?: string | null,
+  end?: string | null,
+  liveNowMs?: number,
+): string {
+  if (!start) return "Not started";
+
+  const startMs = new Date(start).getTime();
+
+  const endMs = end
+    ? new Date(end).getTime()
+    : (liveNowMs ?? Date.now());
+
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endMs) ||
+    endMs < startMs
+  ) {
+    return "Not available";
+  }
+
+  const totalMinutes = Math.floor((endMs - startMs) / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+
+  if (minutes === 0) {
+    return `${hours} hr`;
+  }
+
+  return `${hours} hr ${minutes} min`;
+}
+
 const AUTO_ARRIVAL_DISTANCE_METERS = 20;
 const MAX_AUTO_ARRIVAL_ACCURACY_METERS = 100;
 const MAX_AUTO_ARRIVAL_LOCATION_AGE_MS = 30_000;
@@ -143,13 +202,18 @@ export default function NavigateToCustomer() {
   } = useWorkerLocation();
 
   const sharingLocation = isOnline && isTracking;
+
   const gpsMessage = workerLocationMessage || null;
+
   const lastGpsUpdate = workerLocation?.updatedAt ?? null;
+
   const currentSpeed = workerLocation?.speed ?? null;
 
   const [remainingDistance, setRemainingDistance] = useState<number | null>(
     null,
   );
+
+  const [serviceClock, setServiceClock] = useState(() => Date.now());
 
   const startLocationSharing = useCallback((): void => {
     void goOnline();
@@ -158,6 +222,27 @@ export default function NavigateToCustomer() {
   useEffect(() => {
     bookingRef.current = booking;
   }, [booking]);
+
+  /*
+   * Keep the service duration timer running while the service
+   * is active.
+   *
+   * Important:
+   * There is intentionally no synchronous setState() call
+   * directly inside the effect body. This avoids the
+   * react-hooks/set-state-in-effect lint error.
+   */
+  useEffect(() => {
+    if (!booking?.trip_started_at || booking.completed_at) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setServiceClock(Date.now());
+    }, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [booking?.trip_started_at, booking?.completed_at]);
 
   const loadBooking = useCallback(
     async (background = false) => {
@@ -195,7 +280,10 @@ export default function NavigateToCustomer() {
         setBooking(data as BookingData);
         setErrorMessage("");
       } catch (error) {
-        console.error("Unable to load navigation booking:", error);
+        console.error(
+          "Unable to load navigation booking:",
+          error,
+        );
 
         if (mountedRef.current && !background) {
           setErrorMessage(
@@ -275,7 +363,10 @@ export default function NavigateToCustomer() {
         }
 
         if (subscriptionStatus === "CHANNEL_ERROR") {
-          console.error("Worker navigation booking realtime channel error.");
+          console.error(
+            "Worker navigation booking realtime channel error.",
+          );
+
           refreshBooking();
         }
 
@@ -283,6 +374,7 @@ export default function NavigateToCustomer() {
           console.error(
             "Worker navigation booking realtime connection timed out.",
           );
+
           refreshBooking();
         }
       });
@@ -298,19 +390,30 @@ export default function NavigateToCustomer() {
     };
 
     window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
 
     return () => {
       active = false;
+
       window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+
       void supabase.removeChannel(channel);
     };
   }, [booking?.id, loadBooking]);
 
   useEffect(() => {
     const shouldShare =
-      booking?.status === "Approved" || booking?.status === "On Going";
+      booking?.status === "Approved" ||
+      booking?.status === "On Going";
 
     const trackingEnded =
       booking?.status === "Completed" ||
@@ -319,10 +422,21 @@ export default function NavigateToCustomer() {
       booking?.trip_status === "Completed" ||
       booking?.trip_status === "Cancelled";
 
-    if (shouldShare && !trackingEnded && !isOnline && !gpsStarting) {
+    if (
+      shouldShare &&
+      !trackingEnded &&
+      !isOnline &&
+      !gpsStarting
+    ) {
       void goOnline();
     }
-  }, [booking?.status, booking?.trip_status, goOnline, gpsStarting, isOnline]);
+  }, [
+    booking?.status,
+    booking?.trip_status,
+    goOnline,
+    gpsStarting,
+    isOnline,
+  ]);
 
   useEffect(() => {
     const currentBooking = bookingRef.current;
@@ -346,23 +460,26 @@ export default function NavigateToCustomer() {
 
     setRemainingDistance(distanceMeters);
 
-    const locationUpdatedAt = new Date(workerLocation.updatedAt).getTime();
+    const locationUpdatedAt = new Date(
+      workerLocation.updatedAt,
+    ).getTime();
 
     const hasFreshArrivalLocation =
       Number.isFinite(locationUpdatedAt) &&
       Date.now() - locationUpdatedAt >= 0 &&
-      Date.now() - locationUpdatedAt <= MAX_AUTO_ARRIVAL_LOCATION_AGE_MS;
+      Date.now() - locationUpdatedAt <=
+        MAX_AUTO_ARRIVAL_LOCATION_AGE_MS;
 
     /*
-     * Automatic arrival must only use a recent GPS reading with known,
-     * acceptable accuracy. Unknown or stale accuracy can incorrectly mark a
-     * worker as arrived while they are still far from the customer.
+     * Automatic arrival must only use a recent GPS reading
+     * with known, acceptable accuracy.
      */
     const hasPreciseArrivalLocation =
       typeof workerLocation.accuracy === "number" &&
       Number.isFinite(workerLocation.accuracy) &&
       workerLocation.accuracy >= 0 &&
-      workerLocation.accuracy <= MAX_AUTO_ARRIVAL_ACCURACY_METERS;
+      workerLocation.accuracy <=
+        MAX_AUTO_ARRIVAL_ACCURACY_METERS;
 
     const canAutoArrive =
       hasFreshArrivalLocation &&
@@ -379,7 +496,10 @@ export default function NavigateToCustomer() {
 
     autoArrivalRunningRef.current = true;
 
-    void markWorkerArrived(currentBooking.id, workerId)
+    void markWorkerArrived(
+      currentBooking.id,
+      workerId,
+    )
       .then((updatedBooking) => {
         if (!mountedRef.current) {
           return;
@@ -391,7 +511,8 @@ export default function NavigateToCustomer() {
                 ...current,
                 trip_status: updatedBooking.trip_status,
                 arrived_at:
-                  updatedBooking.arrived_at ?? new Date().toISOString(),
+                  updatedBooking.arrived_at ??
+                  new Date().toISOString(),
               }
             : current,
         );
@@ -401,7 +522,10 @@ export default function NavigateToCustomer() {
         );
       })
       .catch((arrivalError) => {
-        console.error("Automatic arrival detection failed:", arrivalError);
+        console.error(
+          "Automatic arrival detection failed:",
+          arrivalError,
+        );
       })
       .finally(() => {
         autoArrivalRunningRef.current = false;
@@ -432,7 +556,10 @@ export default function NavigateToCustomer() {
     try {
       setUpdatingStatus(true);
 
-      const updatedBooking = await markWorkerArrived(booking.id, workerId);
+      const updatedBooking = await markWorkerArrived(
+        booking.id,
+        workerId,
+      );
 
       setBooking((current) =>
         current
@@ -445,7 +572,10 @@ export default function NavigateToCustomer() {
 
       toast.success("Arrival confirmed.");
     } catch (error) {
-      console.error("Unable to mark worker as arrived:", error);
+      console.error(
+        "Unable to mark worker as arrived:",
+        error,
+      );
 
       toast.error(
         error instanceof Error
@@ -456,12 +586,15 @@ export default function NavigateToCustomer() {
       setUpdatingStatus(false);
     }
   }
+
   async function handleStartService() {
     if (!booking || !workerId || updatingStatus) {
       return;
     }
 
-    const confirmed = await confirmAction("Start the service now?");
+    const confirmed = await confirmAction(
+      "Start the service now?",
+    );
 
     if (!confirmed) {
       return;
@@ -470,7 +603,10 @@ export default function NavigateToCustomer() {
     try {
       setUpdatingStatus(true);
 
-      const updatedBooking = await startTrip(booking.id, workerId);
+      const updatedBooking = await startTrip(
+        booking.id,
+        workerId,
+      );
 
       setBooking((current) =>
         current
@@ -478,46 +614,61 @@ export default function NavigateToCustomer() {
               ...current,
               status: updatedBooking.status,
               trip_status: updatedBooking.trip_status,
-              trip_started_at: updatedBooking.trip_started_at,
+              trip_started_at:
+                updatedBooking.trip_started_at,
             }
           : current,
       );
 
       toast.success("Service started.");
     } catch (error) {
-      console.error("Unable to start service:", error);
+      console.error(
+        "Unable to start service:",
+        error,
+      );
 
       toast.error(
-        error instanceof Error ? error.message : "Unable to start service.",
+        error instanceof Error
+          ? error.message
+          : "Unable to start service.",
       );
     } finally {
       setUpdatingStatus(false);
     }
   }
+
   function handleCompleteService() {
     if (!booking || updatingStatus) {
       return;
     }
 
-    if (booking.status !== "On Going" || booking.trip_status !== "On Trip") {
+    if (
+      booking.status !== "On Going" ||
+      booking.trip_status !== "On Trip"
+    ) {
       toast.error(
         "Completion proof can only be submitted while the service is ongoing.",
       );
+
       return;
     }
 
-    navigate(`/worker/bookings/${booking.id}/complete`);
+    navigate(
+      `/worker/bookings/${booking.id}/complete`,
+    );
   }
 
   if (loading) {
     return (
       <WorkerLayout>
         <main className="min-h-screen bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
-          <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6 lg:p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-white p-4 text-center shadow-sm sm:p-6 lg:p-8 dark:border-slate-700 dark:bg-slate-900">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+
             <h1 className="mt-5 text-xl font-black text-slate-900 dark:text-white">
               Loading customer location
             </h1>
+
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Please wait while we prepare your route and live GPS.
             </p>
@@ -537,7 +688,7 @@ export default function NavigateToCustomer() {
       <WorkerLayout>
         <main className="min-h-screen bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
           <div className="mx-auto max-w-3xl">
-            <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-5 text-red-700 shadow-sm dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200 sm:p-6">
+            <div className="rounded-[1.5rem] border border-red-200 bg-red-50 p-5 text-red-700 shadow-sm sm:p-6 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
               {errorMessage ||
                 "This booking has no saved customer coordinates."}
             </div>
@@ -562,6 +713,7 @@ export default function NavigateToCustomer() {
   ]
     .filter(Boolean)
     .join(" ");
+
   return (
     <WorkerLayout>
       <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
@@ -574,6 +726,7 @@ export default function NavigateToCustomer() {
             backgroundSize: "42px 42px",
           }}
         />
+
         <div className="relative mx-auto max-w-[1500px] space-y-5 sm:space-y-6">
           <section className="relative overflow-hidden rounded-[1.75rem] bg-linear-to-br from-blue-800 via-blue-700 to-cyan-500 p-5 text-white shadow-[0_24px_70px_rgba(37,99,235,0.24)] sm:p-7 lg:p-8">
             <div className="relative z-10">
@@ -665,7 +818,8 @@ export default function NavigateToCustomer() {
 
                 {lastGpsUpdate && (
                   <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    Last update: {new Date(lastGpsUpdate).toLocaleString()}
+                    Last update:{" "}
+                    {new Date(lastGpsUpdate).toLocaleString()}
                   </p>
                 )}
 
@@ -676,7 +830,9 @@ export default function NavigateToCustomer() {
                     </p>
 
                     <p className="mt-1 text-lg font-black text-blue-900 dark:text-blue-200">
-                      {formatRemainingDistance(remainingDistance)}
+                      {formatRemainingDistance(
+                        remainingDistance,
+                      )}
                     </p>
                   </div>
 
@@ -686,7 +842,10 @@ export default function NavigateToCustomer() {
                     </p>
 
                     <p className="mt-1 text-lg font-black text-violet-900 dark:text-violet-200">
-                      {formatWorkerEta(remainingDistance, currentSpeed)}
+                      {formatWorkerEta(
+                        remainingDistance,
+                        currentSpeed,
+                      )}
                     </p>
                   </div>
                 </div>
@@ -695,6 +854,122 @@ export default function NavigateToCustomer() {
                   Arrival is detected automatically within{" "}
                   {AUTO_ARRIVAL_DISTANCE_METERS} meters.
                 </p>
+              </section>
+
+              <section className="rounded-[1.5rem] border border-blue-200 bg-blue-50/70 p-5 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/10">
+                <div className="flex items-center gap-2">
+                  <Clock3 className="h-5 w-5 text-blue-600" />
+
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                    Service Time
+                  </h2>
+                </div>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  The customer only requests an arrival time. There is no fixed
+                  1-hour service limit. Record the actual arrival, start, and
+                  finish time as the work happens.
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-4 rounded-xl bg-white/80 p-3 dark:bg-slate-900/70">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Requested arrival
+                    </span>
+
+                    <span className="text-sm font-black text-slate-800 dark:text-slate-200">
+                      {booking.booking_date &&
+                      booking.booking_time
+                        ? `${booking.booking_date} • ${booking.booking_time}`
+                        : "Not specified"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Actual arrival
+                      </p>
+
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                        {formatDateTime(
+                          booking.arrived_at,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Service started
+                      </p>
+
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                        {formatDateTime(
+                          booking.trip_started_at,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Service finished
+                      </p>
+
+                      {booking.trip_started_at &&
+                        !booking.completed_at && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                            In progress
+                          </span>
+                        )}
+                    </div>
+
+                    <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                      {formatDateTime(
+                        booking.completed_at,
+                      )}
+                    </p>
+
+                    <div className="mt-3 rounded-xl bg-blue-50 px-3 py-2.5 dark:bg-blue-500/10">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600 dark:text-blue-300">
+                        Actual service duration
+                      </p>
+
+                      <p className="mt-1 text-lg font-black text-blue-900 dark:text-blue-100">
+                        {formatDuration(
+                          booking.trip_started_at,
+                          booking.completed_at,
+                          serviceClock,
+                        )}
+                      </p>
+
+                      {!booking.completed_at &&
+                        booking.trip_started_at && (
+                          <p className="mt-1 text-[11px] font-semibold leading-4 text-blue-700 dark:text-blue-300">
+                            This timer follows the worker's actual Start Service
+                            time and keeps running until the service is completed.
+                          </p>
+                        )}
+                    </div>
+
+                    {!booking.trip_started_at &&
+                      booking.trip_status === "Arrived" && (
+                        <p className="mt-2 rounded-lg bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                          Ready to start the actual service.
+                        </p>
+                      )}
+
+                    {booking.trip_started_at &&
+                      !booking.completed_at && (
+                        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                          Service is currently in progress. Finish when the work
+                          is actually complete.
+                        </p>
+                      )}
+                  </div>
+                </div>
               </section>
 
               <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -744,7 +1019,9 @@ export default function NavigateToCustomer() {
                   {booking.customer?.id && (
                     <button
                       type="button"
-                      onClick={() => navigate(`/chat/${booking.id}`)}
+                      onClick={() =>
+                        navigate(`/chat/${booking.id}`)
+                      }
                       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-sky-700"
                     >
                       <MessageCircle className="h-4 w-4" />
@@ -756,7 +1033,9 @@ export default function NavigateToCustomer() {
                     booking.trip_status === "Accepted" && (
                       <button
                         type="button"
-                        onClick={() => void handleArrived()}
+                        onClick={() =>
+                          void handleArrived()
+                        }
                         disabled={updatingStatus}
                         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                       >
@@ -772,29 +1051,38 @@ export default function NavigateToCustomer() {
                     booking.trip_status === "Arrived" && (
                       <button
                         type="button"
-                        onClick={() => void handleStartService()}
+                        onClick={() =>
+                          void handleStartService()
+                        }
                         disabled={updatingStatus}
                         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-violet-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                       >
                         <Navigation className="h-4 w-4" />
 
-                        {updatingStatus ? "Starting..." : "Start Service"}
+                        {updatingStatus
+                          ? "Starting..."
+                          : "Start Service"}
                       </button>
                     )}
+
                   {booking.status === "On Going" &&
                     booking.trip_status === "On Trip" && (
                       <button
                         type="button"
-                        onClick={() => void handleCompleteService()}
+                        onClick={handleCompleteService}
                         disabled={updatingStatus}
                         className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
                       >
                         <MapPin className="h-4 w-4" />
 
-                        {updatingStatus ? "Completing..." : "Complete Service"}
+                        {updatingStatus
+                          ? "Completing..."
+                          : "Complete Service"}
                       </button>
                     )}
-                  {booking.status === "Waiting Customer Confirmation" &&
+
+                  {booking.status ===
+                    "Waiting Customer Confirmation" &&
                     booking.trip_status === "Completed" && (
                       <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-center dark:border-cyan-500/20 dark:bg-cyan-500/10">
                         <p className="font-black text-cyan-700 dark:text-cyan-300">
@@ -833,7 +1121,8 @@ export default function NavigateToCustomer() {
                   latitude: booking.customer_latitude,
                   longitude: booking.customer_longitude,
                   address:
-                    booking.customer_address ?? "Customer service location",
+                    booking.customer_address ??
+                    "Customer service location",
                 }}
                 navigationMode
               />

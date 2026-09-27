@@ -31,7 +31,6 @@ import { getWorkerAverageRating } from "../../../services/reviewService";
 import { getApprovedServices } from "../../../services/serviceService";
 import {
   checkWorkerAvailability,
-  createManilaScheduleRange,
   getAvailableTimeSlots,
   getUnavailableDates,
   getWorkerSchedule,
@@ -103,6 +102,58 @@ const secondaryButtonClass =
 
 const MAX_BOOKING_DISTANCE_KILOMETERS = 50;
 const WORKER_LOCATION_STALE_MS = 15 * 60 * 1000;
+const BOOKING_DRAFT_PREFIX = "serbisyogo:worker-profile-booking-draft:";
+
+type BookingDraft = {
+  serviceId: number | null;
+  bookingDate: string;
+  bookingTime: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string;
+};
+
+function getBookingDraftKey(workerId: string): string {
+  return `${BOOKING_DRAFT_PREFIX}${workerId}`;
+}
+
+function readBookingDraft(workerId: string): BookingDraft | null {
+  try {
+    const raw = sessionStorage.getItem(getBookingDraftKey(workerId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<BookingDraft>;
+
+    return {
+      serviceId: Number.isInteger(parsed.serviceId) ? Number(parsed.serviceId) : null,
+      bookingDate: typeof parsed.bookingDate === "string" ? parsed.bookingDate : "",
+      bookingTime: typeof parsed.bookingTime === "string" ? parsed.bookingTime : "",
+      address: typeof parsed.address === "string" ? parsed.address : "",
+      latitude: typeof parsed.latitude === "number" ? parsed.latitude : null,
+      longitude: typeof parsed.longitude === "number" ? parsed.longitude : null,
+      notes: typeof parsed.notes === "string" ? parsed.notes : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeBookingDraft(workerId: string, draft: BookingDraft): void {
+  try {
+    sessionStorage.setItem(getBookingDraftKey(workerId), JSON.stringify(draft));
+  } catch {
+    // Ignore storage failures. The form remains usable.
+  }
+}
+
+function clearBookingDraft(workerId: string): void {
+  try {
+    sessionStorage.removeItem(getBookingDraftKey(workerId));
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
 
 type BookableWorkerLocation = {
   worker_id: string;
@@ -206,14 +257,6 @@ export default function CustomerWorkerProfile() {
     }).format(Number.isFinite(price) ? price : 0);
   }, [selectedService]);
 
-  const selectedDurationValue = Math.max(
-    1,
-    Number(selectedService?.duration_value ?? 1),
-  );
-  const selectedDurationUnit: DurationUnit =
-    selectedService?.duration_unit ?? "hour";
-  const selectedSchedulingType =
-    selectedService?.scheduling_type ?? "hourly";
   const selectedPricingType =
     selectedService?.pricing_type ?? "fixed";
   const pricingLabel = selectedPricingType === "hourly"
@@ -227,24 +270,6 @@ export default function CustomerWorkerProfile() {
       ? "Daily Rate"
       : "Fixed Price";
 
-  const estimatedCompletion = useMemo(() => {
-    if (!bookingDate || !bookingTime || !selectedService) {
-      return "Select a date and start time";
-    }
-
-    const { end } = createManilaScheduleRange(
-      bookingDate,
-      bookingTime,
-      selectedDurationValue,
-      selectedDurationUnit,
-    );
-
-    return new Intl.DateTimeFormat("en-PH", {
-      dateStyle: "medium",
-      timeStyle: selectedDurationUnit === "hour" ? "short" : undefined,
-      timeZone: "Asia/Manila",
-    }).format(end);
-  }, [bookingDate, bookingTime, selectedService, selectedDurationValue, selectedDurationUnit]);
 
   const minimumBookingDate = useMemo(() => {
     const today = new Date();
@@ -298,6 +323,29 @@ export default function CustomerWorkerProfile() {
     return () => window.clearTimeout(timer);
   }, [location.search, worker]);
 
+  useEffect(() => {
+    if (!worker) return;
+
+    writeBookingDraft(worker.profile.id, {
+      serviceId: selectedService?.id ?? null,
+      bookingDate,
+      bookingTime,
+      address,
+      latitude,
+      longitude,
+      notes,
+    });
+  }, [
+    worker,
+    selectedService,
+    bookingDate,
+    bookingTime,
+    address,
+    latitude,
+    longitude,
+    notes,
+  ]);
+
   async function loadWorker() {
     if (!id) {
       setLoadError("Worker profile was not found.");
@@ -321,10 +369,53 @@ export default function CustomerWorkerProfile() {
       data.services = (services ?? []) as WorkerService[];
 
       setWorker(data);
-      setSelectedService(null);
       setRating(Number(averageRating) || 0);
       setSchedule((weeklySchedule ?? []) as WorkerSchedule[]);
       setUnavailableDates((unavailable ?? []) as UnavailableDate[]);
+
+      const draft = readBookingDraft(id);
+
+      if (draft) {
+        const restoredService =
+          draft.serviceId === null
+            ? null
+            : data.services.find((service) => service.id === draft.serviceId) ??
+              null;
+
+        setSelectedService(restoredService);
+        setBookingDate(draft.bookingDate);
+        setBookingTime(draft.bookingTime);
+        setAddress(draft.address);
+        setLatitude(draft.latitude);
+        setLongitude(draft.longitude);
+        setNotes(draft.notes);
+
+        if (draft.bookingDate) {
+          try {
+            const availability = await checkWorkerAvailability(id, draft.bookingDate);
+
+            if (availability.available) {
+              const slots = await getAvailableTimeSlots(id, draft.bookingDate);
+              setAvailableSlots(slots);
+
+              if (draft.bookingTime && !slots.includes(draft.bookingTime)) {
+                setBookingTime("");
+                setAvailabilityMessage(
+                  "The saved arrival time is no longer available. Please choose another arrival time.",
+                );
+              }
+            } else {
+              setAvailableSlots([]);
+              setAvailabilityMessage(
+                availability.reason || "The worker is unavailable on this date.",
+              );
+            }
+          } catch (draftError) {
+            console.error("Failed restoring booking availability:", draftError);
+            setAvailableSlots([]);
+          }
+        }
+      }
 
       await saveRecentlyViewed(id);
     } catch (error) {
@@ -473,17 +564,9 @@ export default function CustomerWorkerProfile() {
         return;
       }
 
-      const slots = await getAvailableTimeSlots(
-        worker.profile.id,
-        date,
-        selectedDurationValue,
-        selectedDurationUnit,
-      );
+      const slots = await getAvailableTimeSlots(worker.profile.id, date);
       setAvailableSlots(slots ?? []);
 
-      if (selectedSchedulingType === "project") {
-        setBookingTime(slots?.[0] ?? "");
-      }
     } catch (error) {
       console.error("Failed checking availability:", error);
       setAvailabilityMessage(
@@ -546,11 +629,9 @@ export default function CustomerWorkerProfile() {
       }
 
       const latestSlots = await getAvailableTimeSlots(
-        worker.profile.id,
-        bookingDate,
-        selectedDurationValue,
-        selectedDurationUnit,
-      );
+         worker.profile.id,
+         bookingDate,
+       );
 
       if (!latestSlots.includes(bookingTime)) {
         toast.warning(
@@ -581,21 +662,14 @@ export default function CustomerWorkerProfile() {
           price: selectedService.price,
           pricingType: selectedPricingType,
           pricingLabel,
-          schedulingType: selectedSchedulingType,
-          durationValue: selectedDurationValue,
-          durationUnit: selectedDurationUnit,
-          scheduledStartAt: createManilaScheduleRange(
-            bookingDate, bookingTime, selectedDurationValue, selectedDurationUnit,
-          ).start.toISOString(),
-          scheduledEndAt: createManilaScheduleRange(
-            bookingDate, bookingTime, selectedDurationValue, selectedDurationUnit,
-          ).end.toISOString(),
           address,
           latitude,
           longitude,
           notes: notes.trim(),
         },
       });
+
+      clearBookingDraft(worker.profile.id);
     } catch (error) {
       console.error("Failed continuing booking:", error);
       toast.warning("Unable to continue your booking. Please try again.");
@@ -888,10 +962,12 @@ export default function CustomerWorkerProfile() {
                         );
 
                         setSelectedService(service ?? null);
-                        setBookingDate("");
                         setBookingTime("");
                         setAvailableSlots([]);
                         setAvailabilityMessage("");
+                        if (bookingDate) {
+                          void handleBookingDateChange(bookingDate);
+                        }
                       }}
                       className={fieldClass}
                     >
@@ -938,35 +1014,31 @@ export default function CustomerWorkerProfile() {
                         className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800"
                       >
                         <Clock3 size={16} className="text-blue-600" />
-                        {selectedSchedulingType === "project"
-                          ? "Project start time"
-                          : "Available time"}
+                        Arrival time
                       </label>
 
-                      {selectedSchedulingType === "project" ? (
-                        <div className={`${fieldClass} flex items-center`}>
+                      <select
+                        id="booking-time"
+                        value={bookingTime}
+                        onChange={(event) => setBookingTime(event.target.value)}
+                        disabled={
+                          !bookingDate ||
+                          checkingAvailability ||
+                          availableSlots.length === 0
+                        }
+                        className={fieldClass}
+                      >
+                        <option value="">
                           {checkingAvailability
-                            ? "Checking project availability..."
-                            : bookingTime
-                              ? `${bookingTime} (automatic)`
-                              : "Select a start date first"}
-                        </div>
-                      ) : (
-                        <select
-                          id="booking-time"
-                          value={bookingTime}
-                          onChange={(event) => setBookingTime(event.target.value)}
-                          disabled={!bookingDate || checkingAvailability || availableSlots.length === 0}
-                          className={fieldClass}
-                        >
-                          <option value="">
-                            {checkingAvailability ? "Checking availability..." : "Select available time"}
+                            ? "Checking availability..."
+                            : "Select arrival time"}
+                        </option>
+                        {availableSlots.map((slot) => (
+                          <option key={slot} value={slot}>
+                            {slot}
                           </option>
-                          {availableSlots.map((slot) => (
-                            <option key={slot} value={slot}>{slot}</option>
-                          ))}
-                        </select>
-                      )}
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -981,9 +1053,18 @@ export default function CustomerWorkerProfile() {
                     availableSlots.length === 0 &&
                     !availabilityMessage && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                        No available time slots for this date.
+                        No available arrival times for this date.
                       </div>
                     )}
+
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-5 text-blue-800">
+                    <p className="font-bold">Arrival time only</p>
+                    <p className="mt-1">
+                      Choose when you expect the worker to arrive. The system
+                      does not assume a one-hour service duration. The worker
+                      records the actual service start and finish time.
+                    </p>
+                  </div>
 
                   <div>
                     <div className="mb-2 flex items-center justify-between gap-3">
@@ -1024,9 +1105,12 @@ export default function CustomerWorkerProfile() {
                         {selectedService && (
                           <div className="mt-3 space-y-1 text-xs text-slate-600">
                             <p className="font-semibold">
-                              {selectedSchedulingType === "project" ? "Project duration" : "Estimated duration"}: {selectedDurationValue} {selectedDurationUnit}{selectedDurationValue === 1 ? "" : "s"}
+                              Arrival time: {bookingTime || "Not selected"}
                             </p>
-                            <p>Estimated completion: {estimatedCompletion}</p>
+                            <p>
+                              Service duration is determined by the actual work
+                              time recorded by the worker.
+                            </p>
                           </div>
                         )}
                       </div>

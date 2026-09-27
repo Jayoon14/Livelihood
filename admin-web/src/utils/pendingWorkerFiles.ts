@@ -5,7 +5,7 @@ const STORE_NAME = "pending-worker-files";
 const DB_VERSION = 2;
 
 const MAX_PROFILE_SIZE = 5 * 1024 * 1024;
-const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024;
+const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
 
 const PROFILE_TYPES = new Set([
   "image/jpeg",
@@ -16,6 +16,7 @@ const PROFILE_TYPES = new Set([
 const DOCUMENT_TYPES = new Set([
   "image/jpeg",
   "image/png",
+  "image/webp",
   "application/pdf",
 ]);
 
@@ -82,6 +83,7 @@ function openDatabase(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
+
     request.onerror = () =>
       reject(
         request.error ??
@@ -93,7 +95,18 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 function validateProfilePicture(file: File): void {
-  if (!PROFILE_TYPES.has(file.type)) {
+  const extension = fileExtension(file);
+
+  const validMime =
+    file.type === "" || PROFILE_TYPES.has(file.type);
+
+  const validExtension = [
+    "jpg",
+    "png",
+    "webp",
+  ].includes(extension);
+
+  if (!validMime || !validExtension) {
     throw new Error(
       "Worker profile picture must be JPG, PNG, or WEBP.",
     );
@@ -110,15 +123,27 @@ function validateDocument(
   file: File,
   label: string,
 ): void {
-  if (!DOCUMENT_TYPES.has(file.type)) {
+  const extension = fileExtension(file);
+
+  const validMime =
+    file.type === "" || DOCUMENT_TYPES.has(file.type);
+
+  const validExtension = [
+    "jpg",
+    "png",
+    "webp",
+    "pdf",
+  ].includes(extension);
+
+  if (!validMime || !validExtension) {
     throw new Error(
-      `${label} must be a JPG, PNG, or PDF file.`,
+      `${label} must be a JPG, PNG, WEBP, or PDF file.`,
     );
   }
 
   if (file.size <= 0 || file.size > MAX_DOCUMENT_SIZE) {
     throw new Error(
-      `${label} must be 10 MB or smaller.`,
+      `${label} must be 50 MB or smaller.`,
     );
   }
 }
@@ -216,6 +241,7 @@ export async function savePendingWorkerFiles(
     } satisfies PendingWorkerFilesRecord);
 
     transaction.oncomplete = () => resolve();
+
     transaction.onerror = () =>
       reject(
         transaction.error ??
@@ -246,6 +272,7 @@ async function getPendingWorkerFiles(
       .get(normalizeEmail(email));
 
     request.onsuccess = () => resolve(request.result);
+
     request.onerror = () =>
       reject(
         request.error ??
@@ -256,6 +283,7 @@ async function getPendingWorkerFiles(
   });
 
   database.close();
+
   return result ?? null;
 }
 
@@ -275,6 +303,7 @@ async function deletePendingWorkerFiles(
       .delete(normalizeEmail(email));
 
     transaction.oncomplete = () => resolve();
+
     transaction.onerror = () =>
       reject(
         transaction.error ??
@@ -297,6 +326,7 @@ async function uploadFile(
   publicUrl: string;
 }> {
   const extension = fileExtension(file);
+
   const path =
     `${userId}/${folder}-${crypto.randomUUID()}.${extension}`;
 
@@ -316,7 +346,9 @@ async function uploadFile(
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from(bucket).getPublicUrl(path);
+  } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(path);
 
   return {
     path,
@@ -328,6 +360,7 @@ function optionalText(
   value: string | null | undefined,
 ): string | null {
   const normalized = value?.trim();
+
   return normalized ? normalized : null;
 }
 
@@ -343,17 +376,33 @@ async function savePendingWorkerProfileData(
         highest_attainment: optionalText(
           pending.highestEducation,
         ),
-        elementary: optionalText(pending.elementary),
-        secondary: optionalText(pending.secondary),
-        senior_high: optionalText(pending.seniorHigh),
-        college: optionalText(pending.college),
-        course: optionalText(pending.course),
+        elementary: optionalText(
+          pending.elementary,
+        ),
+        secondary: optionalText(
+          pending.secondary,
+        ),
+        senior_high: optionalText(
+          pending.seniorHigh,
+        ),
+        college: optionalText(
+          pending.college,
+        ),
+        course: optionalText(
+          pending.course,
+        ),
         year_graduated: optionalText(
           pending.yearGraduated,
         ),
-        tesda: optionalText(pending.tesda),
-        prc: optionalText(pending.prc),
-        trainings: optionalText(pending.trainings),
+        tesda: optionalText(
+          pending.tesda,
+        ),
+        prc: optionalText(
+          pending.prc,
+        ),
+        trainings: optionalText(
+          pending.trainings,
+        ),
       },
       {
         onConflict: "profile_id",
@@ -366,10 +415,11 @@ async function savePendingWorkerProfileData(
     );
   }
 
-  const { error: deleteSkillsError } = await supabase
-    .from("worker_skills")
-    .delete()
-    .eq("profile_id", userId);
+  const { error: deleteSkillsError } =
+    await supabase
+      .from("worker_skills")
+      .delete()
+      .eq("profile_id", userId);
 
   if (deleteSkillsError) {
     throw new Error(
@@ -377,19 +427,22 @@ async function savePendingWorkerProfileData(
     );
   }
 
-  const normalizedSkills = (pending.skills ?? [])
+  const normalizedSkills = (
+    pending.skills ?? []
+  )
     .map((skill) => skill.trim())
     .filter(Boolean);
 
   if (normalizedSkills.length > 0) {
-    const { error: skillsError } = await supabase
-      .from("worker_skills")
-      .insert(
-        normalizedSkills.map((skill) => ({
-          profile_id: userId,
-          skill_name: skill,
-        })),
-      );
+    const { error: skillsError } =
+      await supabase
+        .from("worker_skills")
+        .insert(
+          normalizedSkills.map((skill) => ({
+            profile_id: userId,
+            skill_name: skill,
+          })),
+        );
 
     if (skillsError) {
       throw new Error(
@@ -398,10 +451,11 @@ async function savePendingWorkerProfileData(
     }
   }
 
-  const { error: deleteWorkError } = await supabase
-    .from("work_experience")
-    .delete()
-    .eq("profile_id", userId);
+  const { error: deleteWorkError } =
+    await supabase
+      .from("work_experience")
+      .delete()
+      .eq("profile_id", userId);
 
   if (deleteWorkError) {
     throw new Error(
@@ -413,19 +467,30 @@ async function savePendingWorkerProfileData(
     !pending.noWorkExperience &&
     optionalText(pending.company)
   ) {
-    const { error: workError } = await supabase
-      .from("work_experience")
-      .insert({
-        profile_id: userId,
-        company: optionalText(pending.company),
-        position: optionalText(pending.position),
-        employment_status: optionalText(
-          pending.employmentStatus,
-        ),
-        start_date: optionalText(pending.startDate),
-        end_date: optionalText(pending.endDate),
-        description: optionalText(pending.description),
-      });
+    const { error: workError } =
+      await supabase
+        .from("work_experience")
+        .insert({
+          profile_id: userId,
+          company: optionalText(
+            pending.company,
+          ),
+          position: optionalText(
+            pending.position,
+          ),
+          employment_status: optionalText(
+            pending.employmentStatus,
+          ),
+          start_date: optionalText(
+            pending.startDate,
+          ),
+          end_date: optionalText(
+            pending.endDate,
+          ),
+          description: optionalText(
+            pending.description,
+          ),
+        });
 
     if (workError) {
       throw new Error(
@@ -439,7 +504,8 @@ export async function uploadPendingWorkerFiles(
   userId: string,
   email: string,
 ): Promise<WorkerFileUploadResult | null> {
-  const pending = await getPendingWorkerFiles(email);
+  const pending =
+    await getPendingWorkerFiles(email);
 
   if (!pending) {
     return null;
@@ -448,12 +514,15 @@ export async function uploadPendingWorkerFiles(
   validateFiles(pending);
 
   const uploaded: Array<{
-    bucket: "profile-picture" | "worker-documents";
+    bucket:
+      | "profile-picture"
+      | "worker-documents";
     path: string;
   }> = [];
 
   try {
-    let profilePictureUrl: string | null = null;
+    let profilePictureUrl: string | null =
+      null;
 
     if (pending.profilePicture) {
       const result = await uploadFile(
@@ -464,17 +533,20 @@ export async function uploadPendingWorkerFiles(
       );
 
       profilePictureUrl = result.publicUrl;
+
       uploaded.push({
         bucket: "profile-picture",
         path: result.path,
       });
 
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          profile_picture: profilePictureUrl,
-        })
-        .eq("id", userId);
+      const { error: profileError } =
+        await supabase
+          .from("profiles")
+          .update({
+            profile_picture:
+              profilePictureUrl,
+          })
+          .eq("id", userId);
 
       if (profileError) {
         throw new Error(
@@ -516,7 +588,10 @@ export async function uploadPendingWorkerFiles(
       },
     ] as const;
 
-    const documentValues: Record<string, string | null> = {
+    const documentValues: Record<
+      string,
+      string | null
+    > = {
       valid_id: null,
       resume: null,
       tesda_certificate: null,
@@ -537,7 +612,9 @@ export async function uploadPendingWorkerFiles(
         document.file,
       );
 
-      documentValues[document.column] = result.publicUrl;
+      documentValues[document.column] =
+        result.publicUrl;
+
       uploaded.push({
         bucket: "worker-documents",
         path: result.path,
@@ -549,17 +626,18 @@ export async function uploadPendingWorkerFiles(
     ).some(Boolean);
 
     if (hasDocuments) {
-      const { error: documentsError } = await supabase
-        .from("documents")
-        .upsert(
-          {
-            profile_id: userId,
-            ...documentValues,
-          },
-          {
-            onConflict: "profile_id",
-          },
-        );
+      const { error: documentsError } =
+        await supabase
+          .from("documents")
+          .upsert(
+            {
+              profile_id: userId,
+              ...documentValues,
+            },
+            {
+              onConflict: "profile_id",
+            },
+          );
 
       if (documentsError) {
         throw new Error(
@@ -582,7 +660,9 @@ export async function uploadPendingWorkerFiles(
   } catch (error) {
     await Promise.allSettled(
       uploaded.map(({ bucket, path }) =>
-        supabase.storage.from(bucket).remove([path]),
+        supabase.storage
+          .from(bucket)
+          .remove([path]),
       ),
     );
 

@@ -138,9 +138,7 @@ function validateDateString(value: string, fieldName: string): string {
 
 function validateTimeString(value: string, fieldName: string): string {
   const normalized = validateRequiredText(value, fieldName);
-  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(
-    normalized,
-  );
+  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(normalized);
 
   if (!match) {
     throw new Error(`${fieldName} must use HH:mm or HH:mm:ss format.`);
@@ -173,10 +171,7 @@ function minutesToTime(minutes: number): string {
   const hours = Math.floor(safeMinutes / 60);
   const mins = safeMinutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
-    2,
-    "0",
-  )}`;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
 export function calculateScheduledEnd(
@@ -203,11 +198,10 @@ export function createManilaScheduleRange(
   const validDate = validateDateString(date, "Booking date");
   const validTime = validateTimeString(time, "Booking time");
   const start = new Date(`${validDate}T${validTime}:00+08:00`);
-  return { start, end: calculateScheduledEnd(start, durationValue, durationUnit) };
-}
-
-function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-  return aStart < bEnd && aEnd > bStart;
+  return {
+    start,
+    end: calculateScheduledEnd(start, durationValue, durationUnit),
+  };
 }
 
 function getDayName(dateString: string): WeekDay {
@@ -247,7 +241,6 @@ function buildTimeSlots(
 
   return slots;
 }
-
 
 async function getAdminIds(): Promise<string[]> {
   const { data, error } = await supabase
@@ -481,8 +474,7 @@ export async function checkWorkerAvailability(
   }
 
   const schedule = scheduleResult.data as WorkerSchedule | null;
-  const unavailable =
-    unavailableResult.data as UnavailableDate | null;
+  const unavailable = unavailableResult.data as UnavailableDate | null;
 
   if (!schedule || !schedule.is_available) {
     return {
@@ -495,8 +487,7 @@ export async function checkWorkerAvailability(
     return {
       available: false,
       reason:
-        unavailable.reason?.trim() ||
-        "Worker marked this date as unavailable.",
+        unavailable.reason?.trim() || "Worker marked this date as unavailable.",
     };
   }
 
@@ -510,11 +501,96 @@ export async function checkWorkerAvailability(
 // GET AVAILABLE TIME SLOTS
 // ===============================
 
+export type WorkerArrivalAvailability = {
+  available: boolean;
+  reason?: string;
+};
+
+/**
+ * Check whether a requested arrival time can be booked without forcing a
+ * one-hour service duration. The customer selects only the arrival time;
+ * the worker records the actual start/end of the service later.
+ */
+export async function isWorkerArrivalTimeAvailable(
+  workerId: string,
+  bookingDate: string,
+  arrivalTime: string,
+): Promise<WorkerArrivalAvailability> {
+  const id = validateRequiredText(workerId, "Worker ID");
+  const date = validateDateString(bookingDate, "Booking date");
+  const time = validateTimeString(arrivalTime, "Arrival time");
+
+  const availability = await checkWorkerAvailability(id, date);
+
+  if (availability.available === false) {
+    return availability;
+  }
+
+  const requestedMinutes = timeToMinutes(time);
+  const scheduleStart = timeToMinutes(availability.schedule.start_time);
+  const scheduleEnd = timeToMinutes(availability.schedule.end_time);
+
+  if (requestedMinutes < scheduleStart || requestedMinutes >= scheduleEnd) {
+    return {
+      available: false,
+      reason: `Arrival time must be within the worker's schedule (${availability.schedule.start_time.slice(0, 5)}–${availability.schedule.end_time.slice(0, 5)}).`,
+    };
+  }
+
+  const { data: bookings, error } = await supabase
+    .from("bookings")
+    .select("booking_date,booking_time,scheduled_start_at,scheduled_end_at")
+    .eq("worker_id", id)
+    .eq("booking_date", date)
+    .in("status", [...BOOKING_ACTIVE_STATUSES]);
+
+  if (error) {
+    throw error;
+  }
+
+  const requestedDateTime = new Date(`${date}T${time}:00+08:00`).getTime();
+
+  const hasConflict = ((bookings ?? []) as BookingTimeRecord[]).some(
+    (booking) => {
+      if (booking.scheduled_start_at && booking.scheduled_end_at) {
+        const start = new Date(booking.scheduled_start_at).getTime();
+        const end = new Date(booking.scheduled_end_at).getTime();
+
+        return (
+          Number.isFinite(start) &&
+          Number.isFinite(end) &&
+          requestedDateTime >= start &&
+          requestedDateTime < end
+        );
+      }
+
+      if (!booking.booking_time) {
+        return false;
+      }
+
+      const normalizedExistingTime = validateTimeString(
+        String(booking.booking_time),
+        "Existing booking time",
+      );
+
+      return normalizedExistingTime === time;
+    },
+  );
+
+  if (hasConflict) {
+    return {
+      available: false,
+      reason:
+        "This arrival time is already reserved. Please choose another time.",
+    };
+  }
+
+  return { available: true };
+}
+
 export async function getAvailableTimeSlots(
   workerId: string,
   bookingDate: string,
-  durationValue = 1,
-  durationUnit: DurationUnit = "hour",
 ): Promise<string[]> {
   const id = validateRequiredText(workerId, "Worker ID");
   const date = validateDateString(bookingDate, "Booking date");
@@ -537,12 +613,12 @@ export async function getAvailableTimeSlots(
   const scheduleEndMinutes = timeToMinutes(availability.schedule.end_time);
 
   return allSlots.filter((slot) => {
-    const candidate = createManilaScheduleRange(date, slot, durationValue, durationUnit);
+    // Arrival time is a point-in-time request. Do not reserve or assume a
+    // one-hour service duration just to generate the customer's choices.
+    // The worker records the actual service start/end later.
+    const candidateStart = new Date(`${date}T${slot}:00+08:00`);
 
-    if (durationUnit === "hour") {
-      const candidateEndMinutes = timeToMinutes(slot) + durationValue * 60;
-      if (candidateEndMinutes > scheduleEndMinutes) return false;
-    }
+    if (timeToMinutes(slot) >= scheduleEndMinutes) return false;
 
     return !((bookings ?? []) as BookingTimeRecord[]).some((booking) => {
       let existingStart: Date;
@@ -552,14 +628,19 @@ export async function getAvailableTimeSlots(
         existingStart = new Date(booking.scheduled_start_at);
         existingEnd = new Date(booking.scheduled_end_at);
       } else if (booking.booking_date && booking.booking_time) {
-        const legacy = createManilaScheduleRange(booking.booking_date, booking.booking_time, 1, "hour");
+        const legacy = createManilaScheduleRange(
+          booking.booking_date,
+          booking.booking_time,
+          1,
+          "hour",
+        );
         existingStart = legacy.start;
         existingEnd = legacy.end;
       } else {
         return false;
       }
 
-      return rangesOverlap(candidate.start, candidate.end, existingStart, existingEnd);
+      return candidateStart >= existingStart && candidateStart < existingEnd;
     });
   });
 }
@@ -568,9 +649,7 @@ export async function getAvailableTimeSlots(
 // GET FULLY BOOKED DATES
 // ===============================
 
-export async function getFullyBookedDates(
-  workerId: string,
-): Promise<string[]> {
+export async function getFullyBookedDates(workerId: string): Promise<string[]> {
   const id = validateRequiredText(workerId, "Worker ID");
 
   const { data, error } = await supabase
@@ -610,23 +689,11 @@ export async function createSchedule(
   schedule: CreateSchedulePayload,
 ): Promise<CreatedScheduleRecord> {
   const payload: CreateSchedulePayload = {
-    booking_id: validatePositiveInteger(
-      schedule.booking_id,
-      "Booking ID",
-    ),
+    booking_id: validatePositiveInteger(schedule.booking_id, "Booking ID"),
     worker_id: validateRequiredText(schedule.worker_id, "Worker ID"),
-    customer_id: validateRequiredText(
-      schedule.customer_id,
-      "Customer ID",
-    ),
-    schedule_date: validateDateString(
-      schedule.schedule_date,
-      "Schedule date",
-    ),
-    schedule_time: validateTimeString(
-      schedule.schedule_time,
-      "Schedule time",
-    ),
+    customer_id: validateRequiredText(schedule.customer_id, "Customer ID"),
+    schedule_date: validateDateString(schedule.schedule_date, "Schedule date"),
+    schedule_time: validateTimeString(schedule.schedule_time, "Schedule time"),
     address: validateRequiredText(schedule.address, "Address"),
     status: validateRequiredText(schedule.status, "Status"),
   };
@@ -646,9 +713,7 @@ export async function createSchedule(
   );
 
   if (!availableSlots.includes(payload.schedule_time)) {
-    throw new Error(
-      "The selected schedule time is no longer available.",
-    );
+    throw new Error("The selected schedule time is no longer available.");
   }
 
   const { data, error } = await supabase

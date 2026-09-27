@@ -48,9 +48,7 @@ async function assertWorkerCanReceiveScheduledBooking(
     .maybeSingle();
 
   if (error) {
-    throw new Error(
-      `Unable to verify worker status: ${error.message}`,
-    );
+    throw new Error(`Unable to verify worker status: ${error.message}`);
   }
 
   if (!worker) {
@@ -62,9 +60,7 @@ async function assertWorkerCanReceiveScheduledBooking(
       .trim()
       .toLowerCase() !== "approved"
   ) {
-    throw new Error(
-      "This worker account is currently unavailable.",
-    );
+    throw new Error("This worker account is currently unavailable.");
   }
 }
 
@@ -89,21 +85,11 @@ function isExpectedBookingBlock(message: string): boolean {
   const normalizedMessage = message.toLowerCase();
 
   return (
-    normalizedMessage.includes(
-      "already have an active booking",
-    ) ||
-    normalizedMessage.includes(
-      "worker account is currently unavailable",
-    ) ||
-    normalizedMessage.includes(
-      "worker is no longer available",
-    ) ||
-    normalizedMessage.includes(
-      "time slot has already been booked",
-    ) ||
-    normalizedMessage.includes(
-      "selected date and time",
-    )
+    normalizedMessage.includes("already have an active booking") ||
+    normalizedMessage.includes("worker account is currently unavailable") ||
+    normalizedMessage.includes("worker is no longer available") ||
+    normalizedMessage.includes("time slot has already been booked") ||
+    normalizedMessage.includes("selected date and time")
   );
 }
 
@@ -119,10 +105,11 @@ function BookingConfirmationContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const routeState =
-    location.state as BookingConfirmationState | null;
+  const routeState = location.state as BookingConfirmationState | null;
 
   const [loading, setLoading] = useState(false);
+
+  const bookingDraftKey = `serbisyogo:booking-draft:${routeState?.workerId ?? ""}`;
 
   if (!routeState) {
     return (
@@ -146,9 +133,7 @@ function BookingConfirmationContent() {
       } = await supabase.auth.getUser();
 
       if (authError) {
-        throw new Error(
-          `Unable to verify your account: ${authError.message}`,
-        );
+        throw new Error(`Unable to verify your account: ${authError.message}`);
       }
 
       if (!user) {
@@ -165,10 +150,7 @@ function BookingConfirmationContent() {
       const normalizedLatitude = Number(state.latitude);
       const normalizedLongitude = Number(state.longitude);
 
-      if (
-        !Number.isInteger(normalizedServiceId) ||
-        normalizedServiceId <= 0
-      ) {
+      if (!Number.isInteger(normalizedServiceId) || normalizedServiceId <= 0) {
         throw new Error(
           "The selected service is invalid. Please return and select the service again.",
         );
@@ -212,6 +194,12 @@ function BookingConfirmationContent() {
         scheduled_end_at: state.scheduledEndAt ?? null,
       });
 
+      try {
+        sessionStorage.removeItem(bookingDraftKey);
+      } catch {
+        // Ignore storage cleanup failures after a successful booking.
+      }
+
       toast.success(
         "Scheduled booking submitted successfully. Please wait for the worker's approval.",
       );
@@ -239,76 +227,56 @@ function BookingConfirmationContent() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="rounded-2xl bg-white p-4 sm:p-6 lg:p-8 shadow-lg">
-        <h1 className="mb-2 text-3xl font-bold">
-          Confirm Scheduled Booking
-        </h1>
+        <h1 className="mb-2 text-3xl font-bold">Confirm Scheduled Booking</h1>
 
         <p className="mb-8 text-sm text-slate-500">
-          Review the selected start schedule and estimated service completion before submitting.
+          Review the requested arrival time and service details before
+          submitting. The worker will record the actual service start and finish
+          time.
         </p>
 
-        {routeState.scheduledEndAt && (
-          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-            <p className="font-bold">
-              {routeState.schedulingType === "project" ? "Project schedule" : "Service schedule"}
-            </p>
-            <p className="mt-1">
-              Estimated completion: {new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: routeState.durationUnit === "hour" ? "short" : undefined, timeZone: "Asia/Manila" }).format(new Date(routeState.scheduledEndAt))}
-            </p>
-          </div>
-        )}
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          <p className="font-bold">Arrival time</p>
+          <p className="mt-1">
+            This is the requested arrival time only. The system does not assume
+            that the service will take one hour. The worker will record the
+            actual start and finish time.
+          </p>
+        </div>
 
         <div className="space-y-5">
           <div className="flex justify-between gap-6">
             <span className="font-semibold">Worker</span>
 
-            <span className="text-right">
-              {state.workerName}
-            </span>
+            <span className="text-right">{state.workerName}</span>
           </div>
 
           <div className="flex justify-between gap-6">
             <span className="font-semibold">Service</span>
 
-            <span className="text-right">
-              {state.service}
-            </span>
+            <span className="text-right">{state.service}</span>
           </div>
 
           <div className="flex justify-between gap-6">
-            <span className="font-semibold">
-              Booking Date
-            </span>
+            <span className="font-semibold">Booking Date</span>
 
-            <span className="text-right">
-              {state.date}
-            </span>
+            <span className="text-right">{state.date}</span>
           </div>
 
           <div className="flex justify-between gap-6">
-            <span className="font-semibold">
-              Booking Time
-            </span>
+            <span className="font-semibold">Arrival Time</span>
 
-            <span className="text-right">
-              {state.time}
-            </span>
+            <span className="text-right">{state.time}</span>
           </div>
 
           <div className="flex justify-between gap-6">
-            <span className="font-semibold">
-              Service Location
-            </span>
+            <span className="font-semibold">Service Location</span>
 
-            <span className="max-w-md text-right">
-              {state.address}
-            </span>
+            <span className="max-w-md text-right">{state.address}</span>
           </div>
 
           <div className="flex justify-between gap-6">
-            <span className="font-semibold">
-              Coordinates
-            </span>
+            <span className="font-semibold">Coordinates</span>
 
             <span className="text-right">
               {Number(state.latitude).toFixed(6)},{" "}
@@ -317,9 +285,7 @@ function BookingConfirmationContent() {
           </div>
 
           <div className="flex justify-between gap-6 border-t pt-6">
-            <span className="text-xl font-bold">
-              Total Amount
-            </span>
+            <span className="text-xl font-bold">Total Amount</span>
 
             <span className="text-2xl font-bold text-blue-600">
               ₱{state.price}
@@ -343,9 +309,7 @@ function BookingConfirmationContent() {
             disabled={loading}
             className="rounded-xl bg-blue-600 px-8 py-3 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            {loading
-              ? "Submitting schedule..."
-              : "Confirm Scheduled Booking"}
+            {loading ? "Submitting schedule..." : "Confirm Scheduled Booking"}
           </button>
         </div>
       </div>

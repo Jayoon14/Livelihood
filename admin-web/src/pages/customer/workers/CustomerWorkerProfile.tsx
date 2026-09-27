@@ -37,6 +37,7 @@ import { getApprovedServices } from "../../../services/serviceService";
 import {
   checkWorkerAvailability,
   getAvailableTimeSlots,
+  isWorkerArrivalTimeAvailable,
   getUnavailableDates,
   getWorkerSchedule,
 } from "../../../services/scheduleService";
@@ -87,10 +88,10 @@ type WorkerProfileData = {
     position?: string | null;
     description?: string | null;
   }>;
-skills?: Array<{
-  id: number | string;
-  skill: string;
-}>;
+  skills?: Array<{
+    id: number | string;
+    skill: string;
+  }>;
 };
 
 const fieldClass =
@@ -99,11 +100,7 @@ const fieldClass =
 const secondaryButtonClass =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100";
 
-type WorkerBookingState =
-  | "checking"
-  | "offline"
-  | "working"
-  | "available";
+type WorkerBookingState = "checking" | "offline" | "working" | "available";
 
 const ONLINE_STATUS_STALE_MS = 15 * 60 * 1000;
 
@@ -119,6 +116,46 @@ function locationIsFresh(updatedAt?: string | null): boolean {
 }
 
 const MAX_BOOKING_DISTANCE_KILOMETERS = 50;
+const BOOKING_DRAFT_PREFIX = "serbisyogo:booking-draft:";
+
+type BookingDraft = {
+  serviceId: number | null;
+  bookingDate: string;
+  bookingTime: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string;
+};
+
+function getBookingDraftKey(workerId: string): string {
+  return `${BOOKING_DRAFT_PREFIX}${workerId}`;
+}
+
+function readBookingDraft(workerId: string): BookingDraft | null {
+  try {
+    const raw = sessionStorage.getItem(getBookingDraftKey(workerId));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<BookingDraft>;
+    return {
+      serviceId: Number.isInteger(parsed.serviceId)
+        ? Number(parsed.serviceId)
+        : null,
+      bookingDate:
+        typeof parsed.bookingDate === "string" ? parsed.bookingDate : "",
+      bookingTime:
+        typeof parsed.bookingTime === "string" ? parsed.bookingTime : "",
+      address: typeof parsed.address === "string" ? parsed.address : "",
+      latitude: typeof parsed.latitude === "number" ? parsed.latitude : null,
+      longitude: typeof parsed.longitude === "number" ? parsed.longitude : null,
+      notes: typeof parsed.notes === "string" ? parsed.notes : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 const WORKER_LOCATION_STALE_MS = 15 * 60 * 1000;
 
 type BookableWorkerLocation = {
@@ -150,11 +187,7 @@ function calculateDistanceMeters(
       Math.cos(secondLatitudeRadians) *
       Math.sin(longitudeDifference / 2) ** 2;
 
-  return (
-    earthRadiusMeters *
-    2 *
-    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  );
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function workerLocationIsFresh(location: BookableWorkerLocation): boolean {
@@ -179,8 +212,9 @@ export default function CustomerWorkerProfile() {
     [],
   );
 
-  const [selectedService, setSelectedService] =
-    useState<WorkerService | null>(null);
+  const [selectedService, setSelectedService] = useState<WorkerService | null>(
+    null,
+  );
   const [bookingDate, setBookingDate] = useState("");
   const [bookingTime, setBookingTime] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -236,11 +270,9 @@ export default function CustomerWorkerProfile() {
 
   const selectedWorkerIsNearby =
     selectedWorkerDistanceMeters !== null &&
-    selectedWorkerDistanceMeters <=
-      MAX_BOOKING_DISTANCE_KILOMETERS * 1_000;
+    selectedWorkerDistanceMeters <= MAX_BOOKING_DISTANCE_KILOMETERS * 1_000;
 
-  const workerCanBeBooked =
-    workerBookingState === "available";
+  const workerCanBeBooked = workerBookingState === "available";
 
   const bookingReady =
     workerCanBeBooked &&
@@ -254,47 +286,39 @@ export default function CustomerWorkerProfile() {
     selectedWorkerIsNearby &&
     !checkingWorkerDistance;
 
-  const refreshWorkerBookingState = useCallback(async (
-    workerId: string,
-  ): Promise<WorkerBookingState> => {
-    try {
-      const { data, error } = await supabase
-        .from("worker_locations")
-        .select(
-          "worker_id, is_online, is_available, updated_at",
-        )
-        .eq("worker_id", workerId)
-        .maybeSingle();
+  const refreshWorkerBookingState = useCallback(
+    async (workerId: string): Promise<WorkerBookingState> => {
+      try {
+        const { data, error } = await supabase
+          .from("worker_locations")
+          .select("worker_id, is_online, is_available, updated_at")
+          .eq("worker_id", workerId)
+          .maybeSingle();
 
-      if (error) {
-        throw error;
-      }
+        if (error) {
+          throw error;
+        }
 
-      if (
-        !data ||
-        !data.is_online ||
-        !locationIsFresh(data.updated_at)
-      ) {
+        if (!data || !data.is_online || !locationIsFresh(data.updated_at)) {
+          setWorkerBookingState("offline");
+          return "offline";
+        }
+
+        if (!data.is_available) {
+          setWorkerBookingState("working");
+          return "working";
+        }
+
+        setWorkerBookingState("available");
+        return "available";
+      } catch (error) {
+        console.error("Unable to refresh worker booking status:", error);
         setWorkerBookingState("offline");
         return "offline";
       }
-
-      if (!data.is_available) {
-        setWorkerBookingState("working");
-        return "working";
-      }
-
-      setWorkerBookingState("available");
-      return "available";
-    } catch (error) {
-      console.error(
-        "Unable to refresh worker booking status:",
-        error,
-      );
-      setWorkerBookingState("offline");
-      return "offline";
-    }
-  }, []);
+    },
+    [],
+  );
 
   const loadWorker = useCallback(async () => {
     if (!id) {
@@ -325,14 +349,50 @@ export default function CustomerWorkerProfile() {
 
       data.services = (services ?? []) as WorkerService[];
 
+      const draft = readBookingDraft(id);
+
       setWorker(data);
-      setSelectedService(null);
+      setSelectedService(
+        draft?.serviceId != null
+          ? (data.services.find((service) => service.id === draft.serviceId) ??
+              null)
+          : null,
+      );
+      setBookingDate(draft?.bookingDate ?? "");
+      setBookingTime(draft?.bookingTime ?? "");
+      setAddress(draft?.address ?? "");
+      setLatitude(draft?.latitude ?? null);
+      setLongitude(draft?.longitude ?? null);
+      setNotes(draft?.notes ?? "");
       setRating(Number(averageRating) || 0);
       setCompletedJobs(Number(publicMetrics.get(id)?.completed_jobs ?? 0));
       setSchedule((weeklySchedule ?? []) as WorkerSchedule[]);
       setUnavailableDates((unavailable ?? []) as UnavailableDate[]);
 
-      await refreshWorkerBookingState(id);
+      const currentState = await refreshWorkerBookingState(id);
+
+      if (currentState !== "available") {
+        // Keep the customer's draft intact. The form should not reset simply
+        // because the worker temporarily goes offline or becomes busy.
+        setAvailableSlots([]);
+      } else if (draft?.bookingDate) {
+        try {
+          const availability = await checkWorkerAvailability(
+            id,
+            draft.bookingDate,
+          );
+          if (availability.available) {
+            const slots = await getAvailableTimeSlots(id, draft.bookingDate);
+            setAvailableSlots(slots ?? []);
+          } else {
+            setBookingTime("");
+            setAvailableSlots([]);
+          }
+        } catch {
+          setAvailableSlots([]);
+        }
+      }
+
       await saveRecentlyViewed(id);
     } catch (error) {
       console.error("Failed loading worker:", error);
@@ -342,98 +402,98 @@ export default function CustomerWorkerProfile() {
     }
   }, [id, refreshWorkerBookingState]);
 
-  const checkSelectedWorkerDistance = useCallback(async (
-    customerLatitude: number,
-    customerLongitude: number,
-    showToast = false,
-  ): Promise<boolean> => {
-    if (!worker) {
-      return false;
-    }
-
-    try {
-      setCheckingWorkerDistance(true);
-      setWorkerLocationMessage("");
-
-      const { data, error } = await supabase
-        .from("worker_locations")
-        .select(
-          "worker_id, latitude, longitude, is_online, is_available, updated_at",
-        )
-        .eq("worker_id", worker.profile.id)
-        .maybeSingle();
-
-      if (error) {
-        throw error;
+  const checkSelectedWorkerDistance = useCallback(
+    async (
+      customerLatitude: number,
+      customerLongitude: number,
+      showToast = false,
+    ): Promise<boolean> => {
+      if (!worker) {
+        return false;
       }
 
-      if (!data) {
+      try {
+        setCheckingWorkerDistance(true);
+        setWorkerLocationMessage("");
+
+        const { data, error } = await supabase
+          .from("worker_locations")
+          .select(
+            "worker_id, latitude, longitude, is_online, is_available, updated_at",
+          )
+          .eq("worker_id", worker.profile.id)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data) {
+          const message =
+            "This worker has no current GPS location and cannot be booked for this service location.";
+          setSelectedWorkerDistanceMeters(null);
+          setWorkerLocationMessage(message);
+          if (showToast) toast.warning(message);
+          return false;
+        }
+
+        const workerLocation = data as BookableWorkerLocation;
+
+        if (
+          !workerLocation.is_online ||
+          !workerLocation.is_available ||
+          !workerLocationIsFresh(workerLocation)
+        ) {
+          const message =
+            "This worker is currently offline, unavailable, or has an outdated GPS location.";
+          setSelectedWorkerDistanceMeters(null);
+          setWorkerLocationMessage(message);
+          if (showToast) toast.warning(message);
+          return false;
+        }
+
+        const distanceMeters = calculateDistanceMeters(
+          customerLatitude,
+          customerLongitude,
+          workerLocation.latitude,
+          workerLocation.longitude,
+        );
+
+        setSelectedWorkerDistanceMeters(distanceMeters);
+
+        if (distanceMeters > MAX_BOOKING_DISTANCE_KILOMETERS * 1_000) {
+          const distanceKilometers = (distanceMeters / 1_000).toFixed(1);
+          const message =
+            `This worker is ${distanceKilometers} km from the selected service location. ` +
+            `Choose a worker within ${MAX_BOOKING_DISTANCE_KILOMETERS} km.`;
+
+          setWorkerLocationMessage(message);
+          if (showToast) toast.warning(message);
+          return false;
+        }
+
+        setWorkerLocationMessage(
+          `Selected worker is ${(distanceMeters / 1_000).toFixed(
+            1,
+          )} km from the service location.`,
+        );
+
+        return true;
+      } catch (error) {
+        console.error("Unable to validate worker distance:", error);
+
         const message =
-          "This worker has no current GPS location and cannot be booked for this service location.";
+          "Unable to verify the worker's distance. Please try again.";
         setSelectedWorkerDistanceMeters(null);
         setWorkerLocationMessage(message);
-        if (showToast) toast.warning(message);
+        if (showToast) toast.error(message);
         return false;
+      } finally {
+        setCheckingWorkerDistance(false);
       }
-
-      const workerLocation = data as BookableWorkerLocation;
-
-      if (
-        !workerLocation.is_online ||
-        !workerLocation.is_available ||
-        !workerLocationIsFresh(workerLocation)
-      ) {
-        const message =
-          "This worker is currently offline, unavailable, or has an outdated GPS location.";
-        setSelectedWorkerDistanceMeters(null);
-        setWorkerLocationMessage(message);
-        if (showToast) toast.warning(message);
-        return false;
-      }
-
-      const distanceMeters = calculateDistanceMeters(
-        customerLatitude,
-        customerLongitude,
-        workerLocation.latitude,
-        workerLocation.longitude,
-      );
-
-      setSelectedWorkerDistanceMeters(distanceMeters);
-
-      if (
-        distanceMeters >
-        MAX_BOOKING_DISTANCE_KILOMETERS * 1_000
-      ) {
-        const distanceKilometers = (distanceMeters / 1_000).toFixed(1);
-        const message =
-          `This worker is ${distanceKilometers} km from the selected service location. ` +
-          `Choose a worker within ${MAX_BOOKING_DISTANCE_KILOMETERS} km.`;
-
-        setWorkerLocationMessage(message);
-        if (showToast) toast.warning(message);
-        return false;
-      }
-
-      setWorkerLocationMessage(
-        `Selected worker is ${(distanceMeters / 1_000).toFixed(
-          1,
-        )} km from the service location.`,
-      );
-
-      return true;
-    } catch (error) {
-      console.error("Unable to validate worker distance:", error);
-
-      const message =
-        "Unable to verify the worker's distance. Please try again.";
-      setSelectedWorkerDistanceMeters(null);
-      setWorkerLocationMessage(message);
-      if (showToast) toast.error(message);
-      return false;
-    } finally {
-      setCheckingWorkerDistance(false);
-    }
-  }, [worker]);
+    },
+    [worker],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -450,15 +510,12 @@ export default function CustomerWorkerProfile() {
       return;
     }
 
-    const initialRefreshTimer =
-      window.setTimeout(() => {
-        void refreshWorkerBookingState(workerId);
-      }, 0);
+    const initialRefreshTimer = window.setTimeout(() => {
+      void refreshWorkerBookingState(workerId);
+    }, 0);
 
     const channel = supabase
-      .channel(
-        `customer-worker-booking-status-${workerId}`,
-      )
+      .channel(`customer-worker-booking-status-${workerId}`)
       .on(
         "postgres_changes",
         {
@@ -473,22 +530,16 @@ export default function CustomerWorkerProfile() {
       )
       .subscribe();
 
-    const refreshInterval = window.setInterval(
-      () => {
-        void refreshWorkerBookingState(workerId);
-      },
-      30_000,
-    );
+    const refreshInterval = window.setInterval(() => {
+      void refreshWorkerBookingState(workerId);
+    }, 30_000);
 
     return () => {
       window.clearTimeout(initialRefreshTimer);
       window.clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
     };
-  }, [
-    refreshWorkerBookingState,
-    worker?.profile.id,
-  ]);
+  }, [refreshWorkerBookingState, worker?.profile.id]);
 
   useEffect(() => {
     if (!worker) return;
@@ -508,32 +559,19 @@ export default function CustomerWorkerProfile() {
     return () => window.clearTimeout(timer);
   }, [location.search, worker]);
 
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (
-        !worker ||
-        latitude === null ||
-        longitude === null
-      ) {
+      if (!worker || latitude === null || longitude === null) {
         setSelectedWorkerDistanceMeters(null);
         setWorkerLocationMessage("");
         return;
       }
 
-      void checkSelectedWorkerDistance(
-        latitude,
-        longitude,
-      );
+      void checkSelectedWorkerDistance(latitude, longitude);
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [
-    checkSelectedWorkerDistance,
-    latitude,
-    longitude,
-    worker,
-  ]);
+  }, [checkSelectedWorkerDistance, latitude, longitude, worker]);
 
   useEffect(() => {
     if (workerCanBeBooked) {
@@ -541,8 +579,8 @@ export default function CustomerWorkerProfile() {
     }
 
     const timer = window.setTimeout(() => {
-      setBookingDate("");
-      setBookingTime("");
+      // Do not wipe the customer's entered booking details when availability
+      // changes. The user can keep the draft and submit once the worker is bookable.
       setAvailableSlots([]);
       setAvailabilityMessage(
         workerBookingState === "working"
@@ -554,16 +592,42 @@ export default function CustomerWorkerProfile() {
     }, 0);
 
     return () => window.clearTimeout(timer);
+  }, [workerCanBeBooked, workerBookingState]);
+
+  useEffect(() => {
+    if (!worker?.profile.id) return;
+
+    try {
+      sessionStorage.setItem(
+        getBookingDraftKey(worker.profile.id),
+        JSON.stringify({
+          serviceId: selectedService?.id ?? null,
+          bookingDate,
+          bookingTime,
+          address,
+          latitude,
+          longitude,
+          notes,
+        } satisfies BookingDraft),
+      );
+    } catch {
+      // Ignore storage failures; booking can continue normally.
+    }
   }, [
-    workerCanBeBooked,
-    workerBookingState,
+    worker?.profile.id,
+    selectedService?.id,
+    bookingDate,
+    bookingTime,
+    address,
+    latitude,
+    longitude,
+    notes,
   ]);
 
   async function handleBookingDateChange(date: string) {
     if (!worker) return;
 
-    const currentState =
-      await refreshWorkerBookingState(worker.profile.id);
+    const currentState = await refreshWorkerBookingState(worker.profile.id);
 
     if (currentState !== "available") {
       setBookingDate("");
@@ -614,8 +678,7 @@ export default function CustomerWorkerProfile() {
   async function handleContinueBooking() {
     if (!worker) return;
 
-    const currentState =
-      await refreshWorkerBookingState(worker.profile.id);
+    const currentState = await refreshWorkerBookingState(worker.profile.id);
 
     if (currentState !== "available") {
       toast.warning(
@@ -637,7 +700,7 @@ export default function CustomerWorkerProfile() {
     }
 
     if (!bookingTime) {
-      toast.warning("Please select an available time.");
+      toast.warning("Please select an arrival time.");
       return;
     }
 
@@ -670,20 +733,27 @@ export default function CustomerWorkerProfile() {
       );
 
       if (availability.available === false) {
-        toast.warning(availability.reason || "The worker is unavailable on this date.");
+        toast.warning(
+          availability.reason || "The worker is unavailable on this date.",
+        );
         return;
       }
 
-      const latestSlots = await getAvailableTimeSlots(
+      const arrivalAvailability = await isWorkerArrivalTimeAvailable(
         worker.profile.id,
         bookingDate,
+        bookingTime,
       );
 
-      if (!latestSlots.includes(bookingTime)) {
+      if (!arrivalAvailability.available) {
         toast.warning(
-          "This time slot has already been booked. Please choose another time.",
+          arrivalAvailability.reason ||
+            "This arrival time is no longer available. Please choose another time.",
         );
-        setBookingTime("");
+        const latestSlots = await getAvailableTimeSlots(
+          worker.profile.id,
+          bookingDate,
+        );
         setAvailableSlots(latestSlots);
         return;
       }
@@ -770,7 +840,9 @@ export default function CustomerWorkerProfile() {
         "_blank",
         "noopener,noreferrer",
       );
-      toast.success("Profile link copied. Paste it into your Instagram post or message.");
+      toast.success(
+        "Profile link copied. Paste it into your Instagram post or message.",
+      );
     } catch (error) {
       console.error("Unable to prepare Instagram sharing:", error);
     }
@@ -910,8 +982,8 @@ export default function CustomerWorkerProfile() {
                       onClick={shareFacebook}
                       className={secondaryButtonClass}
                     >
-                    <FaFacebook size={16} />
-                    Facebook
+                      <FaFacebook size={16} />
+                      Facebook
                     </button>
 
                     <button
@@ -919,8 +991,8 @@ export default function CustomerWorkerProfile() {
                       onClick={() => void shareInstagram()}
                       className={secondaryButtonClass}
                     >
-                    <FaInstagram size={16} />
-                    Instagram
+                      <FaInstagram size={16} />
+                      Instagram
                     </button>
 
                     <button
@@ -976,10 +1048,7 @@ export default function CustomerWorkerProfile() {
               </div>
 
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
-                <Star
-                  size={14}
-                  className="fill-amber-400 text-amber-400"
-                />
+                <Star size={14} className="fill-amber-400 text-amber-400" />
                 {rating.toFixed(1)} verified worker
               </span>
             </header>
@@ -1020,18 +1089,18 @@ export default function CustomerWorkerProfile() {
                             : "Worker is currently offline"}
                     </p>
 
-                <WorkerBadges
-                  showScore
-                  maxBadges={4}
-                  metrics={{
-                    averageRating: rating,
-                    completedJobs,
-                  }}
-                  className="mt-4"
-                />
+                    <WorkerBadges
+                      showScore
+                      maxBadges={4}
+                      metrics={{
+                        averageRating: rating,
+                        completedJobs,
+                      }}
+                      className="mt-4"
+                    />
                     <p className="mt-1 text-sm leading-5 opacity-80">
                       {workerBookingState === "available"
-                        ? "You may select a service, date, and available time."
+                        ? "Choose a service, date, and your preferred worker arrival time."
                         : workerBookingState === "working"
                           ? "The booking form is locked while an active job is in progress."
                           : workerBookingState === "checking"
@@ -1109,14 +1178,12 @@ export default function CustomerWorkerProfile() {
                         className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800"
                       >
                         <Clock3 size={16} className="text-blue-600" />
-                        Available time
+                        Arrival time
                       </label>
                       <select
                         id="booking-time"
                         value={bookingTime}
-                        onChange={(event) =>
-                          setBookingTime(event.target.value)
-                        }
+                        onChange={(event) => setBookingTime(event.target.value)}
                         disabled={
                           !workerCanBeBooked ||
                           !bookingDate ||
@@ -1128,7 +1195,7 @@ export default function CustomerWorkerProfile() {
                         <option value="">
                           {checkingAvailability
                             ? "Checking availability..."
-                            : "Select available time"}
+                            : "Select arrival time"}
                         </option>
                         {availableSlots.map((slot) => (
                           <option key={slot} value={slot}>
@@ -1137,6 +1204,15 @@ export default function CustomerWorkerProfile() {
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-5 text-blue-800">
+                    <p className="font-bold">Arrival time only</p>
+                    <p className="mt-1">
+                      Choose when you expect the worker to arrive. No fixed
+                      1-hour service duration is assumed. The worker will record
+                      the actual service start and finish time.
+                    </p>
                   </div>
 
                   {availabilityMessage && (
@@ -1150,7 +1226,7 @@ export default function CustomerWorkerProfile() {
                     availableSlots.length === 0 &&
                     !availabilityMessage && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                        No available time slots for this date.
+                        No available arrival times for this date.
                       </div>
                     )}
 
@@ -1268,11 +1344,7 @@ export default function CustomerWorkerProfile() {
                 <button
                   type="button"
                   onClick={() => void handleContinueBooking()}
-                  disabled={
-                    continuing ||
-                    !workerCanBeBooked ||
-                    !bookingReady
-                  }
+                  disabled={continuing || !workerCanBeBooked || !bookingReady}
                   className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
                   {continuing ? (
@@ -1353,10 +1425,7 @@ export default function CustomerWorkerProfile() {
 
           {/* EDUCATION + SKILLS */}
           <div className="grid items-stretch gap-6 lg:grid-cols-2">
-            <InfoCard
-              icon={<GraduationCap size={21} />}
-              title="Education"
-            >
+            <InfoCard icon={<GraduationCap size={21} />} title="Education">
               {worker.education ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="font-bold text-slate-900">

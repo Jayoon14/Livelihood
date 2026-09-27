@@ -10,11 +10,7 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
-import {
-  useEffect,
-  useMemo,
-  type ChangeEvent,
-} from "react";
+import { useEffect, useMemo, type ChangeEvent } from "react";
 
 import { useRegisterStore } from "../../../store/registerStore";
 
@@ -36,59 +32,39 @@ interface UploadCardProps {
   description: string;
   field: UploadField;
   optional?: boolean;
-  keywords?: string[];
 }
 
 const REQUIRED_DOCUMENTS: UploadCardProps[] = [
   {
     title: "Valid ID",
-    description:
-      "Upload one clear government-issued identification document.",
+    description: "Upload one clear government-issued identification document.",
     field: "validId",
-    keywords: [
-      "id",
-      "passport",
-      "driver",
-      "license",
-      "philid",
-      "national",
-    ],
   },
   {
     title: "Resume",
-    description:
-      "Provide your latest resume in PDF or image format.",
+    description: "Provide your latest resume in PDF or image format.",
     field: "resume",
-    keywords: ["resume", "cv", "curriculum"],
   },
   {
     title: "TESDA Certificate",
-    description:
-      "Upload your TESDA certificate when available.",
+    description: "Upload your TESDA certificate when available.",
     field: "tesdaCertificate",
     optional: true,
-    keywords: ["tesda"],
   },
   {
     title: "Barangay Clearance",
-    description:
-      "Submit a recent and readable barangay clearance.",
+    description: "Submit a recent and readable barangay clearance.",
     field: "barangayClearance",
-    keywords: ["barangay"],
   },
   {
     title: "Police Clearance",
-    description:
-      "Upload a valid and current police clearance.",
+    description: "Upload a valid and current police clearance.",
     field: "policeClearance",
-    keywords: ["police"],
   },
   {
     title: "NBI Clearance",
-    description:
-      "Submit your latest NBI clearance document.",
+    description: "Submit your latest NBI clearance document.",
     field: "nbiClearance",
-    keywords: ["nbi"],
   },
 ];
 
@@ -106,12 +82,52 @@ function formatFileSize(bytes: number): string {
   return `${(kilobytes / 1024).toFixed(1)} MB`;
 }
 
+function getFileExtension(fileName: string): string {
+  const cleanName = fileName.toLowerCase().split("?")[0];
+  const lastDot = cleanName.lastIndexOf(".");
+
+  if (lastDot === -1) {
+    return "";
+  }
+
+  return cleanName.substring(lastDot + 1);
+}
+
+function isAllowedDocument(file: File): boolean {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+  ];
+
+  const allowedExtensions = [
+    "jpg",
+    "jpeg",
+    "png",
+    "webp",
+    "pdf",
+  ];
+
+  const extension = getFileExtension(file.name);
+
+  /*
+   * Some browsers/devices may return an empty or unusual MIME type.
+   * Because of that, we check both MIME type and file extension.
+   */
+  const validMime =
+    file.type === "" || allowedMimeTypes.includes(file.type);
+
+  const validExtension = allowedExtensions.includes(extension);
+
+  return validMime && validExtension;
+}
+
 function UploadCard({
   title,
   description,
   field,
   optional = false,
-  keywords = [],
 }: UploadCardProps) {
   const {
     data,
@@ -141,34 +157,27 @@ function UploadCard({
   }, [previewUrl]);
 
   function validateDocument(selectedFile: File): string | null {
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "application/pdf",
-    ];
+    /*
+     * Allowed document formats:
+     * JPG
+     * JPEG
+     * PNG
+     * WEBP
+     * PDF
+     */
 
-    const maxFileSize = 10 * 1024 * 1024;
+    const maxFileSize = 50 * 1024 * 1024;
 
-    if (!allowedTypes.includes(selectedFile.type)) {
-      return "Only JPG, PNG, and PDF files are allowed.";
+    if (!isAllowedDocument(selectedFile)) {
+      return `${title} must be a JPG, PNG, WEBP, or PDF file.`;
+    }
+
+    if (selectedFile.size === 0) {
+      return `${title} is empty or corrupted. Please choose another file.`;
     }
 
     if (selectedFile.size > maxFileSize) {
-      return "File size must not exceed 10MB.";
-    }
-
-    if (keywords.length > 0) {
-      const fileName = selectedFile.name
-        .toLowerCase()
-        .replace(/[_\-().]+/g, " ");
-
-      const matchesKeyword = keywords.some((keyword) =>
-        fileName.includes(keyword.toLowerCase()),
-      );
-
-      if (!matchesKeyword) {
-        return `Invalid document. Please upload your ${title} only.`;
-      }
+      return "File size must not exceed 50MB.";
     }
 
     return null;
@@ -293,14 +302,14 @@ function UploadCard({
             </span>
 
             <span className="mt-1 text-xs leading-5 text-slate-400">
-              JPG, PNG, or PDF · Max 10MB
+              JPG, PNG, WEBP, or PDF · Max 50MB
             </span>
           </label>
 
           <input
             id={`upload-${field}`}
             type="file"
-            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+            accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
             onChange={handleChange}
             className="hidden"
           />
@@ -355,7 +364,7 @@ function UploadCard({
             <input
               id={`replace-${field}`}
               type="file"
-              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+              accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
               onChange={handleChange}
               className="hidden"
             />
@@ -373,10 +382,7 @@ function UploadCard({
       )}
 
       {error && (
-        <p
-          role="alert"
-          className="mt-3 text-xs font-semibold text-rose-500"
-        >
+        <p role="alert" className="mt-3 text-xs font-semibold text-rose-500">
           {error}
         </p>
       )}
@@ -404,7 +410,6 @@ export default function Documents() {
         "Optional supporting document for your educational record.",
       field: "juniorHighDiploma",
       optional: true,
-      keywords: ["junior", "jhs"],
     });
   }
 
@@ -422,7 +427,6 @@ export default function Documents() {
         "Optional supporting document for your educational record.",
       field: "seniorHighDiploma",
       optional: true,
-      keywords: ["senior", "shs"],
     });
   }
 
@@ -433,11 +437,9 @@ export default function Documents() {
   ) {
     educationDocuments.push({
       title: "College Diploma",
-      description:
-        "Optional college or university diploma.",
+      description: "Optional college or university diploma.",
       field: "collegeDiploma",
       optional: true,
-      keywords: ["college", "diploma"],
     });
   }
 
@@ -448,7 +450,6 @@ export default function Documents() {
         "Optional proof of completed master's degree.",
       field: "mastersDiploma",
       optional: true,
-      keywords: ["master", "masters"],
     });
   }
 
@@ -459,7 +460,6 @@ export default function Documents() {
         "Optional proof of completed doctorate degree.",
       field: "doctorateDiploma",
       optional: true,
-      keywords: ["doctorate", "phd", "doctoral"],
     });
   }
 
@@ -503,7 +503,7 @@ export default function Documents() {
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
               Submit clear and readable files for account verification.
-              Accepted file types are JPG, PNG, and PDF.
+              Accepted file types are JPG, PNG, WEBP, and PDF.
             </p>
           </div>
 
@@ -560,8 +560,8 @@ export default function Documents() {
               </h3>
 
               <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                Optional supporting files based on your selected educational
-                attainment.
+                Optional supporting files based on your selected
+                educational attainment.
               </p>
             </div>
           </div>
@@ -584,8 +584,8 @@ export default function Documents() {
               </p>
 
               <p className="mt-1 text-sm leading-6 text-slate-400">
-                Additional diploma fields will appear when they apply to your
-                selected education level.
+                Additional diploma fields will appear when they apply
+                to your selected education level.
               </p>
             </div>
           )}
