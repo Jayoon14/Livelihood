@@ -525,11 +525,20 @@ async function verifyCompletionProof(
  * Worker submission does not finalize the booking.
  * The customer must review the proof before the booking becomes Completed.
  */
-export async function completeBooking(bookingId: number, workerId: string) {
+export async function completeBooking(
+  bookingId: number,
+  workerId: string,
+  completedAt: string = new Date().toISOString(),
+) {
   await verifyWorkerSession(workerId);
   await verifyCompletionProof(bookingId, workerId);
 
-  const completedAt = new Date().toISOString();
+  const completionDate = new Date(completedAt);
+  if (Number.isNaN(completionDate.getTime())) {
+    throw new Error("Invalid completion time.");
+  }
+
+  const normalizedCompletedAt = completionDate.toISOString();
 
   const { data, error } = await supabase
     .from("bookings")
@@ -538,7 +547,7 @@ export async function completeBooking(bookingId: number, workerId: string) {
       schedule_status: "Scheduled",
       trip_status: "Completed",
       completion_status: "Worker Completed",
-      completed_at: completedAt,
+      completed_at: normalizedCompletedAt,
     })
     .eq("id", bookingId)
     .eq("worker_id", workerId)

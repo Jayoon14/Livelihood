@@ -32,6 +32,9 @@ interface CompletionBooking {
   customer_id: string;
   status: string;
   trip_status: string | null;
+  arrived_at?: string | null;
+  trip_started_at?: string | null;
+  completed_at?: string | null;
   worker_deleted?: boolean | null;
   is_deleted?: boolean | null;
   service?: {
@@ -88,6 +91,51 @@ function getCustomerName(customer: CompletionBooking["customer"]): string {
     .join(" ");
 
   return name || customer.email || "Customer";
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) return "Not recorded";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not recorded";
+
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(date);
+}
+
+function calculateHoursWorked(start?: string | null, end?: string | null): number | null {
+  if (!start || !end) return null;
+
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return null;
+  }
+
+  return Math.round(((endMs - startMs) / 3_600_000) * 100) / 100;
+}
+
+function formatDuration(start?: string | null, end?: string | null): string {
+  if (!start || !end) return "Calculating...";
+
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return "Not available";
+  }
+
+  const totalMinutes = Math.floor((endMs - startMs) / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours} hr`;
+  return `${hours} hr ${minutes} min`;
 }
 
 function getServiceName(service: CompletionBooking["service"]): string {
@@ -220,7 +268,7 @@ export default function CompleteJob() {
   const [existingProofId, setExistingProofId] = useState<number | null>(null);
   const [summary, setSummary] = useState("");
   const [notes, setNotes] = useState("");
-  const [hoursWorked, setHoursWorked] = useState("");
+  const [serviceClock, setServiceClock] = useState(() => Date.now());
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [loadingBooking, setLoadingBooking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -403,12 +451,6 @@ export default function CompleteJob() {
       setExistingProofId(Number(updatedProof.id));
       setSummary(updatedProof.summary ?? "");
       setNotes(updatedProof.notes ?? "");
-      setHoursWorked(
-        updatedProof.hours_worked === null ||
-          updatedProof.hours_worked === undefined
-          ? ""
-          : String(updatedProof.hours_worked),
-      );
     };
 
     const channel = supabase
@@ -481,6 +523,18 @@ export default function CompleteJob() {
       void supabase.removeChannel(channel);
     };
   }, [navigate, parsedBookingId]);
+
+  useEffect(() => {
+    if (!booking?.trip_started_at) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setServiceClock(Date.now());
+    }, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [booking?.trip_started_at]);
 
   useEffect(() => {
     return () => {
@@ -597,7 +651,14 @@ export default function CompleteJob() {
 
     const normalizedSummary = summary.trim();
     const normalizedNotes = notes.trim();
-    const parsedHours = Number(hoursWorked);
+
+    if (!booking?.trip_started_at) {
+      toast.error("The service start time was not recorded. Please return to the booking.");
+      return;
+    }
+
+    const completionAt = new Date().toISOString();
+    const parsedHours = calculateHoursWorked(booking.trip_started_at, completionAt);
 
     if (!normalizedSummary) {
       toast.warning("Please enter a work summary.");
@@ -619,8 +680,8 @@ export default function CompleteJob() {
       return;
     }
 
-    if (!Number.isFinite(parsedHours) || parsedHours <= 0 || parsedHours > 24) {
-      toast.warning("Please enter valid hours worked between 0 and 24.");
+    if (parsedHours === null || parsedHours <= 0) {
+      toast.error("The service duration could not be calculated from the recorded Start Service time.");
       return;
     }
 
@@ -841,7 +902,7 @@ export default function CompleteJob() {
         );
       }
 
-      await completeBooking(parsedBookingId, user.id);
+      await completeBooking(parsedBookingId, user.id, completionAt);
 
       if (
         previousProof &&
@@ -1164,6 +1225,41 @@ export default function CompleteJob() {
                   </div>
                 </section>
 
+                <section className="rounded-[1.75rem] border border-blue-200 bg-blue-50/80 p-4 shadow-sm sm:p-6 lg:p-7 dark:border-blue-500/20 dark:bg-blue-500/10">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                      <Clock3 className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                        Automatic Service Time
+                      </h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        The system records the actual arrival and service times automatically. No manual hours input is required.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Actual Arrival</p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{formatDateTime(booking.arrived_at)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Service Started</p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{formatDateTime(booking.trip_started_at)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Current Time</p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(serviceClock))}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Actual Work Duration</p>
+                      <p className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-200">{formatDuration(booking.trip_started_at, new Date(serviceClock).toISOString())}</p>
+                    </div>
+                  </div>
+                </section>
+
                 <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-7 dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
@@ -1233,38 +1329,6 @@ export default function CompleteJob() {
                       />
                     </div>
 
-                    <div>
-                      <label
-                        htmlFor="hours-worked"
-                        className="mb-2 block font-bold text-slate-800 dark:text-slate-200"
-                      >
-                        Hours Worked
-                      </label>
-
-                      <div className="relative">
-                        <Clock3 className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-
-                        <input
-                          id="hours-worked"
-                          type="number"
-                          min="0.25"
-                          max="24"
-                          step="0.25"
-                          inputMode="decimal"
-                          value={hoursWorked}
-                          disabled={submitting || preparingImages}
-                          onChange={(event) =>
-                            setHoursWorked(event.target.value)
-                          }
-                          placeholder="Example: 3.5"
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-12 pr-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
-                        />
-                      </div>
-
-                      <p className="mt-2 text-xs text-slate-400">
-                        Enter a value from 0.25 to 24 hours.
-                      </p>
-                    </div>
                   </div>
                 </section>
               </div>
