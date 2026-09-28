@@ -12,22 +12,14 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  Trash2,
   X,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import AdminLayout from "../../../layouts/AdminLayout";
 import { supabase } from "../../../lib/supabase";
 import {
-  deleteActivityLog,
-  deleteAllActivityLogs,
   exportFilteredActivityLogsCsv,
   getActivityLogFilterOptions,
   getActivityLogPage,
@@ -40,13 +32,7 @@ import {
 
 const PAGE_SIZE = 10;
 
-type DatePreset =
-  | "all"
-  | "today"
-  | "7days"
-  | "30days"
-  | "month"
-  | "custom";
+type DatePreset = "all" | "today" | "7days" | "30days" | "month" | "custom";
 
 const EMPTY_SUMMARY: ActivityLogSummary = {
   total: 0,
@@ -57,13 +43,8 @@ const EMPTY_SUMMARY: ActivityLogSummary = {
 
 function formatDateInput(date: Date): string {
   const year = date.getFullYear();
-  const month = String(
-    date.getMonth() + 1,
-  ).padStart(2, "0");
-  const day = String(date.getDate()).padStart(
-    2,
-    "0",
-  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
@@ -103,11 +84,7 @@ function resolveDateRange(preset: DatePreset): {
   }
 
   if (preset === "month") {
-    const from = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-    );
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
 
     return {
       from: formatDateInput(from),
@@ -138,9 +115,7 @@ function formatDateTime(value: string): string {
 }
 
 function actionClass(action: string): string {
-  const normalized = action
-    .trim()
-    .toUpperCase();
+  const normalized = action.trim().toUpperCase();
 
   if (normalized.includes("APPROV")) {
     return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
@@ -154,17 +129,11 @@ function actionClass(action: string): string {
     return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
   }
 
-  if (
-    normalized.includes("LOGIN") ||
-    normalized.includes("CREATE")
-  ) {
+  if (normalized.includes("LOGIN") || normalized.includes("CREATE")) {
     return "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
   }
 
-  if (
-    normalized.includes("REGISTER") ||
-    normalized.includes("UPDATE")
-  ) {
+  if (normalized.includes("REGISTER") || normalized.includes("UPDATE")) {
     return "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300";
   }
 
@@ -176,40 +145,47 @@ function actionClass(action: string): string {
 }
 
 export default function ActivityLogs() {
-  const [logs, setLogs] = useState<
-    ActivityLogWithUser[]
-  >([]);
+  const [logs, setLogs] = useState<ActivityLogWithUser[]>([]);
+
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] =
-    useState("");
-  const [moduleFilter, setModuleFilter] =
-    useState("All");
-  const [actionFilter, setActionFilter] =
-    useState("All");
-  const [datePreset, setDatePreset] =
-    useState<DatePreset>("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const [moduleFilter, setModuleFilter] = useState("All");
+
+  const [actionFilter, setActionFilter] = useState("All");
+
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [moduleOptions, setModuleOptions] =
-    useState<string[]>([]);
-  const [actionOptions, setActionOptions] =
-    useState<string[]>([]);
-  const [summary, setSummary] =
-    useState<ActivityLogSummary>(EMPTY_SUMMARY);
+
+  const [moduleOptions, setModuleOptions] = useState<string[]>([]);
+
+  const [actionOptions, setActionOptions] = useState<string[]>([]);
+
+  const [summary, setSummary] = useState<ActivityLogSummary>(EMPTY_SUMMARY);
+
   const [page, setPage] = useState(1);
+
+  // Separate input value so the user can type
+  // a page number before applying it.
+  const [pageInput, setPageInput] = useState("1");
+
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] =
-    useState(1);
+
+  const [totalPages, setTotalPages] = useState(1);
+
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] =
-    useState(false);
+
+  const [refreshing, setRefreshing] = useState(false);
+
   const [error, setError] = useState("");
-  const [deletingId, setDeletingId] =
-    useState<number | null>(null);
-  const [deletingAll, setDeletingAll] =
-    useState(false);
-  const [exporting, setExporting] =
-    useState(false);
+
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -227,6 +203,7 @@ export default function ActivityLogs() {
 
     const timer = window.setTimeout(() => {
       const range = resolveDateRange(datePreset);
+
       setDateFrom(range.from);
       setDateTo(range.to);
       setPage(1);
@@ -247,26 +224,18 @@ export default function ActivityLogs() {
     () => ({
       page,
       pageSize: PAGE_SIZE,
+
       search: debouncedSearch || undefined,
-      module:
-        moduleFilter === "All"
-          ? undefined
-          : moduleFilter,
-      action:
-        actionFilter === "All"
-          ? undefined
-          : actionFilter,
+
+      module: moduleFilter === "All" ? undefined : moduleFilter,
+
+      action: actionFilter === "All" ? undefined : actionFilter,
+
       dateFrom: dateFrom || undefined,
+
       dateTo: dateTo || undefined,
     }),
-    [
-      actionFilter,
-      dateFrom,
-      dateTo,
-      debouncedSearch,
-      moduleFilter,
-      page,
-    ],
+    [actionFilter, dateFrom, dateTo, debouncedSearch, moduleFilter, page],
   );
 
   const loadLogs = useCallback(
@@ -280,12 +249,11 @@ export default function ActivityLogs() {
       setError("");
 
       try {
-        const result =
-          await getActivityLogPage(query);
+        const result = await getActivityLogPage(query);
 
         setLogs(result.items);
         setTotal(result.total);
-        setTotalPages(result.totalPages);
+        setTotalPages(Math.max(1, result.totalPages));
       } catch (caught) {
         const message =
           caught instanceof Error
@@ -304,20 +272,18 @@ export default function ActivityLogs() {
 
   const loadMeta = useCallback(async () => {
     try {
-      const [options, counts] =
-        await Promise.all([
-          getActivityLogFilterOptions(),
-          getActivityLogSummary(),
-        ]);
+      const [options, counts] = await Promise.all([
+        getActivityLogFilterOptions(),
+        getActivityLogSummary(),
+      ]);
 
       setModuleOptions(options.modules);
+
       setActionOptions(options.actions);
+
       setSummary(counts);
     } catch (caught) {
-      console.error(
-        "Load activity log metadata error:",
-        caught,
-      );
+      console.error("Load activity log metadata error:", caught);
     }
   }, []);
 
@@ -337,8 +303,16 @@ export default function ActivityLogs() {
     return () => window.clearTimeout(timer);
   }, [loadMeta]);
 
+  /*
+   * Realtime activity-log updates.
+   *
+   * Activity logs are audit records.
+   * New records are automatically reflected
+   * without requiring a manual page refresh.
+   */
   useEffect(() => {
     let channel: RealtimeChannel | null = null;
+
     let active = true;
 
     async function initializeRealtime() {
@@ -360,22 +334,9 @@ export default function ActivityLogs() {
             schema: "public",
             table: "activity_logs",
           },
-          (
-            _payload: RealtimePostgresChangesPayload<ActivityLog>,
-          ) => {
+          (_payload: RealtimePostgresChangesPayload<ActivityLog>) => {
             void _payload;
-            void loadLogs(true);
-            void loadMeta();
-          },
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "DELETE",
-            schema: "public",
-            table: "activity_logs",
-          },
-          () => {
+
             void loadLogs(true);
             void loadMeta();
           },
@@ -398,26 +359,20 @@ export default function ActivityLogs() {
     setExporting(true);
 
     try {
-      const exported =
-        await exportFilteredActivityLogsCsv({
-          search:
-            debouncedSearch || undefined,
-          module:
-            moduleFilter === "All"
-              ? undefined
-              : moduleFilter,
-          action:
-            actionFilter === "All"
-              ? undefined
-              : actionFilter,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
-        });
+      const exported = await exportFilteredActivityLogsCsv({
+        search: debouncedSearch || undefined,
+
+        module: moduleFilter === "All" ? undefined : moduleFilter,
+
+        action: actionFilter === "All" ? undefined : actionFilter,
+
+        dateFrom: dateFrom || undefined,
+
+        dateTo: dateTo || undefined,
+      });
 
       toast.success(
-        `${exported} activity log${
-          exported === 1 ? "" : "s"
-        } exported.`,
+        `${exported} activity log${exported === 1 ? "" : "s"} exported.`,
       );
     } catch (caught) {
       toast.error(
@@ -430,99 +385,45 @@ export default function ActivityLogs() {
     }
   }
 
-  async function handleDelete(
-    log: ActivityLogWithUser,
-  ) {
-    const confirmed = window.confirm(
-      `Delete this activity log?\n\n${log.action} — ${log.description}`,
-    );
-
-    if (!confirmed) {
+  function applyPageNumber() {
+    if (totalPages <= 0) {
+      setPage(1);
       return;
     }
 
-    setDeletingId(log.id);
+    const parsed = Number(pageInput.trim());
 
-    try {
-      await deleteActivityLog(log.id);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+      setPageInput(String(page));
+      return;
+    }
 
-      toast.success("Activity log deleted.");
+    const targetPage = Math.min(totalPages, Math.max(1, parsed));
 
-      if (logs.length === 1 && page > 1) {
-        setPage((current) =>
-          Math.max(1, current - 1),
-        );
-      } else {
-        await loadLogs(true);
-      }
+    setPage(targetPage);
+    setPageInput(String(targetPage));
+  }
 
-      await loadMeta();
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to delete activity log.",
-      );
-    } finally {
-      setDeletingId(null);
+  function handlePageInputKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (event.key === "Enter") {
+      event.currentTarget.blur();
+      applyPageNumber();
+    }
+
+    if (event.key === "Escape") {
+      setPageInput(String(page));
+      event.currentTarget.blur();
     }
   }
 
-  async function handleDeleteAll() {
-    if (summary.total === 0) {
-      toast.error(
-        "There are no activity logs to delete.",
-      );
-      return;
-    }
+  function goToPreviousPage() {
+    setPage((current) => Math.max(1, current - 1));
+  }
 
-    const confirmed = window.confirm(
-      `Delete all ${summary.total} activity logs?\n\nThis action cannot be undone.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    const confirmationText =
-      window.prompt(
-        'Type DELETE ALL to permanently remove every activity log.',
-      ) ?? "";
-
-    if (
-      confirmationText.trim().toUpperCase() !==
-      "DELETE ALL"
-    ) {
-      toast.info("Delete all was cancelled.");
-      return;
-    }
-
-    setDeletingAll(true);
-
-    try {
-      const deleted =
-        await deleteAllActivityLogs();
-
-      setLogs([]);
-      setPage(1);
-      setTotal(0);
-      setTotalPages(1);
-      setSummary(EMPTY_SUMMARY);
-
-      toast.success(
-        `${deleted} activity log${
-          deleted === 1 ? "" : "s"
-        } deleted.`,
-      );
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to delete all activity logs.",
-      );
-    } finally {
-      setDeletingAll(false);
-    }
+  function goToNextPage() {
+    setPage((current) => Math.min(totalPages, current + 1));
   }
 
   function clearFilters() {
@@ -543,14 +444,9 @@ export default function ActivityLogs() {
     Boolean(dateFrom) ||
     Boolean(dateTo);
 
-  const showingFrom =
-    total === 0
-      ? 0
-      : (page - 1) * PAGE_SIZE + 1;
-  const showingTo = Math.min(
-    page * PAGE_SIZE,
-    total,
-  );
+  const showingFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+
+  const showingTo = Math.min(page * PAGE_SIZE, total);
 
   return (
     <AdminLayout>
@@ -562,8 +458,7 @@ export default function ActivityLogs() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Review important system and account
-              activities.
+              Review important system and account activities.
             </p>
           </div>
 
@@ -571,35 +466,12 @@ export default function ActivityLogs() {
             <button
               type="button"
               onClick={() => void exportCsv()}
-              disabled={
-                loading ||
-                exporting ||
-                total === 0
-              }
+              disabled={loading || exporting || total === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               <Download className="h-4 w-4" />
-              {exporting
-                ? "Exporting..."
-                : "Export CSV"}
-            </button>
 
-            <button
-              type="button"
-              onClick={() =>
-                void handleDeleteAll()
-              }
-              disabled={
-                loading ||
-                deletingAll ||
-                summary.total === 0
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              {deletingAll
-                ? "Deleting all..."
-                : "Delete All"}
+              {exporting ? "Exporting..." : "Export CSV"}
             </button>
 
             <button
@@ -608,19 +480,14 @@ export default function ActivityLogs() {
                 void loadLogs(true);
                 void loadMeta();
               }}
-              disabled={refreshing || deletingAll}
+              disabled={refreshing}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-4 w-4 ${
-                  refreshing
-                    ? "animate-spin"
-                    : ""
-                }`}
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
               />
-              {refreshing
-                ? "Refreshing..."
-                : "Refresh"}
+
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </header>
@@ -631,16 +498,19 @@ export default function ActivityLogs() {
             value={summary.total}
             icon={FileClock}
           />
+
           <SummaryCard
             label="Today"
             value={summary.today}
             icon={CalendarDays}
           />
+
           <SummaryCard
             label="Approvals"
             value={summary.approvals}
             icon={CheckCircle2}
           />
+
           <SummaryCard
             label="Critical actions"
             value={summary.destructive}
@@ -648,6 +518,7 @@ export default function ActivityLogs() {
           />
         </section>
 
+        {/* FILTERS */}
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="grid gap-3 lg:grid-cols-[1fr_200px_200px]">
             <label className="relative">
@@ -656,9 +527,7 @@ export default function ActivityLogs() {
               <input
                 type="search"
                 value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search action, module, description, or user ID..."
                 className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-10 text-sm outline-none focus:border-blue-500 dark:border-slate-700"
               />
@@ -677,22 +546,13 @@ export default function ActivityLogs() {
 
             <select
               value={moduleFilter}
-              onChange={(event) =>
-                setModuleFilter(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setModuleFilter(event.target.value)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
-              <option value="All">
-                All modules
-              </option>
+              <option value="All">All modules</option>
 
               {moduleOptions.map((module) => (
-                <option
-                  key={module}
-                  value={module}
-                >
+                <option key={module} value={module}>
                   {module}
                 </option>
               ))}
@@ -700,22 +560,13 @@ export default function ActivityLogs() {
 
             <select
               value={actionFilter}
-              onChange={(event) =>
-                setActionFilter(
-                  event.target.value,
-                )
-              }
+              onChange={(event) => setActionFilter(event.target.value)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
-              <option value="All">
-                All actions
-              </option>
+              <option value="All">All actions</option>
 
               {actionOptions.map((action) => (
-                <option
-                  key={action}
-                  value={action}
-                >
+                <option key={action} value={action}>
                   {action}
                 </option>
               ))}
@@ -726,31 +577,21 @@ export default function ActivityLogs() {
             <select
               value={datePreset}
               onChange={(event) =>
-                setDatePreset(
-                  event.target
-                    .value as DatePreset,
-                )
+                setDatePreset(event.target.value as DatePreset)
               }
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
-              <option value="all">
-                All dates
-              </option>
-              <option value="today">
-                Today
-              </option>
-              <option value="7days">
-                Last 7 days
-              </option>
-              <option value="30days">
-                Last 30 days
-              </option>
-              <option value="month">
-                This month
-              </option>
-              <option value="custom">
-                Custom range
-              </option>
+              <option value="all">All dates</option>
+
+              <option value="today">Today</option>
+
+              <option value="7days">Last 7 days</option>
+
+              <option value="30days">Last 30 days</option>
+
+              <option value="month">This month</option>
+
+              <option value="custom">Custom range</option>
             </select>
 
             <input
@@ -758,9 +599,7 @@ export default function ActivityLogs() {
               value={dateFrom}
               disabled={datePreset !== "custom"}
               onChange={(event) => {
-                setDateFrom(
-                  event.target.value,
-                );
+                setDateFrom(event.target.value);
                 setPage(1);
               }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
@@ -772,9 +611,7 @@ export default function ActivityLogs() {
               disabled={datePreset !== "custom"}
               min={dateFrom || undefined}
               onChange={(event) => {
-                setDateTo(
-                  event.target.value,
-                );
+                setDateTo(event.target.value);
                 setPage(1);
               }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
@@ -792,45 +629,95 @@ export default function ActivityLogs() {
         </section>
 
         {error ? (
-          <section className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center dark:border-red-900/40 dark:bg-red-950/20">
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center dark:border-red-900/40 dark:bg-red-950/20 sm:p-6 lg:p-8">
             <p className="font-semibold text-red-700 dark:text-red-300">
               {error}
             </p>
 
             <button
               type="button"
-              onClick={() =>
-                void loadLogs()
-              }
+              onClick={() => void loadLogs()}
               className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white"
             >
               Try again
             </button>
           </section>
         ) : (
+          /*
+           * Pagination and table are intentionally
+           * inside the same container so there is
+           * NO GAP between them.
+           */
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            {/* TOP PAGINATION BAR */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
+              <p className="text-slate-500">
+                Showing {showingFrom}–{showingTo} of {total}
+              </p>
+
+              <div className="flex items-center gap-2">
+                {/* PREVIOUS */}
+                <button
+                  type="button"
+                  onClick={goToPreviousPage}
+                  disabled={page === 1 || loading}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                {/* PAGE NUMBER */}
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-700 dark:text-slate-200">
+                    Page
+                  </span>
+
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={pageInput}
+                    disabled={loading || totalPages <= 1}
+                    onChange={(event) => setPageInput(event.target.value)}
+                    onBlur={applyPageNumber}
+                    onKeyDown={handlePageInputKeyDown}
+                    className="h-9 w-14 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-blue-900/30"
+                    aria-label="Page number"
+                  />
+
+                  <span className="font-medium text-slate-700 dark:text-slate-200">
+                    of {totalPages}
+                  </span>
+                </div>
+
+                {/* NEXT */}
+                <button
+                  type="button"
+                  onClick={goToNextPage}
+                  disabled={page >= totalPages || loading}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* ACTIVITY LOG TABLE */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-250 text-sm">
+              <table className="w-full min-w-[1000px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60">
                   <tr>
-                    <th className="px-4 py-3">
-                      User
-                    </th>
-                    <th className="px-4 py-3">
-                      Module
-                    </th>
-                    <th className="px-4 py-3">
-                      Action
-                    </th>
-                    <th className="px-4 py-3">
-                      Description
-                    </th>
-                    <th className="px-4 py-3">
-                      Time
-                    </th>
-                    <th className="px-4 py-3 text-right">
-                      Manage
-                    </th>
+                    <th className="px-4 py-3">User</th>
+
+                    <th className="px-4 py-3">Module</th>
+
+                    <th className="px-4 py-3">Action</th>
+
+                    <th className="px-4 py-3">Description</th>
+
+                    <th className="px-4 py-3">Time</th>
                   </tr>
                 </thead>
 
@@ -838,7 +725,7 @@ export default function ActivityLogs() {
                   {loading ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={5}
                         className="px-4 py-12 text-center text-slate-500"
                       >
                         Loading activity logs...
@@ -847,7 +734,7 @@ export default function ActivityLogs() {
                   ) : logs.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={5}
                         className="px-4 py-12 text-center text-slate-500"
                       >
                         No activity found.
@@ -861,14 +748,11 @@ export default function ActivityLogs() {
                       >
                         <td className="px-4 py-4">
                           <p className="font-semibold text-slate-900 dark:text-white">
-                            {getActivityUserName(
-                              log,
-                            )}
+                            {getActivityUserName(log)}
                           </p>
 
                           <p className="mt-1 text-xs text-slate-500">
-                            {log.user?.email ||
-                              log.user_id}
+                            {log.user?.email || log.user_id}
                           </p>
 
                           {log.user?.role && (
@@ -878,10 +762,7 @@ export default function ActivityLogs() {
                           )}
                         </td>
 
-                        <td className="px-4 py-4">
-                          {log.module ||
-                            "Unknown"}
-                        </td>
+                        <td className="px-4 py-4">{log.module || "Unknown"}</td>
 
                         <td className="px-4 py-4">
                           <span
@@ -889,45 +770,18 @@ export default function ActivityLogs() {
                               log.action,
                             )}`}
                           >
-                            {log.action ||
-                              "UNKNOWN"}
+                            {log.action || "UNKNOWN"}
                           </span>
                         </td>
 
-                        <td className="max-w-120 px-4 py-4 text-slate-600 dark:text-slate-300">
+                        <td className="max-w-[480px] px-4 py-4 text-slate-600 dark:text-slate-300">
                           <p className="wrap-break-word">
-                            {log.description ||
-                              "No description"}
+                            {log.description || "No description"}
                           </p>
                         </td>
 
                         <td className="whitespace-nowrap px-4 py-4 text-slate-500">
-                          {formatDateTime(
-                            log.created_at,
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleDelete(
-                                log,
-                              )
-                            }
-                            disabled={
-                              deletingId ===
-                                log.id ||
-                              deletingAll
-                            }
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            {deletingId ===
-                            log.id
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
+                          {formatDateTime(log.created_at)}
                         </td>
                       </tr>
                     ))
@@ -935,58 +789,6 @@ export default function ActivityLogs() {
                 </tbody>
               </table>
             </div>
-
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
-              <p className="text-slate-500">
-                Showing {showingFrom}–
-                {showingTo} of {total}
-              </p>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPage((current) =>
-                      Math.max(
-                        1,
-                        current - 1,
-                      ),
-                    )
-                  }
-                  disabled={
-                    page === 1 || loading
-                  }
-                  className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                <span className="font-medium">
-                  Page {page} of {totalPages}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPage((current) =>
-                      Math.min(
-                        totalPages,
-                        current + 1,
-                      ),
-                    )
-                  }
-                  disabled={
-                    page >= totalPages ||
-                    loading
-                  }
-                  className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700"
-                  aria-label="Next page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </footer>
           </section>
         )}
       </section>
@@ -1006,9 +808,7 @@ function SummaryCard({
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">
-          {label}
-        </p>
+        <p className="text-sm font-medium text-slate-500">{label}</p>
 
         <Icon className="h-5 w-5 text-blue-600" />
       </div>

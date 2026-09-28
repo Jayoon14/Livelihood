@@ -106,13 +106,20 @@ function formatDateTime(value?: string | null): string {
   }).format(date);
 }
 
-function calculateHoursWorked(start?: string | null, end?: string | null): number | null {
+function calculateHoursWorked(
+  start?: string | null,
+  end?: string | null,
+): number | null {
   if (!start || !end) return null;
 
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
 
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endMs) ||
+    endMs <= startMs
+  ) {
     return null;
   }
 
@@ -125,7 +132,11 @@ function formatDuration(start?: string | null, end?: string | null): string {
   const startMs = new Date(start).getTime();
   const endMs = new Date(end).getTime();
 
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endMs) ||
+    endMs <= startMs
+  ) {
     return "Not available";
   }
 
@@ -171,7 +182,6 @@ function getStoragePathFromPublicUrl(imageUrl: string): string | null {
   }
 }
 
-
 const MAX_SOURCE_IMAGE_SIZE = 30 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1920;
 const MIN_COMPRESSION_QUALITY = 0.35;
@@ -183,7 +193,12 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
     return await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error(`Unable to read "${file.name}". Please choose another image.`));
+      image.onerror = () =>
+        reject(
+          new Error(
+            `Unable to read "${file.name}". Please choose another image.`,
+          ),
+        );
       image.src = sourceUrl;
     });
   } finally {
@@ -193,66 +208,111 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
 
 function createImageCanvas(image: HTMLImageElement): HTMLCanvasElement {
   const largestDimension = Math.max(image.naturalWidth, image.naturalHeight);
-  const scale = largestDimension > MAX_IMAGE_DIMENSION ? MAX_IMAGE_DIMENSION / largestDimension : 1;
+  const scale =
+    largestDimension > MAX_IMAGE_DIMENSION
+      ? MAX_IMAGE_DIMENSION / largestDimension
+      : 1;
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
   const context = canvas.getContext("2d", { alpha: false });
-  if (!context) throw new Error("Image compression is not supported by this browser.");
+  if (!context)
+    throw new Error("Image compression is not supported by this browser.");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("The image could not be prepared for upload."));
-        return;
-      }
-      resolve(blob);
-    }, type, quality);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("The image could not be prepared for upload."));
+          return;
+        }
+        resolve(blob);
+      },
+      type,
+      quality,
+    );
   });
 }
 
 async function prepareProofImage(file: File): Promise<File> {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new Error(`"${file.name}" is not a supported image. Use JPG, PNG, or WebP.`);
+    throw new Error(
+      `"${file.name}" is not a supported image. Use JPG, PNG, or WebP.`,
+    );
   }
   if (file.size <= 0) throw new Error(`"${file.name}" is empty or unreadable.`);
   if (file.size > MAX_SOURCE_IMAGE_SIZE) {
-    throw new Error(`"${file.name}" is larger than 30 MB. Please choose a smaller photo.`);
+    throw new Error(
+      `"${file.name}" is larger than 30 MB. Please choose a smaller photo.`,
+    );
   }
-  if (file.size <= MAX_IMAGE_SIZE && (file.type === "image/jpeg" || file.type === "image/webp")) {
+  if (
+    file.size <= MAX_IMAGE_SIZE &&
+    (file.type === "image/jpeg" || file.type === "image/webp")
+  ) {
     return file;
   }
   const image = await loadImageElement(file);
   let workingCanvas = createImageCanvas(image);
   let quality = 0.9;
   let outputBlob = await canvasToBlob(workingCanvas, "image/webp", quality);
-  while (outputBlob.size > MAX_IMAGE_SIZE && quality > MIN_COMPRESSION_QUALITY) {
+  while (
+    outputBlob.size > MAX_IMAGE_SIZE &&
+    quality > MIN_COMPRESSION_QUALITY
+  ) {
     quality = Math.max(MIN_COMPRESSION_QUALITY, quality - 0.1);
     outputBlob = await canvasToBlob(workingCanvas, "image/webp", quality);
   }
-  while (outputBlob.size > MAX_IMAGE_SIZE && workingCanvas.width > 640 && workingCanvas.height > 640) {
+  while (
+    outputBlob.size > MAX_IMAGE_SIZE &&
+    workingCanvas.width > 640 &&
+    workingCanvas.height > 640
+  ) {
     const resizedCanvas = document.createElement("canvas");
     resizedCanvas.width = Math.max(640, Math.round(workingCanvas.width * 0.82));
-    resizedCanvas.height = Math.max(640, Math.round(workingCanvas.height * 0.82));
+    resizedCanvas.height = Math.max(
+      640,
+      Math.round(workingCanvas.height * 0.82),
+    );
     const context = resizedCanvas.getContext("2d", { alpha: false });
     if (!context) break;
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height);
-    context.drawImage(workingCanvas, 0, 0, resizedCanvas.width, resizedCanvas.height);
+    context.drawImage(
+      workingCanvas,
+      0,
+      0,
+      resizedCanvas.width,
+      resizedCanvas.height,
+    );
     workingCanvas = resizedCanvas;
-    outputBlob = await canvasToBlob(workingCanvas, "image/webp", MIN_COMPRESSION_QUALITY);
+    outputBlob = await canvasToBlob(
+      workingCanvas,
+      "image/webp",
+      MIN_COMPRESSION_QUALITY,
+    );
   }
   if (outputBlob.size > MAX_IMAGE_SIZE) {
-    throw new Error(`"${file.name}" could not be compressed below 5 MB. Please choose another image.`);
+    throw new Error(
+      `"${file.name}" could not be compressed below 5 MB. Please choose another image.`,
+    );
   }
-  const baseName = file.name.replace(/\.[^.]+$/, "").trim() || "completion-proof";
-  return new File([outputBlob], `${baseName}.webp`, { type: "image/webp", lastModified: Date.now() });
+  const baseName =
+    file.name.replace(/\.[^.]+$/, "").trim() || "completion-proof";
+  return new File([outputBlob], `${baseName}.webp`, {
+    type: "image/webp",
+    lastModified: Date.now(),
+  });
 }
 
 export default function CompleteJob() {
@@ -386,16 +446,10 @@ export default function CompleteJob() {
             normalizedProof ? Number(normalizedProof.id) : null,
           );
 
-          if (normalizedProof) {
-            setSummary(normalizedProof.summary ?? "");
-            setNotes(normalizedProof.notes ?? "");
-            setHoursWorked(
-              normalizedProof.hours_worked === null ||
-                normalizedProof.hours_worked === undefined
-                ? ""
-                : String(normalizedProof.hours_worked),
-            );
-          }
+              if (normalizedProof) {
+              setSummary(normalizedProof.summary ?? "");
+              setNotes(normalizedProof.notes ?? "");
+            }
         }
       } catch (error) {
         if (mounted) setPageError(getErrorMessage(error));
@@ -560,19 +614,31 @@ export default function CompleteJob() {
 
     const filesToAdd = inputFiles.slice(0, remainingSlots);
     if (inputFiles.length > remainingSlots) {
-      toast.warning(`Only ${remainingSlots} more image${remainingSlots === 1 ? "" : "s"} can be added.`);
+      toast.warning(
+        `Only ${remainingSlots} more image${remainingSlots === 1 ? "" : "s"} can be added.`,
+      );
     }
 
     try {
       setPreparingImages(true);
-      const largeImageCount = filesToAdd.filter((file) => file.size > MAX_IMAGE_SIZE).length;
+      const largeImageCount = filesToAdd.filter(
+        (file) => file.size > MAX_IMAGE_SIZE,
+      ).length;
       if (largeImageCount > 0) {
-        toast.info(`Preparing ${largeImageCount} large image${largeImageCount === 1 ? "" : "s"} for upload...`);
+        toast.info(
+          `Preparing ${largeImageCount} large image${largeImageCount === 1 ? "" : "s"} for upload...`,
+        );
       }
-      const preparedFiles = await Promise.all(filesToAdd.map((file) => prepareProofImage(file)));
-      const newImages = preparedFiles.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+      const preparedFiles = await Promise.all(
+        filesToAdd.map((file) => prepareProofImage(file)),
+      );
+      const newImages = preparedFiles.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
       setSelectedImages((current) => [...current, ...newImages]);
-      if (largeImageCount > 0) toast.success("Large proof images were compressed successfully.");
+      if (largeImageCount > 0)
+        toast.success("Large proof images were compressed successfully.");
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -653,12 +719,17 @@ export default function CompleteJob() {
     const normalizedNotes = notes.trim();
 
     if (!booking?.trip_started_at) {
-      toast.error("The service start time was not recorded. Please return to the booking.");
+      toast.error(
+        "The service start time was not recorded. Please return to the booking.",
+      );
       return;
     }
 
     const completionAt = new Date().toISOString();
-    const parsedHours = calculateHoursWorked(booking.trip_started_at, completionAt);
+    const parsedHours = calculateHoursWorked(
+      booking.trip_started_at,
+      completionAt,
+    );
 
     if (!normalizedSummary) {
       toast.warning("Please enter a work summary.");
@@ -681,7 +752,9 @@ export default function CompleteJob() {
     }
 
     if (parsedHours === null || parsedHours <= 0) {
-      toast.error("The service duration could not be calculated from the recorded Start Service time.");
+      toast.error(
+        "The service duration could not be calculated from the recorded Start Service time.",
+      );
       return;
     }
 
@@ -1188,7 +1261,9 @@ export default function CompleteJob() {
 
                   <label
                     className={`mt-5 flex min-h-16 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-5 py-4 text-center transition sm:flex-row ${
-                      selectedImages.length >= MAX_IMAGES || submitting || preparingImages
+                      selectedImages.length >= MAX_IMAGES ||
+                      submitting ||
+                      preparingImages
                         ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800"
                         : "border-blue-300 bg-blue-50 text-blue-700 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
                     }`}
@@ -1218,7 +1293,10 @@ export default function CompleteJob() {
                   </label>
 
                   <div className="mt-3 flex flex-col justify-between gap-1 text-xs text-slate-500 sm:flex-row dark:text-slate-400">
-                    <span>JPG, PNG, or WebP. Large mobile photos are compressed automatically.</span>
+                    <span>
+                      JPG, PNG, or WebP. Large mobile photos are compressed
+                      automatically.
+                    </span>
                     <span className="font-bold">
                       {selectedImages.length}/{MAX_IMAGES} uploaded
                     </span>
@@ -1235,27 +1313,50 @@ export default function CompleteJob() {
                         Automatic Service Time
                       </h2>
                       <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        The system records the actual arrival and service times automatically. No manual hours input is required.
+                        The system records the actual arrival and service times
+                        automatically. No manual hours input is required.
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Actual Arrival</p>
-                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{formatDateTime(booking.arrived_at)}</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Actual Arrival
+                      </p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                        {formatDateTime(booking.arrived_at)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Service Started</p>
-                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{formatDateTime(booking.trip_started_at)}</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Service Started
+                      </p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                        {formatDateTime(booking.trip_started_at)}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Current Time</p>
-                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">{new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(serviceClock))}</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Current Time
+                      </p>
+                      <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                        {new Intl.DateTimeFormat("en-PH", {
+                          timeStyle: "short",
+                          timeZone: "Asia/Manila",
+                        }).format(new Date(serviceClock))}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">Actual Work Duration</p>
-                      <p className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-200">{formatDuration(booking.trip_started_at, new Date(serviceClock).toISOString())}</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-300">
+                        Actual Work Duration
+                      </p>
+                      <p className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-200">
+                        {formatDuration(
+                          booking.trip_started_at,
+                          new Date(serviceClock).toISOString(),
+                        )}
+                      </p>
                     </div>
                   </div>
                 </section>
@@ -1328,7 +1429,6 @@ export default function CompleteJob() {
                         className="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-900"
                       />
                     </div>
-
                   </div>
                 </section>
               </div>
