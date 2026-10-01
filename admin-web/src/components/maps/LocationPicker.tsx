@@ -102,6 +102,7 @@ interface Props {
 
   initialLocation?: InitialLocation;
   navigationMode?: boolean;
+  autoLocateOnMount?: boolean;
 
   externalRouteTarget?: ExternalRouteTarget | null;
   externalRouteRequestKey?: number;
@@ -116,6 +117,7 @@ export default function LocationPicker({
   onNearbyWorkerSelect,
   initialLocation,
   navigationMode = false,
+  autoLocateOnMount = true,
   externalRouteTarget = null,
   externalRouteRequestKey = 0,
   onExternalRouteStarted,
@@ -535,6 +537,7 @@ useEffect(() => {
   useEffect(() => {
     if (
       navigationMode ||
+      !autoLocateOnMount ||
       initialGpsRequestedRef.current ||
       userSelectedLocationRef.current
     ) {
@@ -543,7 +546,7 @@ useEffect(() => {
 
     initialGpsRequestedRef.current = true;
     void getCurrentLocation(true);
-  }, [getCurrentLocation, navigationMode]);
+  }, [autoLocateOnMount, getCurrentLocation, navigationMode]);
 
 const selectedMapStyle =
   style === "satellite"
@@ -771,13 +774,20 @@ const layersModalProps = useLayersModalProps({
     : "";
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:rounded-[28px]">
+    <div
+      className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.12)] sm:rounded-[28px]"
+      onClick={(event) => event.stopPropagation()}
+    >
       <div className="relative flex h-[68dvh] min-h-[500px] max-h-[760px] w-full overflow-hidden sm:h-[650px]">
         <div className="hidden w-[320px] shrink-0 md:block">
           <MapSidebar {...sidebarProps} />
         </div>
         <div className="relative flex-1">
-          <div ref={mapContainerRef} className="h-full w-full bg-slate-100" />
+          <div
+            ref={mapContainerRef}
+            className="h-full w-full bg-slate-100"
+            onClick={(event) => event.stopPropagation()}
+          />
 
           {showNearbyWorkers && !selectedWorkerId && (
             <div className="pointer-events-none absolute left-1/2 top-3 z-30 w-[calc(100%-1.5rem)] max-w-[520px] -translate-x-1/2 sm:top-4 sm:w-[calc(100%-2rem)] md:max-w-[520px]">

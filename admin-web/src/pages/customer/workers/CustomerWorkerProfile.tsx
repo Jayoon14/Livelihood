@@ -1032,6 +1032,131 @@ export default function CustomerWorkerProfile() {
             </div>
           </section>
 
+          {/* PROFESSIONAL OVERVIEW */}
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="mb-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">
+                Worker information
+              </p>
+              <h2 className="mt-1 text-xl font-extrabold text-slate-950 sm:text-2xl">
+                Professional Overview
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
+                Get a quick view of this worker's skills, experience, and
+                professional services before booking.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <Award size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wide">
+                    Skills
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950">
+                  {worker.skills?.length ?? 0}
+                </p>
+                <p className="text-xs text-slate-500">listed skills</p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <Briefcase size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wide">
+                    Experience
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950">
+                  {worker.workExperience?.length ?? 0}
+                </p>
+                <p className="text-xs text-slate-500">work records</p>
+              </div>
+
+              <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+                <div className="flex items-center gap-2 text-violet-700">
+                  <GraduationCap size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wide">
+                    Education
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950">
+                  {worker.education ? "Provided" : "Not provided"}
+                </p>
+                <p className="text-xs text-slate-500">education information</p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <Star size={18} className="fill-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wide">
+                    Rating
+                  </span>
+                </div>
+                <p className="mt-2 text-2xl font-extrabold text-slate-950">
+                  {rating.toFixed(1)} / 5
+                </p>
+                <p className="text-xs text-slate-500">customer rating</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-blue-600" />
+                  <h3 className="font-extrabold text-slate-900">
+                    Professional Summary
+                  </h3>
+                </div>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  {fullName} offers{" "}
+                  {worker.services.length > 0
+                    ? worker.services
+                        .slice(0, 3)
+                        .map((service) => service.service_name)
+                        .filter(Boolean)
+                        .join(", ")
+                    : "professional services"}
+                  .
+                  {worker.skills?.length
+                    ? ` The worker has ${worker.skills.length} listed skill${worker.skills.length === 1 ? "" : "s"}.`
+                    : " Skills have not been listed yet."}
+                  {worker.workExperience?.length
+                    ? ` Work experience records are available for customer reference.`
+                    : " No work experience has been listed yet."}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-emerald-600" />
+                  <h3 className="font-extrabold text-slate-900">
+                    Trust Information
+                  </h3>
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-slate-500">Worker verification</span>
+                    <span className="font-bold text-emerald-700">Verified</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-slate-500">Approved services</span>
+                    <span className="font-bold text-slate-900">
+                      {worker.services.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-slate-500">Completed jobs</span>
+                    <span className="font-bold text-slate-900">
+                      {completedJobs}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* BOOKING SECTION */}
           <section
             id="booking-section"

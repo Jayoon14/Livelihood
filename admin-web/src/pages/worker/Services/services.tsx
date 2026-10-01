@@ -518,7 +518,8 @@ export default function Services() {
       setPage(totalPages);
     }, 0);
 
-    return () => window.clearTimeout(timer);
+  
+  return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   function updateFormField<K extends keyof ServiceFormState>(
@@ -923,6 +924,27 @@ export default function Services() {
             </div>
           </section>
 
+          {!loading && totalPages > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-slate-500 dark:text-slate-400">
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredServices.length)} of {filteredServices.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Previous page">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-700 dark:text-slate-200">Page</span>
+                  <input type="number" min={1} max={totalPages} value={page} onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))} className="h-9 w-14 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white" aria-label="Page number" />
+                  <span className="font-medium text-slate-700 dark:text-slate-200">of {totalPages}</span>
+                </div>
+                <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Next page">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <section className="grid gap-4 md:grid-cols-2 xl:gap-5">
               {Array.from({
@@ -973,53 +995,6 @@ export default function Services() {
                 />
               ))}
             </section>
-          )}
-
-          {!loading && filteredServices.length > 0 && (
-            <footer className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Showing{" "}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {(page - 1) * PAGE_SIZE + 1}
-                </strong>
-                –
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {Math.min(page * PAGE_SIZE, filteredServices.length)}
-                </strong>{" "}
-                of{" "}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {filteredServices.length}
-                </strong>
-              </p>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={page === 1}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                  aria-label="Previous page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                <span className="min-w-24 text-center text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  Page {page} of {totalPages}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
-                  }
-                  disabled={page === totalPages}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                  aria-label="Next page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </footer>
           )}
         </div>
 

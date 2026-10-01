@@ -32,6 +32,7 @@ export type ChatProfile = {
   first_name: string | null;
   last_name: string | null;
   profile_picture: string | null;
+  last_seen?: string | null;
 };
 
 export type ChatMessage = {
@@ -89,6 +90,7 @@ function normalizeProfile(value: unknown): ChatProfile {
     first_name: profile?.first_name ?? null,
     last_name: profile?.last_name ?? null,
     profile_picture: profile?.profile_picture ?? null,
+    last_seen: profile?.last_seen ?? null,
   };
 }
 
@@ -200,13 +202,15 @@ async function getParticipantContext(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       ),
       worker:profiles!worker_id(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       )
     `)
     .eq("id", bookingId)
@@ -317,7 +321,8 @@ async function insertMessage(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       )
     `)
     .single();
@@ -395,7 +400,8 @@ export async function getMessages(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       )
     `)
     .eq("booking_id", bookingId)
@@ -687,13 +693,15 @@ export async function getChatList(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       ),
       worker:profiles!worker_id(
         id,
         first_name,
         last_name,
-        profile_picture
+        profile_picture,
+        last_seen
       )
     `)
     .or(`customer_id.eq.${userId},worker_id.eq.${userId}`)

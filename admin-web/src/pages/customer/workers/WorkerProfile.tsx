@@ -88,10 +88,10 @@ type WorkerProfileData = {
     position?: string | null;
     description?: string | null;
   }>;
-skills?: Array<{
-  id: number | string;
-  skill: string;
-}>;
+  skills?: Array<{
+    id: number | string;
+    skill: string;
+  }>;
 };
 
 const fieldClass =
@@ -126,9 +126,13 @@ function readBookingDraft(workerId: string): BookingDraft | null {
     const parsed = JSON.parse(raw) as Partial<BookingDraft>;
 
     return {
-      serviceId: Number.isInteger(parsed.serviceId) ? Number(parsed.serviceId) : null,
-      bookingDate: typeof parsed.bookingDate === "string" ? parsed.bookingDate : "",
-      bookingTime: typeof parsed.bookingTime === "string" ? parsed.bookingTime : "",
+      serviceId: Number.isInteger(parsed.serviceId)
+        ? Number(parsed.serviceId)
+        : null,
+      bookingDate:
+        typeof parsed.bookingDate === "string" ? parsed.bookingDate : "",
+      bookingTime:
+        typeof parsed.bookingTime === "string" ? parsed.bookingTime : "",
       address: typeof parsed.address === "string" ? parsed.address : "",
       latitude: typeof parsed.latitude === "number" ? parsed.latitude : null,
       longitude: typeof parsed.longitude === "number" ? parsed.longitude : null,
@@ -184,11 +188,7 @@ function calculateDistanceMeters(
       Math.cos(secondLatitudeRadians) *
       Math.sin(longitudeDifference / 2) ** 2;
 
-  return (
-    earthRadiusMeters *
-    2 *
-    Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  );
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function workerLocationIsFresh(location: BookableWorkerLocation): boolean {
@@ -212,8 +212,9 @@ export default function CustomerWorkerProfile() {
     [],
   );
 
-  const [selectedService, setSelectedService] =
-    useState<WorkerService | null>(null);
+  const [selectedService, setSelectedService] = useState<WorkerService | null>(
+    null,
+  );
   const [bookingDate, setBookingDate] = useState("");
   const [bookingTime, setBookingTime] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -257,19 +258,19 @@ export default function CustomerWorkerProfile() {
     }).format(Number.isFinite(price) ? price : 0);
   }, [selectedService]);
 
-  const selectedPricingType =
-    selectedService?.pricing_type ?? "fixed";
-  const pricingLabel = selectedPricingType === "hourly"
-    ? "Hourly rate"
-    : selectedPricingType === "daily"
-      ? "Daily rate"
-      : "Contract price";
-  const pricingMethodLabel = selectedPricingType === "hourly"
-    ? "Hourly Rate"
-    : selectedPricingType === "daily"
-      ? "Daily Rate"
-      : "Fixed Price";
-
+  const selectedPricingType = selectedService?.pricing_type ?? "fixed";
+  const pricingLabel =
+    selectedPricingType === "hourly"
+      ? "Hourly rate"
+      : selectedPricingType === "daily"
+        ? "Daily rate"
+        : "Contract price";
+  const pricingMethodLabel =
+    selectedPricingType === "hourly"
+      ? "Hourly Rate"
+      : selectedPricingType === "daily"
+        ? "Daily Rate"
+        : "Fixed Price";
 
   const minimumBookingDate = useMemo(() => {
     const today = new Date();
@@ -281,8 +282,7 @@ export default function CustomerWorkerProfile() {
 
   const selectedWorkerIsNearby =
     selectedWorkerDistanceMeters !== null &&
-    selectedWorkerDistanceMeters <=
-      MAX_BOOKING_DISTANCE_KILOMETERS * 1_000;
+    selectedWorkerDistanceMeters <= MAX_BOOKING_DISTANCE_KILOMETERS * 1_000;
 
   const bookingReady =
     Boolean(selectedService) &&
@@ -379,8 +379,9 @@ export default function CustomerWorkerProfile() {
         const restoredService =
           draft.serviceId === null
             ? null
-            : data.services.find((service) => service.id === draft.serviceId) ??
-              null;
+            : (data.services.find(
+                (service) => service.id === draft.serviceId,
+              ) ?? null);
 
         setSelectedService(restoredService);
         setBookingDate(draft.bookingDate);
@@ -392,7 +393,10 @@ export default function CustomerWorkerProfile() {
 
         if (draft.bookingDate) {
           try {
-            const availability = await checkWorkerAvailability(id, draft.bookingDate);
+            const availability = await checkWorkerAvailability(
+              id,
+              draft.bookingDate,
+            );
 
             if (availability.available) {
               const slots = await getAvailableTimeSlots(id, draft.bookingDate);
@@ -407,7 +411,8 @@ export default function CustomerWorkerProfile() {
             } else {
               setAvailableSlots([]);
               setAvailabilityMessage(
-                availability.reason || "The worker is unavailable on this date.",
+                ("reason" in availability ? availability.reason : null) ||
+                  "The worker is unavailable on this date.",
               );
             }
           } catch (draftError) {
@@ -484,10 +489,7 @@ export default function CustomerWorkerProfile() {
 
       setSelectedWorkerDistanceMeters(distanceMeters);
 
-      if (
-        distanceMeters >
-        MAX_BOOKING_DISTANCE_KILOMETERS * 1_000
-      ) {
+      if (distanceMeters > MAX_BOOKING_DISTANCE_KILOMETERS * 1_000) {
         const distanceKilometers = (distanceMeters / 1_000).toFixed(1);
         const message =
           `This worker is ${distanceKilometers} km from the selected service location. ` +
@@ -521,11 +523,7 @@ export default function CustomerWorkerProfile() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      if (
-        !worker ||
-        latitude === null ||
-        longitude === null
-      ) {
+      if (!worker || latitude === null || longitude === null) {
         setSelectedWorkerDistanceMeters(null);
         setWorkerLocationMessage("");
         return;
@@ -566,7 +564,6 @@ export default function CustomerWorkerProfile() {
 
       const slots = await getAvailableTimeSlots(worker.profile.id, date);
       setAvailableSlots(slots ?? []);
-
     } catch (error) {
       console.error("Failed checking availability:", error);
       setAvailabilityMessage(
@@ -624,14 +621,16 @@ export default function CustomerWorkerProfile() {
       );
 
       if (availability.available === false) {
-        toast.warning(availability.reason || "The worker is unavailable on this date.");
+        toast.warning(
+          availability.reason || "The worker is unavailable on this date.",
+        );
         return;
       }
 
       const latestSlots = await getAvailableTimeSlots(
-         worker.profile.id,
-         bookingDate,
-       );
+        worker.profile.id,
+        bookingDate,
+      );
 
       if (!latestSlots.includes(bookingTime)) {
         toast.warning(
@@ -728,7 +727,9 @@ export default function CustomerWorkerProfile() {
         "_blank",
         "noopener,noreferrer",
       );
-      toast.success("Profile link copied. Paste it into your Instagram post or message.");
+      toast.success(
+        "Profile link copied. Paste it into your Instagram post or message.",
+      );
     } catch (error) {
       console.error("Unable to prepare Instagram sharing:", error);
     }
@@ -868,8 +869,8 @@ export default function CustomerWorkerProfile() {
                       onClick={shareFacebook}
                       className={secondaryButtonClass}
                     >
-                    <FaFacebook size={16} />
-                    Facebook
+                      <FaFacebook size={16} />
+                      Facebook
                     </button>
 
                     <button
@@ -877,8 +878,8 @@ export default function CustomerWorkerProfile() {
                       onClick={() => void shareInstagram()}
                       className={secondaryButtonClass}
                     >
-                    <FaInstagram size={16} />
-                    Instagram
+                      <FaInstagram size={16} />
+                      Instagram
                     </button>
 
                     <button
@@ -934,10 +935,7 @@ export default function CustomerWorkerProfile() {
               </div>
 
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
-                <Star
-                  size={14}
-                  className="fill-amber-400 text-amber-400"
-                />
+                <Star size={14} className="fill-amber-400 text-amber-400" />
                 {rating.toFixed(1)} verified worker
               </span>
             </header>
@@ -975,13 +973,12 @@ export default function CustomerWorkerProfile() {
                       {worker.services.map((service) => (
                         <option key={service.id} value={service.id}>
                           {service.service_name} — ₱
-                          {Number(service.price).toLocaleString("en-PH")} · {
-                            service.pricing_type === "daily"
-                              ? "Daily Rate"
-                              : service.pricing_type === "hourly"
-                                ? "Hourly Rate"
-                                : "Fixed Price"
-                          }
+                          {Number(service.price).toLocaleString("en-PH")} ·{" "}
+                          {service.pricing_type === "daily"
+                            ? "Daily Rate"
+                            : service.pricing_type === "hourly"
+                              ? "Hourly Rate"
+                              : "Fixed Price"}
                         </option>
                       ))}
                     </select>
@@ -1274,10 +1271,7 @@ export default function CustomerWorkerProfile() {
 
           {/* EDUCATION + SKILLS */}
           <div className="grid items-stretch gap-6 lg:grid-cols-2">
-            <InfoCard
-              icon={<GraduationCap size={21} />}
-              title="Education"
-            >
+            <InfoCard icon={<GraduationCap size={21} />} title="Education">
               {worker.education ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <h3 className="font-bold text-slate-900">

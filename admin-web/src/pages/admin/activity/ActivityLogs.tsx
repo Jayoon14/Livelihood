@@ -32,7 +32,13 @@ import {
 
 const PAGE_SIZE = 10;
 
-type DatePreset = "all" | "today" | "7days" | "30days" | "month" | "custom";
+type DatePreset =
+  | "all"
+  | "today"
+  | "7days"
+  | "30days"
+  | "month"
+  | "custom";
 
 const EMPTY_SUMMARY: ActivityLogSummary = {
   total: 0,
@@ -163,7 +169,8 @@ export default function ActivityLogs() {
 
   const [actionOptions, setActionOptions] = useState<string[]>([]);
 
-  const [summary, setSummary] = useState<ActivityLogSummary>(EMPTY_SUMMARY);
+  const [summary, setSummary] =
+    useState<ActivityLogSummary>(EMPTY_SUMMARY);
 
   const [page, setPage] = useState(1);
 
@@ -184,13 +191,10 @@ export default function ActivityLogs() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    setPageInput(String(page));
-  }, [page]);
-
-  useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim());
       setPage(1);
+      setPageInput("1");
     }, 350);
 
     return () => window.clearTimeout(timer);
@@ -207,6 +211,7 @@ export default function ActivityLogs() {
       setDateFrom(range.from);
       setDateTo(range.to);
       setPage(1);
+      setPageInput("1");
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -215,6 +220,7 @@ export default function ActivityLogs() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setPage(1);
+      setPageInput("1");
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -235,7 +241,14 @@ export default function ActivityLogs() {
 
       dateTo: dateTo || undefined,
     }),
-    [actionFilter, dateFrom, dateTo, debouncedSearch, moduleFilter, page],
+    [
+      actionFilter,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+      moduleFilter,
+      page,
+    ],
   );
 
   const loadLogs = useCallback(
@@ -388,6 +401,7 @@ export default function ActivityLogs() {
   function applyPageNumber() {
     if (totalPages <= 0) {
       setPage(1);
+      setPageInput("1");
       return;
     }
 
@@ -398,7 +412,10 @@ export default function ActivityLogs() {
       return;
     }
 
-    const targetPage = Math.min(totalPages, Math.max(1, parsed));
+    const targetPage = Math.min(
+      totalPages,
+      Math.max(1, parsed),
+    );
 
     setPage(targetPage);
     setPageInput(String(targetPage));
@@ -419,11 +436,23 @@ export default function ActivityLogs() {
   }
 
   function goToPreviousPage() {
-    setPage((current) => Math.max(1, current - 1));
+    setPage((current) => {
+      const nextPage = Math.max(1, current - 1);
+
+      setPageInput(String(nextPage));
+
+      return nextPage;
+    });
   }
 
   function goToNextPage() {
-    setPage((current) => Math.min(totalPages, current + 1));
+    setPage((current) => {
+      const nextPage = Math.min(totalPages, current + 1);
+
+      setPageInput(String(nextPage));
+
+      return nextPage;
+    });
   }
 
   function clearFilters() {
@@ -434,6 +463,7 @@ export default function ActivityLogs() {
     setDateFrom("");
     setDateTo("");
     setPage(1);
+    setPageInput("1");
   }
 
   const hasFilters =
@@ -444,7 +474,8 @@ export default function ActivityLogs() {
     Boolean(dateFrom) ||
     Boolean(dateTo);
 
-  const showingFrom = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const showingFrom =
+    total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
   const showingTo = Math.min(page * PAGE_SIZE, total);
 
@@ -484,7 +515,9 @@ export default function ActivityLogs() {
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                className={`h-4 w-4 ${
+                  refreshing ? "animate-spin" : ""
+                }`}
               />
 
               {refreshing ? "Refreshing..." : "Refresh"}
@@ -527,7 +560,9 @@ export default function ActivityLogs() {
               <input
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
                 placeholder="Search action, module, description, or user ID..."
                 className="w-full rounded-xl border border-slate-200 bg-transparent py-2.5 pl-10 pr-10 text-sm outline-none focus:border-blue-500 dark:border-slate-700"
               />
@@ -546,7 +581,9 @@ export default function ActivityLogs() {
 
             <select
               value={moduleFilter}
-              onChange={(event) => setModuleFilter(event.target.value)}
+              onChange={(event) =>
+                setModuleFilter(event.target.value)
+              }
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
               <option value="All">All modules</option>
@@ -560,7 +597,9 @@ export default function ActivityLogs() {
 
             <select
               value={actionFilter}
-              onChange={(event) => setActionFilter(event.target.value)}
+              onChange={(event) =>
+                setActionFilter(event.target.value)
+              }
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
               <option value="All">All actions</option>
@@ -577,7 +616,9 @@ export default function ActivityLogs() {
             <select
               value={datePreset}
               onChange={(event) =>
-                setDatePreset(event.target.value as DatePreset)
+                setDatePreset(
+                  event.target.value as DatePreset,
+                )
               }
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             >
@@ -601,6 +642,7 @@ export default function ActivityLogs() {
               onChange={(event) => {
                 setDateFrom(event.target.value);
                 setPage(1);
+                setPageInput("1");
               }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
             />
@@ -613,6 +655,7 @@ export default function ActivityLogs() {
               onChange={(event) => {
                 setDateTo(event.target.value);
                 setPage(1);
+                setPageInput("1");
               }}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
             />
@@ -679,7 +722,9 @@ export default function ActivityLogs() {
                     max={totalPages}
                     value={pageInput}
                     disabled={loading || totalPages <= 1}
-                    onChange={(event) => setPageInput(event.target.value)}
+                    onChange={(event) =>
+                      setPageInput(event.target.value)
+                    }
                     onBlur={applyPageNumber}
                     onKeyDown={handlePageInputKeyDown}
                     className="h-9 w-14 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-blue-900/30"
@@ -715,7 +760,9 @@ export default function ActivityLogs() {
 
                     <th className="px-4 py-3">Action</th>
 
-                    <th className="px-4 py-3">Description</th>
+                    <th className="px-4 py-3">
+                      Description
+                    </th>
 
                     <th className="px-4 py-3">Time</th>
                   </tr>
@@ -762,7 +809,9 @@ export default function ActivityLogs() {
                           )}
                         </td>
 
-                        <td className="px-4 py-4">{log.module || "Unknown"}</td>
+                        <td className="px-4 py-4">
+                          {log.module || "Unknown"}
+                        </td>
 
                         <td className="px-4 py-4">
                           <span
@@ -776,7 +825,8 @@ export default function ActivityLogs() {
 
                         <td className="max-w-[480px] px-4 py-4 text-slate-600 dark:text-slate-300">
                           <p className="wrap-break-word">
-                            {log.description || "No description"}
+                            {log.description ||
+                              "No description"}
                           </p>
                         </td>
 
@@ -808,7 +858,9 @@ function SummaryCard({
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className="text-sm font-medium text-slate-500">
+          {label}
+        </p>
 
         <Icon className="h-5 w-5 text-blue-600" />
       </div>

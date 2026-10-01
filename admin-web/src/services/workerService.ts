@@ -66,24 +66,58 @@ export interface EducationRecord {
 export interface WorkExperienceRecord {
   id: string | number;
   profile_id: string;
-
-  company_name: string | null;
+  company?: string | null;
   position: string | null;
-  start_year: string | number | null;
-  end_year: string | number | null;
+  employment_status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  description?: string | null;
+  company_name?: string | null;
+  start_year?: string | number | null;
+  end_year?: string | number | null;
 }
 
 export interface WorkerSkillRecord {
   id: string | number;
   profile_id: string;
-
   skill: string;
+  skill_name?: string | null;
 }
 
 export interface WorkerDocumentRecord {
   id?: string | number;
   profile_id: string;
   [key: string]: unknown;
+}
+
+
+export interface WorkerEducationUpdate {
+  highest_attainment?: string | null;
+  elementary?: string | null;
+  secondary?: string | null;
+  senior_high?: string | null;
+  college?: string | null;
+  course?: string | null;
+  year_graduated?: string | null;
+  tesda?: string | null;
+  prc?: string | null;
+  trainings?: string | null;
+}
+
+export interface WorkerWorkExperienceUpdate {
+  id?: string | number;
+  company?: string | null;
+  position?: string | null;
+  employment_status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  description?: string | null;
+}
+
+export interface WorkerProfessionalProfileUpdate {
+  education: WorkerEducationUpdate;
+  skills: string[];
+  workExperience: WorkerWorkExperienceUpdate[];
 }
 
 export interface CompleteWorkerProfile {
@@ -532,7 +566,16 @@ export async function getWorkExperience(
     throw error;
   }
 
-  return (data ?? []) as WorkExperienceRecord[];
+  return (data ?? []).map((item) => {
+    const record = item as WorkExperienceRecord;
+    return {
+      ...record,
+      company: record.company ?? record.company_name ?? null,
+      position: record.position ?? null,
+      start_date: record.start_date ?? (record.start_year != null ? String(record.start_year) : null),
+      end_date: record.end_date ?? (record.end_year != null ? String(record.end_year) : null),
+    };
+  });
 }
 
 // ====================
@@ -553,7 +596,109 @@ export async function getSkills(
     throw error;
   }
 
-  return (data ?? []) as WorkerSkillRecord[];
+  return (data ?? []).map((item) => {
+    const record = item as WorkerSkillRecord;
+    return {
+      ...record,
+      skill: String(record.skill ?? record.skill_name ?? "").trim(),
+    };
+  }).filter((item) => item.skill.length > 0);
+}
+
+// ====================
+// UPDATE WORKER PROFESSIONAL PROFILE
+// ====================
+
+export async function updateWorkerProfessionalProfile(
+  profileId: string,
+  updates: WorkerProfessionalProfileUpdate,
+): Promise<void> {
+  const workerId = validateWorkerId(profileId);
+
+  const educationPayload = {
+    profile_id: workerId,
+    highest_attainment: updates.education.highest_attainment?.trim() || null,
+    elementary: updates.education.elementary?.trim() || null,
+    secondary: updates.education.secondary?.trim() || null,
+    senior_high: updates.education.senior_high?.trim() || null,
+    college: updates.education.college?.trim() || null,
+    course: updates.education.course?.trim() || null,
+    year_graduated: updates.education.year_graduated?.trim() || null,
+    tesda: updates.education.tesda?.trim() || null,
+    prc: updates.education.prc?.trim() || null,
+    trainings: updates.education.trainings?.trim() || null,
+  };
+
+  const { error: educationError } = await supabase
+    .from("education")
+    .upsert(educationPayload, { onConflict: "profile_id" });
+
+  if (educationError) {
+    throw new Error(`Unable to update education: ${educationError.message}`);
+  }
+
+  const normalizedSkills = Array.from(
+    new Set(updates.skills.map((skill) => skill.trim()).filter(Boolean)),
+  );
+
+  const { error: deleteSkillsError } = await supabase
+    .from("worker_skills")
+    .delete()
+    .eq("profile_id", workerId);
+
+  if (deleteSkillsError) {
+    throw new Error(`Unable to update skills: ${deleteSkillsError.message}`);
+  }
+
+  if (normalizedSkills.length) {
+    const { error: skillsError } = await supabase
+      .from("worker_skills")
+      .insert(
+        normalizedSkills.map((skill) => ({
+          profile_id: workerId,
+          skill_name: skill,
+        })),
+      );
+
+    if (skillsError) {
+      throw new Error(`Unable to save skills: ${skillsError.message}`);
+    }
+  }
+
+  const { error: deleteExperienceError } = await supabase
+    .from("work_experience")
+    .delete()
+    .eq("profile_id", workerId);
+
+  if (deleteExperienceError) {
+    throw new Error(
+      `Unable to update work experience: ${deleteExperienceError.message}`,
+    );
+  }
+
+  const experiences = updates.workExperience
+    .map((job) => ({
+      profile_id: workerId,
+      company: job.company?.trim() || null,
+      position: job.position?.trim() || null,
+      employment_status: job.employment_status?.trim() || null,
+      start_date: job.start_date?.trim() || null,
+      end_date: job.end_date?.trim() || null,
+      description: job.description?.trim() || null,
+    }))
+    .filter((job) => job.company || job.position || job.description);
+
+  if (experiences.length) {
+    const { error: experienceError } = await supabase
+      .from("work_experience")
+      .insert(experiences);
+
+    if (experienceError) {
+      throw new Error(
+        `Unable to save work experience: ${experienceError.message}`,
+      );
+    }
+  }
 }
 
 // ====================
@@ -602,6 +747,93 @@ export async function getServices(
 // ====================
 // COMPLETE WORKER PROFILE
 // ====================
+
+
+const WORKER_DOCUMENT_MAX_SIZE = 50 * 1024 * 1024;
+const WORKER_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+export type WorkerDocumentKey =
+  | "valid_id"
+  | "resume"
+  | "tesda_certificate"
+  | "barangay_clearance"
+  | "police_clearance"
+  | "nbi_clearance";
+
+const WORKER_DOCUMENT_FOLDERS: Record<WorkerDocumentKey, string> = {
+  valid_id: "valid-id",
+  resume: "resume",
+  tesda_certificate: "tesda-certificate",
+  barangay_clearance: "barangay-clearance",
+  police_clearance: "police-clearance",
+  nbi_clearance: "nbi-clearance",
+};
+
+function workerDocumentExtension(file: File): string {
+  const extension = file.name.split(".").pop()?.trim().toLowerCase();
+  if (extension === "jpeg") return "jpg";
+  if (extension === "jpg" || extension === "png" || extension === "webp" || extension === "pdf") {
+    return extension;
+  }
+  throw new Error("Document must be a JPG, PNG, WEBP, or PDF file.");
+}
+
+export async function updateWorkerDocument(
+  profileId: string,
+  documentKey: WorkerDocumentKey,
+  file: File,
+): Promise<string> {
+  const workerId = validateWorkerId(profileId);
+  const extension = workerDocumentExtension(file);
+
+  if (file.size <= 0 || file.size > WORKER_DOCUMENT_MAX_SIZE) {
+    throw new Error("Document must be a non-empty file no larger than 50 MB.");
+  }
+
+  if (file.type && !WORKER_DOCUMENT_TYPES.has(file.type)) {
+    throw new Error("Document must be a JPG, PNG, WEBP, or PDF file.");
+  }
+
+  const folder = WORKER_DOCUMENT_FOLDERS[documentKey];
+  const path = `${workerId}/${folder}-${crypto.randomUUID()}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("worker-documents")
+    .upload(path, file, {
+      cacheControl: "3600",
+      contentType: file.type || undefined,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(`Unable to upload document: ${uploadError.message}`);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("worker-documents").getPublicUrl(path);
+
+  const { error: databaseError } = await supabase
+    .from("documents")
+    .upsert(
+      {
+        profile_id: workerId,
+        [documentKey]: publicUrl,
+      },
+      { onConflict: "profile_id" },
+    );
+
+  if (databaseError) {
+    throw new Error(`Unable to save document: ${databaseError.message}`);
+  }
+
+  return publicUrl;
+}
 
 export async function getCompleteWorkerProfile(
   profileId: string,

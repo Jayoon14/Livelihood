@@ -289,6 +289,67 @@ export async function rejectBooking(
 }
 
 /**
+ * Worker cancels an existing booking. A reason is optional.
+ * This keeps the booking record visible as Cancelled instead of removing it.
+ */
+export async function cancelWorkerBooking(
+  bookingId: number,
+  workerId: string,
+  reason?: string,
+) {
+  await verifyWorkerSession(workerId);
+
+  const normalizedReason = reason?.trim() || null;
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "Cancelled",
+      schedule_status: "Pending",
+      trip_status: "Cancelled",
+      cancel_reason: normalizedReason,
+    })
+    .eq("id", bookingId)
+    .eq("worker_id", workerId)
+    .in("status", ["Pending", "Approved", "On Going", "Waiting Customer Confirmation"])
+    .eq("worker_deleted", false)
+    .eq("is_deleted", false)
+    .select(
+      `
+        id,
+        customer_id,
+        worker_id,
+        status,
+        trip_status,
+        cancel_reason
+      `,
+    )
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to cancel the booking: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error(
+      "This booking cannot be cancelled. It may already be completed, cancelled, or no longer available.",
+    );
+  }
+
+  const booking = data as BookingActionResult;
+  const reasonText = normalizedReason ? ` Reason: ${normalizedReason}` : "";
+
+  await notifyCustomerSafely(
+    booking.customer_id,
+    booking.id,
+    "Booking Cancelled",
+    `The worker cancelled your booking.${reasonText}`,
+  );
+
+  return booking;
+}
+
+/**
  * Worker marks that they have arrived at the service location.
  */
 export async function markWorkerArrived(bookingId: number, workerId: string) {

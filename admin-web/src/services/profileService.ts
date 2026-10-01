@@ -11,6 +11,8 @@ export interface WorkerProfile {
   address: string | null;
   profile_picture: string | null;
   role: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface UpdateProfileRequest {
@@ -21,6 +23,8 @@ export interface UpdateProfileRequest {
   phone?: string | null;
   address?: string | null;
   profile_picture?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface AdminProfileUpdateRequest {
@@ -47,7 +51,9 @@ const PROFILE_COLUMNS = `
   phone,
   address,
   profile_picture,
-  role
+  role,
+  latitude,
+  longitude
 `;
 
 const AVATAR_BUCKET = "avatars";
@@ -247,6 +253,20 @@ export async function updateProfile(
 
   if ("profile_picture" in updates) {
     payload.profile_picture = cleanOptionalText(updates.profile_picture);
+  }
+
+  if ("latitude" in updates) {
+    if (updates.latitude !== null && updates.latitude !== undefined && (!Number.isFinite(updates.latitude) || updates.latitude < -90 || updates.latitude > 90)) {
+      throw new Error("Invalid latitude value.");
+    }
+    payload.latitude = updates.latitude ?? null;
+  }
+
+  if ("longitude" in updates) {
+    if (updates.longitude !== null && updates.longitude !== undefined && (!Number.isFinite(updates.longitude) || updates.longitude < -180 || updates.longitude > 180)) {
+      throw new Error("Invalid longitude value.");
+    }
+    payload.longitude = updates.longitude ?? null;
   }
 
   if (Object.keys(payload).length === 0) {

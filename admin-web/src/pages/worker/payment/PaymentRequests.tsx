@@ -3,6 +3,8 @@ import {
   Banknote,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Copy,
   CreditCard,
@@ -440,7 +442,8 @@ export default function PaymentRequests() {
       setPage(totalPages);
     }, 0);
 
-    return () => window.clearTimeout(timer);
+  
+  return () => window.clearTimeout(timer);
   }, [page, totalPages]);
 
   const handleRefresh = useCallback(async (): Promise<void> => {
@@ -731,6 +734,27 @@ export default function PaymentRequests() {
             </div>
           </section>
 
+          {!loading && totalPages > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-slate-500 dark:text-slate-400">
+                Showing {(page - 1) * ITEMS_PER_PAGE + 1}–{Math.min(page * ITEMS_PER_PAGE, filteredPayments.length)} of {filteredPayments.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Previous page">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-700 dark:text-slate-200">Page</span>
+                  <input type="number" min={1} max={totalPages} value={page} onChange={(event) => setPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))} className="h-9 w-14 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white" aria-label="Page number" />
+                  <span className="font-medium text-slate-700 dark:text-slate-200">of {totalPages}</span>
+                </div>
+                <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Next page">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <section className="space-y-4">
               {Array.from({
@@ -772,47 +796,6 @@ export default function PaymentRequests() {
                 />
               ))}
             </section>
-          )}
-
-          {!loading && filteredPayments.length > 0 && (
-            <footer className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Showing{" "}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {(page - 1) * ITEMS_PER_PAGE + 1}
-                </strong>
-                –
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {Math.min(page * ITEMS_PER_PAGE, filteredPayments.length)}
-                </strong>{" "}
-                of{" "}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {filteredPayments.length}
-                </strong>
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 sm:flex">
-                <button
-                  type="button"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                  disabled={page === 1}
-                  className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  Previous
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
-                  }
-                  disabled={page === totalPages}
-                  className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </footer>
           )}
         </div>
       </main>

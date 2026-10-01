@@ -49,6 +49,7 @@ type BookingChat = {
     first_name: string | null;
     last_name: string | null;
     profile_picture: string | null;
+    last_seen?: string | null;
   };
   lastMessage: {
     sender_id: string;
@@ -206,6 +207,13 @@ function groupConversations(items: BookingChat[]) {
     );
 }
 
+function isUserOnline(lastSeen?: string | null) {
+  if (!lastSeen) return false;
+  const timestamp = new Date(lastSeen).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  return Date.now() - timestamp <= 60_000;
+}
+
 function Avatar({
   user,
   size = "normal",
@@ -229,7 +237,12 @@ function Avatar({
         className={`${dimensions} rounded-2xl object-cover ring-2 ring-white shadow-sm dark:ring-slate-900`}
       />
 
-      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white bg-emerald-500 dark:border-slate-900" />
+      <span
+        className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-white dark:border-slate-900 ${
+          isUserOnline(user.last_seen) ? "bg-emerald-500" : "bg-slate-400"
+        }`}
+        title={isUserOnline(user.last_seen) ? "Online" : "Offline"}
+      />
     </div>
   );
 }
@@ -1026,9 +1039,15 @@ export default function ChatList() {
                     {getName(selectedConversation.user)}
                   </h2>
 
-                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">
-                    ● Available
-                  </p>
+                  {isUserOnline(selectedConversation.user.last_seen) ? (
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">
+                      ● Active now
+                    </p>
+                  ) : (
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                      ● Offline
+                    </p>
+                  )}
                 </div>
 
                 <div className="min-w-0 max-w-[45%] sm:max-w-xs">
