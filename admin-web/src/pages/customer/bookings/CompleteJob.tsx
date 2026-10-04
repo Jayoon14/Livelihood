@@ -1,3 +1,4 @@
+// FIX-D
 import {
   ArrowLeft,
   CheckCircle2,
@@ -15,7 +16,10 @@ import { toast } from "sonner";
 
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
-import { completeBooking } from "../../../services/workerBookingService";
+import {
+  completeBooking,
+  getBooking,
+} from "../../../services/workerBookingService";
 
 const MAX_IMAGES = 3;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -334,6 +338,16 @@ export default function CompleteJob() {
   const [submitting, setSubmitting] = useState(false);
   const [preparingImages, setPreparingImages] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [times, setTimes] = useState<{
+    arrived_at: string | null;
+    trip_started_at: string | null;
+  } | null>(null);
+
+  // Times live in their own state so they can never be lost to a race
+  // between the booking load and the times refresh.
+  const arrivedAt = times?.arrived_at ?? booking?.arrived_at ?? null;
+  const tripStartedAt =
+    times?.trip_started_at ?? booking?.trip_started_at ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -364,51 +378,28 @@ export default function CompleteJob() {
           throw new Error("Your session has expired. Please sign in again.");
         }
 
-        const { data, error } = await supabase
-          .from("bookings")
-          .select(
-            `
-              id,
-              worker_id,
-              customer_id,
-              status,
-              trip_status,
-              arrived_at,
-              trip_started_at,
-              completed_at,
-              worker_deleted,
-              is_deleted,
-              service:services!service_id(
-                id,
-                service_name,
-                category
-              ),
-              customer:profiles!customer_id(
-                id,
-                first_name,
-                middle_name,
-                last_name,
-                email
-              )
-            `,
-          )
-          .eq("id", parsedBookingId)
-          .eq("worker_id", user.id)
-          .eq("worker_deleted", false)
-          .eq("is_deleted", false)
-          .maybeSingle();
-
-        if (error) {
-          throw new Error(`Unable to load booking: ${error.message}`);
-        }
-
-        if (!data) {
-          throw new Error(
-            "The booking was not found or is not assigned to your account.",
-          );
-        }
+        // Same loader used by the working navigation page (select "*"),
+        // so arrived_at / trip_started_at are always included.
+        const data = await getBooking(parsedBookingId, user.id);
 
         const normalizedBooking = data as unknown as CompletionBooking;
+
+        const { data: timeRow } = await supabase
+          .from("bookings")
+          .select("arrived_at, trip_started_at")
+          .eq("id", parsedBookingId)
+          .maybeSingle();
+
+        if (timeRow) {
+          normalizedBooking.arrived_at = timeRow.arrived_at;
+          normalizedBooking.trip_started_at = timeRow.trip_started_at;
+          if (mounted) {
+            setTimes({
+              arrived_at: timeRow.arrived_at ?? null,
+              trip_started_at: timeRow.trip_started_at ?? null,
+            });
+          }
+        }
 
         if (
           normalizedBooking.status !== "On Going" ||
@@ -449,10 +440,10 @@ export default function CompleteJob() {
             normalizedProof ? Number(normalizedProof.id) : null,
           );
 
-              if (normalizedProof) {
-              setSummary(normalizedProof.summary ?? "");
-              setNotes(normalizedProof.notes ?? "");
-            }
+          if (normalizedProof) {
+            setSummary(normalizedProof.summary ?? "");
+            setNotes(normalizedProof.notes ?? "");
+          }
         }
       } catch (error) {
         if (mounted) setPageError(getErrorMessage(error));
@@ -510,6 +501,28 @@ export default function CompleteJob() {
       setNotes(updatedProof.notes ?? "");
     };
 
+    const refreshBookingTimes = async () => {
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("arrived_at, trip_started_at")
+        .eq("id", parsedBookingId)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (error) {
+        return;
+      }
+
+      if (!data) {
+        return;
+      }
+      setTimes({
+        arrived_at: data.arrived_at ?? null,
+        trip_started_at: data.trip_started_at ?? null,
+      });
+    };
+
     const channel = supabase
       .channel(`worker-completion-job-${parsedBookingId}`)
       .on(
@@ -542,11 +555,15 @@ export default function CompleteJob() {
                     (updatedBooking.arrived_at as string | null | undefined) ??
                     current.arrived_at,
                   trip_started_at:
-                    (updatedBooking.trip_started_at as string | null | undefined) ??
-                    current.trip_started_at,
+                    (updatedBooking.trip_started_at as
+                      | string
+                      | null
+                      | undefined) ?? current.trip_started_at,
                   completed_at:
-                    (updatedBooking.completed_at as string | null | undefined) ??
-                    current.completed_at,
+                    (updatedBooking.completed_at as
+                      | string
+                      | null
+                      | undefined) ?? current.completed_at,
                 }
               : current,
           );
@@ -596,6 +613,8 @@ export default function CompleteJob() {
         }
       });
 
+    void refreshBookingTimes();
+
     return () => {
       mounted = false;
       void supabase.removeChannel(channel);
@@ -603,7 +622,7 @@ export default function CompleteJob() {
   }, [navigate, parsedBookingId]);
 
   useEffect(() => {
-    if (!booking?.trip_started_at) {
+    if (!tripStartedAt) {
       return;
     }
 
@@ -612,7 +631,7 @@ export default function CompleteJob() {
     }, 30_000);
 
     return () => window.clearInterval(intervalId);
-  }, [booking?.trip_started_at]);
+  }, [tripStartedAt]);
 
   useEffect(() => {
     return () => {
@@ -742,18 +761,37 @@ export default function CompleteJob() {
     const normalizedSummary = summary.trim();
     const normalizedNotes = notes.trim();
 
-    if (!booking?.trip_started_at) {
+    let startedAtValue = tripStartedAt;
+    let startReadError: string | null = null;
+    let startRowFound = false;
+
+    if (!startedAtValue) {
+      const { data: freshTimes, error: freshTimesError } = await supabase
+        .from("bookings")
+        .select("trip_started_at")
+        .eq("id", parsedBookingId)
+        .maybeSingle();
+
+      startReadError = freshTimesError?.message ?? null;
+      startRowFound = Boolean(freshTimes);
+      startedAtValue = freshTimes?.trip_started_at ?? null;
+    }
+
+    if (!startedAtValue) {
+      const reason = startReadError
+        ? `Database error: ${startReadError}`
+        : startRowFound
+          ? "The booking row has no start time."
+          : "The booking row could not be read (check permissions).";
+
       toast.error(
-        "The service start time was not recorded. Please return to the booking.",
+        `Service start time unavailable for booking #${parsedBookingId}. ${reason}`,
       );
       return;
     }
 
     const completionAt = new Date().toISOString();
-    const parsedHours = calculateHoursWorked(
-      booking.trip_started_at,
-      completionAt,
-    );
+    const parsedHours = calculateHoursWorked(startedAtValue, completionAt);
 
     if (!normalizedSummary) {
       toast.warning("Please enter a work summary.");
@@ -1349,7 +1387,7 @@ export default function CompleteJob() {
                         Actual Arrival
                       </p>
                       <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
-                        {formatDateTime(booking.arrived_at)}
+                        {formatDateTime(arrivedAt)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
@@ -1357,7 +1395,7 @@ export default function CompleteJob() {
                         Service Started
                       </p>
                       <p className="mt-1 text-sm font-black text-slate-800 dark:text-slate-200">
-                        {formatDateTime(booking.trip_started_at)}
+                        {formatDateTime(tripStartedAt)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/80 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70">
@@ -1377,7 +1415,7 @@ export default function CompleteJob() {
                       </p>
                       <p className="mt-1 text-lg font-black text-emerald-800 dark:text-emerald-200">
                         {formatDuration(
-                          booking.trip_started_at,
+                          tripStartedAt,
                           new Date(serviceClock).toISOString(),
                         )}
                       </p>

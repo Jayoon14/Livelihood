@@ -373,6 +373,9 @@ export default function CompleteJob() {
               customer_id,
               status,
               trip_status,
+              arrived_at,
+              trip_started_at,
+              completed_at,
               worker_deleted,
               is_deleted,
               service:services!service_id(
