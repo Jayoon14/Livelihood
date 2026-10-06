@@ -1,3 +1,4 @@
+import ActivityAuditTracker from "../components/common/ActivityAuditTracker";
 import { lazy, Suspense } from "react";
   import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
@@ -257,6 +258,7 @@ import { lazy, Suspense } from "react";
         <RealtimeProvider>
           <WorkerLocationProvider>
             <NavigationLoadingHandler />
+            <ActivityAuditTracker />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* ================= PUBLIC AUTH ROUTES ================= */}

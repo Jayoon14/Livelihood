@@ -1,4 +1,3 @@
-import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 
 export interface ActivityUser {
@@ -18,6 +17,17 @@ export interface ActivityLog {
   module: string;
   description: string;
   created_at: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  actor_email?: string | null;
+  actor_role?: string | null;
+  source?: string;
+  outcome?: string;
+  process_name?: string | null;
+  process_stage?: string | null;
+  process_id?: string | null;
+  record_id?: string | null;
+  crud_operation?: string | null;
 }
 
 export interface ActivityLogWithUser extends ActivityLog {
@@ -37,8 +47,13 @@ export interface ActivityLogQuery {
   search?: string;
   module?: string;
   action?: string;
+  role?: string;
+  userId?: string;
   dateFrom?: string;
   dateTo?: string;
+  createdBefore?: string;
+  crud?: string;
+  outcome?: string;
 }
 
 export interface ActivityLogPage {
@@ -56,42 +71,12 @@ export interface ActivityLogSummary {
   destructive: number;
 }
 
-interface ProfileRecord {
-  id: string;
-  role: string | null;
-}
-
-const ACTIVITY_LIMITS = {
-  action: 100,
-  module: 100,
-  description: 1_000,
-} as const;
-
-const DEFAULT_PAGE_SIZE = 10;
-const MAX_PAGE_SIZE = 100;
-
-const ACTIVITY_SELECT = `
-  id,
-  user_id,
-  action,
-  module,
-  description,
-  created_at,
-  user:profiles!activity_logs_user_id_fkey(
-    id,
-    first_name,
-    middle_name,
-    last_name,
-    suffix,
-    email,
-    role
-  )
-`;
-
 export const ACTIVITY_ACTIONS = {
   LOGIN: "LOGIN",
   LOGOUT: "LOGOUT",
   CREATE: "CREATE",
+  READ: "READ",
+  VIEW: "VIEW",
   UPDATE: "UPDATE",
   DELETE: "DELETE",
   APPROVE: "APPROVE",
@@ -99,6 +84,16 @@ export const ACTIVITY_ACTIONS = {
   CANCEL: "CANCEL",
   REGISTER: "REGISTER",
   EXPORT: "EXPORT",
+  ACCEPT: "ACCEPT",
+  COMPLETE: "COMPLETE",
+  RESCHEDULE: "RESCHEDULE",
+  REBOOK: "REBOOK",
+  UPLOAD: "UPLOAD",
+  DOWNLOAD: "DOWNLOAD",
+  SEND: "SEND",
+  PAY: "PAY",
+  SUSPEND: "SUSPEND",
+  RESTORE: "RESTORE",
 } as const;
 
 export const ACTIVITY_MODULES = {
@@ -113,159 +108,126 @@ export const ACTIVITY_MODULES = {
   SETTINGS: "Settings",
   NOTIFICATIONS: "Notifications",
   ACTIVITY_LOGS: "Activity Logs",
+  PROFILES: "Profiles",
+  SCHEDULES: "Schedules",
+  DOCUMENTS: "Documents",
+  MESSAGES: "Messages",
+  REVIEWS: "Reviews",
+  APPEALS: "Appeals",
 } as const;
 
-function wrapError(error: unknown, fallbackMessage: string): Error {
-  if (error instanceof Error && error.message.trim()) {
-    return new Error(error.message);
-  }
+const PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 100;
 
+const USER_FIELDS =
+  "id,first_name,middle_name,last_name,suffix,email,role";
+
+function activitySelect(): string {
+  return `
+    id,user_id,action,module,description,created_at,actor_id,actor_name,actor_email,actor_role,source,outcome,process_name,process_stage,process_id,record_id,crud_operation,
+    user:profiles!activity_logs_user_id_fkey(
+      ${USER_FIELDS}
+    )
+  `;
+}
+
+function errorMessage(error: unknown, fallback: string): string {
   if (
     error &&
     typeof error === "object" &&
     "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
+    typeof error.message === "string" &&
+    error.message.trim()
   ) {
-    const message = (error as { message: string }).message.trim();
-
-    if (message) {
-      return new Error(message);
-    }
+    return error.message;
   }
 
-  return new Error(fallbackMessage);
+  return fallback;
 }
 
-function throwIfError(
-  error: PostgrestError | Error | null,
-  fallbackMessage: string,
-): void {
+function throwIfError(error: unknown, fallback: string): void {
   if (error) {
-    throw wrapError(error, fallbackMessage);
+    throw new Error(errorMessage(error, fallback));
   }
 }
 
-function validateRequiredText(
+function requiredText(
   value: string,
-  fieldName: string,
-  maximumLength?: number,
+  field: string,
+  maximum: number,
 ): string {
-  if (typeof value !== "string") {
-    throw new Error(`${fieldName} must be a string.`);
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${field} is required.`);
   }
 
-  const normalized = value.trim();
+  const text = value.trim();
 
-  if (!normalized) {
-    throw new Error(`${fieldName} is required.`);
+  if (text.length > maximum) {
+    throw new Error(`${field} must not exceed ${maximum} characters.`);
   }
 
-  if (maximumLength && normalized.length > maximumLength) {
-    throw new Error(
-      `${fieldName} must not exceed ${maximumLength} characters.`,
-    );
-  }
-
-  return normalized;
+  return text;
 }
 
-function validateActivityLogId(id: number): number {
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new Error("Invalid activity log ID.");
-  }
-
-  return id;
-}
-
-function normalizeRelatedUser(
-  user: ActivityUser | ActivityUser[] | null | undefined,
-): ActivityUser | null {
-  if (Array.isArray(user)) {
-    return user[0] ?? null;
-  }
-
-  return user ?? null;
-}
-
-function normalizeRecord(
-  record: unknown,
-): ActivityLogWithUser {
-  const typedRecord = record as ActivityLog & {
-    user?: ActivityUser | ActivityUser[] | null;
-  };
-
-  return {
-    id: Number(typedRecord.id),
-    user_id: String(typedRecord.user_id ?? ""),
-    action: typedRecord.action?.trim() || "UNKNOWN",
-    module: typedRecord.module?.trim() || "Unknown",
-    description: typedRecord.description?.trim() || "",
-    created_at: typedRecord.created_at,
-    user: normalizeRelatedUser(typedRecord.user),
-  };
-}
-
-function normalizePagination(query: ActivityLogQuery): {
-  page: number;
-  pageSize: number;
-  from: number;
-  to: number;
-} {
-  const page =
-    Number.isInteger(query.page) && (query.page ?? 0) > 0
-      ? Number(query.page)
-      : 1;
-
-  const requestedPageSize =
-    Number.isInteger(query.pageSize) &&
-    (query.pageSize ?? 0) > 0
-      ? Number(query.pageSize)
-      : DEFAULT_PAGE_SIZE;
-
-  const pageSize = Math.min(
-    requestedPageSize,
-    MAX_PAGE_SIZE,
-  );
-
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  return {
-    page,
-    pageSize,
-    from,
-    to,
-  };
-}
-
-function cleanFilter(value?: string): string {
-  return value?.trim() ?? "";
-}
-
-function escapeIlike(value: string): string {
-  return value.replace(/[%_,()]/g, " ");
-}
-
-export function normalizeActivityAction(
-  value: string,
-): string {
-  return validateRequiredText(
-    value,
-    "Action",
-    ACTIVITY_LIMITS.action,
-  )
+export function normalizeActivityAction(value: string): string {
+  return requiredText(value, "Action", 100)
     .replace(/\s+/g, "_")
     .toUpperCase();
 }
 
-export function normalizeActivityModule(
-  value: string,
+export function normalizeActivityModule(value: string): string {
+  return requiredText(value, "Module", 100).replace(/\s+/g, " ");
+}
+
+function normalizeRecord(record: unknown): ActivityLogWithUser {
+  const row = record as ActivityLog & {
+    user?: ActivityUser | ActivityUser[] | null;
+  };
+
+  return {
+    id: Number(row.id),
+    actor_id: row.actor_id,
+    actor_name: row.actor_name,
+    actor_email: row.actor_email,
+    actor_role: row.actor_role,
+    source: row.source,
+    outcome: row.outcome,
+    process_name: row.process_name,
+    process_stage: row.process_stage,
+    process_id: row.process_id,
+    record_id: row.record_id,
+    crud_operation: row.crud_operation,
+    user_id: String(row.actor_id ?? row.user_id ?? ""),
+    action: row.action?.trim() || "UNKNOWN",
+    module: row.module?.trim() || "Unknown",
+    description: row.description?.trim() || "",
+    created_at: row.created_at,
+    user: Array.isArray(row.user)
+      ? row.user[0] ?? null
+      : row.user ?? null,
+  };
+}
+
+export function getActivityUserName(log: ActivityLogWithUser): string {
+  return log.actor_name || getActivityProfileName(log.user);
+}
+
+export function getActivityProfileName(
+  user: ActivityUser | null | undefined,
 ): string {
-  return validateRequiredText(
-    value,
-    "Module",
-    ACTIVITY_LIMITS.module,
-  ).replace(/\s+/g, " ");
+  if (!user) return "Unknown user";
+
+  const name = [
+    user.first_name,
+    user.middle_name,
+    user.last_name,
+    user.suffix,
+  ]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  return name || user.email || user.id || "Unknown user";
 }
 
 async function requireAuthenticatedUser(): Promise<string> {
@@ -274,12 +236,7 @@ async function requireAuthenticatedUser(): Promise<string> {
     error,
   } = await supabase.auth.getUser();
 
-  if (error) {
-    throw wrapError(
-      error,
-      "Unable to verify the authenticated user.",
-    );
-  }
+  throwIfError(error, "Unable to verify the authenticated user.");
 
   if (!user) {
     throw new Error("You must be signed in to continue.");
@@ -288,29 +245,20 @@ async function requireAuthenticatedUser(): Promise<string> {
   return user.id;
 }
 
-async function requireProfile(
-  userId: string,
-): Promise<ProfileRecord> {
+async function requireProfile(userId: string) {
   const { data, error } = await supabase
     .from("profiles")
     .select("id,role")
     .eq("id", userId)
     .maybeSingle();
 
-  if (error) {
-    throw wrapError(
-      error,
-      "Unable to verify the user profile.",
-    );
-  }
+  throwIfError(error, "Unable to verify the user profile.");
 
   if (!data) {
-    throw new Error(
-      "The authenticated profile does not exist.",
-    );
+    throw new Error("The authenticated profile does not exist.");
   }
 
-  return data as ProfileRecord;
+  return data as { id: string; role: string | null };
 }
 
 async function requireAdminUser(): Promise<string> {
@@ -318,9 +266,7 @@ async function requireAdminUser(): Promise<string> {
   const profile = await requireProfile(userId);
 
   if (profile.role?.trim().toLowerCase() !== "admin") {
-    throw new Error(
-      "Only administrator accounts can access activity logs.",
-    );
+    throw new Error("Only administrators can access activity logs.");
   }
 
   return userId;
@@ -333,55 +279,27 @@ export async function logActivity(
   description: string,
 ): Promise<ActivityLog> {
   const payload: LogActivityPayload = {
-    userId: validateRequiredText(
-      userId,
-      "User ID",
-      100,
-    ),
+    userId: requiredText(userId, "User ID", 100),
     action: normalizeActivityAction(action),
     module: normalizeActivityModule(module),
-    description: validateRequiredText(
-      description,
-      "Description",
-      ACTIVITY_LIMITS.description,
-    ),
+    description: requiredText(description, "Description", 1000),
   };
 
-  const authenticatedUserId =
-    await requireAuthenticatedUser();
+  const currentUserId = await requireAuthenticatedUser();
 
-  if (authenticatedUserId !== payload.userId) {
-    throw new Error(
-      "Activity logs can only be recorded for the authenticated account.",
-    );
-  }
+  const { data, error } = await supabase.rpc("record_activity_event", {
+    p_action: payload.action,
+    p_module: payload.module,
+    p_description: payload.userId === currentUserId
+      ? payload.description
+      : `${payload.description} Target user: ${payload.userId}.`,
+    p_outcome: "SUCCESS",
+  });
 
-  await requireProfile(payload.userId);
-
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .insert({
-      user_id: payload.userId,
-      action: payload.action,
-      module: payload.module,
-      description: payload.description,
-    })
-    .select(
-      "id,user_id,action,module,description,created_at",
-    )
-    .single();
-
-  if (error) {
-    throw wrapError(
-      error,
-      "Unable to save the activity log.",
-    );
-  }
+  throwIfError(error, "Unable to save the activity log.");
 
   if (!data) {
-    throw new Error(
-      "The activity log was not returned after saving.",
-    );
+    throw new Error("The saved activity log was not returned.");
   }
 
   return data as ActivityLog;
@@ -394,12 +312,46 @@ export async function logCurrentUserActivity(
 ): Promise<ActivityLog> {
   const userId = await requireAuthenticatedUser();
 
-  return logActivity(
-    userId,
-    action,
-    module,
-    description,
-  );
+  return logActivity(userId, action, module, description);
+}
+
+function cleanFilter(value?: string): string {
+  const text = value?.trim() ?? "";
+  return text.toLowerCase() === "all" ? "" : text;
+}
+
+function searchKeyword(value: string): string {
+  return value.replace(/[\\%_,()."*]/g, " ").trim();
+}
+
+// Date filters consistently use Philippine time.
+function dateBoundary(value: string, nextDay = false): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error("Invalid date. Use YYYY-MM-DD.");
+  }
+
+  const date = new Date(`${value}T00:00:00+08:00`);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    new Date(date.getTime() + 8 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10) !== value
+  ) {
+    throw new Error("Invalid calendar date.");
+  }
+
+  if (nextDay) {
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+
+  return date.toISOString();
+}
+
+function philippineToday(): string {
+  return new Date(Date.now() + 8 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 export async function getActivityLogPage(
@@ -407,66 +359,84 @@ export async function getActivityLogPage(
 ): Promise<ActivityLogPage> {
   await requireAdminUser();
 
-  const { page, pageSize, from, to } =
-    normalizePagination(query);
+  const page =
+    Number.isSafeInteger(query.page) && (query.page ?? 0) > 0
+      ? Number(query.page)
+      : 1;
 
-  const search = cleanFilter(query.search);
+  const pageSize =
+    Number.isSafeInteger(query.pageSize) && (query.pageSize ?? 0) > 0
+      ? Math.min(Number(query.pageSize), MAX_PAGE_SIZE)
+      : PAGE_SIZE;
+
+  const from = (page - 1) * pageSize;
   const module = cleanFilter(query.module);
   const action = cleanFilter(query.action);
-  const dateFrom = cleanFilter(query.dateFrom);
-  const dateTo = cleanFilter(query.dateTo);
+  const role = cleanFilter(query.role).toLowerCase();
+  const userId = cleanFilter(query.userId);
+  const search = query.search?.trim() ?? "";
+  const dateFrom = query.dateFrom?.trim() ?? "";
+  const dateTo = query.dateTo?.trim() ?? "";
+
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    throw new Error("Start date must not be later than end date.");
+  }
 
   let request = supabase
     .from("activity_logs")
-    .select(ACTIVITY_SELECT, {
-      count: "exact",
-    })
-    .order("created_at", {
-      ascending: false,
-    })
-    .range(from, to);
+    .select(activitySelect(), { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, from + pageSize - 1);
 
-  if (module && module !== "All") {
-    request = request.eq("module", module);
-  }
-
-  if (action && action !== "All") {
-    request = request.eq("action", action);
-  }
+  if (cleanFilter(query.crud)) request = request.eq("crud_operation", cleanFilter(query.crud));
+  if (cleanFilter(query.outcome)) request = request.eq("outcome", cleanFilter(query.outcome));
+  if (module) request = request.eq("module", module);
+  if (action) request = request.eq("action", action);
+  if (role) request = request.ilike("actor_role", role);
+  if (userId) request = request.eq("actor_id", userId);
 
   if (dateFrom) {
-    request = request.gte(
-      "created_at",
-      new Date(`${dateFrom}T00:00:00`).toISOString(),
-    );
+    request = request.gte("created_at", dateBoundary(dateFrom));
   }
 
   if (dateTo) {
-    request = request.lte(
-      "created_at",
-      new Date(`${dateTo}T23:59:59.999`).toISOString(),
-    );
+    request = request.lt("created_at", dateBoundary(dateTo, true));
   }
 
-  if (search) {
-    const keyword = escapeIlike(search);
+  if (query.createdBefore) {
+    const cutoff = new Date(query.createdBefore);
 
-    request = request.or(
-      [
-        `action.ilike.%${keyword}%`,
-        `module.ilike.%${keyword}%`,
-        `description.ilike.%${keyword}%`,
-        `user_id.ilike.%${keyword}%`,
-      ].join(","),
-    );
+    if (Number.isNaN(cutoff.getTime())) {
+      throw new Error("Invalid export cutoff.");
+    }
+
+    request = request.lte("created_at", cutoff.toISOString());
+  }
+
+  const keyword = searchKeyword(search);
+
+  if (keyword) {
+    const conditions = [
+      `action.ilike.%${keyword}%`,
+      `module.ilike.%${keyword}%`,
+      `description.ilike.%${keyword}%`,
+    ];
+
+    if (
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        search,
+      )
+    ) {
+      conditions.push(`actor_id.eq.${search}`);
+    }
+
+    request = request.or(conditions.join(","));
   }
 
   const { data, error, count } = await request;
 
-  throwIfError(
-    error,
-    "Unable to load activity logs.",
-  );
+  throwIfError(error, "Unable to load activity logs.");
 
   const total = count ?? 0;
 
@@ -475,20 +445,11 @@ export async function getActivityLogPage(
     total,
     page,
     pageSize,
-    totalPages: Math.max(
-      1,
-      Math.ceil(total / pageSize),
-    ),
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
 
-/**
- * Backward-compatible function.
- * Returns up to 100 latest records.
- */
-export async function getActivityLogs(): Promise<
-  ActivityLogWithUser[]
-> {
+export async function getActivityLogs(): Promise<ActivityLogWithUser[]> {
   const result = await getActivityLogPage({
     page: 1,
     pageSize: MAX_PAGE_SIZE,
@@ -497,211 +458,171 @@ export async function getActivityLogs(): Promise<
   return result.items;
 }
 
+export async function getActivityLogUserOptions(): Promise<ActivityUser[]> {
+  await requireAdminUser();
+
+  const users: ActivityUser[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(USER_FIELDS)
+      .order("id", { ascending: true })
+      .range(offset, offset + MAX_PAGE_SIZE - 1);
+
+    throwIfError(error, "Unable to load user filters.");
+
+    const batch = (data ?? []) as ActivityUser[];
+    users.push(...batch);
+
+    if (batch.length < MAX_PAGE_SIZE) break;
+    offset += MAX_PAGE_SIZE;
+  }
+
+  const knownIds = new Set(users.map((user) => user.id));
+  let auditOffset = 0;
+  while (true) {
+    const { data, error } = await supabase.from("activity_logs")
+      .select("actor_id,actor_name,actor_email,actor_role")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(auditOffset, auditOffset + MAX_PAGE_SIZE - 1);
+    throwIfError(error, "Unable to load historical user filters.");
+    const batch = data ?? [];
+    for (const row of batch) {
+      if (!row.actor_id || knownIds.has(row.actor_id)) continue;
+      knownIds.add(row.actor_id);
+      users.push({ id: row.actor_id, first_name: row.actor_name, email: row.actor_email, role: row.actor_role });
+    }
+    if (batch.length < MAX_PAGE_SIZE) break;
+    auditOffset += MAX_PAGE_SIZE;
+  }
+
+  return users.sort((a, b) =>
+    getActivityProfileName(a).localeCompare(getActivityProfileName(b)),
+  );
+}
+
+export const DEFAULT_ACTIVITY_MODULES: string[] = [
+    "Authentication", "Accounts", "Bookings", "Payments", "Messages", "Notifications",
+    "Workers", "Customers", "Services", "Schedules", "Reports", "Reviews", "Analytics",
+    "Account Enforcement", "Appeals", "Locations", "Worker Selection", "Documents",
+    "System", "Forms", "Database Functions", "Server Functions",
+    "bookings", "payments", "payment_transactions", "profiles", "services", "messages",
+    "notifications", "notification_preferences", "reviews", "reports", "report_logs",
+    "report_evidence", "enforcement_actions", "enforcement_appeals", "favorites",
+    "trusted_workers", "recently_viewed", "documents", "education", "work_experience",
+    "worker_skills", "worker_schedules", "worker_locations", "workers_locations",
+    "worker_payment_information", "unavailable_dates", "booking_completion_images",
+    "booking_completion_proofs",
+  ].sort();
+export const DEFAULT_ACTIVITY_ACTIONS: string[] = [
+    "CREATE", "READ", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "LOGOUT_REQUEST",
+    "REGISTER", "PASSWORD", "CHANGE_PASSWORD", "APPROVE", "REJECT", "CANCEL",
+    "ACCEPT", "COMPLETE", "RESCHEDULE", "REBOOK", "START", "PAY", "UPLOAD",
+    "DOWNLOAD", "EXPORT", "VIEW", "EXECUTE", "SEND", "SUSPEND", "RESTORE",
+  ].sort();
+
 export async function getActivityLogFilterOptions(): Promise<{
   modules: string[];
   actions: string[];
 }> {
   await requireAdminUser();
 
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .select("module,action")
-    .order("created_at", {
-      ascending: false,
-    })
-    .limit(1_000);
+  const modules = new Set<string>(DEFAULT_ACTIVITY_MODULES);
+  const actions = new Set<string>(DEFAULT_ACTIVITY_ACTIONS);
+  const cutoff = new Date().toISOString();
 
-  throwIfError(
-    error,
-    "Unable to load activity log filters.",
-  );
+  let offset = 0;
 
-  const modules = [
-    ...new Set(
-      (data ?? [])
-        .map((row) => row.module?.trim())
-        .filter(
-          (value): value is string => Boolean(value),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b));
+  while (true) {
+    const { data, error } = await supabase
+      .from("activity_logs")
+      .select("id,module,action")
+      .lte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + MAX_PAGE_SIZE - 1);
 
-  const actions = [
-    ...new Set(
-      (data ?? [])
-        .map((row) => row.action?.trim())
-        .filter(
-          (value): value is string => Boolean(value),
-        ),
-    ),
-  ].sort((a, b) => a.localeCompare(b));
+    throwIfError(error, "Unable to load activity log filters.");
+
+    const batch = data ?? [];
+
+    for (const row of batch) {
+      if (row.module?.trim()) modules.add(row.module.trim());
+      if (row.action?.trim()) actions.add(row.action.trim());
+    }
+
+    if (batch.length < MAX_PAGE_SIZE) break;
+    offset += MAX_PAGE_SIZE;
+  }
 
   return {
-    modules,
-    actions,
+    modules: [...modules].sort((a, b) => a.localeCompare(b)),
+    actions: [...actions].sort((a, b) => a.localeCompare(b)),
   };
 }
 
 export async function getActivityLogSummary(): Promise<ActivityLogSummary> {
   await requireAdminUser();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = philippineToday();
 
-  const [
-    totalResult,
-    todayResult,
-    approvalResult,
-    destructiveResult,
-  ] = await Promise.all([
+  const results = await Promise.all([
     supabase
       .from("activity_logs")
-      .select("id", {
-        head: true,
-        count: "exact",
-      }),
+      .select("id", { head: true, count: "exact" }),
     supabase
       .from("activity_logs")
-      .select("id", {
-        head: true,
-        count: "exact",
-      })
-      .gte("created_at", today.toISOString()),
+      .select("id", { head: true, count: "exact" })
+      .gte("created_at", dateBoundary(today))
+      .lt("created_at", dateBoundary(today, true)),
     supabase
       .from("activity_logs")
-      .select("id", {
-        head: true,
-        count: "exact",
-      })
+      .select("id", { head: true, count: "exact" })
       .ilike("action", "%APPROV%"),
     supabase
       .from("activity_logs")
-      .select("id", {
-        head: true,
-        count: "exact",
-      })
+      .select("id", { head: true, count: "exact" })
       .or(
         "action.ilike.%DELETE%,action.ilike.%REJECT%,action.ilike.%CANCEL%",
       ),
   ]);
 
-  throwIfError(
-    totalResult.error,
-    "Unable to count activity logs.",
-  );
-  throwIfError(
-    todayResult.error,
-    "Unable to count today's activity logs.",
-  );
-  throwIfError(
-    approvalResult.error,
-    "Unable to count approval activity logs.",
-  );
-  throwIfError(
-    destructiveResult.error,
-    "Unable to count destructive activity logs.",
-  );
+  for (const result of results) {
+    throwIfError(result.error, "Unable to load activity log summary.");
+  }
 
   return {
-    total: totalResult.count ?? 0,
-    today: todayResult.count ?? 0,
-    approvals: approvalResult.count ?? 0,
-    destructive: destructiveResult.count ?? 0,
+    total: results[0].count ?? 0,
+    today: results[1].count ?? 0,
+    approvals: results[2].count ?? 0,
+    destructive: results[3].count ?? 0,
   };
 }
 
-export async function deleteActivityLog(
-  id: number,
-): Promise<void> {
-  await requireAdminUser();
-
-  const activityLogId = validateActivityLogId(id);
-
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .delete()
-    .eq("id", activityLogId)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    throw wrapError(
-      error,
-      "Unable to delete the activity log.",
-    );
-  }
-
-  if (!data) {
-    throw new Error(
-      "Activity log was not deleted. It may not exist or the admin account may not have DELETE permission.",
-    );
-  }
+// Retained for compatibility with existing imports.
+// These functions never send a DELETE request.
+export async function deleteActivityLog(id: number): Promise<void> {
+  void id;
+  throw new Error("Activity logs cannot be deleted.");
 }
 
 export async function deleteAllActivityLogs(): Promise<number> {
-  await requireAdminUser();
-
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .delete()
-    .not("id", "is", null)
-    .select("id");
-
-  if (error) {
-    throw wrapError(
-      error,
-      "Unable to delete all activity logs.",
-    );
-  }
-
-  return data?.length ?? 0;
+  throw new Error("Activity logs cannot be deleted.");
 }
 
 function csvCell(value: unknown): string {
   const text = String(value ?? "");
+  const safe = /^\s*[=+@-]/.test(text) ? `'${text}` : text;
 
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-
-  return text;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
-export function getActivityUserName(
-  log: ActivityLogWithUser,
-): string {
-  const user = log.user;
-
-  if (!user) {
-    return "Unknown user";
-  }
-
-  const fullName = [
-    user.first_name,
-    user.middle_name,
-    user.last_name,
-    user.suffix,
-  ]
-    .map((part) => part?.trim())
-    .filter(
-      (part): part is string => Boolean(part),
-    )
-    .join(" ");
-
-  return (
-    fullName ||
-    user.email ||
-    "Unknown user"
-  );
-}
-
-export function exportActivityLogsCsv(
-  logs: ActivityLogWithUser[],
-): void {
-  if (logs.length === 0) {
-    throw new Error(
-      "There are no activity logs to export.",
-    );
+export function exportActivityLogsCsv(logs: ActivityLogWithUser[]): void {
+  if (!logs.length) {
+    throw new Error("There are no activity logs to export.");
   }
 
   const rows = [
@@ -710,32 +631,44 @@ export function exportActivityLogsCsv(
       "User ID",
       "User",
       "Email",
-      "Role",
+      "Role at Event",
       "Module",
       "Action",
+      "CRUD",
+      "Outcome",
+      "Process",
+      "Stage",
+      "Process ID",
+      "Record ID",
       "Description",
       "Created At ISO",
-      "Created At Local",
+      "Created At Philippines",
     ],
     ...logs.map((log) => [
       log.id,
       log.user_id,
       getActivityUserName(log),
-      log.user?.email ?? "",
-      log.user?.role ?? "",
+      log.actor_email ?? log.user?.email ?? "",
+      log.actor_role ?? log.user?.role ?? "",
       log.module,
       log.action,
+      log.crud_operation,
+      log.outcome,
+      log.process_name,
+      log.process_stage,
+      log.process_id,
+      log.record_id,
       log.description,
       log.created_at,
-      new Date(log.created_at).toLocaleString(
-        "en-PH",
-      ),
+      new Date(log.created_at).toLocaleString("en-PH", {
+        timeZone: "Asia/Manila",
+      }),
     ]),
   ];
 
   const csv = rows
     .map((row) => row.map(csvCell).join(","))
-    .join("\n");
+    .join("\r\n");
 
   const blob = new Blob(["\uFEFF", csv], {
     type: "text/csv;charset=utf-8",
@@ -743,30 +676,47 @@ export function exportActivityLogsCsv(
 
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-  const date = new Date()
-    .toISOString()
-    .slice(0, 10);
 
   anchor.href = url;
-  anchor.download = `activity-logs-${date}.csv`;
-
+  anchor.download = `activity-logs-${philippineToday()}.csv`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
 
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function exportFilteredActivityLogsCsv(
   query: Omit<ActivityLogQuery, "page" | "pageSize">,
 ): Promise<number> {
-  const result = await getActivityLogPage({
-    ...query,
-    page: 1,
-    pageSize: MAX_PAGE_SIZE,
-  });
+  const cutoff = query.createdBefore ?? new Date().toISOString();
+  const logs: ActivityLogWithUser[] = [];
+  const seen = new Set<number>();
 
-  exportActivityLogsCsv(result.items);
+  let page = 1;
 
-  return result.items.length;
+  while (true) {
+    const result = await getActivityLogPage({
+      ...query,
+      createdBefore: cutoff,
+      page,
+      pageSize: MAX_PAGE_SIZE,
+    });
+
+    for (const log of result.items) {
+      if (!seen.has(log.id)) {
+        seen.add(log.id);
+        logs.push(log);
+      }
+    }
+
+    if (!result.items.length || page >= result.totalPages) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  exportActivityLogsCsv(logs);
+  return logs.length;
 }

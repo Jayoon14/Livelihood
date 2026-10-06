@@ -1,287 +1,194 @@
-import {
-  CheckCircle2,
-  Loader2,
-  Mail,
-  RefreshCw,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { runAuditedProcess, auditUiError, auditCaughtError } from "../../lib/processAudit";
+import { CheckCircle2, Loader2, Mail, RefreshCw, ShieldCheck, X, } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import CaptchaVerificationModal from "./CaptchaVerificationModal";
 import { supabase } from "../../lib/supabase";
-
 export interface EmailOtpVerifiedContext {
-  userId: string;
-  email: string;
+    userId: string;
+    email: string;
 }
-
 interface EmailOtpModalProps {
-  open: boolean;
-  email: string;
-  accountType?: "customer" | "worker";
-  onClose: () => void;
-  onVerified:
-    | ((context: EmailOtpVerifiedContext) => void)
-    | ((context: EmailOtpVerifiedContext) => Promise<void>);
+    open: boolean;
+    email: string;
+    accountType?: "customer" | "worker";
+    onClose: () => void;
+    onVerified: ((context: EmailOtpVerifiedContext) => void) | ((context: EmailOtpVerifiedContext) => Promise<void>);
 }
-
 const OTP_LENGTH = 6;
-
-export default function EmailOtpModal({
-  open,
-  email,
-  accountType = "customer",
-  onClose,
-  onVerified,
-}: EmailOtpModalProps) {
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-
-  const [digits, setDigits] = useState<string[]>(
-    Array.from({ length: OTP_LENGTH }, () => ""),
-  );
-  const [verifying, setVerifying] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [captchaOpen, setCaptchaOpen] = useState(false);
-  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
-
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
-    | string
-    | undefined;
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const otp = useMemo(() => digits.join(""), [digits]);
-
-  /*
-   * The OTP state is reset by the open event rather than by
-   * synchronously calling setState() inside useEffect.
-   *
-   * This effect is only responsible for focusing the first
-   * OTP input after the modal has rendered.
-   */
-  useEffect(() => {
+export default function EmailOtpModal({ open, email, accountType = "customer", onClose, onVerified, }: EmailOtpModalProps) {
+    const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+    const [digits, setDigits] = useState<string[]>(Array.from({ length: OTP_LENGTH }, () => ""));
+    const [verifying, setVerifying] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [captchaOpen, setCaptchaOpen] = useState(false);
+    const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+    const normalizedEmail = email.trim().toLowerCase();
+    const otp = useMemo(() => digits.join(""), [digits]);
+    /*
+     * The OTP state is reset by the open event rather than by
+     * synchronously calling setState() inside useEffect.
+     *
+     * This effect is only responsible for focusing the first
+     * OTP input after the modal has rendered.
+     */
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+        const focusTimer = window.setTimeout(() => {
+            inputRefs.current[0]?.focus();
+        }, 100);
+        return () => {
+            window.clearTimeout(focusTimer);
+        };
+    }, [open]);
     if (!open) {
-      return;
+        return null;
     }
-
-    const focusTimer = window.setTimeout(() => {
-      inputRefs.current[0]?.focus();
-    }, 100);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-    };
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
-
-  function resetOtpState(): void {
-    setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
-  }
-
-  function updateDigit(index: number, value: string): void {
-    const normalized = value.replace(/\D/g, "").slice(-1);
-
-    setDigits((current) => {
-      const next = [...current];
-      next[index] = normalized;
-      return next;
-    });
-
-    if (normalized && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
+    function resetOtpState(): void {
+        setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
     }
-  }
-
-  function handleKeyDown(
-    index: number,
-    event: React.KeyboardEvent<HTMLInputElement>,
-  ): void {
-    if (event.key === "Backspace" && !digits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+    function updateDigit(index: number, value: string): void {
+        const normalized = value.replace(/\D/g, "").slice(-1);
+        setDigits((current) => {
+            const next = [...current];
+            next[index] = normalized;
+            return next;
+        });
+        if (normalized && index < OTP_LENGTH - 1) {
+            inputRefs.current[index + 1]?.focus();
+        }
     }
-
-    if (event.key === "ArrowLeft" && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+    function handleKeyDown(index: number, event: React.KeyboardEvent<HTMLInputElement>): void {
+        if (event.key === "Backspace" && !digits[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+        if (event.key === "ArrowLeft" && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+        if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
+            inputRefs.current[index + 1]?.focus();
+        }
     }
-
-    if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
+    function handlePaste(event: React.ClipboardEvent<HTMLDivElement>): void {
+        const pasted = event.clipboardData
+            .getData("text")
+            .replace(/\D/g, "")
+            .slice(0, OTP_LENGTH);
+        if (!pasted) {
+            return;
+        }
+        event.preventDefault();
+        setDigits(Array.from({ length: OTP_LENGTH }, (_, index) => pasted[index] ?? ""));
+        inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
     }
-  }
-
-  function handlePaste(event: React.ClipboardEvent<HTMLDivElement>): void {
-    const pasted = event.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, OTP_LENGTH);
-
-    if (!pasted) {
-      return;
+    async function verifyOtp(): Promise<void> {
+        if (!normalizedEmail) {
+            toast.warning("Email address is missing.");
+            return;
+        }
+        if (otp.length !== OTP_LENGTH) {
+            toast.warning(`Enter the complete ${OTP_LENGTH}-digit OTP code.`);
+            return;
+        }
+        try {
+            setVerifying(true);
+            const { data, error } = await supabase.auth.verifyOtp({
+                email: normalizedEmail,
+                token: otp,
+                type: "email",
+            });
+            if (error) {
+                throw error;
+            }
+            const verifiedUser = data.user;
+            if (!verifiedUser) {
+                throw new Error("Email was verified, but the user account could not be loaded.");
+            }
+            await onVerified({
+                userId: verifiedUser.id,
+                email: verifiedUser.email ?? normalizedEmail,
+            });
+            await supabase.auth.signOut({
+                scope: "local",
+            });
+            toast.success(accountType === "worker"
+                ? "Email verified. Your application is waiting for administrator approval."
+                : "Email verified successfully. You may now sign in.");
+        }
+        catch (error) {
+            auditCaughtError({ module: "Authentication", process: "verifyOtp", action: "EXECUTE" }, error);
+            const message = error instanceof Error ? error.message : "Unable to verify the OTP.";
+            auditUiError({ module: "Authentication", process: "verifyOtp", action: "EXECUTE" }, toast.error, message.toLowerCase().includes("expired")
+                ? "The OTP is invalid or expired. Request a new code."
+                : message);
+        }
+        finally {
+            setVerifying(false);
+        }
     }
-
-    event.preventDefault();
-
-    setDigits(
-      Array.from({ length: OTP_LENGTH }, (_, index) => pasted[index] ?? ""),
-    );
-
-    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
-  }
-
-  async function verifyOtp(): Promise<void> {
-    if (!normalizedEmail) {
-      toast.warning("Email address is missing.");
-      return;
+    function requestResend(): void {
+        if (resending || verifying) {
+            return;
+        }
+        if (!turnstileSiteKey) {
+            auditUiError({ module: "Authentication", process: "requestResend", action: "CREATE" }, toast.error, "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.");
+            return;
+        }
+        setCaptchaWidgetKey((current) => current + 1);
+        setCaptchaOpen(true);
     }
-
-    if (otp.length !== OTP_LENGTH) {
-      toast.warning(`Enter the complete ${OTP_LENGTH}-digit OTP code.`);
-      return;
+    async function completeResend(captchaToken: string): Promise<void> {
+        return await runAuditedProcess({ module: "Authentication", process: "completeResend", action: "COMPLETE", parameters: { captchaToken } }, async (__activityProcessScope) => {
+            try {
+                setResending(true);
+                const { error } = await supabase.auth.resend({
+                    type: "signup",
+                    email: normalizedEmail,
+                    options: {
+                        emailRedirectTo: window.location.origin,
+                        captchaToken,
+                    },
+                });
+                if (error) {
+                    throw error;
+                }
+                setCaptchaOpen(false);
+                resetOtpState();
+                inputRefs.current[0]?.focus();
+                toast.success("A new OTP code was sent to your email.");
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                setCaptchaOpen(false);
+                setCaptchaWidgetKey((current) => current + 1);
+                const message = error instanceof Error ? error.message : "Unable to resend the OTP.";
+                __activityProcessScope.failAndNotify(toast.error, message.toLowerCase().includes("rate limit") ||
+                    message.toLowerCase().includes("security purposes")
+                    ? "Please wait before requesting another OTP code."
+                    : message);
+            }
+            finally {
+                setResending(false);
+            }
+        });
     }
-
-    try {
-      setVerifying(true);
-
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: normalizedEmail,
-        token: otp,
-        type: "email",
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const verifiedUser = data.user;
-
-      if (!verifiedUser) {
-        throw new Error(
-          "Email was verified, but the user account could not be loaded.",
-        );
-      }
-
-      await onVerified({
-        userId: verifiedUser.id,
-        email: verifiedUser.email ?? normalizedEmail,
-      });
-
-      await supabase.auth.signOut({
-        scope: "local",
-      });
-
-      toast.success(
-        accountType === "worker"
-          ? "Email verified. Your application is waiting for administrator approval."
-          : "Email verified successfully. You may now sign in.",
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to verify the OTP.";
-
-      toast.error(
-        message.toLowerCase().includes("expired")
-          ? "The OTP is invalid or expired. Request a new code."
-          : message,
-      );
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  function requestResend(): void {
-    if (resending || verifying) {
-      return;
-    }
-
-    if (!turnstileSiteKey) {
-      toast.error(
-        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
-      );
-      return;
-    }
-
-    setCaptchaWidgetKey((current) => current + 1);
-
-    setCaptchaOpen(true);
-  }
-
-  async function completeResend(captchaToken: string): Promise<void> {
-    try {
-      setResending(true);
-
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: normalizedEmail,
-        options: {
-          emailRedirectTo: window.location.origin,
-          captchaToken,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setCaptchaOpen(false);
-
-      resetOtpState();
-
-      inputRefs.current[0]?.focus();
-
-      toast.success("A new OTP code was sent to your email.");
-    } catch (error) {
-      setCaptchaOpen(false);
-
-      setCaptchaWidgetKey((current) => current + 1);
-
-      const message =
-        error instanceof Error ? error.message : "Unable to resend the OTP.";
-
-      toast.error(
-        message.toLowerCase().includes("rate limit") ||
-          message.toLowerCase().includes("security purposes")
-          ? "Please wait before requesting another OTP code."
-          : message,
-      );
-    } finally {
-      setResending(false);
-    }
-  }
-
-  const busy = verifying || resending;
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="email-otp-modal-title"
-      >
+    const busy = verifying || resending;
+    return (<>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="email-otp-modal-title">
         <section className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/15 bg-white shadow-[0_35px_110px_rgba(15,23,42,0.35)] dark:border-slate-700 dark:bg-slate-900">
           <header className="relative bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-6 py-7 text-white sm:px-8">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              aria-label="Close verification modal"
-              className="absolute right-4 top-4 rounded-xl bg-white/10 p-2 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <X className="h-5 w-5" />
+            <button type="button" onClick={onClose} disabled={busy} aria-label="Close verification modal" className="absolute right-4 top-4 rounded-xl bg-white/10 p-2 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50">
+              <X className="h-5 w-5"/>
             </button>
 
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
-              <ShieldCheck className="h-7 w-7" />
+              <ShieldCheck className="h-7 w-7"/>
             </div>
 
-            <h2
-              id="email-otp-modal-title"
-              className="mt-5 text-2xl font-black sm:text-3xl"
-            >
+            <h2 id="email-otp-modal-title" className="mt-5 text-2xl font-black sm:text-3xl">
               Verify your email
             </h2>
 
@@ -296,48 +203,24 @@ export default function EmailOtpModal({
 
           <div className="p-6 sm:p-8">
             <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
-              <Mail className="h-4 w-4 text-indigo-500" />
+              <Mail className="h-4 w-4 text-indigo-500"/>
               Enter {OTP_LENGTH}-digit OTP
             </div>
 
             <div onPaste={handlePaste} className="mt-5 grid grid-cols-6 gap-2">
-              {digits.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(element) => {
-                    inputRefs.current[index] = element;
-                  }}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete={index === 0 ? "one-time-code" : "off"}
-                  maxLength={1}
-                  value={digit}
-                  disabled={busy}
-                  onChange={(event) => updateDigit(index, event.target.value)}
-                  onKeyDown={(event) => handleKeyDown(index, event)}
-                  aria-label={`OTP digit ${index + 1}`}
-                  className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
-                />
-              ))}
+              {digits.map((digit, index) => (<input key={index} ref={(element) => {
+                inputRefs.current[index] = element;
+            }} type="text" inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={1} value={digit} disabled={busy} onChange={(event) => updateDigit(index, event.target.value)} onKeyDown={(event) => handleKeyDown(index, event)} aria-label={`OTP digit ${index + 1}`} className="h-12 min-w-0 rounded-xl border border-slate-200 bg-white text-center text-lg font-black outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"/>))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => void verifyOtp()}
-              disabled={busy || otp.length !== OTP_LENGTH}
-              className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
-            >
-              {verifying ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+            <button type="button" onClick={() => void verifyOtp()} disabled={busy || otp.length !== OTP_LENGTH} className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60">
+              {verifying ? (<>
+                  <Loader2 className="h-5 w-5 animate-spin"/>
                   Verifying...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" />
+                </>) : (<>
+                  <CheckCircle2 className="h-5 w-5"/>
                   Verify Email
-                </>
-              )}
+                </>)}
             </button>
 
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center dark:border-amber-500/20 dark:bg-amber-500/10">
@@ -345,51 +228,29 @@ export default function EmailOtpModal({
                 Did not receive the code?
               </p>
 
-              <button
-                type="button"
-                onClick={requestResend}
-                disabled={busy}
-                className="mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300 dark:hover:bg-amber-500/10"
-              >
-                {resending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+              <button type="button" onClick={requestResend} disabled={busy} className="mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300 dark:hover:bg-amber-500/10">
+                {resending ? (<>
+                    <Loader2 className="h-4 w-4 animate-spin"/>
                     Sending...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
+                  </>) : (<>
+                    <RefreshCw className="h-4 w-4"/>
                     Resend OTP
-                  </>
-                )}
+                  </>)}
               </button>
             </div>
           </div>
         </section>
       </div>
 
-      <CaptchaVerificationModal
-        open={captchaOpen}
-        siteKey={turnstileSiteKey ?? ""}
-        widgetKey={captchaWidgetKey}
-        processing={resending}
-        title="Verify before resending"
-        description="Complete this quick security check to request a new email OTP."
-        onClose={() => {
-          if (!resending) {
-            setCaptchaOpen(false);
-          }
-        }}
-        onSuccess={(token) => {
-          void completeResend(token);
-        }}
-        onExpire={() => undefined}
-        onError={() => {
-          setCaptchaWidgetKey((current) => current + 1);
-
-          toast.error("Security verification failed. Please try again.");
-        }}
-      />
-    </>
-  );
+      <CaptchaVerificationModal open={captchaOpen} siteKey={turnstileSiteKey ?? ""} widgetKey={captchaWidgetKey} processing={resending} title="Verify before resending" description="Complete this quick security check to request a new email OTP." onClose={() => {
+            if (!resending) {
+                setCaptchaOpen(false);
+            }
+        }} onSuccess={(token) => {
+            void completeResend(token);
+        }} onExpire={() => undefined} onError={() => {
+            setCaptchaWidgetKey((current) => current + 1);
+            auditUiError({ module: "Authentication", process: "onError", action: "EXECUTE" }, toast.error, "Security verification failed. Please try again.");
+        }}/>
+    </>);
 }

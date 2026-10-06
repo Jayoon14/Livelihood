@@ -1,3 +1,4 @@
+import { auditedFetch } from "./activityAudit";
 import { createClient } from "@supabase/supabase-js";
 
 import { hybridAuthStorage } from "./authStorage";
@@ -15,6 +16,7 @@ export const supabase = createClient(
   supabaseUrl,
   supabaseAnonKey,
   {
+    global: { fetch: auditedFetch },
     auth: {
       storage: hybridAuthStorage,
       persistSession: true,

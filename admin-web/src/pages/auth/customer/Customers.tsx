@@ -1,84 +1,62 @@
+import { runAuditedProcess } from "../../../lib/processAudit";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
 import AdminLayout from "../../../layouts/AdminLayout";
-
-import {
-  getCustomers,
-  type Customer,
-} from "../../../services/customerService";
-
+import { getCustomers, type Customer, } from "../../../services/customerService";
 export default function Customers() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [search, setSearch] = useState("");
-
-  const loadCustomers = useCallback(async () => {
-    const data = await getCustomers();
-    setCustomers(data);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadCustomers();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [loadCustomers]);
-
-  async function handleSearch(value: string) {
-    setSearch(value);
-
-    const data = await getCustomers(value);
-
-    setCustomers(data);
-  }
-
-  function getFullName(customer: Customer) {
-    return [customer.first_name, customer.middle_name, customer.last_name]
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  return (
-    <AdminLayout>
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [search, setSearch] = useState("");
+    const loadCustomers = useCallback(async () => {
+        const data = await getCustomers();
+        setCustomers(data);
+    }, []);
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void loadCustomers();
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [loadCustomers]);
+    async function handleSearch(value: string) {
+        return await runAuditedProcess({ module: "Authentication", process: "handleSearch", action: "READ", parameters: { value } }, async () => {
+            setSearch(value);
+            const data = await getCustomers(value);
+            setCustomers(data);
+        });
+    }
+    function getFullName(customer: Customer) {
+        return [customer.first_name, customer.middle_name, customer.last_name]
+            .filter(Boolean)
+            .join(" ");
+    }
+    return (<AdminLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         {/* HEADER */}
 
-        <div
-          className="
+        <div className="
           flex
           justify-between
           items-center
           mb-8
-        "
-        >
+        ">
           <h1 className="text-3xl font-bold">Customers Management</h1>
 
-          <input
-            type="text"
-            placeholder="Search customer..."
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="
+          <input type="text" placeholder="Search customer..." value={search} onChange={(e) => handleSearch(e.target.value)} className="
               border
               rounded-lg
               px-4
               py-2
               w-80
-            "
-          />
+            "/>
         </div>
 
         {/* TABLE */}
 
-        <div
-          className="
+        <div className="
           bg-white
           rounded-xl
           shadow
           overflow-hidden
-        "
-        >
+        ">
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
@@ -95,31 +73,19 @@ export default function Customers() {
             </thead>
 
             <tbody>
-              {customers.length > 0 ? (
-                customers.map((customer) => (
-                  <tr key={customer.id} className="border-t">
+              {customers.length > 0 ? (customers.map((customer) => (<tr key={customer.id} className="border-t">
                     <td className="p-4">
-                      <div
-                        className="
+                      <div className="
                         flex
                         items-center
                         gap-3
-                      "
-                      >
-                        {customer.profile_picture ? (
-                          <img
-                            src={customer.profile_picture}
-                            alt="Profile"
-                            className="
+                      ">
+                        {customer.profile_picture ? (<img src={customer.profile_picture} alt="Profile" className="
                               w-10
                               h-10
                               rounded-full
                               object-cover
-                            "
-                          />
-                        ) : (
-                          <div
-                            className="
+                            "/>) : (<div className="
                             w-10
                             h-10
                             rounded-full
@@ -129,11 +95,9 @@ export default function Customers() {
                             justify-center
                             text-blue-700
                             font-bold
-                          "
-                          >
+                          ">
                             {customer.first_name?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                          </div>)}
 
                         <span className="font-semibold">
                           {getFullName(customer)}
@@ -146,55 +110,42 @@ export default function Customers() {
                     <td className="p-4">{customer.phone || "-"}</td>
 
                     <td className="p-4">
-                      <span
-                        className="
+                      <span className="
                         px-3
                         py-1
                         rounded-full
                         bg-green-100
                         text-green-700
                         font-semibold
-                      "
-                      >
+                      ">
                         {customer.status || "Active"}
                       </span>
                     </td>
 
                     <td className="p-4">
-                      <Link
-                        to={`/customers/${customer.id}`}
-                        className="
+                      <Link to={`/customers/${customer.id}`} className="
                           bg-blue-600
                           hover:bg-blue-700
                           text-white
                           px-4
                           py-2
                           rounded-lg
-                        "
-                      >
+                        ">
                         View
                       </Link>
                     </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="
+                  </tr>))) : (<tr>
+                  <td colSpan={5} className="
                       text-center
                       p-8
                       text-gray-500
-                    "
-                  >
+                    ">
                     No customers found.
                   </td>
-                </tr>
-              )}
+                </tr>)}
             </tbody>
           </table>
         </div>
       </div>
-    </AdminLayout>
-  );
+    </AdminLayout>);
 }

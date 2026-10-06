@@ -1,42 +1,33 @@
+import { auditCaughtError } from "../../../lib/processAudit";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
 import CustomerLayout from "../../../layouts/CustomerLayout";
-import {
-  getWorkersByCategory,
-  type WorkerProfile,
-} from "../../../services/workerService";
-
+import { getWorkersByCategory, type WorkerProfile, } from "../../../services/workerService";
 export default function WorkersByCategory() {
-  const { category } = useParams();
-  const navigate = useNavigate();
-
-  const [workers, setWorkers] = useState<WorkerProfile[]>([]);
-
-  const loadWorkers = useCallback(async () => {
-    if (!category) {
-      setWorkers([]);
-      return;
-    }
-
-    try {
-      const data = await getWorkersByCategory(category);
-      setWorkers(data);
-    } catch (error) {
-      console.error(error);
-    }
-  }, [category]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadWorkers();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [loadWorkers]);
-
-  return (
-    <CustomerLayout>
+    const { category } = useParams();
+    const navigate = useNavigate();
+    const [workers, setWorkers] = useState<WorkerProfile[]>([]);
+    const loadWorkers = useCallback(async () => {
+        if (!category) {
+            setWorkers([]);
+            return;
+        }
+        try {
+            const data = await getWorkersByCategory(category);
+            setWorkers(data);
+        }
+        catch (error) {
+            auditCaughtError({ module: "Workers", process: "background operation", action: "EXECUTE" }, error);
+            console.error(error);
+        }
+    }, [category]);
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void loadWorkers();
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [loadWorkers]);
+    return (<CustomerLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">{category} Workers</h1>
@@ -45,26 +36,12 @@ export default function WorkersByCategory() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {workers.length === 0 ? (
-            <div className="text-gray-500">No workers found.</div>
-          ) : (
-            workers.map((worker) => (
-              <div
-                key={worker.id}
-                className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden"
-              >
+          {workers.length === 0 ? (<div className="text-gray-500">No workers found.</div>) : (workers.map((worker) => (<div key={worker.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
                 <div className="p-6">
                   <div className="flex items-center gap-4">
-                    {worker.profile_picture ? (
-                      <img
-                        src={worker.profile_picture}
-                        className="w-20 h-20 rounded-full object-cover border"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-3xl">
+                    {worker.profile_picture ? (<img src={worker.profile_picture} className="w-20 h-20 rounded-full object-cover border"/>) : (<div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-3xl">
                         👤
-                      </div>
-                    )}
+                      </div>)}
 
                     <div>
                       <h2 className="text-xl font-bold">
@@ -83,18 +60,12 @@ export default function WorkersByCategory() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => navigate(`/customer/workers/${worker.id}`)}
-                    className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl"
-                  >
+                  <button onClick={() => navigate(`/customer/workers/${worker.id}`)} className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl">
                     View Profile
                   </button>
                 </div>
-              </div>
-            ))
-          )}
+              </div>)))}
         </div>
       </div>
-    </CustomerLayout>
-  );
+    </CustomerLayout>);
 }

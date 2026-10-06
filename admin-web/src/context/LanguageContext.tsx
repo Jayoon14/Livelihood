@@ -49,11 +49,6 @@ const translations: Record<AppLanguage, TranslationTree> = {
         title: "Notification preferences",
         description: "Choose which alerts and updates you want to receive.",
       },
-      dangerZone: {
-        title: "Danger zone",
-        description: "Permanently remove your account and associated data.",
-        deleteAccount: "Delete account",
-      },
       protected: "Account protected",
       logoutDescription:
         "You will need to sign in again to access your account.",
@@ -105,12 +100,6 @@ const translations: Record<AppLanguage, TranslationTree> = {
         title: "Mga notification",
         description:
           "Piliin kung aling mga alert at update ang gusto mong matanggap.",
-      },
-      dangerZone: {
-        title: "Mapanganib na bahagi",
-        description:
-          "Permanenteng burahin ang iyong account at kaugnay na datos.",
-        deleteAccount: "Burahin ang account",
       },
       protected: "Protektado ang account",
       logoutDescription:

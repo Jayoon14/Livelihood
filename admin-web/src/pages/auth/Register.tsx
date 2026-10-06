@@ -1,638 +1,513 @@
+import { runAuditedProcess, auditUiError, auditCaughtError } from "../../lib/processAudit";
 import { toast } from "sonner";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegisterStore } from "../../store/registerStore";
 import { submitWorkerRegistration } from "../../services/registerWorkerService";
 import { isDisposableEmail } from "../../utils/disposableEmail";
-import {
-  savePendingWorkerFiles,
-  uploadPendingWorkerFiles,
-} from "../../utils/pendingWorkerFiles";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BriefcaseBusiness,
-  Check,
-  ShieldCheck,
-  Sparkles,
-  Wrench,
-} from "lucide-react";
-
+import { savePendingWorkerFiles, uploadPendingWorkerFiles, } from "../../utils/pendingWorkerFiles";
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ShieldCheck, Sparkles, Wrench, } from "lucide-react";
 import CaptchaVerificationModal from "../../components/auth/CaptchaVerificationModal";
 import EmailOtpModal from "../../components/auth/EmailOtpModal";
 import StepIndicator from "../../components/StepIndicator";
-
 import PersonalInformation from "./register/PersonalInformation";
 import EducationalBackground from "./register/EducationalBackground";
 import WorkExperience from "./register/WorkExperience";
 import SkillsCertification from "./register/SkillsCertification";
 import Documents from "./register/Documents";
 import Confirmation from "./register/Confirmation";
-
 export default function Register() {
-  const navigate = useNavigate();
-
-  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
-  const [captchaOpen, setCaptchaOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState("");
-
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as
-    | string
-    | undefined;
-
-  const {
-    step,
-    data,
-    nextStep,
-    prevStep,
-    goToStep,
-    completeStep,
-    completedSteps,
-    setErrors,
-    reset,
-    editingFromReview,
-    setEditingFromReview,
-  } = useRegisterStore();
-
-  // =====================================================
-  // STEP 1 VALIDATION
-  // =====================================================
-
-  function validateStep1() {
-    const errors: Record<string, string> = {};
-
-    if (!data.firstName.trim()) {
-      errors.firstName = "First name is required";
-    }
-
-    if (!data.lastName.trim()) {
-      errors.lastName = "Last name is required";
-    }
-
-    if (!data.birthDate) {
-      errors.birthDate = "Birth date is required";
-    }
-
-    if (!data.gender) {
-      errors.gender = "Gender is required";
-    }
-
-    if (!data.civilStatus) {
-      errors.civilStatus = "Civil status is required";
-    }
-
-    if (!data.religion) {
-      errors.religion = "Religion is required";
-    }
-
-    if (!data.phone.trim()) {
-      errors.phone = "Phone number is required";
-    }
-
-    if (!data.email.trim()) {
-      errors.email = "Email is required";
-    } else if (isDisposableEmail(data.email)) {
-      errors.email = "Temporary or disposable email addresses are not allowed.";
-    }
-
-    if (!data.password) {
-      errors.password = "Password is required";
-    } else {
-      const regex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/;
-
-      if (!regex.test(data.password)) {
-        errors.password =
-          "Password must contain uppercase, lowercase, number and special character.";
-      }
-    }
-
-    if (!data.confirmPassword) {
-      errors.confirmPassword = "Please confirm your password.";
-    } else if (data.password !== data.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
-    }
-
-    if (!data.houseNo.trim()) {
-      errors.houseNo = "House No. is required";
-    }
-
-    if (!data.street.trim()) {
-      errors.street = "Street is required";
-    }
-
-    if (!data.barangay.trim()) {
-      errors.barangay = "Barangay is required";
-    }
-
-    if (!data.municipality.trim()) {
-      errors.municipality = "Municipality is required";
-    }
-
-    if (!data.province.trim()) {
-      errors.province = "Province is required";
-    }
-
-    setErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.warning(Object.values(errors)[0]);
-      return false;
-    }
-
-    return true;
-  }
-
-  // =====================================================
-  // STEP 2 VALIDATION
-  // =====================================================
-
-  function validateStep2() {
-    const errors: Record<string, string> = {};
-
-    if (!data.highestEducation) {
-      errors.highestEducation = "Highest Educational Attainment is required";
-    }
-
-    if (
-      [
-        "Elementary",
-        "Junior High",
-        "Senior High",
-        "College",
-        "Master",
-        "Doctorate",
-      ].includes(data.highestEducation) &&
-      !data.elementary.trim()
-    ) {
-      errors.elementary = "Elementary School is required";
-    }
-
-    if (
-      ["Junior High", "Senior High", "College", "Master", "Doctorate"].includes(
-        data.highestEducation,
-      ) &&
-      !data.secondary.trim()
-    ) {
-      errors.secondary = "Junior High School is required";
-    }
-
-    if (
-      ["Senior High", "College", "Master", "Doctorate"].includes(
-        data.highestEducation,
-      ) &&
-      !data.seniorHigh.trim()
-    ) {
-      errors.seniorHigh = "Senior High School is required";
-    }
-
-    if (["College", "Master", "Doctorate"].includes(data.highestEducation)) {
-      if (!data.college.trim()) {
-        errors.college = "University is required";
-      }
-
-      if (!data.course.trim()) {
-        errors.course = "Course / Degree is required";
-      }
-
-      if (!data.yearGraduated.trim()) {
-        errors.yearGraduated = "Year Graduated is required";
-      }
-    }
-
-    if (
-      ["Master", "Doctorate"].includes(data.highestEducation) &&
-      !data.prc.trim()
-    ) {
-      errors.prc = "PRC License No. is required";
-    }
-
-    if (data.highestEducation === "Other" && !data.otherEducation.trim()) {
-      errors.otherEducation = "Please specify your education";
-    }
-
-    setErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.warning(Object.values(errors)[0]);
-      return false;
-    }
-
-    return true;
-  }
-
-  // =====================================================
-  // STEP 3 VALIDATION
-  // =====================================================
-
-  function validateStep3() {
-    if (data.noWorkExperience) {
-      setErrors({});
-      return true;
-    }
-
-    const errors: Record<string, string> = {};
-
-    if (!data.company.trim()) {
-      errors.company = "Company is required";
-    }
-
-    if (!data.position.trim()) {
-      errors.position = "Position is required";
-    }
-
-    if (!data.employmentStatus.trim()) {
-      errors.employmentStatus = "Employment status is required";
-    }
-
-    if (!data.startDate) {
-      errors.startDate = "Start date is required";
-    }
-
-    if (!data.endDate) {
-      errors.endDate = "End date is required";
-    }
-
-    if (!data.description.trim()) {
-      errors.description = "Description is required";
-    }
-
-    setErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.warning(Object.values(errors)[0]);
-      return false;
-    }
-
-    return true;
-  }
-
-  // =====================================================
-  // STEP 4 VALIDATION
-  // =====================================================
-
-  function validateStep4() {
-    const errors: Record<string, string> = {};
-
-    if (data.skills.length === 0) {
-      errors.skills = "Please select at least one skill.";
-    }
-
-    setErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.warning(Object.values(errors)[0]);
-      return false;
-    }
-
-    return true;
-  }
-
-  // =====================================================
-  // STEP 5 VALIDATION
-  // =====================================================
-
-  function validateStep5() {
-    const errors: Record<string, string> = {};
-
-    if (!data.validId) {
-      errors.validId = "Valid ID is required";
-    }
-
-    if (!data.resume) {
-      errors.resume = "Resume is required";
-    }
-
-    if (!data.barangayClearance) {
-      errors.barangayClearance = "Barangay Clearance is required";
-    }
-
-    if (!data.policeClearance) {
-      errors.policeClearance = "Police Clearance is required";
-    }
-
-    if (!data.nbiClearance) {
-      errors.nbiClearance = "NBI Clearance is required";
-    }
-
-    setErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.warning(Object.values(errors)[0]);
-      return false;
-    }
-
-    return true;
-  }
-
-  // =====================================================
-  // NEXT BUTTON
-  // =====================================================
-
-  async function handleNext() {
-    console.log("Current Step:", step);
-
-    if (step === 1) {
-      if (!validateStep1()) return;
-
-      completeStep(1);
-
-      if (editingFromReview) {
-        setEditingFromReview(false);
-        goToStep(6);
-        return;
-      }
-
-      nextStep();
-      return;
-    }
-
-    if (step === 2) {
-      if (!validateStep2()) return;
-
-      completeStep(2);
-
-      if (editingFromReview) {
-        setEditingFromReview(false);
-        goToStep(6);
-        return;
-      }
-
-      nextStep();
-      return;
-    }
-
-    if (step === 3) {
-      if (!validateStep3()) return;
-
-      completeStep(3);
-
-      if (editingFromReview) {
-        setEditingFromReview(false);
-        goToStep(6);
-        return;
-      }
-
-      nextStep();
-      return;
-    }
-
-    if (step === 4) {
-      if (!validateStep4()) return;
-
-      completeStep(4);
-
-      if (editingFromReview) {
-        setEditingFromReview(false);
-        goToStep(6);
-        return;
-      }
-
-      nextStep();
-      return;
-    }
-
-    if (step === 5) {
-      if (!validateStep5()) return;
-
-      completeStep(5);
-
-      if (editingFromReview) {
-        setEditingFromReview(false);
-        goToStep(6);
-        return;
-      }
-
-      nextStep();
-      return;
-    }
-
+    const navigate = useNavigate();
+    const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+    const [captchaOpen, setCaptchaOpen] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [otpModalOpen, setOtpModalOpen] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState("");
+    const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+    const { step, data, nextStep, prevStep, goToStep, completeStep, completedSteps, setErrors, reset, editingFromReview, setEditingFromReview, } = useRegisterStore();
     // =====================================================
-    // STEP 6 - SUBMIT
+    // STEP 1 VALIDATION
     // =====================================================
-
-    if (!turnstileSiteKey) {
-      toast.error(
-        "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.",
-      );
-      return;
+    function validateStep1() {
+        const errors: Record<string, string> = {};
+        if (!data.firstName.trim()) {
+            errors.firstName = "First name is required";
+        }
+        if (!data.lastName.trim()) {
+            errors.lastName = "Last name is required";
+        }
+        if (!data.birthDate) {
+            errors.birthDate = "Birth date is required";
+        }
+        if (!data.gender) {
+            errors.gender = "Gender is required";
+        }
+        if (!data.civilStatus) {
+            errors.civilStatus = "Civil status is required";
+        }
+        if (!data.religion) {
+            errors.religion = "Religion is required";
+        }
+        if (!data.phone.trim()) {
+            errors.phone = "Phone number is required";
+        }
+        if (!data.email.trim()) {
+            errors.email = "Email is required";
+        }
+        else if (isDisposableEmail(data.email)) {
+            errors.email = "Temporary or disposable email addresses are not allowed.";
+        }
+        if (!data.password) {
+            errors.password = "Password is required";
+        }
+        else {
+            const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/;
+            if (!regex.test(data.password)) {
+                errors.password =
+                    "Password must contain uppercase, lowercase, number and special character.";
+            }
+        }
+        if (!data.confirmPassword) {
+            errors.confirmPassword = "Please confirm your password.";
+        }
+        else if (data.password !== data.confirmPassword) {
+            errors.confirmPassword = "Passwords do not match";
+        }
+        if (!data.houseNo.trim()) {
+            errors.houseNo = "House No. is required";
+        }
+        if (!data.street.trim()) {
+            errors.street = "Street is required";
+        }
+        if (!data.barangay.trim()) {
+            errors.barangay = "Barangay is required";
+        }
+        if (!data.municipality.trim()) {
+            errors.municipality = "Municipality is required";
+        }
+        if (!data.province.trim()) {
+            errors.province = "Province is required";
+        }
+        setErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            toast.warning(Object.values(errors)[0]);
+            return false;
+        }
+        return true;
     }
-
-    if (submitting) {
-      return;
+    // =====================================================
+    // STEP 2 VALIDATION
+    // =====================================================
+    function validateStep2() {
+        const errors: Record<string, string> = {};
+        if (!data.highestEducation) {
+            errors.highestEducation = "Highest Educational Attainment is required";
+        }
+        if ([
+            "Elementary",
+            "Junior High",
+            "Senior High",
+            "College",
+            "Master",
+            "Doctorate",
+        ].includes(data.highestEducation) &&
+            !data.elementary.trim()) {
+            errors.elementary = "Elementary School is required";
+        }
+        if (["Junior High", "Senior High", "College", "Master", "Doctorate"].includes(data.highestEducation) &&
+            !data.secondary.trim()) {
+            errors.secondary = "Junior High School is required";
+        }
+        if (["Senior High", "College", "Master", "Doctorate"].includes(data.highestEducation) &&
+            !data.seniorHigh.trim()) {
+            errors.seniorHigh = "Senior High School is required";
+        }
+        if (["College", "Master", "Doctorate"].includes(data.highestEducation)) {
+            if (!data.college.trim()) {
+                errors.college = "University is required";
+            }
+            if (!data.course.trim()) {
+                errors.course = "Course / Degree is required";
+            }
+            if (!data.yearGraduated.trim()) {
+                errors.yearGraduated = "Year Graduated is required";
+            }
+        }
+        if (["Master", "Doctorate"].includes(data.highestEducation) &&
+            !data.prc.trim()) {
+            errors.prc = "PRC License No. is required";
+        }
+        if (data.highestEducation === "Other" && !data.otherEducation.trim()) {
+            errors.otherEducation = "Please specify your education";
+        }
+        setErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            toast.warning(Object.values(errors)[0]);
+            return false;
+        }
+        return true;
     }
-
-    setCaptchaWidgetKey((current) => current + 1);
-
-    setCaptchaOpen(true);
-  }
-
-  // =====================================================
-  // COMPLETE WORKER REGISTRATION
-  // =====================================================
-
-  async function completeWorkerRegistration(token: string) {
-    try {
-      setSubmitting(true);
-
-      /*
-       * ====================================================
-       * IMPORTANT REGISTRATION ORDER
-       * ====================================================
-       *
-       * DO NOT call submitWorkerRegistration() first.
-       *
-       * submitWorkerRegistration() calls:
-       *
-       * supabase.auth.signUp()
-       *
-       * and Supabase can send the email verification OTP
-       * immediately after successful signUp().
-       *
-       * Therefore, all local validation and pending-file
-       * storage must happen BEFORE signUp().
-       */
-
-      // =====================================================
-      // STEP 1
-      // SAVE / VALIDATE PENDING FILES FIRST
-      // =====================================================
-
-      await savePendingWorkerFiles(data.email, {
-        profilePicture: data.profilePicture,
-
-        validId: data.validId,
-        resume: data.resume,
-        tesdaCertificate: data.tesdaCertificate,
-        barangayClearance: data.barangayClearance,
-        policeClearance: data.policeClearance,
-        nbiClearance: data.nbiClearance,
-
-        // =========================
-        // EDUCATION
-        // =========================
-
-        highestEducation: data.highestEducation,
-        elementary: data.elementary,
-        secondary: data.secondary,
-        seniorHigh: data.seniorHigh,
-        college: data.college,
-        course: data.course,
-        yearGraduated: data.yearGraduated,
-        tesda: data.tesda,
-        prc: data.prc,
-        trainings: data.trainings,
-
-        // =========================
-        // WORK EXPERIENCE
-        // =========================
-
-        noWorkExperience: data.noWorkExperience,
-        company: data.company,
-        position: data.position,
-        employmentStatus: data.employmentStatus,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        description: data.description,
-
-        // =========================
-        // SKILLS
-        // =========================
-
-        skills: data.skills,
-      });
-
-      /*
-       * If savePendingWorkerFiles() fails:
-       *
-       * - execution stops here
-       * - submitWorkerRegistration() is NOT called
-       * - supabase.auth.signUp() is NOT called
-       * - no OTP email is triggered by signUp()
-       * - OTP modal will NOT open
-       */
-
-      // =====================================================
-      // STEP 2
-      // CREATE SUPABASE ACCOUNT
-      // =====================================================
-
-      await submitWorkerRegistration(data, token);
-
-      /*
-       * submitWorkerRegistration() only reaches this point
-       * after supabase.auth.signUp() succeeds.
-       *
-       * At this point Supabase may have sent the email
-       * verification OTP.
-       */
-
-      setCaptchaOpen(false);
-
-      const normalizedEmail = data.email.trim().toLowerCase();
-
-      setRegisteredEmail(normalizedEmail);
-
-      toast.success(
-        "Worker account created. Enter the OTP code sent to your email.",
-      );
-
-      // =====================================================
-      // STEP 3
-      // SHOW OTP MODAL ONLY AFTER SUCCESSFUL SIGNUP
-      // =====================================================
-
-      setOtpModalOpen(true);
-    } catch (error: unknown) {
-      /*
-       * ====================================================
-       * REGISTRATION FAILED
-       * ====================================================
-       *
-       * IMPORTANT:
-       *
-       * If the error happened BEFORE signUp(),
-       * no OTP was sent.
-       *
-       * If signUp() itself failed, the OTP modal must
-       * also remain closed.
-       */
-
-      setCaptchaWidgetKey((current) => current + 1);
-
-      setCaptchaOpen(false);
-
-      setOtpModalOpen(false);
-
-      console.error("Worker registration failed:", error);
-
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Registration failed. No verification code was sent.",
-      );
-    } finally {
-      setSubmitting(false);
+    // =====================================================
+    // STEP 3 VALIDATION
+    // =====================================================
+    function validateStep3() {
+        if (data.noWorkExperience) {
+            setErrors({});
+            return true;
+        }
+        const errors: Record<string, string> = {};
+        if (!data.company.trim()) {
+            errors.company = "Company is required";
+        }
+        if (!data.position.trim()) {
+            errors.position = "Position is required";
+        }
+        if (!data.employmentStatus.trim()) {
+            errors.employmentStatus = "Employment status is required";
+        }
+        if (!data.startDate) {
+            errors.startDate = "Start date is required";
+        }
+        if (!data.endDate) {
+            errors.endDate = "End date is required";
+        }
+        if (!data.description.trim()) {
+            errors.description = "Description is required";
+        }
+        setErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            toast.warning(Object.values(errors)[0]);
+            return false;
+        }
+        return true;
     }
-  }
-
-  // =====================================================
-  // RENDER
-  // =====================================================
-
-  return (
-    <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(135deg,#f8faff_0%,#eef3ff_46%,#f8fbff_100%)] text-slate-900 dark:bg-[linear-gradient(135deg,#020617_0%,#07111f_46%,#020617_100%)] dark:text-white"
-      style={{
-        fontFamily: "'Inter', sans-serif",
-      }}
-    >
+    // =====================================================
+    // STEP 4 VALIDATION
+    // =====================================================
+    function validateStep4() {
+        const errors: Record<string, string> = {};
+        if (data.skills.length === 0) {
+            errors.skills = "Please select at least one skill.";
+        }
+        setErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            toast.warning(Object.values(errors)[0]);
+            return false;
+        }
+        return true;
+    }
+    // =====================================================
+    // STEP 5 VALIDATION
+    // =====================================================
+    function validateStep5() {
+        const errors: Record<string, string> = {};
+        if (!data.validId) {
+            errors.validId = "Valid ID is required";
+        }
+        if (!data.resume) {
+            errors.resume = "Resume is required";
+        }
+        if (!data.barangayClearance) {
+            errors.barangayClearance = "Barangay Clearance is required";
+        }
+        if (!data.policeClearance) {
+            errors.policeClearance = "Police Clearance is required";
+        }
+        if (!data.nbiClearance) {
+            errors.nbiClearance = "NBI Clearance is required";
+        }
+        setErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            toast.warning(Object.values(errors)[0]);
+            return false;
+        }
+        return true;
+    }
+    // =====================================================
+    // NEXT BUTTON
+    // =====================================================
+    async function handleNext() {
+        return await runAuditedProcess({ module: "Authentication", process: "handleNext", action: "EXECUTE", parameters: {} }, async (__activityProcessScope) => {
+            console.log("Current Step:", step);
+            if (step === 1) {
+                if (!validateStep1()) {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+                completeStep(1);
+                if (editingFromReview) {
+                    setEditingFromReview(false);
+                    goToStep(6);
+                    {
+                        __activityProcessScope.skipped();
+                        return;
+                    }
+                }
+                nextStep();
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            if (step === 2) {
+                if (!validateStep2()) {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+                completeStep(2);
+                if (editingFromReview) {
+                    setEditingFromReview(false);
+                    goToStep(6);
+                    {
+                        __activityProcessScope.skipped();
+                        return;
+                    }
+                }
+                nextStep();
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            if (step === 3) {
+                if (!validateStep3()) {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+                completeStep(3);
+                if (editingFromReview) {
+                    setEditingFromReview(false);
+                    goToStep(6);
+                    {
+                        __activityProcessScope.skipped();
+                        return;
+                    }
+                }
+                nextStep();
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            if (step === 4) {
+                if (!validateStep4()) {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+                completeStep(4);
+                if (editingFromReview) {
+                    setEditingFromReview(false);
+                    goToStep(6);
+                    {
+                        __activityProcessScope.skipped();
+                        return;
+                    }
+                }
+                nextStep();
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            if (step === 5) {
+                if (!validateStep5()) {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+                completeStep(5);
+                if (editingFromReview) {
+                    setEditingFromReview(false);
+                    goToStep(6);
+                    {
+                        __activityProcessScope.skipped();
+                        return;
+                    }
+                }
+                nextStep();
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            // =====================================================
+            // STEP 6 - SUBMIT
+            // =====================================================
+            if (!turnstileSiteKey) {
+                __activityProcessScope.failAndNotify(toast.error, "Turnstile is not configured. Add VITE_TURNSTILE_SITE_KEY to the environment variables.");
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            if (submitting) {
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            setCaptchaWidgetKey((current) => current + 1);
+            setCaptchaOpen(true);
+        });
+    }
+    // =====================================================
+    // COMPLETE WORKER REGISTRATION
+    // =====================================================
+    async function completeWorkerRegistration(token: string) {
+        return await runAuditedProcess({ module: "Authentication", process: "completeWorkerRegistration", action: "COMPLETE", parameters: { token } }, async (__activityProcessScope) => {
+            try {
+                setSubmitting(true);
+                /*
+                 * ====================================================
+                 * IMPORTANT REGISTRATION ORDER
+                 * ====================================================
+                 *
+                 * DO NOT call submitWorkerRegistration() first.
+                 *
+                 * submitWorkerRegistration() calls:
+                 *
+                 * supabase.auth.signUp()
+                 *
+                 * and Supabase can send the email verification OTP
+                 * immediately after successful signUp().
+                 *
+                 * Therefore, all local validation and pending-file
+                 * storage must happen BEFORE signUp().
+                 */
+                // =====================================================
+                // STEP 1
+                // SAVE / VALIDATE PENDING FILES FIRST
+                // =====================================================
+                await savePendingWorkerFiles(data.email, {
+                    profilePicture: data.profilePicture,
+                    validId: data.validId,
+                    resume: data.resume,
+                    tesdaCertificate: data.tesdaCertificate,
+                    barangayClearance: data.barangayClearance,
+                    policeClearance: data.policeClearance,
+                    nbiClearance: data.nbiClearance,
+                    // =========================
+                    // EDUCATION
+                    // =========================
+                    highestEducation: data.highestEducation,
+                    elementary: data.elementary,
+                    secondary: data.secondary,
+                    seniorHigh: data.seniorHigh,
+                    college: data.college,
+                    course: data.course,
+                    yearGraduated: data.yearGraduated,
+                    tesda: data.tesda,
+                    prc: data.prc,
+                    trainings: data.trainings,
+                    // =========================
+                    // WORK EXPERIENCE
+                    // =========================
+                    noWorkExperience: data.noWorkExperience,
+                    company: data.company,
+                    position: data.position,
+                    employmentStatus: data.employmentStatus,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+                    description: data.description,
+                    // =========================
+                    // SKILLS
+                    // =========================
+                    skills: data.skills,
+                });
+                /*
+                 * If savePendingWorkerFiles() fails:
+                 *
+                 * - execution stops here
+                 * - submitWorkerRegistration() is NOT called
+                 * - supabase.auth.signUp() is NOT called
+                 * - no OTP email is triggered by signUp()
+                 * - OTP modal will NOT open
+                 */
+                // =====================================================
+                // STEP 2
+                // CREATE SUPABASE ACCOUNT
+                // =====================================================
+                await submitWorkerRegistration(data, token);
+                /*
+                 * submitWorkerRegistration() only reaches this point
+                 * after supabase.auth.signUp() succeeds.
+                 *
+                 * At this point Supabase may have sent the email
+                 * verification OTP.
+                 */
+                setCaptchaOpen(false);
+                const normalizedEmail = data.email.trim().toLowerCase();
+                setRegisteredEmail(normalizedEmail);
+                toast.success("Worker account created. Enter the OTP code sent to your email.");
+                // =====================================================
+                // STEP 3
+                // SHOW OTP MODAL ONLY AFTER SUCCESSFUL SIGNUP
+                // =====================================================
+                setOtpModalOpen(true);
+            }
+            catch (error: unknown) {
+                __activityProcessScope.caught(error);
+                /*
+                 * ====================================================
+                 * REGISTRATION FAILED
+                 * ====================================================
+                 *
+                 * IMPORTANT:
+                 *
+                 * If the error happened BEFORE signUp(),
+                 * no OTP was sent.
+                 *
+                 * If signUp() itself failed, the OTP modal must
+                 * also remain closed.
+                 */
+                setCaptchaWidgetKey((current) => current + 1);
+                setCaptchaOpen(false);
+                setOtpModalOpen(false);
+                console.error("Worker registration failed:", error);
+                __activityProcessScope.failAndNotify(toast.error, error instanceof Error
+                    ? error.message
+                    : "Registration failed. No verification code was sent.");
+            }
+            finally {
+                setSubmitting(false);
+            }
+        });
+    }
+    // =====================================================
+    // RENDER
+    // =====================================================
+    return (<main className="relative min-h-dvh overflow-hidden bg-[linear-gradient(135deg,#f8faff_0%,#eef3ff_46%,#f8fbff_100%)] text-slate-900 dark:bg-[linear-gradient(135deg,#020617_0%,#07111f_46%,#020617_100%)] dark:text-white" style={{
+            fontFamily: "'Inter', sans-serif",
+        }}>
       {/* PAGE BACKGROUND */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 opacity-[0.055] dark:opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(#2937f0 1px,transparent 1px),linear-gradient(90deg,#2937f0 1px,transparent 1px)",
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.055] dark:opacity-[0.025]" style={{
+            backgroundImage: "linear-gradient(#2937f0 1px,transparent 1px),linear-gradient(90deg,#2937f0 1px,transparent 1px)",
             backgroundSize: "44px 44px",
-          }}
-        />
+        }}/>
 
-        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-indigo-300/25 blur-3xl dark:bg-indigo-700/10" />
+        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-indigo-300/25 blur-3xl dark:bg-indigo-700/10"/>
 
-        <div className="absolute -right-24 top-16 h-96 w-96 rounded-full bg-blue-300/25 blur-3xl dark:bg-blue-700/10" />
+        <div className="absolute -right-24 top-16 h-96 w-96 rounded-full bg-blue-300/25 blur-3xl dark:bg-blue-700/10"/>
 
-        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-700/10" />
+        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-700/10"/>
 
-        <div className="absolute left-[4%] top-40 hidden h-28 w-28 rotate-12 rounded-[2rem] border border-indigo-200/50 bg-white/30 backdrop-blur lg:block dark:border-indigo-500/10 dark:bg-white/5" />
+        <div className="absolute left-[4%] top-40 hidden h-28 w-28 rotate-12 rounded-[2rem] border border-indigo-200/50 bg-white/30 backdrop-blur lg:block dark:border-indigo-500/10 dark:bg-white/5"/>
 
-        <div className="absolute bottom-24 right-[4%] hidden h-24 w-24 -rotate-12 rounded-[1.75rem] border border-blue-200/50 bg-white/30 backdrop-blur lg:block dark:border-blue-500/10 dark:bg-white/5" />
+        <div className="absolute bottom-24 right-[4%] hidden h-24 w-24 -rotate-12 rounded-[1.75rem] border border-blue-200/50 bg-white/30 backdrop-blur lg:block dark:border-blue-500/10 dark:bg-white/5"/>
       </div>
 
       {/* TOP NAVIGATION */}
       <header className="relative z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="flex min-w-0 items-center gap-3 text-left"
-          >
+          <button type="button" onClick={() => navigate("/")} className="flex min-w-0 items-center gap-3 text-left">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 shadow-sm">
-              <Wrench className="h-5 w-5 text-slate-950" />
+              <Wrench className="h-5 w-5 text-slate-950"/>
             </span>
 
             <span className="min-w-0">
-              <span
-                className="block truncate text-base font-black leading-none text-slate-950 dark:text-white sm:text-lg"
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                }}
-              >
+              <span className="block truncate text-base font-black leading-none text-slate-950 dark:text-white sm:text-lg" style={{
+            fontFamily: "'Sora', sans-serif",
+        }}>
                 SerbisyoGo
               </span>
 
@@ -642,12 +517,8 @@ export default function Register() {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => navigate("/register-choice")}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
+          <button type="button" onClick={() => navigate("/register-choice")} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 sm:px-4">
+            <ArrowLeft className="h-4 w-4"/>
 
             <span className="hidden sm:inline">Account type</span>
 
@@ -659,33 +530,25 @@ export default function Register() {
       <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         {/* HERO */}
         <section className="relative overflow-hidden rounded-[2rem] border border-white/20 bg-[linear-gradient(135deg,#2937F0_0%,#5B3DF1_52%,#3292EC_100%)] px-5 py-6 text-white shadow-[0_24px_70px_rgba(41,55,240,0.24)] sm:px-8 sm:py-8 lg:px-10 lg:py-9">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-[0.09]"
-            style={{
-              backgroundImage:
-                "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
-              backgroundSize: "40px 40px",
-            }}
-          />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.09]" style={{
+            backgroundImage: "linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)",
+            backgroundSize: "40px 40px",
+        }}/>
 
-          <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl"/>
 
-          <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl"/>
 
           <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-amber-300 backdrop-blur sm:text-xs">
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4"/>
                 Worker registration
               </div>
 
-              <h1
-                className="mt-3 max-w-3xl text-3xl font-black leading-[1.08] sm:text-4xl lg:text-5xl"
-                style={{
-                  fontFamily: "'Sora', sans-serif",
-                }}
-              >
+              <h1 className="mt-3 max-w-3xl text-3xl font-black leading-[1.08] sm:text-4xl lg:text-5xl" style={{
+            fontFamily: "'Sora', sans-serif",
+        }}>
                 Build your professional worker profile.
               </h1>
 
@@ -697,27 +560,23 @@ export default function Register() {
 
             <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:w-[30rem]">
               {[
-                {
-                  icon: ShieldCheck,
-                  title: "Secure",
-                  text: "Protected application",
-                },
-                {
-                  icon: BriefcaseBusiness,
-                  title: "Professional",
-                  text: "Complete work profile",
-                },
-                {
-                  icon: Check,
-                  title: "Verified",
-                  text: "Credential review",
-                },
-              ].map(({ icon: Icon, title, text }) => (
-                <div
-                  key={title}
-                  className="flex min-w-0 flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2 py-3 text-center backdrop-blur-sm sm:items-start sm:rounded-2xl sm:p-4 sm:text-left"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-amber-300 sm:h-5 sm:w-5" />
+            {
+                icon: ShieldCheck,
+                title: "Secure",
+                text: "Protected application",
+            },
+            {
+                icon: BriefcaseBusiness,
+                title: "Professional",
+                text: "Complete work profile",
+            },
+            {
+                icon: Check,
+                title: "Verified",
+                text: "Credential review",
+            },
+        ].map(({ icon: Icon, title, text }) => (<div key={title} className="flex min-w-0 flex-col items-center rounded-xl border border-white/15 bg-white/10 px-2 py-3 text-center backdrop-blur-sm sm:items-start sm:rounded-2xl sm:p-4 sm:text-left">
+                  <Icon className="h-4 w-4 shrink-0 text-amber-300 sm:h-5 sm:w-5"/>
 
                   <p className="mt-2 truncate text-[11px] font-black sm:mt-3 sm:text-sm">
                     {title}
@@ -726,8 +585,7 @@ export default function Register() {
                   <p className="mt-1 hidden text-xs text-blue-100/80 sm:block">
                     {text}
                   </p>
-                </div>
-              ))}
+                </div>))}
             </div>
           </div>
         </section>
@@ -741,12 +599,9 @@ export default function Register() {
                   Worker application
                 </p>
 
-                <h2
-                  className="mt-1 text-2xl font-black text-slate-950 dark:text-white"
-                  style={{
-                    fontFamily: "'Sora', sans-serif",
-                  }}
-                >
+                <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white" style={{
+            fontFamily: "'Sora', sans-serif",
+        }}>
                   Complete your registration
                 </h2>
 
@@ -756,14 +611,14 @@ export default function Register() {
               </div>
 
               <div className="inline-flex w-fit items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-bold text-[#2937F0] dark:bg-indigo-500/10 dark:text-indigo-300">
-                <ShieldCheck className="h-4 w-4" />
+                <ShieldCheck className="h-4 w-4"/>
                 Secure application
               </div>
             </div>
           </div>
 
           <div className="p-3 sm:p-5 md:p-7 lg:p-8">
-            <StepIndicator currentStep={step} completedSteps={completedSteps} />
+            <StepIndicator currentStep={step} completedSteps={completedSteps}/>
 
             <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] sm:p-6 lg:p-8">
               <div className="min-h-[500px]">
@@ -793,35 +648,19 @@ export default function Register() {
               </div>
 
               <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  disabled={step === 1 || submitting}
-                  onClick={prevStep}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
-                >
-                  <ArrowLeft className="h-4.5 w-4.5" />
+                <button type="button" disabled={step === 1 || submitting} onClick={prevStep} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto">
+                  <ArrowLeft className="h-4.5 w-4.5"/>
                   Previous
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => void handleNext()}
-                  disabled={submitting}
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-8 py-3.5 font-semibold text-white shadow-lg shadow-indigo-400/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 sm:w-auto"
-                >
+                <button type="button" onClick={() => void handleNext()} disabled={submitting} className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2937F0] via-[#5B3DF1] to-[#3292EC] px-8 py-3.5 font-semibold text-white shadow-lg shadow-indigo-400/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-400/40 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 sm:w-auto">
                   {submitting
-                    ? "Submitting Application..."
-                    : step === 6
-                      ? "Submit Application"
-                      : "Continue"}
+            ? "Submitting Application..."
+            : step === 6
+                ? "Submit Application"
+                : "Continue"}
 
-                  {submitting ? (
-                    <span className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  ) : step === 6 ? (
-                    <Check className="h-4.5 w-4.5" />
-                  ) : (
-                    <ArrowRight className="h-4.5 w-4.5 transition-transform group-hover:translate-x-1" />
-                  )}
+                  {submitting ? (<span className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white/40 border-t-white"/>) : step === 6 ? (<Check className="h-4.5 w-4.5"/>) : (<ArrowRight className="h-4.5 w-4.5 transition-transform group-hover:translate-x-1"/>)}
                 </button>
               </div>
             </div>
@@ -830,70 +669,46 @@ export default function Register() {
       </div>
 
       {/* =====================================================
-          EMAIL OTP MODAL
-          ===================================================== */}
+            EMAIL OTP MODAL
+            ===================================================== */}
 
-      <EmailOtpModal
-        open={otpModalOpen}
-        email={registeredEmail}
-        accountType="worker"
-        onClose={() => {
-          if (!submitting) {
+      <EmailOtpModal open={otpModalOpen} email={registeredEmail} accountType="worker" onClose={() => {
+            if (!submitting) {
+                setOtpModalOpen(false);
+            }
+        }} onVerified={async ({ userId, email }) => {
+            try {
+                await uploadPendingWorkerFiles(userId, email);
+                toast.success("Worker files uploaded successfully.");
+            }
+            catch (error) {
+                auditCaughtError({ module: "Authentication", process: "onVerified", action: "EXECUTE" }, error);
+                console.error("Worker file upload after OTP failed:", error);
+                toast.warning("Your email was verified, but some files are still pending upload. They will be retried after your account is approved.");
+            }
             setOtpModalOpen(false);
-          }
-        }}
-        onVerified={async ({ userId, email }) => {
-          try {
-            await uploadPendingWorkerFiles(userId, email);
-
-            toast.success("Worker files uploaded successfully.");
-          } catch (error) {
-            console.error("Worker file upload after OTP failed:", error);
-
-            toast.warning(
-              "Your email was verified, but some files are still pending upload. They will be retried after your account is approved.",
-            );
-          }
-
-          setOtpModalOpen(false);
-
-          reset();
-
-          navigate("/", {
-            replace: true,
-            state: {
-              verifiedEmail: registeredEmail,
-            },
-          });
-        }}
-      />
+            reset();
+            navigate("/", {
+                replace: true,
+                state: {
+                    verifiedEmail: registeredEmail,
+                },
+            });
+        }}/>
 
       {/* =====================================================
-          CAPTCHA MODAL
-          ===================================================== */}
+            CAPTCHA MODAL
+            ===================================================== */}
 
-      <CaptchaVerificationModal
-        open={captchaOpen}
-        siteKey={turnstileSiteKey ?? ""}
-        widgetKey={captchaWidgetKey}
-        processing={submitting}
-        title="Verify before submitting"
-        description="Complete this quick security check to submit your worker application."
-        onClose={() => {
-          if (!submitting) {
-            setCaptchaOpen(false);
-          }
-        }}
-        onSuccess={(token) => {
-          void completeWorkerRegistration(token);
-        }}
-        onExpire={() => undefined}
-        onError={() => {
-          setCaptchaWidgetKey((current) => current + 1);
-
-          toast.error("Security verification failed. Please try again.");
-        }}
-      />
-    </main>
-  );
+      <CaptchaVerificationModal open={captchaOpen} siteKey={turnstileSiteKey ?? ""} widgetKey={captchaWidgetKey} processing={submitting} title="Verify before submitting" description="Complete this quick security check to submit your worker application." onClose={() => {
+            if (!submitting) {
+                setCaptchaOpen(false);
+            }
+        }} onSuccess={(token) => {
+            void completeWorkerRegistration(token);
+        }} onExpire={() => undefined} onError={() => {
+            setCaptchaWidgetKey((current) => current + 1);
+            auditUiError({ module: "Authentication", process: "onError", action: "EXECUTE" }, toast.error, "Security verification failed. Please try again.");
+        }}/>
+    </main>);
 }

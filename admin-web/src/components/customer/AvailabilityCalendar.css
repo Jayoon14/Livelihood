@@ -26,9 +26,14 @@
   color: #15803d;
 }
 
-.booked-day {
-  background: #fee2e2;
-  color: #dc2626;
+.unavailable-day {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+}
+
+.fully-booked-day {
+  background: #e5e7eb !important;
+  color: #6b7280 !important;
 }
 
 .react-calendar__tile--active {

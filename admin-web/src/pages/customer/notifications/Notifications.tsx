@@ -1,546 +1,418 @@
+import { runAuditedProcess, auditCaughtError } from "../../../lib/processAudit";
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import {
-  ArrowLeft,
-  Bell,
-  CalendarDays,
-  CheckCheck,
-  CircleCheck,
-  CreditCard,
-  MessageCircle,
-  Search,
-  ShieldCheck,
-  Star,
-  Trash2,
-  XCircle,
-} from "lucide-react";
-
+import { ArrowLeft, Bell, CalendarDays, CheckCheck, CircleCheck, CreditCard, MessageCircle, Search, ShieldCheck, Star, Trash2, XCircle, } from "lucide-react";
 import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 import { timeAgo } from "../../../utils/timeAgo";
-
-import {
-  deleteNotification,
-  deleteReadNotifications,
-  getNotifications,
-  markAllAsRead,
-  markAsRead,
-} from "../../../services/notificationService";
-
+import { deleteNotification, deleteReadNotifications, getNotifications, markAllAsRead, markAsRead, } from "../../../services/notificationService";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-
 type NotificationItem = {
-  id: number;
-  user_id: string;
-  booking_id: number | null;
-  title: string;
-  message: string;
-  is_read: boolean;
-  created_at: string;
+    id: number;
+    user_id: string;
+    booking_id: number | null;
+    title: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
 };
-
 type FilterType = "all" | "unread" | "bookings" | "payments" | "reviews";
-
 const filterOptions: {
-  value: FilterType;
-  label: string;
+    value: FilterType;
+    label: string;
 }[] = [
-  {
-    value: "all",
-    label: "All",
-  },
-  {
-    value: "unread",
-    label: "Unread",
-  },
-  {
-    value: "bookings",
-    label: "Bookings",
-  },
-  {
-    value: "payments",
-    label: "Payments",
-  },
-  {
-    value: "reviews",
-    label: "Reviews",
-  },
+    {
+        value: "all",
+        label: "All",
+    },
+    {
+        value: "unread",
+        label: "Unread",
+    },
+    {
+        value: "bookings",
+        label: "Bookings",
+    },
+    {
+        value: "payments",
+        label: "Payments",
+    },
+    {
+        value: "reviews",
+        label: "Reviews",
+    },
 ];
-
 export default function Notifications() {
-  const navigate = useNavigate();
-
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [markingAll, setMarkingAll] = useState(false);
-
-  const [deletingRead, setDeletingRead] = useState(false);
-
-  const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
-
-  const [searchText, setSearchText] = useState("");
-
-  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const unreadCount = useMemo(() => {
-    return notifications.filter((item) => !item.is_read).length;
-  }, [notifications]);
-
-  const readCount = useMemo(() => {
-    return notifications.filter((item) => item.is_read).length;
-  }, [notifications]);
-
-  const filteredNotifications = useMemo(() => {
-    const search = searchText.trim().toLowerCase();
-
-    return notifications.filter((item) => {
-      const title = item.title.toLowerCase();
-
-      const message = item.message.toLowerCase();
-
-      const matchesSearch =
-        search === "" || title.includes(search) || message.includes(search);
-
-      if (!matchesSearch) {
-        return false;
-      }
-
-      switch (selectedFilter) {
-        case "unread":
-          return !item.is_read;
-
-        case "bookings":
-          return (
-            title.includes("booking") ||
-            title.includes("worker") ||
-            title.includes("job") ||
-            title.includes("arrival") ||
-            title.includes("completed")
-          );
-
-        case "payments":
-          return (
-            title.includes("payment") ||
-            title.includes("receipt") ||
-            title.includes("refund")
-          );
-
-        case "reviews":
-          return (
-            title.includes("review") ||
-            title.includes("rating") ||
-            title.includes("feedback")
-          );
-
-        default:
-          return true;
-      }
-    });
-  }, [notifications, searchText, selectedFilter]);
-
-  const loadNotifications = useCallback(async (currentUserId?: string) => {
-    try {
-      let userId = currentUserId;
-
-      if (!userId) {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-
-        if (error) {
-          throw error;
+    const navigate = useNavigate();
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [markingAll, setMarkingAll] = useState(false);
+    const [deletingRead, setDeletingRead] = useState(false);
+    const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
+    const [searchText, setSearchText] = useState("");
+    const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const unreadCount = useMemo(() => {
+        return notifications.filter((item) => !item.is_read).length;
+    }, [notifications]);
+    const readCount = useMemo(() => {
+        return notifications.filter((item) => item.is_read).length;
+    }, [notifications]);
+    const filteredNotifications = useMemo(() => {
+        const search = searchText.trim().toLowerCase();
+        return notifications.filter((item) => {
+            const title = item.title.toLowerCase();
+            const message = item.message.toLowerCase();
+            const matchesSearch = search === "" || title.includes(search) || message.includes(search);
+            if (!matchesSearch) {
+                return false;
+            }
+            switch (selectedFilter) {
+                case "unread":
+                    return !item.is_read;
+                case "bookings":
+                    return (title.includes("booking") ||
+                        title.includes("worker") ||
+                        title.includes("job") ||
+                        title.includes("arrival") ||
+                        title.includes("completed"));
+                case "payments":
+                    return (title.includes("payment") ||
+                        title.includes("receipt") ||
+                        title.includes("refund"));
+                case "reviews":
+                    return (title.includes("review") ||
+                        title.includes("rating") ||
+                        title.includes("feedback"));
+                default:
+                    return true;
+            }
+        });
+    }, [notifications, searchText, selectedFilter]);
+    const loadNotifications = useCallback(async (currentUserId?: string) => {
+        try {
+            let userId = currentUserId;
+            if (!userId) {
+                const { data: { user }, error, } = await supabase.auth.getUser();
+                if (error) {
+                    throw error;
+                }
+                userId = user?.id;
+            }
+            if (!userId) {
+                setNotifications([]);
+                return;
+            }
+            const data = await getNotifications(userId);
+            setNotifications((data ?? []) as NotificationItem[]);
         }
-
-        userId = user?.id;
-      }
-
-      if (!userId) {
-        setNotifications([]);
-
-        return;
-      }
-
-      const data = await getNotifications(userId);
-
-      setNotifications((data ?? []) as NotificationItem[]);
-    } catch (error) {
-      console.error("Load notifications error:", error);
-    } finally {
-      setLoading(false);
-    }
+        catch (error) {
+            auditCaughtError({ module: "Notifications", process: "background operation", action: "EXECUTE" }, error);
+            console.error("Load notifications error:", error);
+        }
+        finally {
+            setLoading(false);
+        }
     }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    let channel: RealtimeChannel | null = null;
-    let currentUserId = "";
-
-    const scheduleRealtimeRefresh = () => {
-      if (!currentUserId || cancelled) {
-        return;
-      }
-
-      if (realtimeTimerRef.current) {
-        clearTimeout(realtimeTimerRef.current);
-      }
-
-      realtimeTimerRef.current = setTimeout(() => {
-        if (!cancelled) {
-          void loadNotifications(currentUserId);
-        }
-      }, 300);
-    };
-
-    async function initialize() {
-      try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-
-        if (error) {
-          throw error;
-        }
-
-        if (!user || cancelled) {
-          setLoading(false);
-          return;
-        }
-
-        currentUserId = user.id;
-
-        await loadNotifications(currentUserId);
-
-        if (cancelled) {
-          return;
-        }
-
-        channel = supabase
-          .channel(`customer-notifications-${currentUserId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${currentUserId}`,
-            },
-            scheduleRealtimeRefresh,
-          )
-          .subscribe((subscriptionStatus) => {
-            if (cancelled) {
-              return;
+    useEffect(() => {
+        let cancelled = false;
+        let channel: RealtimeChannel | null = null;
+        let currentUserId = "";
+        const scheduleRealtimeRefresh = () => {
+            if (!currentUserId || cancelled) {
+                return;
             }
-
-            if (subscriptionStatus === "CHANNEL_ERROR") {
-              console.error("Customer notifications realtime channel error.");
-              scheduleRealtimeRefresh();
+            if (realtimeTimerRef.current) {
+                clearTimeout(realtimeTimerRef.current);
             }
-
-            if (subscriptionStatus === "TIMED_OUT") {
-              console.error(
-                "Customer notifications realtime connection timed out.",
-              );
-              scheduleRealtimeRefresh();
+            realtimeTimerRef.current = setTimeout(() => {
+                if (!cancelled) {
+                    void loadNotifications(currentUserId);
+                }
+            }, 300);
+        };
+        async function initialize() {
+            try {
+                const { data: { user }, error, } = await supabase.auth.getUser();
+                if (error) {
+                    throw error;
+                }
+                if (!user || cancelled) {
+                    setLoading(false);
+                    return;
+                }
+                currentUserId = user.id;
+                await loadNotifications(currentUserId);
+                if (cancelled) {
+                    return;
+                }
+                channel = supabase
+                    .channel(`customer-notifications-${currentUserId}`)
+                    .on("postgres_changes", {
+                    event: "*",
+                    schema: "public",
+                    table: "notifications",
+                    filter: `user_id=eq.${currentUserId}`,
+                }, scheduleRealtimeRefresh)
+                    .subscribe((subscriptionStatus) => {
+                    if (cancelled) {
+                        return;
+                    }
+                    if (subscriptionStatus === "CHANNEL_ERROR") {
+                        console.error("Customer notifications realtime channel error.");
+                        scheduleRealtimeRefresh();
+                    }
+                    if (subscriptionStatus === "TIMED_OUT") {
+                        console.error("Customer notifications realtime connection timed out.");
+                        scheduleRealtimeRefresh();
+                    }
+                });
             }
-          });
-      } catch (error) {
-        console.error("Initialize notification error:", error);
-
-        if (!cancelled) {
-          setLoading(false);
+            catch (error) {
+                auditCaughtError({ module: "Notifications", process: "initialize", action: "EXECUTE" }, error);
+                console.error("Initialize notification error:", error);
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
         }
-      }
+        const handleOnline = () => {
+            scheduleRealtimeRefresh();
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                scheduleRealtimeRefresh();
+            }
+        };
+        window.addEventListener("online", handleOnline);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        void initialize();
+        return () => {
+            cancelled = true;
+            if (realtimeTimerRef.current) {
+                clearTimeout(realtimeTimerRef.current);
+                realtimeTimerRef.current = null;
+            }
+            window.removeEventListener("online", handleOnline);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            if (channel) {
+                void supabase.removeChannel(channel);
+                channel = null;
+            }
+        };
+    }, [loadNotifications]);
+    async function handleRead(id: number) {
+        return await runAuditedProcess({ module: "Notifications", process: "handleRead", action: "EXECUTE", parameters: { id } }, async (__activityProcessScope) => {
+            try {
+                await markAsRead(id);
+                setNotifications((previous) => previous.map((item) => item.id === id
+                    ? {
+                        ...item,
+                        is_read: true,
+                    }
+                    : item));
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                console.error("Mark notification read error:", error);
+                __activityProcessScope.failAndNotify(toast.error, "Unable to mark notification as read.");
+            }
+        });
     }
-
-    const handleOnline = () => {
-      scheduleRealtimeRefresh();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        scheduleRealtimeRefresh();
-      }
-    };
-
-    window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    void initialize();
-
-    return () => {
-      cancelled = true;
-
-      if (realtimeTimerRef.current) {
-        clearTimeout(realtimeTimerRef.current);
-        realtimeTimerRef.current = null;
-      }
-
-      window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-
-      if (channel) {
-        void supabase.removeChannel(channel);
-        channel = null;
-      }
-    };
-  }, [loadNotifications]);
-
-  async function handleRead(id: number) {
-    try {
-      await markAsRead(id);
-
-      setNotifications((previous) =>
-        previous.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                is_read: true,
-              }
-            : item,
-        ),
-      );
-    } catch (error) {
-      console.error("Mark notification read error:", error);
-
-      toast.error("Unable to mark notification as read.");
+    async function handleMarkAllAsRead() {
+        return await runAuditedProcess({ module: "Notifications", process: "handleMarkAllAsRead", action: "UPDATE", parameters: {} }, async (__activityProcessScope) => {
+            if (unreadCount === 0 || markingAll) {
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            try {
+                setMarkingAll(true);
+                const { data: { user }, error, } = await supabase.auth.getUser();
+                if (error) {
+                    throw error;
+                }
+                if (!user) {
+                    return;
+                }
+                await markAllAsRead(user.id);
+                setNotifications((previous) => previous.map((item) => ({
+                    ...item,
+                    is_read: true,
+                })));
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                console.error("Mark all read error:", error);
+                __activityProcessScope.failAndNotify(toast.error, "Unable to mark all notifications as read.");
+            }
+            finally {
+                setMarkingAll(false);
+            }
+        });
     }
-  }
-
-  async function handleMarkAllAsRead() {
-    if (unreadCount === 0 || markingAll) {
-      return;
+    async function handleDelete(id: number) {
+        return await runAuditedProcess({ module: "Notifications", process: "handleDelete", action: "DELETE", parameters: { id } }, async (__activityProcessScope) => {
+            try {
+                await deleteNotification(id);
+                setNotifications((previous) => previous.filter((item) => item.id !== id));
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                console.error("Delete notification error:", error);
+                __activityProcessScope.failAndNotify(toast.error, "Unable to delete notification.");
+            }
+        });
     }
-
-    try {
-      setMarkingAll(true);
-
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!user) {
-        return;
-      }
-
-      await markAllAsRead(user.id);
-
-      setNotifications((previous) =>
-        previous.map((item) => ({
-          ...item,
-          is_read: true,
-        })),
-      );
-    } catch (error) {
-      console.error("Mark all read error:", error);
-
-      toast.error("Unable to mark all notifications as read.");
-    } finally {
-      setMarkingAll(false);
+    async function handleDeleteRead() {
+        return await runAuditedProcess({ module: "Notifications", process: "handleDeleteRead", action: "DELETE", parameters: {} }, async (__activityProcessScope) => {
+            if (readCount === 0 || deletingRead) {
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
+            const confirmed = await confirmAction("Delete all read notifications?");
+            if (!confirmed) {
+                return;
+            }
+            try {
+                setDeletingRead(true);
+                const { data: { user }, error, } = await supabase.auth.getUser();
+                if (error) {
+                    throw error;
+                }
+                if (!user) {
+                    return;
+                }
+                await deleteReadNotifications(user.id);
+                setNotifications((previous) => previous.filter((item) => !item.is_read));
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                console.error("Delete read notifications error:", error);
+                __activityProcessScope.failAndNotify(toast.error, "Unable to delete read notifications.");
+            }
+            finally {
+                setDeletingRead(false);
+            }
+        });
     }
-  }
-
-  async function handleDelete(id: number) {
-    try {
-      await deleteNotification(id);
-
-      setNotifications((previous) => previous.filter((item) => item.id !== id));
-    } catch (error) {
-      console.error("Delete notification error:", error);
-
-      toast.error("Unable to delete notification.");
+    async function handleOpenNotification(notification: NotificationItem) {
+        return await runAuditedProcess({ module: "Notifications", process: "handleOpenNotification", action: "READ", parameters: { notification } }, async (__activityProcessScope) => {
+            try {
+                if (!notification.is_read) {
+                    await handleRead(notification.id);
+                }
+                navigate(getNotificationRoute(notification, "customer"));
+            }
+            catch (error) {
+                __activityProcessScope.caught(error);
+                console.error("Open notification error:", error);
+            }
+        });
     }
-  }
-
-  async function handleDeleteRead() {
-    if (readCount === 0 || deletingRead) {
-      return;
+    function getNotificationIcon(title: string) {
+        const value = title.toLowerCase();
+        if (value.includes("booking")) {
+            return {
+                icon: CalendarDays,
+                bg: "bg-blue-100",
+                color: "text-blue-600",
+            };
+        }
+        if (value.includes("payment")) {
+            return {
+                icon: CreditCard,
+                bg: "bg-green-100",
+                color: "text-green-600",
+            };
+        }
+        if (value.includes("review") || value.includes("rating")) {
+            return {
+                icon: Star,
+                bg: "bg-yellow-100",
+                color: "text-yellow-600",
+            };
+        }
+        if (value.includes("approved") || value.includes("verified")) {
+            return {
+                icon: CircleCheck,
+                bg: "bg-emerald-100",
+                color: "text-emerald-600",
+            };
+        }
+        if (value.includes("cancel") || value.includes("reject")) {
+            return {
+                icon: XCircle,
+                bg: "bg-red-100",
+                color: "text-red-600",
+            };
+        }
+        if (value.includes("message") || value.includes("chat")) {
+            return {
+                icon: MessageCircle,
+                bg: "bg-purple-100",
+                color: "text-purple-600",
+            };
+        }
+        return {
+            icon: Bell,
+            bg: "bg-gray-100",
+            color: "text-gray-600",
+        };
     }
-
-    const confirmed = await confirmAction("Delete all read notifications?");
-
-    if (!confirmed) {
-      return;
+    function getFilterCount(filter: FilterType) {
+        switch (filter) {
+            case "unread":
+                return unreadCount;
+            case "bookings":
+                return notifications.filter((item) => {
+                    const title = item.title.toLowerCase();
+                    return (title.includes("booking") ||
+                        title.includes("worker") ||
+                        title.includes("job") ||
+                        title.includes("completed"));
+                }).length;
+            case "payments":
+                return notifications.filter((item) => {
+                    const title = item.title.toLowerCase();
+                    return (title.includes("payment") ||
+                        title.includes("receipt") ||
+                        title.includes("refund"));
+                }).length;
+            case "reviews":
+                return notifications.filter((item) => {
+                    const title = item.title.toLowerCase();
+                    return (title.includes("review") ||
+                        title.includes("rating") ||
+                        title.includes("feedback"));
+                }).length;
+            case "all":
+                return notifications.length;
+            default:
+                return notifications.length;
+        }
     }
-
-    try {
-      setDeletingRead(true);
-
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!user) {
-        return;
-      }
-
-      await deleteReadNotifications(user.id);
-
-      setNotifications((previous) => previous.filter((item) => !item.is_read));
-    } catch (error) {
-      console.error("Delete read notifications error:", error);
-
-      toast.error("Unable to delete read notifications.");
-    } finally {
-      setDeletingRead(false);
-    }
-  }
-
-  async function handleOpenNotification(notification: NotificationItem) {
-    try {
-      if (!notification.is_read) {
-        await handleRead(notification.id);
-      }
-
-      navigate(getNotificationRoute(notification, "customer"));
-    } catch (error) {
-      console.error("Open notification error:", error);
-    }
-  }
-
-  function getNotificationIcon(title: string) {
-    const value = title.toLowerCase();
-
-    if (value.includes("booking")) {
-      return {
-        icon: CalendarDays,
-        bg: "bg-blue-100",
-        color: "text-blue-600",
-      };
-    }
-
-    if (value.includes("payment")) {
-      return {
-        icon: CreditCard,
-        bg: "bg-green-100",
-        color: "text-green-600",
-      };
-    }
-
-    if (value.includes("review") || value.includes("rating")) {
-      return {
-        icon: Star,
-        bg: "bg-yellow-100",
-        color: "text-yellow-600",
-      };
-    }
-
-    if (value.includes("approved") || value.includes("verified")) {
-      return {
-        icon: CircleCheck,
-        bg: "bg-emerald-100",
-        color: "text-emerald-600",
-      };
-    }
-
-    if (value.includes("cancel") || value.includes("reject")) {
-      return {
-        icon: XCircle,
-        bg: "bg-red-100",
-        color: "text-red-600",
-      };
-    }
-
-    if (value.includes("message") || value.includes("chat")) {
-      return {
-        icon: MessageCircle,
-        bg: "bg-purple-100",
-        color: "text-purple-600",
-      };
-    }
-
-    return {
-      icon: Bell,
-      bg: "bg-gray-100",
-      color: "text-gray-600",
-    };
-  }
-  function getFilterCount(filter: FilterType) {
-    switch (filter) {
-      case "unread":
-        return unreadCount;
-
-      case "bookings":
-        return notifications.filter((item) => {
-          const title = item.title.toLowerCase();
-
-          return (
-            title.includes("booking") ||
-            title.includes("worker") ||
-            title.includes("job") ||
-            title.includes("completed")
-          );
-        }).length;
-
-      case "payments":
-        return notifications.filter((item) => {
-          const title = item.title.toLowerCase();
-
-          return (
-            title.includes("payment") ||
-            title.includes("receipt") ||
-            title.includes("refund")
-          );
-        }).length;
-
-      case "reviews":
-        return notifications.filter((item) => {
-          const title = item.title.toLowerCase();
-
-          return (
-            title.includes("review") ||
-            title.includes("rating") ||
-            title.includes("feedback")
-          );
-        }).length;
-
-      case "all":
-        return notifications.length;
-
-      default:
-        return notifications.length;
-    }
-  }
-
-  return (
-    <CustomerLayout>
-      <div
-        className="
+    return (<CustomerLayout>
+      <div className="
     min-h-full
     bg-gray-50/80
     p-4
     sm:p-6
     lg:p-8
-  "
-      >
-        <div
-          className="
+  ">
+        <div className="
     mx-auto
     w-full
     max-w-[1600px]
-  "
-        >
+  ">
           {/* HEADER */}
 
-          <div
-            className="
+          <div className="
               mb-6
               flex
               flex-col
@@ -548,13 +420,9 @@ export default function Notifications() {
               sm:flex-row
               sm:items-center
               sm:justify-between
-            "
-          >
+            ">
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="
+              <button type="button" onClick={() => navigate(-1)} className="
                   flex
                   h-11
                   w-11
@@ -570,28 +438,23 @@ export default function Notifications() {
                   transition-all
                   hover:-translate-x-0.5
                   hover:bg-gray-50
-                "
-              >
-                <ArrowLeft size={21} />
+                ">
+                <ArrowLeft size={21}/>
               </button>
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h1
-                    className="
+                  <h1 className="
                       text-2xl
                       font-bold
                       tracking-tight
                       text-gray-900
                       sm:text-3xl
-                    "
-                  >
+                    ">
                     Notifications
                   </h1>
 
-                  {unreadCount > 0 && (
-                    <span
-                      className="
+                  {unreadCount > 0 && (<span className="
                         rounded-full
                         bg-blue-600
                         px-2.5
@@ -599,33 +462,25 @@ export default function Notifications() {
                         text-xs
                         font-semibold
                         text-white
-                      "
-                    >
+                      ">
                       {unreadCount}
-                    </span>
-                  )}
+                    </span>)}
                 </div>
 
-                <p
-                  className="
+                <p className="
                     mt-1
                     text-sm
                     text-gray-500
-                  "
-                >
+                  ">
                   Stay updated with your bookings, payments, and activities.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => {
-                  void handleDeleteRead();
-                }}
-                disabled={deletingRead || readCount === 0}
-                className="
+              <button type="button" onClick={() => {
+            void handleDeleteRead();
+        }} disabled={deletingRead || readCount === 0} className="
                   flex
                   items-center
                   justify-center
@@ -643,20 +498,15 @@ export default function Notifications() {
                   transition
                   hover:bg-red-50
                   disabled:text-gray-400
-                "
-              >
-                <Trash2 size={18} />
+                ">
+                <Trash2 size={18}/>
 
                 {deletingRead ? "Deleting..." : "Delete Read"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  void handleMarkAllAsRead();
-                }}
-                disabled={markingAll || unreadCount === 0}
-                className="
+              <button type="button" onClick={() => {
+            void handleMarkAllAsRead();
+        }} disabled={markingAll || unreadCount === 0} className="
                   flex
                   items-center
                   justify-center
@@ -672,9 +522,8 @@ export default function Notifications() {
                   transition
                   hover:bg-blue-700
                   disabled:bg-gray-300
-                "
-              >
-                <CheckCheck size={18} />
+                ">
+                <CheckCheck size={18}/>
 
                 {markingAll ? "Marking..." : "Mark All as Read"}
               </button>
@@ -683,8 +532,7 @@ export default function Notifications() {
 
           {/* SEARCH + FILTER */}
 
-          <div
-            className="
+          <div className="
               mb-5
               rounded-2xl
               border
@@ -692,27 +540,18 @@ export default function Notifications() {
               bg-white
               p-4
               shadow-sm
-            "
-          >
+            ">
             <div className="flex flex-col gap-4">
               <div className="relative">
-                <Search
-                  size={19}
-                  className="
+                <Search size={19} className="
                     absolute
                     left-3
                     top-1/2
                     -translate-y-1/2
                     text-gray-400
-                  "
-                />
+                  "/>
 
-                <input
-                  type="search"
-                  value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="Search notifications..."
-                  className="
+                <input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search notifications..." className="
                     w-full
                     rounded-xl
                     border
@@ -727,27 +566,18 @@ export default function Notifications() {
                     focus:bg-white
                     focus:ring-2
                     focus:ring-blue-100
-                  "
-                />
+                  "/>
               </div>
 
-              <div
-                className="
+              <div className="
                   flex
                   gap-2
                   overflow-x-auto
                   pb-1
-                "
-              >
+                ">
                 {filterOptions.map((filter) => {
-                  const active = selectedFilter === filter.value;
-
-                  return (
-                    <button
-                      key={filter.value}
-                      type="button"
-                      onClick={() => setSelectedFilter(filter.value)}
-                      className={`
+            const active = selectedFilter === filter.value;
+            return (<button key={filter.value} type="button" onClick={() => setSelectedFilter(filter.value)} className={`
                           flex
                           shrink-0
                           items-center
@@ -759,40 +589,31 @@ export default function Notifications() {
                           text-sm
                           font-medium
                           transition
-                          ${
-                            active
-                              ? "border-blue-600 bg-blue-600 text-white"
-                              : "border-gray-200 bg-white text-gray-600"
-                          }
-                        `}
-                    >
+                          ${active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-gray-200 bg-white text-gray-600"}
+                        `}>
                       {filter.label}
 
-                      <span
-                        className={`
+                      <span className={`
                             rounded-full
                             px-2
                             py-0.5
                             text-xs
-                            ${
-                              active
-                                ? "bg-white/20 text-white"
-                                : "bg-gray-100 text-gray-500"
-                            }
-                          `}
-                      >
+                            ${active
+                    ? "bg-white/20 text-white"
+                    : "bg-gray-100 text-gray-500"}
+                          `}>
                         {getFilterCount(filter.value)}
                       </span>
-                    </button>
-                  );
-                })}
+                    </button>);
+        })}
               </div>
             </div>
           </div>
           {/* NOTIFICATION LIST */}
 
-          <div
-            className="
+          <div className="
               overflow-hidden
               rounded-2xl
               border
@@ -801,11 +622,8 @@ export default function Notifications() {
               shadow-sm
               transition-shadow
               hover:shadow-md
-            "
-          >
-            {loading ? (
-              <div
-                className="
+            ">
+            {loading ? (<div className="
                   flex
                   min-h-64
                   flex-col
@@ -814,10 +632,8 @@ export default function Notifications() {
                   px-6
                   py-12
                   text-center
-                "
-              >
-                <div
-                  className="
+                ">
+                <div className="
                     mb-4
                     h-10
                     w-10
@@ -826,16 +642,12 @@ export default function Notifications() {
                     border-4
                     border-blue-100
                     border-t-blue-600
-                  "
-                />
+                  "/>
 
                 <p className="font-medium text-gray-700">
                   Loading notifications...
                 </p>
-              </div>
-            ) : filteredNotifications.length === 0 ? (
-              <div
-                className="
+              </div>) : filteredNotifications.length === 0 ? (<div className="
                   flex
                   min-h-72
                   flex-col
@@ -844,10 +656,8 @@ export default function Notifications() {
                   px-6
                   py-12
                   text-center
-                "
-              >
-                <div
-                  className="
+                ">
+                <div className="
                     mb-4
                     flex
                     h-16
@@ -856,49 +666,36 @@ export default function Notifications() {
                     justify-center
                     rounded-full
                     bg-blue-50
-                  "
-                >
-                  <ShieldCheck size={34} className="text-blue-600" />
+                  ">
+                  <ShieldCheck size={34} className="text-blue-600"/>
                 </div>
 
-                <h2
-                  className="
+                <h2 className="
                     text-lg
                     font-semibold
                     text-gray-800
-                  "
-                >
+                  ">
                   No notifications found
                 </h2>
 
-                <p
-                  className="
+                <p className="
                     mt-1
                     max-w-sm
                     text-sm
                     text-gray-500
-                  "
-                >
+                  ">
                   {searchText
-                    ? "No notifications match your search."
-                    : selectedFilter === "unread"
-                      ? "You have no unread notifications."
-                      : "You're all caught up for this category."}
+                ? "No notifications match your search."
+                : selectedFilter === "unread"
+                    ? "You have no unread notifications."
+                    : "You're all caught up for this category."}
                 </p>
-              </div>
-            ) : (
-              filteredNotifications.map((notification) => {
-                const iconData = getNotificationIcon(notification.title);
-
-                const Icon = iconData.icon;
-
-                return (
-                  <div
-                    key={notification.id}
-                    onClick={() => {
-                      void handleOpenNotification(notification);
-                    }}
-                    className={`
+              </div>) : (filteredNotifications.map((notification) => {
+            const iconData = getNotificationIcon(notification.title);
+            const Icon = iconData.icon;
+            return (<div key={notification.id} onClick={() => {
+                    void handleOpenNotification(notification);
+                }} className={`
                       group
                       relative
                       cursor-pointer
@@ -913,11 +710,8 @@ export default function Notifications() {
                       hover:shadow-sm
                       sm:px-6
                       ${notification.is_read ? "bg-white" : "bg-blue-50/60"}
-                    `}
-                  >
-                    {!notification.is_read && (
-                      <div
-                        className="
+                    `}>
+                    {!notification.is_read && (<div className="
                           absolute
                           bottom-0
                           left-0
@@ -925,22 +719,17 @@ export default function Notifications() {
                           w-1
                           rounded-r-full
                           bg-blue-600
-                        "
-                      />
-                    )}
+                        "/>)}
 
-                    <div
-                      className="
+                    <div className="
                         flex
                         items-start
                         gap-3
                         sm:gap-4
-                      "
-                    >
+                      ">
                       {/* ICON */}
 
-                      <div
-                        className={`
+                      <div className={`
                           flex
                           h-11
                           w-11
@@ -953,46 +742,35 @@ export default function Notifications() {
                           sm:h-12
                           sm:w-12
                           ${iconData.bg}
-                        `}
-                      >
-                        <Icon size={22} className={iconData.color} />
+                        `}>
+                        <Icon size={22} className={iconData.color}/>
                       </div>
 
                       {/* CONTENT */}
 
-                      <div
-                        className="
+                      <div className="
                           min-w-0
                           flex-1
-                        "
-                      >
-                        <div
-                          className="
+                        ">
+                        <div className="
                             flex
                             flex-wrap
                             items-center
                             gap-2
-                          "
-                        >
-                          <h2
-                            className={`
+                          ">
+                          <h2 className={`
                               wrap-break-word
                               text-sm
                               text-gray-900
                               sm:text-base
-                              ${
-                                notification.is_read
-                                  ? "font-medium"
-                                  : "font-semibold"
-                              }
-                            `}
-                          >
+                              ${notification.is_read
+                    ? "font-medium"
+                    : "font-semibold"}
+                            `}>
                             {notification.title}
                           </h2>
 
-                          {!notification.is_read && (
-                            <span
-                              className="
+                          {!notification.is_read && (<span className="
                                 rounded-full
                                 bg-blue-100
                                 px-2
@@ -1001,27 +779,22 @@ export default function Notifications() {
                                 font-semibold
                                 uppercase
                                 text-blue-700
-                              "
-                            >
+                              ">
                               New
-                            </span>
-                          )}
+                            </span>)}
                         </div>
 
-                        <p
-                          className="
+                        <p className="
                             mt-1
                             wrap-break-word
                             text-sm
                             leading-6
                             text-gray-600
-                          "
-                        >
+                          ">
                           {notification.message}
                         </p>
 
-                        <div
-                          className="
+                        <div className="
                             mt-3
                             flex
                             flex-wrap
@@ -1029,46 +802,34 @@ export default function Notifications() {
                             gap-2
                             text-xs
                             text-gray-400
-                          "
-                        >
+                          ">
                           <span>{timeAgo(notification.created_at)}</span>
 
-                          <span
-                            className="
+                          <span className="
                               h-1
                               w-1
                               rounded-full
                               bg-gray-300
-                            "
-                          />
+                            "/>
 
                           <span>
-                            {new Date(
-                              notification.created_at,
-                            ).toLocaleDateString()}
+                            {new Date(notification.created_at).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
 
                       {/* ACTIONS */}
 
-                      <div
-                        className="
+                      <div className="
                           flex
                           shrink-0
                           items-center
                           gap-1
-                        "
-                      >
-                        {!notification.is_read && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-
-                              void handleRead(notification.id);
-                            }}
-                            className="
+                        ">
+                        {!notification.is_read && (<button type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        void handleRead(notification.id);
+                    }} className="
                               hidden
                               rounded-lg
                               border
@@ -1082,21 +843,15 @@ export default function Notifications() {
                               transition
                               hover:bg-blue-50
                               sm:flex
-                            "
-                          >
-                            <CheckCheck size={15} className="mr-1" />
+                            ">
+                            <CheckCheck size={15} className="mr-1"/>
                             Read
-                          </button>
-                        )}
+                          </button>)}
 
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-
-                            void handleDelete(notification.id);
-                          }}
-                          className="
+                        <button type="button" onClick={(event) => {
+                    event.stopPropagation();
+                    void handleDelete(notification.id);
+                }} className="
                             flex
                             h-9
                             w-9
@@ -1109,24 +864,18 @@ export default function Notifications() {
                             hover:text-red-600
                             sm:opacity-0
                             sm:group-hover:opacity-100
-                          "
-                        >
-                          <Trash2 size={18} />
+                          ">
+                          <Trash2 size={18}/>
                         </button>
                       </div>
                     </div>
 
                     {/* MOBILE READ BUTTON */}
 
-                    {!notification.is_read && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-
-                          void handleRead(notification.id);
-                        }}
-                        className="
+                    {!notification.is_read && (<button type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        void handleRead(notification.id);
+                    }} className="
                           mt-4
                           flex
                           w-full
@@ -1143,23 +892,17 @@ export default function Notifications() {
                           text-blue-600
                           hover:bg-blue-50
                           sm:hidden
-                        "
-                      >
-                        <CheckCheck size={15} />
+                        ">
+                        <CheckCheck size={15}/>
                         Mark as Read
-                      </button>
-                    )}
-                  </div>
-                );
-              })
-            )}
+                      </button>)}
+                  </div>);
+        }))}
           </div>
 
           {/* FOOTER */}
 
-          {!loading && notifications.length > 0 && (
-            <div
-              className="
+          {!loading && notifications.length > 0 && (<div className="
                 mt-0
                 flex
                 flex-col
@@ -1174,8 +917,7 @@ export default function Notifications() {
                 sm:flex-row
                 sm:items-center
                 sm:justify-between
-              "
-            >
+              ">
               <span>
                 Showing{" "}
                 <strong className="font-semibold text-gray-700">
@@ -1188,21 +930,17 @@ export default function Notifications() {
                 notifications
               </span>
 
-              <div
-                className="
+              <div className="
                   flex
                   items-center
                   gap-2
-                "
-              >
-                <span
-                  className="
+                ">
+                <span className="
                     h-2
                     w-2
                     rounded-full
                     bg-blue-600
-                  "
-                />
+                  "/>
 
                 <span>
                   <strong className="font-semibold text-gray-700">
@@ -1211,10 +949,8 @@ export default function Notifications() {
                   unread
                 </span>
               </div>
-            </div>
-          )}
+            </div>)}
         </div>
       </div>
-    </CustomerLayout>
-  );
+    </CustomerLayout>);
 }
