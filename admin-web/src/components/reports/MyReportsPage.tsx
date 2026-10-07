@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   ChevronRight,
+  CircleCheckBig,
+  Clock3,
   FileText,
   Loader2,
   Paperclip,
@@ -59,7 +61,7 @@ function latestAdminRequest(logs: ReportLog[]) {
         l.action === "information_requested",
     );
 }
-export default function MyReportsPage({ layout: Layout }: Props) {
+export default function MyReportsPage({ role, layout: Layout }: Props) {
   const [items, setItems] = useState<ReportCase[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
@@ -89,13 +91,25 @@ export default function MyReportsPage({ layout: Layout }: Props) {
     void load();
     void supabase.auth.getUser().then(({ data }) => {
       if (cancelled || !data.user) return;
-      cleanup = subscribeToMyReports(data.user.id, () => void load());
+      cleanup = subscribeToMyReports(data.user.id, () => {
+        void load();
+        const selectedId = selected?.report.id;
+        if (selectedId) {
+          void getMyReportDetails(selectedId)
+            .then((fresh) => {
+              if (!cancelled) setSelected(fresh);
+            })
+            .catch(() => {
+              // The list refresh still runs; a manual reopen will retry details.
+            });
+        }
+      });
     });
     return () => {
       cancelled = true;
       cleanup();
     };
-  }, [load]);
+  }, [load, selected?.report.id]);
   async function open(id: string) {
     setDetailsLoading(true);
     try {
@@ -135,17 +149,13 @@ export default function MyReportsPage({ layout: Layout }: Props) {
   return (
     <Layout>
       <div className="mx-auto max-w-6xl p-4 sm:p-8">
-        <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+        <div className="mb-7 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-blue-600">
-              Case Management
-            </p>
-            <h1 className="mt-1 text-3xl font-black">
-              My Reports & Complaints
-            </h1>
-            <p className="mt-2 text-slate-500">
-              Track your cases and respond when the administrator asks for more
-              information.
+            <p className="text-sm font-bold uppercase tracking-wider text-blue-600">Case Management</p>
+            <h1 className="mt-1 text-3xl font-black text-slate-950">My Reports & Complaints</h1>
+            <p className="mt-2 max-w-2xl text-slate-500">
+              {role === "customer" ? "Track cases you submitted about a worker" : "Track cases you submitted about a customer"} and respond when the administrator asks for more information.
             </p>
           </div>
           <button
@@ -155,6 +165,14 @@ export default function MyReportsPage({ layout: Layout }: Props) {
             <RefreshCw size={18} />
             Refresh
           </button>
+          </div>
+          {!loading && !error && items.length > 0 && (
+            <div className="mt-5 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><FileText className="text-slate-500" size={20}/><div><p className="text-xs font-bold uppercase text-slate-400">Total cases</p><p className="text-lg font-black">{items.length}</p></div></div>
+              <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3"><Clock3 className="text-amber-600" size={20}/><div><p className="text-xs font-bold uppercase text-amber-600">Needs response</p><p className="text-lg font-black text-amber-900">{items.filter((item) => item.status === "needs_more_information").length}</p></div></div>
+              <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3"><CircleCheckBig className="text-emerald-600" size={20}/><div><p className="text-xs font-bold uppercase text-emerald-600">Resolved</p><p className="text-lg font-black text-emerald-900">{items.filter((item) => item.status === "resolved").length}</p></div></div>
+            </div>
+          )}
         </div>
         {loading ? (
           <div className="flex min-h-64 items-center justify-center">
@@ -176,7 +194,7 @@ export default function MyReportsPage({ layout: Layout }: Props) {
               <button
                 key={item.id}
                 onClick={() => void open(item.id)}
-                className="flex w-full items-center gap-4 rounded-2xl border bg-white p-5 text-left shadow-sm hover:shadow-md"
+                className={`group flex w-full items-center gap-4 rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.status === "needs_more_information" ? "border-amber-300 ring-1 ring-amber-100" : "border-slate-200"}`}
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
                   <FileText />
@@ -214,7 +232,7 @@ export default function MyReportsPage({ layout: Layout }: Props) {
         )}
         {selected && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm">
-            <div className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7">
+            <div className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <span
@@ -302,7 +320,7 @@ export default function MyReportsPage({ layout: Layout }: Props) {
                   </section>
                 )}
                 {selected.report.resolution &&
-                  selected.report.status !== "needs_more_information" && (
+                  ["resolved", "rejected", "closed"].includes(selected.report.status) && (
                     <section
                       className={`rounded-2xl p-5 ${selected.report.status === "rejected" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}
                     >

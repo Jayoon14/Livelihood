@@ -165,16 +165,20 @@ export async function updateAdminCase(input: {
         if (before.error)
             throw before.error;
         const terminal = input.status === "resolved" || input.status === "rejected" || input.status === "closed";
-        const { error } = await supabase.from("reports").update({
+        const { data: updatedReport, error } = await supabase.from("reports").update({
             status: input.status,
             priority: input.priority,
             admin_notes: input.adminNotes?.trim() || null,
             resolution: input.resolution?.trim() || null,
             assigned_admin_id: adminId,
+            // Reopening a previously resolved/rejected case must also clear the old terminal timestamp.
             resolved_at: terminal ? new Date().toISOString() : null,
-        }).eq("id", input.reportId);
+        }).eq("id", input.reportId).select("id, status, resolved_at").single();
         if (error)
             throw error;
+        if (!updatedReport || updatedReport.status !== input.status) {
+            throw new Error("The case status was not updated. Please refresh and try again.");
+        }
         await supabase.from("report_logs").insert({
             report_id: input.reportId,
             actor_id: adminId,

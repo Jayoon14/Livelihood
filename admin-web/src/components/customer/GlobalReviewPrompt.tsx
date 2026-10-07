@@ -40,99 +40,143 @@ export default function GlobalReviewPrompt() {
   const [submitting, setSubmitting] = useState(false);
   const checkingRef = useRef(false);
 
-  const checkForReview = useCallback(async () => {
+  const eligibleIdsRef = useRef<Set<number>>(new Set());
+  const initializedRef = useRef(false);
+
+  const loadEligibleBookings = useCallback(async (): Promise<ReviewBooking[]> => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !user) return [];
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .select(`
+        id,
+        worker_id,
+        worker:profiles!bookings_worker_id_fkey(
+          first_name,
+          middle_name,
+          last_name
+        ),
+        services!service_id(service_name),
+        reviews!booking_id(id, customer_id)
+      `)
+      .eq("customer_id", user.id)
+      .eq("status", "Completed")
+      .eq("payment_status", "Paid")
+      .eq("customer_deleted", false)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as EligibleBookingRow[];
+    if (!rows.length) return [];
+
+    // Project/multi-day bookings use their own final project review flow.
+    const bookingIds = rows.map((row) => row.id);
+    const { data: linkedProjects, error: projectError } = await supabase
+      .from("projects")
+      .select("source_booking_id")
+      .in("source_booking_id", bookingIds);
+
+    if (projectError) {
+      console.error("Unable to check project-linked bookings for review:", projectError);
+    }
+
+    const projectBookingIds = new Set(
+      (linkedProjects ?? [])
+        .map((project) => Number(project.source_booking_id))
+        .filter((id) => Number.isFinite(id)),
+    );
+
+    return rows
+      .filter((row) => {
+        const alreadyReviewed = (row.reviews ?? []).some(
+          (review) => review.customer_id === user.id,
+        );
+        return !alreadyReviewed && !projectBookingIds.has(row.id);
+      })
+      .map((row) => {
+        const worker = one(row.worker);
+        const service = one(row.services);
+        const workerName = [
+          worker?.first_name,
+          worker?.middle_name,
+          worker?.last_name,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        return {
+          id: row.id,
+          worker_id: row.worker_id,
+          workerName: workerName || "Worker",
+          serviceName: service?.service_name || "Service",
+        };
+      });
+  }, []);
+
+  const syncReviewEligibility = useCallback(async (allowPrompt: boolean) => {
     if (checkingRef.current) return;
     checkingRef.current = true;
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) return;
+      const eligible = await loadEligibleBookings();
+      const nextIds = new Set(eligible.map((item) => item.id));
 
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(`
-          id,
-          worker_id,
-          worker:profiles!bookings_worker_id_fkey(
-            first_name,
-            middle_name,
-            last_name
-          ),
-          services!service_id(service_name),
-          reviews!booking_id(id, customer_id)
-        `)
-        .eq("customer_id", user.id)
-        .eq("status", "Completed")
-        .eq("payment_status", "Paid")
-        .eq("customer_deleted", false)
-        .order("created_at", { ascending: false });
+      if (!initializedRef.current) {
+        // Existing historical completed bookings must never open a modal on login/page load.
+        eligibleIdsRef.current = nextIds;
+        initializedRef.current = true;
+        return;
+      }
 
-      if (error) throw error;
-
-      const eligible = ((data ?? []) as EligibleBookingRow[]).find((row) => {
-        const alreadyReviewed = (row.reviews ?? []).some(
-          (review) => review.customer_id === user.id,
+      if (allowPrompt) {
+        const newlyEligible = eligible.find(
+          (item) =>
+            !eligibleIdsRef.current.has(item.id) &&
+            sessionStorage.getItem(`review-prompt-shown-${item.id}`) !== "1",
         );
-        return (
-          !alreadyReviewed &&
-          sessionStorage.getItem(`review-prompt-shown-${row.id}`) !== "1"
-        );
-      });
 
-      if (!eligible) return;
+        if (newlyEligible) {
+          sessionStorage.setItem(`review-prompt-shown-${newlyEligible.id}`, "1");
+          setBooking(newlyEligible);
+          toast.success("Payment accepted by the worker. You can now leave a review.");
+        }
+      }
 
-      const worker = one(eligible.worker);
-      const service = one(eligible.services);
-      const workerName = [
-        worker?.first_name,
-        worker?.middle_name,
-        worker?.last_name,
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      sessionStorage.setItem(`review-prompt-shown-${eligible.id}`, "1");
-      setBooking({
-        id: eligible.id,
-        worker_id: eligible.worker_id,
-        workerName: workerName || "Worker",
-        serviceName: service?.service_name || "Service",
-      });
-      toast.success("Payment accepted by the worker. You can now leave a review.");
+      eligibleIdsRef.current = nextIds;
     } catch (error) {
       console.error("Global review eligibility check failed:", error);
     } finally {
       checkingRef.current = false;
     }
-  }, []);
+  }, [loadEligibleBookings]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void checkForReview();
-    }, 0);
+    // Establish a silent baseline only. Do not auto-open old reviews on dashboard/login.
+    void syncReviewEligibility(false);
 
     const channel = supabase
       .channel(`customer-global-review-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "bookings" },
-        () => void checkForReview(),
+        () => void syncReviewEligibility(true),
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reviews" },
-        () => void checkForReview(),
+        () => void syncReviewEligibility(false),
       )
       .subscribe();
 
     return () => {
-      window.clearTimeout(timer);
       void supabase.removeChannel(channel);
     };
-  }, [checkForReview]);
+  }, [syncReviewEligibility]);
 
   function close() {
     if (submitting) return;

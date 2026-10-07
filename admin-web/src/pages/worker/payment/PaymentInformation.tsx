@@ -2,7 +2,6 @@ import { runAuditedProcess, auditCaughtError } from "../../../lib/processAudit";
 import { AlertCircle, Banknote, CheckCircle2, CreditCard, LoaderCircle, RefreshCw, RotateCcw, Save, ShieldCheck, Smartphone, WalletCards, X, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, } from "react";
 import { toast } from "sonner";
-import BankSection from "../../../components/worker/BankSection";
 import CashSection from "../../../components/worker/CashSection";
 import GCashSection from "../../../components/worker/GCashSection";
 import MayaSection from "../../../components/worker/MayaSection";
@@ -34,7 +33,8 @@ function toForm(data: Awaited<ReturnType<typeof getMyPaymentInformation>>): Paym
         maya_name: data.maya_name || "",
         maya_number: data.maya_number || "",
         maya_qr: data.maya_qr || "",
-        enable_bank: Boolean(data.enable_bank),
+        // Bank Transfer is no longer offered. Saving the form keeps the legacy method disabled.
+        enable_bank: false,
         bank_name: data.bank_name || "",
         account_name: data.account_name || "",
         account_number: data.account_number || "",
@@ -63,11 +63,8 @@ export default function PaymentInformation() {
         form.accept_cash && "Cash",
         form.enable_gcash && "GCash",
         form.enable_maya && "Maya",
-        form.enable_bank &&
-            "Bank Transfer",
     ].filter((value): value is string => Boolean(value)), [
         form.accept_cash,
-        form.enable_bank,
         form.enable_gcash,
         form.enable_maya,
     ]);
@@ -313,14 +310,13 @@ export default function PaymentInformation() {
               </span>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <MethodStatus icon={Banknote} label="Cash" enabled={form.accept_cash}/>
 
               <MethodStatus icon={Smartphone} label="GCash" enabled={form.enable_gcash}/>
 
               <MethodStatus icon={Smartphone} label="Maya" enabled={form.enable_maya}/>
 
-              <MethodStatus icon={CreditCard} label="Bank Transfer" enabled={form.enable_bank}/>
             </div>
           </section>
 
@@ -341,14 +337,6 @@ export default function PaymentInformation() {
             maya_qr: form.maya_qr,
         }} onChange={(field, value) => handleChange(field as keyof PaymentForm, value as PaymentForm[keyof PaymentForm])}/>
 
-            <BankSection values={{
-            enable_bank: form.enable_bank,
-            bank_name: form.bank_name,
-            account_name: form.account_name,
-            account_number: form.account_number,
-            card_expiration: "",
-            bank_qr: form.bank_qr,
-        }} onChange={(field, value) => handleChange(field as keyof PaymentForm, value as PaymentForm[keyof PaymentForm])}/>
           </section>
         </div>
 

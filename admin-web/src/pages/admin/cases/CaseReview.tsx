@@ -58,7 +58,7 @@ export default function CaseReview() {
       setData(value);
       setPriority(value.report.priority);
       setNotes(value.report.admin_notes ?? "");
-      setPublicText(value.report.resolution ?? "");
+      setPublicText(terminal.has(value.report.status) ? "" : (value.report.resolution ?? ""));
     } catch (e) {
       auditCaughtError(
         { module: "Reports", process: "load case", action: "READ" },
@@ -431,12 +431,37 @@ export default function CaseReview() {
                 </div>
               )}
               {isTerminal && (
-                <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm">
-                  <b>Final decision:</b>
-                  <p className="mt-2 whitespace-pre-wrap">
-                    {r.resolution || "No public explanation recorded."}
-                  </p>
-                </div>
+                <>
+                  <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm">
+                    <b>Final decision:</b>
+                    <p className="mt-2 whitespace-pre-wrap">
+                      {r.resolution || "No public explanation recorded."}
+                    </p>
+                  </div>
+                  {(r.status === "resolved" || r.status === "rejected") && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-black text-amber-900">Reopen case for more information</p>
+                      <p className="mt-1 text-xs text-amber-800">
+                        This changes the case to Needs More Information and lets the reporter respond again.
+                      </p>
+                      <textarea
+                        value={publicText}
+                        onChange={(e) => setPublicText(e.target.value)}
+                        rows={3}
+                        className="mt-3 w-full rounded-xl border border-amber-300 bg-white p-3 text-sm"
+                        placeholder="Explain exactly what additional information or evidence is needed..."
+                      />
+                      <button
+                        disabled={saving || publicText.trim().length < 10}
+                        onClick={requestInfo}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 font-bold text-white disabled:opacity-50"
+                      >
+                        <MessageSquareMore size={18} />
+                        Reopen & Request More Information
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
               {canPenalize && (
                 <>

@@ -70,6 +70,21 @@ export async function submitReportCase(input: CreateReportInput, files: File[] =
             await supabase.from("reports").delete().eq("id", report.id);
             throw uploadError;
         }
+
+        // Inform the person being reported that a case involving their account
+        // has been submitted. Keep the notice neutral while the admin reviews it.
+        // Notification failure must not roll back an otherwise valid case.
+        try {
+            const caseLabel = report.case_type === "complaint" ? "complaint" : "report";
+            await createNotification(
+                report.reported_user_id,
+                report.booking_id,
+                `New ${caseLabel} involving your account`,
+                `A ${caseLabel} was submitted for Booking #${report.booking_id} (${report.category}). The case is pending administrator review. You will be notified of important updates.`,
+            );
+        } catch (notificationError) {
+            __activityProcessScope.caught(notificationError);
+        }
         return report;
     });
 }
