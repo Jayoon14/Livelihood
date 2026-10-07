@@ -909,19 +909,12 @@ export default function TrackWorker() {
         const handleOnline = () => {
             refreshLatestLocation();
         };
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                refreshLatestLocation();
-            }
-        };
         window.addEventListener("online", handleOnline);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
             mounted = false;
             setRealtimeConnected(false);
             window.clearInterval(fallbackRefreshTimer);
             window.removeEventListener("online", handleOnline);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
             void supabase.removeChannel(channel);
         };
     }, [

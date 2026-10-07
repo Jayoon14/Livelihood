@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Star,
   Briefcase,
+  BriefcaseBusiness,
   CreditCard,
   Wallet,
   MessageCircle,
@@ -21,6 +22,7 @@ interface WorkerSidebarProps {
 const menus = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/worker/dashboard" },
   { name: "Bookings", icon: CalendarCheck, path: "/worker/bookings" },
+  { name: "Projects", icon: BriefcaseBusiness, path: "/worker/projects" },
   { name: "Schedule", icon: CalendarDays, path: "/worker/schedule" },
   { name: "Reviews", icon: Star, path: "/worker/reviews" },
   { name: "Services", icon: Briefcase, path: "/worker/services" },

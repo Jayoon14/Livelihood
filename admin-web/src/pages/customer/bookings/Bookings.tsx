@@ -398,35 +398,6 @@ export default function Bookings() {
             }
         });
     }
-    useEffect(() => {
-        if (loading || reviewBooking || activeAction) {
-            return;
-        }
-
-        const eligibleBooking = bookings.find((booking) =>
-            booking.status === "Completed" &&
-            booking.payment_status === "Paid" &&
-            !booking.reviewed &&
-            sessionStorage.getItem(`review-prompt-shown-${booking.id}`) !== "1"
-        );
-
-        if (!eligibleBooking) {
-            return;
-        }
-
-        // Show the review prompt once per browser session as soon as the
-        // worker's payment approval is reflected on the booking. The regular
-        // Leave Review button remains available if the customer closes it.
-        sessionStorage.setItem(`review-prompt-shown-${eligibleBooking.id}`, "1");
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setReviewBooking(eligibleBooking);
-        setOverallRating(0);
-        setQualityRating(0);
-        setProfessionalismRating(0);
-        setCommunicationRating(0);
-        setReviewComment("");
-        toast.success("Payment accepted by the worker. You can now leave a review.");
-    }, [activeAction, bookings, loading, reviewBooking]);
 
     function openReviewModal(booking: CustomerBooking) {
         if (booking.status !== "Completed") {

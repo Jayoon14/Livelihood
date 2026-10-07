@@ -71,9 +71,9 @@ export default function LeaveReview() {
                 if (bookingData.customer_id !== user.id) {
                     throw new Error("You are not allowed to review this booking.");
                 }
-                if (bookingData.status !== "Completed") {
-                    throw new Error("The service must be completed before a review can be submitted.");
-                }
+                // Review eligibility is based on the worker-confirmed payment.
+                // Do not require the booking status to be Completed here because
+                // payment confirmation is the system's final review trigger.
                 if (bookingData.payment_status !== "Paid") {
                     navigate(`/customer/payment/${parsedBookingId}`, { replace: true });
                     toast.info("Complete the payment before leaving a review.");

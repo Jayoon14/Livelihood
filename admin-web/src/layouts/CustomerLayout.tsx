@@ -4,6 +4,7 @@ import CustomerSidebar from "../components/customer/CustomerSidebar";
 import CustomerNavbar from "../components/customer/CustomerNavbar";
 import Footer from "../components/common/Footer";
 import FloatingChatWidget from "../components/chat/FloatingChatWidget";
+import GlobalReviewPrompt from "../components/customer/GlobalReviewPrompt";
 import { ProfileProvider } from "../context/ProfileContext";
 
 interface Props {
@@ -70,6 +71,7 @@ export default function CustomerLayout({
           </div>
 
           <FloatingChatWidget />
+          <GlobalReviewPrompt />
         </div>
       </div>
     </ProfileProvider>

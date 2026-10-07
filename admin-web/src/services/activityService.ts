@@ -116,6 +116,7 @@ export const ACTIVITY_MODULES = {
   MESSAGES: "Messages",
   REVIEWS: "Reviews",
   APPEALS: "Appeals",
+  PROJECTS: "Projects",
 } as const;
 
 const PAGE_SIZE = 10;
@@ -533,7 +534,7 @@ export async function getActivityLogUserOptions(): Promise<ActivityUser[]> {
 }
 
 export const DEFAULT_ACTIVITY_MODULES: string[] = [
-  "Authentication", "Accounts", "Bookings", "Payments", "Messages", "Notifications",
+  "Authentication", "Accounts", "Bookings", "Projects", "Payments", "Messages", "Notifications",
   "Workers", "Customers", "Services", "Schedules", "Reports", "Reviews", "Analytics",
   "Account Enforcement", "Appeals", "Locations", "Worker Selection", "Documents",
   "System", "Forms", "Database Functions", "Server Functions",
@@ -554,6 +555,7 @@ export const DEFAULT_ACTIVITY_MODULES: string[] = [
 export const DEFAULT_ACTIVITY_ACTIONS: string[] = [
   "CREATE", "READ", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "LOGOUT_REQUEST",
   "REGISTER", "PASSWORD", "CHANGE_PASSWORD", "APPROVE", "REJECT", "CANCEL",
+  "APPLY", "ASSIGN", "START_TASK", "COMPLETE_TASK", "TIME_IN", "END_WORK_TODAY",
   "ACCEPT", "COMPLETE", "RESCHEDULE", "REBOOK", "START", "PAY", "UPLOAD",
   "DOWNLOAD", "EXPORT", "VIEW", "EXECUTE", "SEND", "SUSPEND", "RESTORE",
 ].sort();

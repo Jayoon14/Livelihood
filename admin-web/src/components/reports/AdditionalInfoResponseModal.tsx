@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileText, Loader2, Paperclip, Send, X } from "lucide-react";
 import { toast } from "sonner";
+import { useSessionState } from "../../hooks/useSessionState";
 import {
   getMyReportDetails,
   respondToInformationRequest,
@@ -33,15 +34,17 @@ export default function AdditionalInfoResponseModal({
   onSubmitted?: () => void | Promise<void>;
 }) {
   const [details, setDetails] = useState<Details | null>(null);
-  const [response, setResponse] = useState("");
+  const [response, setResponse, clearResponse] = useSessionState(
+    `serbisyoGo.case.additionalInfo.${caseId}.v1`,
+    "",
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let active = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
+    void Promise.resolve().then(() => { if (active) setLoading(true); });
     void getMyReportDetails(caseId)
       .then((value) => {
         if (active) setDetails(value);
@@ -67,6 +70,8 @@ export default function AdditionalInfoResponseModal({
     try {
       setSending(true);
       await respondToInformationRequest(caseId, response, files);
+      setResponse("");
+      clearResponse();
       toast.success(
         "Additional information sent. Your case is back Under Review.",
       );

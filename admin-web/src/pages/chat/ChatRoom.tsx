@@ -324,17 +324,10 @@ export default function ChatRoom() {
         const handleOnline = () => {
             void refreshConversation();
         };
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                void refreshConversation();
-            }
-        };
         window.addEventListener("online", handleOnline);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
             active = false;
             window.removeEventListener("online", handleOnline);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, [bookingId, scrollToBottom, userId]);
     useEffect(() => {

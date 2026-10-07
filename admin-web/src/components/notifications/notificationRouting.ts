@@ -10,6 +10,7 @@ export type NotificationCategory =
   | "review"
   | "verification"
   | "booking"
+  | "project"
   | "account"
   | "system";
 
@@ -80,6 +81,10 @@ export function getNotificationCategory(
     return "verification";
   }
 
+  if (["project:", "project #", "team leader", "project application", "project task"].some((keyword) => text.includes(keyword))) {
+    return "project";
+  }
+
   if (
     notification.booking_id ||
     ["booking", "schedule", "job", "service", "on the way", "arrived", "completed"].some(
@@ -131,6 +136,10 @@ export function getNotificationRoute(
 
   if (category === "verification") {
     return role === "admin" ? "/admin/workers" : `/${role}/settings`;
+  }
+
+  if (category === "project") {
+    return role === "admin" ? "/admin/notifications" : `/${role}/projects`;
   }
 
   if (category === "booking") {

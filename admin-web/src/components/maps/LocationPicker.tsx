@@ -78,8 +78,9 @@ interface Props {
     externalRouteTarget?: ExternalRouteTarget | null;
     externalRouteRequestKey?: number;
     onExternalRouteStarted?: () => void;
+    onRouteMetricsChange?: (distanceMeters: number | null, durationSeconds: number | null) => void;
 }
-export default function LocationPicker({ onLocationSelect, onLocationConfirmedChange, showNearbyWorkers = false, nearbyWorkerRadiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM, selectedWorkerId, onNearbyWorkerSelect, initialLocation, navigationMode = false, autoLocateOnMount = true, externalRouteTarget = null, externalRouteRequestKey = 0, onExternalRouteStarted, }: Props) {
+export default function LocationPicker({ onLocationSelect, onLocationConfirmedChange, showNearbyWorkers = false, nearbyWorkerRadiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM, selectedWorkerId, onNearbyWorkerSelect, initialLocation, navigationMode = false, autoLocateOnMount = true, externalRouteTarget = null, externalRouteRequestKey = 0, onExternalRouteStarted, onRouteMetricsChange, }: Props) {
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const markerRef = useRef<Marker | null>(null);
@@ -103,6 +104,9 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
     const { style, setStyle, showLayers, setShowLayers, showDirections, setShowDirections, longitude, setLongitude, latitude, setLatitude, selectedAddress, setSelectedAddress, editableAddress, setEditableAddress, locating, setLocating, routing, setRouting, mapReady, setMapReady, message, setMessage, distance, setDistance, duration, setDuration, bearing, setBearing, mouseCoordinates, setMouseCoordinates, } = useLocationPickerState();
     const [followUser] = useState(true);
     const [locationConfirmed, setLocationConfirmed] = useState(false);
+    useEffect(() => {
+        onRouteMetricsChange?.(distance, duration);
+    }, [distance, duration, onRouteMetricsChange]);
     const [routeDisplayAddress, setRouteDisplayAddress] = useState("");
     const [workerMapSearch, setWorkerMapSearch] = useState("");
     const [workerCategoryFilter, setWorkerCategoryFilter] = useState("All");

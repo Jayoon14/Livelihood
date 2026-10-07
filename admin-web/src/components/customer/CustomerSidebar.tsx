@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Users,
   Wallet,
+  BriefcaseBusiness,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -33,6 +34,7 @@ const menus = [
     icon: CalendarDays,
     path: "/customer/bookings",
   },
+  { name: "Projects", icon: BriefcaseBusiness, path: "/customer/projects" },
   {
     name: "Favorites",
     icon: Heart,

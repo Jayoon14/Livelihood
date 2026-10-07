@@ -1,10 +1,10 @@
 import { runAuditedProcess, auditCaughtError } from "../../lib/processAudit";
-import { ArrowLeft, CheckCheck, FileText, ImagePlus, Smile, Inbox, LoaderCircle, MessageCircle, Paperclip, Search, Send, X, } from "lucide-react";
+import { ArrowLeft, CheckCheck, FileText, ImagePlus, Smile, Inbox, LoaderCircle, MessageCircle, MoreVertical, Paperclip, Pencil, Search, Send, Trash2, X, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { getChatContext, getChatList, getMessages, markMessagesSeen, sendFile, sendImage, sendMessage, subscribeToMessages, unsubscribe, uploadChatFile, uploadChatImage, } from "../../services/chatService";
+import { getChatContext, getChatList, getMessages, markMessagesSeen, deleteMessage, editMessage, sendFile, sendImage, sendMessage, subscribeToMessages, unsubscribe, uploadChatFile, uploadChatImage, } from "../../services/chatService";
 import type { ChatContext, ChatMessage, } from "../../services/chatService";
 type BookingChat = {
     bookingId: number;
@@ -195,6 +195,10 @@ export default function ChatList() {
     const [uploading, setUploading] = useState(false);
     const [otherTyping, setOtherTyping] = useState(false);
     const [emojiOpen, setEmojiOpen] = useState(false);
+    const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editingText, setEditingText] = useState("");
+    const [messageActionBusy, setMessageActionBusy] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const typingChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -439,6 +443,31 @@ export default function ChatList() {
     function insertEmoji(emoji: string) {
         setMessage((current) => `${current}${emoji}`);
         setEmojiOpen(false);
+    }
+    async function saveMessageEdit(item: ChatMessage) {
+        if (messageActionBusy || !currentUserId) return;
+        const trimmed = editingText.trim();
+        if (!trimmed) { setChatError("Message cannot be empty."); return; }
+        setMessageActionBusy(true); setChatError("");
+        try {
+            const updated = await editMessage(item.id, currentUserId, trimmed);
+            setMessages((previous) => upsertMessage(previous, updated));
+            setEditingMessageId(null); setEditingText(""); setMessageMenuId(null);
+            await loadChats(currentUserId);
+        } catch (caught) { setChatError(caught instanceof Error ? caught.message : "Unable to edit message."); }
+        finally { setMessageActionBusy(false); }
+    }
+    async function removeOwnMessage(item: ChatMessage) {
+        if (messageActionBusy || !currentUserId) return;
+        if (!window.confirm("Delete this message?")) return;
+        setMessageActionBusy(true); setChatError("");
+        try {
+            await deleteMessage(item.id, currentUserId);
+            setMessages((previous) => previous.filter((messageItem) => String(messageItem.id) !== String(item.id)));
+            setMessageMenuId(null);
+            await loadChats(currentUserId);
+        } catch (caught) { setChatError(caught instanceof Error ? caught.message : "Unable to delete message."); }
+        finally { setMessageActionBusy(false); }
     }
     async function handleSend() {
         return await runAuditedProcess({ module: "Messages", process: "handleSend", action: "CREATE", parameters: {} }, async (__activityProcessScope) => {
@@ -752,7 +781,16 @@ export default function ChatList() {
                               </span>
                             </div>)}
 
-                          <div className={`mb-2 flex ${mine ? "justify-end" : "justify-start"}`}>
+                          <div className={`group mb-2 flex items-center gap-1 ${mine ? "justify-end" : "justify-start"}`}>
+                            {mine && (<div className="relative self-center">
+                              <button type="button" aria-label="Message actions" onClick={() => setMessageMenuId((current) => current === String(item.id) ? null : String(item.id))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 opacity-100 transition hover:bg-slate-200 hover:text-slate-700 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                                <MoreVertical className="h-4 w-4"/>
+                              </button>
+                              {messageMenuId === String(item.id) && (<div className="absolute bottom-full right-0 z-50 mb-1 w-32 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                {item.message && !item.image_url && !item.file_url && (<button type="button" onClick={() => { setEditingMessageId(String(item.id)); setEditingText(item.message ?? ""); setMessageMenuId(null); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><Pencil className="h-4 w-4"/>Edit</button>)}
+                                <button type="button" onClick={() => void removeOwnMessage(item)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"><Trash2 className="h-4 w-4"/>Delete</button>
+                              </div>)}
+                            </div>)}
                             <div className={`max-w-[86%] sm:max-w-[68%] ${mine ? "items-end" : "items-start"}`}>
                               <div className={`overflow-hidden rounded-2xl shadow-sm ${mine
                         ? "rounded-br-md bg-blue-600 text-white shadow-blue-600/10"
@@ -761,9 +799,7 @@ export default function ChatList() {
                                     <img src={item.image_url} alt="Chat attachment" className="max-h-44 w-auto max-w-full rounded-xl object-cover sm:max-h-52"/>
                                   </a>)}
 
-                                {item.message && (<p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">
-                                    {item.message}
-                                  </p>)}
+                                {item.message && (editingMessageId === String(item.id) ? (<div className="min-w-[220px] p-2"><textarea autoFocus value={editingText} maxLength={2000} onChange={(event) => setEditingText(event.target.value)} className="min-h-20 w-full resize-none rounded-xl bg-white/95 p-2 text-sm text-slate-900 outline-none ring-2 ring-blue-300"/><div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => { setEditingMessageId(null); setEditingText(""); }} className="rounded-lg px-3 py-1.5 text-xs font-bold text-blue-100 hover:bg-blue-500">Cancel</button><button type="button" disabled={messageActionBusy || !editingText.trim()} onClick={() => void saveMessageEdit(item)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-black text-blue-600 disabled:opacity-50">Save</button></div></div>) : (<p className="whitespace-pre-wrap break-words px-4 pt-3 text-sm leading-6">{item.message}</p>))}
 
                                 {item.file_url && (<a href={item.file_url} target="_blank" rel="noreferrer" className={`m-2 flex items-center gap-3 rounded-xl p-3 text-sm font-semibold ${mine
                             ? "bg-blue-500"
@@ -776,9 +812,8 @@ export default function ChatList() {
                                   </a>)}
 
                                 <div className="flex items-center justify-end gap-1 px-3 pb-2 pt-1 text-[10px] opacity-75">
-                                  <span>
-                                    {formatMessageTime(item.created_at)}
-                                  </span>
+                                  <span>{formatMessageTime(item.created_at)}</span>
+                                  {item.edited_at && <span>· Edited</span>}
 
                                   {mine && (<span className="inline-flex items-center gap-1">
                                       <CheckCheck className="h-3 w-3"/>

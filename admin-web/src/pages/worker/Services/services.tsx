@@ -348,11 +348,13 @@ export default function Services() {
         Approved: 0,
         Pending: 0,
         Rejected: 0,
+        Archived: 0,
     } as {
         total: number;
         Approved: number;
         Pending: number;
         Rejected: number;
+        Archived: number;
     }), [services]);
     const filteredServices = useMemo(() => {
         const keyword = search.trim().toLowerCase();
@@ -560,13 +562,13 @@ export default function Services() {
                     return;
                 }
             }
-            const confirmed = await confirmAction(`Delete "${service.service_name}"? This cannot be undone.`);
+            const confirmed = await confirmAction(`Remove "${service.service_name}"? If it has booking history, it will be archived instead of permanently deleted.`);
             if (!confirmed) {
                 return;
             }
             try {
                 setDeletingId(service.id);
-                await deleteMyService(service.id, workerId);
+                const removal = await deleteMyService(service.id, workerId);
                 setServices((current) => current.filter((item) => item.id !== service.id));
                 if (editingService?.id === service.id) {
                     setFormOpen(false);
@@ -574,9 +576,9 @@ export default function Services() {
                 }
                 setMessage({
                     type: "success",
-                    text: "Service deleted successfully.",
+                    text: removal === "archived" ? "Service archived. Booking history was preserved." : "Service deleted successfully.",
                 });
-                toast.success("Service deleted successfully.");
+                toast.success(removal === "archived" ? "Service archived. Booking history was preserved." : "Service deleted successfully.");
             }
             catch (error) {
                 __activityProcessScope.caught(error);
@@ -826,7 +828,7 @@ function ServiceCard({ service, deleting, onEdit, onDelete, }: {
 
         <button type="button" onClick={onDelete} disabled={deleting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:translate-y-0 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {deleting ? (<LoaderCircle className="h-4 w-4 animate-spin"/>) : (<Trash2 className="h-4 w-4"/>)}
-          Delete
+          Remove
         </button>
       </footer>
     </article>);

@@ -810,7 +810,7 @@ export default function Bookings() {
                               </button>
                             )}
 
-                            {booking.status === "On Going" && booking.trip_status === "On Trip" && (
+                            {booking.status === "On Going" && booking.trip_status === "On Trip" && booking.service?.scheduling_type !== "project" && (
                               <Link
                                 to={`/worker/bookings/${booking.id}/complete`}
                                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-bold text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
@@ -1058,7 +1058,8 @@ export default function Bookings() {
                   </button>)}
 
                 {selectedBooking.status === "On Going" &&
-                selectedBooking.trip_status === "On Trip" && (<Link to={`/worker/bookings/${selectedBooking.id}/complete`} onClick={() => setSelectedBooking(null)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700">
+                selectedBooking.trip_status === "On Trip" &&
+                selectedBooking.service?.scheduling_type !== "project" && (<Link to={`/worker/bookings/${selectedBooking.id}/complete`} onClick={() => setSelectedBooking(null)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700">
                       <CheckCircle2 className="h-4 w-4"/>
                       Submit Proof
                     </Link>)}

@@ -1,5 +1,5 @@
 import { runAuditedProcess } from "../../lib/processAudit";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSessionState } from "../../hooks/useSessionState";
 import { supabase } from "../../lib/supabase";
 import { submitReportCase } from "../../services/caseReportService";
 import {
@@ -40,11 +41,20 @@ export default function ReportCaseModal({
   defaultCaseType = "complaint",
   onSubmitted,
 }: Props) {
-  const [caseType, setCaseType] = useState<ReportCaseType>(defaultCaseType);
-  const [category, setCategory] = useState("");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [requestedResolution, setRequestedResolution] = useState("");
+  const draftKey = `serbisyoGo.reportCase.${reporterRole}.${bookingId}.${reportedUserId}.v1`;
+  const [draft, setDraft, clearDraft] = useSessionState(draftKey, {
+    caseType: defaultCaseType as ReportCaseType,
+    category: "",
+    subject: "",
+    description: "",
+    requestedResolution: "",
+  });
+  const { caseType, category, subject, description, requestedResolution } = draft;
+  const setCaseType = (value: ReportCaseType) => setDraft((current) => ({ ...current, caseType: value }));
+  const setCategory = (value: string) => setDraft((current) => ({ ...current, category: value }));
+  const setSubject = (value: string) => setDraft((current) => ({ ...current, subject: value }));
+  const setDescription = (value: string) => setDraft((current) => ({ ...current, description: value }));
+  const setRequestedResolution = (value: string) => setDraft((current) => ({ ...current, requestedResolution: value }));
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const categories = useMemo(
@@ -54,20 +64,6 @@ export default function ReportCaseModal({
         : WORKER_REPORT_CATEGORIES,
     [reporterRole],
   );
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setCaseType(defaultCaseType);
-      setCategory("");
-      setSubject("");
-      setDescription("");
-      setRequestedResolution("");
-      setFiles([]);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [defaultCaseType, open]);
   if (!open) return null;
   async function handleSubmit(event: React.FormEvent) {
     return await runAuditedProcess(
@@ -117,6 +113,7 @@ export default function ReportCaseModal({
           toast.success(
             `${caseType === "report" ? "Report" : "Complaint"} submitted successfully.`,
           );
+          clearDraft();
           onSubmitted?.();
           onClose();
         } catch (error) {

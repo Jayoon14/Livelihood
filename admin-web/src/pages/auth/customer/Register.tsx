@@ -103,6 +103,7 @@ function MapClickHandler({ onSelect, }: {
 export default function CustomerRegister() {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     // ======================================================
     // PERSONAL INFORMATION
     // ======================================================
@@ -316,40 +317,32 @@ export default function CustomerRegister() {
     // REGISTER VALIDATION
     // ======================================================
     function validateRegistration(): boolean {
-        if (!firstName ||
-            !lastName ||
-            !email ||
-            !phone ||
-            !password ||
-            !confirmPassword) {
-            toast.warning("Please complete required fields.");
-            return false;
-        }
-        if (!/^09\d{9}$/.test(phone)) {
-            toast.warning("Enter a valid 11-digit Philippine mobile number starting with 09.");
-            return false;
-        }
-        if (isDisposableEmail(email)) {
-            toast.warning("Temporary or disposable email addresses are not allowed. Please use your personal email.");
-            return false;
-        }
-        if (password !== confirmPassword) {
-            toast.warning("Passwords do not match.");
-            return false;
-        }
-        if (password.length < 6) {
-            toast.warning("Password must be at least 6 characters.");
-            return false;
-        }
-        // ==================================================
-        // MAP LOCATION VALIDATION
-        // ==================================================
-        if (latitude === null || longitude === null) {
-            toast.warning("Please search and select your exact address location on the map.");
-            return false;
-        }
-        if (!locationConfirmed) {
-            toast.warning("Please click 'Confirm Location' after selecting your exact address on the map.");
+        const errors: Record<string, string> = {};
+        if (!firstName.trim()) errors.firstName = "First name is required.";
+        if (!lastName.trim()) errors.lastName = "Last name is required.";
+        if (!gender) errors.gender = "Gender is required.";
+        if (!birthDate) errors.birthDate = "Birth date is required.";
+        if (!civilStatus) errors.civilStatus = "Civil status is required.";
+        if (!religion) errors.religion = "Religion is required.";
+        if (!email.trim()) errors.email = "Email address is required.";
+        if (!phone.trim()) errors.phone = "Phone number is required.";
+        else if (!/^09\d{9}$/.test(phone)) errors.phone = "Enter a valid 11-digit Philippine mobile number starting with 09.";
+        if (email.trim() && isDisposableEmail(email)) errors.email = "Temporary or disposable email addresses are not allowed.";
+        if (!password) errors.password = "Password is required.";
+        else if (password.length < 6) errors.password = "Password must be at least 6 characters.";
+        if (!confirmPassword) errors.confirmPassword = "Please confirm your password.";
+        else if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match.";
+        if (latitude === null || longitude === null || !locationConfirmed) errors.location = "Select and confirm your exact address location.";
+
+        setFieldErrors(errors);
+        const firstInvalid = Object.keys(errors)[0];
+        if (firstInvalid) {
+            toast.warning(errors[firstInvalid]);
+            window.setTimeout(() => {
+                const target = document.querySelector<HTMLElement>(`[data-register-field="${firstInvalid}"]`);
+                target?.scrollIntoView({ behavior: "smooth", block: "center" });
+                target?.querySelector<HTMLElement>("input, select, button")?.focus({ preventScroll: true });
+            }, 50);
             return false;
         }
         if (!turnstileSiteKey) {
@@ -583,13 +576,14 @@ export default function CustomerRegister() {
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label className={label}>First Name</label>
+                <div data-register-field="firstName">
+                  <label className={label}>First Name <span className="text-red-500">*</span></label>
+                  {fieldErrors.firstName && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.firstName}</p>}
 
-                  <div className={`${inputWrap} mt-2`}>
+                  <div className={`${inputWrap} mt-2 ${fieldErrors.firstName ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                     <User className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                    <input type="text" value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="Enter first name" className={inputBase}/>
+                    <input type="text" value={firstName} onChange={(event) => { setFirstName(event.target.value); setFieldErrors((current) => ({ ...current, firstName: "" })); }} placeholder="Enter first name" className={inputBase}/>
                   </div>
                 </div>
 
@@ -603,36 +597,40 @@ export default function CustomerRegister() {
                   </div>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className={label}>Last Name</label>
+                <div data-register-field="lastName" className="sm:col-span-2">
+                  <label className={label}>Last Name <span className="text-red-500">*</span></label>
+                  {fieldErrors.lastName && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.lastName}</p>}
 
-                  <div className={`${inputWrap} mt-2`}>
+                  <div className={`${inputWrap} mt-2 ${fieldErrors.lastName ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                     <User className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                    <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Enter last name" className={inputBase}/>
+                    <input type="text" value={lastName} onChange={(event) => { setLastName(event.target.value); setFieldErrors((current) => ({ ...current, lastName: "" })); }} placeholder="Enter last name" className={inputBase}/>
                   </div>
                 </div>
 
-                <div>
-                  <label className={label}>Gender</label>
+                <div data-register-field="gender">
+                  <label className={label}>Gender <span className="text-red-500">*</span></label>
+                  {fieldErrors.gender && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.gender}</p>}
 
-                  <select value={gender} onChange={(event) => setGender(event.target.value)} className={selectBase}>
+                  <select value={gender} onChange={(event) => { setGender(event.target.value); setFieldErrors((current) => ({ ...current, gender: "" })); }} className={`${selectBase} ${fieldErrors.gender ? "!border-red-500 ring-4 ring-red-500/10 focus:!border-red-500 focus:ring-red-500/20" : ""}`}>
                     <option value="">Select gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className={label}>Birth Date</label>
+                <div data-register-field="birthDate">
+                  <label className={label}>Birth Date <span className="text-red-500">*</span></label>
+                  {fieldErrors.birthDate && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.birthDate}</p>}
 
-                  <input type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} className={selectBase}/>
+                  <input type="date" value={birthDate} onChange={(event) => { setBirthDate(event.target.value); setFieldErrors((current) => ({ ...current, birthDate: "" })); }} className={`${selectBase} ${fieldErrors.birthDate ? "!border-red-500 ring-4 ring-red-500/10 focus:!border-red-500 focus:ring-red-500/20" : ""}`}/>
                 </div>
 
-                <div>
-                  <label className={label}>Civil Status</label>
+                <div data-register-field="civilStatus">
+                  <label className={label}>Civil Status <span className="text-red-500">*</span></label>
+                  {fieldErrors.civilStatus && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.civilStatus}</p>}
 
-                  <select value={civilStatus} onChange={(event) => setCivilStatus(event.target.value)} className={selectBase}>
+                  <select value={civilStatus} onChange={(event) => { setCivilStatus(event.target.value); setFieldErrors((current) => ({ ...current, civilStatus: "" })); }} className={`${selectBase} ${fieldErrors.civilStatus ? "!border-red-500 ring-4 ring-red-500/10 focus:!border-red-500 focus:ring-red-500/20" : ""}`}>
                     <option value="">Select status</option>
 
                     <option value="Single">Single</option>
@@ -645,10 +643,11 @@ export default function CustomerRegister() {
                   </select>
                 </div>
 
-                <div>
-                  <label className={label}>Religion</label>
+                <div data-register-field="religion">
+                  <label className={label}>Religion <span className="text-red-500">*</span></label>
+                  {fieldErrors.religion && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.religion}</p>}
 
-                  <select value={religion} onChange={(event) => setReligion(event.target.value)} className={selectBase}>
+                  <select value={religion} onChange={(event) => { setReligion(event.target.value); setFieldErrors((current) => ({ ...current, religion: "" })); }} className={`${selectBase} ${fieldErrors.religion ? "!border-red-500 ring-4 ring-red-500/10 focus:!border-red-500 focus:ring-red-500/20" : ""}`}>
                     <option value="">Select religion</option>
 
                     {RELIGION_OPTIONS.map((option) => (<option key={option} value={option}>
@@ -890,23 +889,25 @@ export default function CustomerRegister() {
               </div>
 
               <div className="grid gap-5">
-                <div>
-                  <label className={label}>Email Address</label>
+                <div data-register-field="email">
+                  <label className={label}>Email Address <span className="text-red-500">*</span></label>
+                  {fieldErrors.email && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.email}</p>}
 
-                  <div className={`${inputWrap} mt-2`}>
+                  <div className={`${inputWrap} mt-2 ${fieldErrors.email ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                     <Mail className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                    <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" className={inputBase}/>
+                    <input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((current) => ({ ...current, email: "" })); }} placeholder="you@example.com" className={inputBase}/>
                   </div>
                 </div>
 
-                <div>
-                  <label className={label}>Phone Number</label>
+                <div data-register-field="phone">
+                  <label className={label}>Phone Number <span className="text-red-500">*</span></label>
+                  {fieldErrors.phone && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.phone}</p>}
 
-                  <div className={`${inputWrap} mt-2`}>
+                  <div className={`${inputWrap} mt-2 ${fieldErrors.phone ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                     <Phone className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                    <input type="tel" inputMode="numeric" autoComplete="tel" maxLength={11} value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="09XXXXXXXXX" className={inputBase}/>
+                    <input type="tel" inputMode="numeric" autoComplete="tel" maxLength={11} value={phone} onChange={(event) => { setPhone(event.target.value.replace(/\D/g, "").slice(0, 11)); setFieldErrors((current) => ({ ...current, phone: "" })); }} placeholder="09XXXXXXXXX" className={inputBase}/>
                   </div>
                 </div>
               </div>
@@ -998,13 +999,14 @@ export default function CustomerRegister() {
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
-                  <div>
-                    <label className={label}>Password</label>
+                  <div data-register-field="password">
+                    <label className={label}>Password <span className="text-red-500">*</span></label>
+                  {fieldErrors.password && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.password}</p>}
 
-                    <div className={`${inputWrap} mt-2`}>
+                    <div className={`${inputWrap} mt-2 ${fieldErrors.password ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                       <Lock className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                      <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" className={inputBase}/>
+                      <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => { setPassword(event.target.value); setFieldErrors((current) => ({ ...current, password: "" })); }} placeholder="Enter password" className={inputBase}/>
 
                       <button type="button" onClick={() => setShowPassword((current) => !current)} className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-white" aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? (<EyeOff className="h-4.5 w-4.5"/>) : (<Eye className="h-4.5 w-4.5"/>)}
@@ -1012,13 +1014,14 @@ export default function CustomerRegister() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className={label}>Confirm Password</label>
+                  <div data-register-field="confirmPassword">
+                    <label className={label}>Confirm Password <span className="text-red-500">*</span></label>
+                  {fieldErrors.confirmPassword && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.confirmPassword}</p>}
 
-                    <div className={`${inputWrap} mt-2`}>
+                    <div className={`${inputWrap} mt-2 ${fieldErrors.confirmPassword ? "!border-red-500 ring-4 ring-red-500/10" : ""}`}>
                       <Lock className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                      <input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" className={inputBase}/>
+                      <input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => { setConfirmPassword(event.target.value); setFieldErrors((current) => ({ ...current, confirmPassword: "" })); }} placeholder="Confirm password" className={inputBase}/>
                     </div>
                   </div>
                 </div>
@@ -1030,6 +1033,7 @@ export default function CustomerRegister() {
               </div>
 
               <div>
+                {fieldErrors.location && <p data-register-field="location" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{fieldErrors.location}</p>}
                 <button type="button" onClick={handleRegister} disabled={loading || pendingRegistration} className="flex min-h-14 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#2937f0] via-[#523cf0] to-[#3784ed] px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60">
                   {loading || pendingRegistration
             ? "Creating Account..."

@@ -10,6 +10,7 @@ import WorkerBadges from "../../../components/reputation/WorkerBadges";
 const heading = { fontFamily: "'Sora', sans-serif" };
 const inter = { fontFamily: "'Inter', sans-serif" };
 const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
+const NEARBY_MODAL_SESSION_KEY = "customer:nearby-workers-modal-open";
 type WorkerCardResult = WorkerSearchResult & {
     category?: string | null;
     service_name?: string | null;
@@ -28,7 +29,32 @@ export default function Workers() {
     const [categories, setCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [workerBookingStates, setWorkerBookingStates] = useState<Record<string, "offline" | "working" | "available">>({});
-    const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(false);
+    const [showNearbyWorkersModal, setShowNearbyWorkersModal] = useState(() => {
+        try {
+            return window.sessionStorage.getItem(NEARBY_MODAL_SESSION_KEY) === "1";
+        }
+        catch {
+            return false;
+        }
+    });
+    const openNearbyWorkersModal = useCallback(() => {
+        try {
+            window.sessionStorage.setItem(NEARBY_MODAL_SESSION_KEY, "1");
+        }
+        catch {
+            // Session storage may be unavailable; keep the in-memory modal state.
+        }
+        setShowNearbyWorkersModal(true);
+    }, []);
+    const closeNearbyWorkersModal = useCallback(() => {
+        try {
+            window.sessionStorage.removeItem(NEARBY_MODAL_SESSION_KEY);
+        }
+        catch {
+            // Session storage may be unavailable; still close the modal normally.
+        }
+        setShowNearbyWorkersModal(false);
+    }, []);
     const loadCategories = useCallback(async () => {
         try {
             const data = await getCategories();
@@ -157,14 +183,10 @@ export default function Workers() {
             table: "worker_locations",
         }, refresh)
             .subscribe();
-        window.addEventListener("focus", refresh);
         window.addEventListener("online", refresh);
-        document.addEventListener("visibilitychange", refresh);
         return () => {
             window.clearInterval(timer);
-            window.removeEventListener("focus", refresh);
             window.removeEventListener("online", refresh);
-            document.removeEventListener("visibilitychange", refresh);
             void supabase.removeChannel(locationChannel);
         };
     }, [loadWorkers]);
@@ -255,7 +277,7 @@ export default function Workers() {
               </div>
             </div>
 
-            <button type="button" onClick={() => setShowNearbyWorkersModal(true)} className="
+            <button type="button" onClick={openNearbyWorkersModal} className="
         inline-flex items-center justify-center gap-2
         rounded-2xl bg-blue-600 px-5 py-3
         text-sm font-semibold text-white
@@ -554,7 +576,7 @@ export default function Workers() {
                 </div>);
             })}
           </div>)}
-        <NearbyWorkersModal open={showNearbyWorkersModal} onClose={() => setShowNearbyWorkersModal(false)}/>
+        <NearbyWorkersModal open={showNearbyWorkersModal} onClose={closeNearbyWorkersModal}/>
       </div>
     </CustomerLayout>);
 }

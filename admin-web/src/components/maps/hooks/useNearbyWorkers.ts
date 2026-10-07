@@ -638,17 +638,10 @@ export function useNearbyWorkers({ mapRef, currentLocationRef, enabled, radiusKi
         const handleOnline = () => {
             void loadNearbyWorkers();
         };
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                void loadNearbyWorkers();
-            }
-        };
         window.addEventListener("online", handleOnline);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
             window.clearInterval(refreshTimer);
             window.removeEventListener("online", handleOnline);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
             void supabase.removeChannel(channel);
             clearAllWorkers();
         };

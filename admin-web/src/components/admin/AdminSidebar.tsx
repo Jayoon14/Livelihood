@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BriefcaseBusiness,
   ClipboardList,
   History,
   ShieldAlert,
@@ -38,6 +39,11 @@ const menus = [
     icon: Wallet,
     label: "Payments",
     path: "/payments",
+  },
+  {
+    icon: BriefcaseBusiness,
+    label: "Projects",
+    path: "/admin/projects",
   },
   {
     icon: BarChart3,

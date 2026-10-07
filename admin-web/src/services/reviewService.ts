@@ -43,6 +43,7 @@ export interface CustomerBookingReview {
     id: number;
     booking_date: string | null;
     status: string;
+    payment_status: string | null;
     worker: ReviewProfile | null;
     service: ReviewServiceInfo | null;
     review: Review | null;
@@ -117,6 +118,7 @@ type CustomerBookingRow = {
     id: number;
     booking_date: string | null;
     status: string;
+    payment_status: string | null;
     worker: Relation<ReviewProfile>;
     service: Relation<ReviewServiceInfo>;
     review: Relation<Review>;
@@ -298,6 +300,7 @@ export async function createReview(bookingId: number, workerId: string, customer
             .select(`
       id,
       status,
+      payment_status,
       customer_id,
       worker_id
     `)
@@ -313,8 +316,8 @@ export async function createReview(bookingId: number, workerId: string, customer
         if (String(booking.worker_id) !== validatedWorkerId) {
             throw new Error("The selected worker does not belong to this booking.");
         }
-        if (String(booking.status) !== "Completed") {
-            throw new Error("Only completed bookings can be reviewed.");
+        if (String(booking.payment_status ?? "") !== "Paid") {
+            throw new Error("The worker must confirm the payment before this booking can be reviewed.");
         }
         const payload = {
             booking_id: validatedBookingId,
@@ -375,6 +378,7 @@ export async function getCustomerReviewableBookings(customerId: string): Promise
       id,
       booking_date,
       status,
+      payment_status,
       worker:profiles!worker_id(
         id,
         first_name,
@@ -404,13 +408,14 @@ export async function getCustomerReviewableBookings(customerId: string): Promise
       )
     `)
             .eq("customer_id", validatedCustomerId)
-            .eq("status", "Completed")
+            .eq("payment_status", "Paid")
             .order("booking_date", { ascending: false });
-        throwIfError(error, "Unable to load completed bookings.");
+        throwIfError(error, "Unable to load reviewable bookings.");
         return ((data ?? []) as unknown as CustomerBookingRow[]).map((row) => ({
             id: Number(row.id),
             booking_date: row.booking_date ?? null,
             status: String(row.status),
+            payment_status: row.payment_status ?? null,
             worker: normalizeProfile(row.worker),
             service: normalizeService(row.service),
             review: normalizeRelation(row.review),

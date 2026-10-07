@@ -307,13 +307,7 @@ export default function Notifications() {
         const handleOnline = () => {
             scheduleRealtimeRefresh();
         };
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                scheduleRealtimeRefresh();
-            }
-        };
         window.addEventListener("online", handleOnline);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
         void initializeRealtime();
         return () => {
             isMounted = false;
@@ -322,7 +316,6 @@ export default function Notifications() {
                 realtimeTimerRef.current = null;
             }
             window.removeEventListener("online", handleOnline);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
             if (channel) {
                 void supabase.removeChannel(channel);
             }

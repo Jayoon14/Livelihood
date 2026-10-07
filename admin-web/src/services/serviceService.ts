@@ -7,6 +7,7 @@ export const SERVICE_STATUS = {
     APPROVED: "Approved",
     PENDING: "Pending",
     REJECTED: "Rejected",
+    ARCHIVED: "Archived",
 } as const;
 export type ServiceStatus = (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS];
 export type SchedulingType = "hourly" | "project";
@@ -109,6 +110,9 @@ export function normalizeServiceStatus(value?: string | null): ServiceStatus {
         case "rejected":
         case "declined":
             return SERVICE_STATUS.REJECTED;
+        case "archived":
+        case "inactive":
+            return SERVICE_STATUS.ARCHIVED;
         case "pending":
         case "for approval":
         case "for review":
@@ -338,6 +342,7 @@ export async function getMyServices(workerId: string): Promise<WorkerService[]> 
             .from("services")
             .select("id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status")
             .eq("worker_id", id)
+            .neq("status", SERVICE_STATUS.ARCHIVED)
             .order("id", { ascending: false });
         if (error) {
             throw wrap(error, "Unable to load services.");
@@ -425,23 +430,44 @@ export async function deleteService(id: number): Promise<void> {
         }
     });
 }
-export async function deleteMyService(id: number, workerId: string): Promise<void> {
+export type ServiceRemovalResult = "deleted" | "archived";
+export async function deleteMyService(id: number, workerId: string): Promise<ServiceRemovalResult> {
     return await runAuditedProcess({ module: "Services", process: "deleteMyService", action: "DELETE", parameters: { id, workerId } }, async () => {
         const serviceId = requireServiceId(id);
         const ownerId = requireWorkerId(workerId);
-        const { data, error } = await supabase
+
+        const { data: owned, error: ownedError } = await supabase
+            .from("services")
+            .select("id")
+            .eq("id", serviceId)
+            .eq("worker_id", ownerId)
+            .maybeSingle();
+        if (ownedError) throw wrap(ownedError, "Unable to verify the service.");
+        if (!owned) throw new Error("Service was not found or does not belong to the current worker.");
+
+        const { count, error: bookingError } = await supabase
+            .from("bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("service_id", serviceId);
+        if (bookingError) throw wrap(bookingError, "Unable to check the service booking history.");
+
+        if ((count ?? 0) > 0) {
+            const { error: archiveError } = await supabase
+                .from("services")
+                .update({ status: SERVICE_STATUS.ARCHIVED })
+                .eq("id", serviceId)
+                .eq("worker_id", ownerId);
+            if (archiveError) throw wrap(archiveError, "Unable to archive the service.");
+            return "archived";
+        }
+
+        const { error: deleteError } = await supabase
             .from("services")
             .delete()
             .eq("id", serviceId)
-            .eq("worker_id", ownerId)
-            .select("id")
-            .maybeSingle();
-        if (error) {
-            throw wrap(error, "Unable to delete service. It may be referenced by an existing booking.");
-        }
-        if (!data) {
-            throw new Error("Service was not found or does not belong to the current worker.");
-        }
+            .eq("worker_id", ownerId);
+        if (deleteError) throw wrap(deleteError, "Unable to delete the service.");
+        return "deleted";
     });
 }
 export async function getAdminServices(status?: ServiceStatus): Promise<AdminService[]> {

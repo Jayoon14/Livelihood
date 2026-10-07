@@ -126,14 +126,7 @@ export function useChatUnreadCount() {
       scheduleRefresh();
     };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        scheduleRefresh();
-      }
-    };
-
     window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
@@ -144,7 +137,6 @@ export function useChatUnreadCount() {
       }
 
       window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       authListener.subscription.unsubscribe();
 

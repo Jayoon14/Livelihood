@@ -80,9 +80,9 @@ export function useLiveLocation({ currentLocationRef, setMessage, setLocating, o
                 }
                 console.warn("Live geolocation warning:", error.message);
             }, {
-                enableHighAccuracy: false,
+                enableHighAccuracy: true,
                 timeout: 20000,
-                maximumAge: 10000,
+                maximumAge: 5000,
             });
         setIsTracking(true);
     }, [

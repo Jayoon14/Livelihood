@@ -43,6 +43,7 @@ export type ChatMessage = {
     is_read: boolean;
     seen_at: string | null;
     created_at: string;
+    edited_at?: string | null;
     sender?: ChatProfile | null;
 };
 export type ChatContext = {
@@ -107,6 +108,7 @@ function normalizeMessage(value: Record<string, unknown>): ChatMessage {
             ? null
             : String(value.seen_at),
         created_at: String(value.created_at ?? new Date().toISOString()),
+        edited_at: value.edited_at == null ? null : String(value.edited_at),
         sender: value.sender ? normalizeProfile(value.sender) : undefined,
     };
 }
@@ -339,6 +341,26 @@ export async function sendMessage(bookingId: number, senderId: string, message: 
         return insertMessage(bookingId, senderId, {
             message: trimmedMessage,
         });
+    });
+}
+
+export async function editMessage(messageId: number | string, userId: string, message: string): Promise<ChatMessage> {
+    return await runAuditedProcess({ module: "Messages", process: "editMessage", action: "UPDATE", parameters: { messageId, userId } }, async () => {
+        const trimmed = message.trim();
+        if (!trimmed) throw new Error("Message cannot be empty.");
+        if (trimmed.length > 2000) throw new Error("Message must not exceed 2,000 characters.");
+        const { data, error } = await supabase.rpc("edit_own_chat_message", { p_message_id: String(messageId), p_message: trimmed });
+        if (error) throw error;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) throw new Error("Unable to edit message.");
+        return normalizeMessage(row as Record<string, unknown>);
+    });
+}
+
+export async function deleteMessage(messageId: number | string, userId: string): Promise<void> {
+    return await runAuditedProcess({ module: "Messages", process: "deleteMessage", action: "DELETE", parameters: { messageId, userId } }, async () => {
+        const { error } = await supabase.rpc("delete_own_chat_message", { p_message_id: String(messageId) });
+        if (error) throw error;
     });
 }
 export async function sendImage(bookingId: number, senderId: string, imageUrl: string): Promise<ChatMessage> {
