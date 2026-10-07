@@ -11,10 +11,15 @@ export type ProjectSession = {
   proof_url: string | null;
   status: string;
 };
+
 export type ProjectRequest = {
   id: number;
   booking_id: number;
-  request_type: "reschedule" | "extension" | "additional_work" | "cash_advance";
+  request_type:
+    | "reschedule"
+    | "extension"
+    | "additional_work"
+    | "cash_advance";
   amount: number | null;
   additional_days: number | null;
   proposed_date: string | null;
@@ -28,9 +33,14 @@ async function authId() {
     data: { user },
     error,
   } = await supabase.auth.getUser();
-  if (error || !user) throw new Error("You must be signed in.");
+
+  if (error || !user) {
+    throw new Error("You must be signed in.");
+  }
+
   return user.id;
 }
+
 async function bookingParties(bookingId: number) {
   const { data, error } = await supabase
     .from("bookings")
@@ -39,9 +49,24 @@ async function bookingParties(bookingId: number) {
     )
     .eq("id", bookingId)
     .single();
-  if (error || !data) throw new Error(error?.message || "Booking not found.");
-  return data;
+
+  if (error || !data) {
+    throw new Error(error?.message || "Booking not found.");
+  }
+
+  // Supabase can infer the joined service relation as an array.
+  // Normalize it so the rest of this service always receives
+  // a single service object or null.
+  const service = Array.isArray(data.service)
+    ? data.service[0] ?? null
+    : data.service;
+
+  return {
+    ...data,
+    service,
+  };
 }
+
 export async function getProjectWorkflow(bookingId: number) {
   const [sessions, requests] = await Promise.all([
     supabase
@@ -49,34 +74,57 @@ export async function getProjectWorkflow(bookingId: number) {
       .select("*")
       .eq("booking_id", bookingId)
       .order("started_at", { ascending: false }),
+
     supabase
       .from("project_requests")
       .select("*")
       .eq("booking_id", bookingId)
       .order("created_at", { ascending: false }),
   ]);
-  if (sessions.error) throw sessions.error;
-  if (requests.error) throw requests.error;
+
+  if (sessions.error) {
+    throw sessions.error;
+  }
+
+  if (requests.error) {
+    throw requests.error;
+  }
+
   return {
     sessions: (sessions.data || []) as ProjectSession[],
     requests: (requests.data || []) as ProjectRequest[],
   };
 }
+
 export async function startProjectWork(bookingId: number) {
   const uid = await authId();
   const b = await bookingParties(bookingId);
-  if (b.worker_id !== uid)
+
+  if (b.worker_id !== uid) {
     throw new Error("Only the assigned worker can start work.");
-  if (b.service?.scheduling_type !== "project")
+  }
+
+  if (b.service?.scheduling_type !== "project") {
     throw new Error("Daily work sessions are only for projects.");
-  const { data: open } = await supabase
+  }
+
+  const { data: open, error: openError } = await supabase
     .from("project_work_sessions")
     .select("id")
     .eq("booking_id", bookingId)
     .is("ended_at", null)
     .maybeSingle();
-  if (open) throw new Error("End the current work session first.");
+
+  if (openError) {
+    throw openError;
+  }
+
+  if (open) {
+    throw new Error("End the current work session first.");
+  }
+
   const now = new Date();
+
   const { error } = await supabase
     .from("project_work_sessions")
     .insert({
@@ -86,12 +134,23 @@ export async function startProjectWork(bookingId: number) {
       started_at: now.toISOString(),
       status: "Working",
     });
-  if (error) throw error;
-  await supabase
+
+  if (error) {
+    throw error;
+  }
+
+  const { error: bookingError } = await supabase
     .from("bookings")
-    .update({ status: "On Going" })
+    .update({
+      status: "On Going",
+    })
     .eq("id", bookingId)
     .eq("worker_id", uid);
+
+  if (bookingError) {
+    throw bookingError;
+  }
+
   await createNotification(
     b.customer_id,
     bookingId,
@@ -99,11 +158,18 @@ export async function startProjectWork(bookingId: number) {
     "The worker started today's project work session.",
   );
 }
-export async function endProjectWork(bookingId: number, note: string) {
+
+export async function endProjectWork(
+  bookingId: number,
+  note: string,
+) {
   const uid = await authId();
   const b = await bookingParties(bookingId);
-  if (b.worker_id !== uid)
+
+  if (b.worker_id !== uid) {
     throw new Error("Only the assigned worker can end work.");
+  }
+
   const { data: open, error: q } = await supabase
     .from("project_work_sessions")
     .select("id")
@@ -113,8 +179,15 @@ export async function endProjectWork(bookingId: number, note: string) {
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (q) throw q;
-  if (!open) throw new Error("There is no active work session.");
+
+  if (q) {
+    throw q;
+  }
+
+  if (!open) {
+    throw new Error("There is no active work session.");
+  }
+
   const { error } = await supabase
     .from("project_work_sessions")
     .update({
@@ -123,7 +196,11 @@ export async function endProjectWork(bookingId: number, note: string) {
       status: "Completed",
     })
     .eq("id", open.id);
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
+
   await createNotification(
     b.customer_id,
     bookingId,
@@ -131,6 +208,7 @@ export async function endProjectWork(bookingId: number, note: string) {
     note.trim() || "The worker ended today's work session.",
   );
 }
+
 export async function createProjectRequest(
   bookingId: number,
   input: {
@@ -143,27 +221,49 @@ export async function createProjectRequest(
 ) {
   const uid = await authId();
   const b = await bookingParties(bookingId);
-  if (b.worker_id !== uid)
-    throw new Error("Only the assigned worker can submit this request.");
+
+  if (b.worker_id !== uid) {
+    throw new Error(
+      "Only the assigned worker can submit this request.",
+    );
+  }
+
+  const pricingType =
+    b.agreed_pricing_type ?? b.service?.pricing_type;
+
   if (
     input.request_type === "cash_advance" &&
-    (b.agreed_pricing_type ?? b.service?.pricing_type) !== "fixed"
-  )
-    throw new Error("Cash advance is only available for Fixed Price projects.");
+    pricingType !== "fixed"
+  ) {
+    throw new Error(
+      "Cash advance is only available for Fixed Price projects.",
+    );
+  }
+
   const row = {
     booking_id: bookingId,
     worker_id: uid,
     customer_id: b.customer_id,
     request_type: input.request_type,
     reason: input.reason.trim(),
-    amount: input.amount || null,
-    additional_days: input.additional_days || null,
-    proposed_date: input.proposed_date || null,
+    amount: input.amount ?? null,
+    additional_days: input.additional_days ?? null,
+    proposed_date: input.proposed_date ?? null,
     status: "Pending",
   };
-  if (!row.reason) throw new Error("Please enter a reason.");
-  const { error } = await supabase.from("project_requests").insert(row);
-  if (error) throw error;
+
+  if (!row.reason) {
+    throw new Error("Please enter a reason.");
+  }
+
+  const { error } = await supabase
+    .from("project_requests")
+    .insert(row);
+
+  if (error) {
+    throw error;
+  }
+
   await createNotification(
     b.customer_id,
     bookingId,
@@ -171,59 +271,99 @@ export async function createProjectRequest(
     "The worker submitted a project request for your review.",
   );
 }
+
 export async function decideProjectRequest(
   requestId: number,
   decision: "Approved" | "Declined",
 ) {
   const uid = await authId();
+
   const { data: r, error: q } = await supabase
     .from("project_requests")
     .select("*")
     .eq("id", requestId)
     .single();
-  if (q || !r) throw new Error(q?.message || "Request not found.");
-  if (r.customer_id !== uid)
-    throw new Error("Only the customer can decide this request.");
+
+  if (q || !r) {
+    throw new Error(q?.message || "Request not found.");
+  }
+
+  if (r.customer_id !== uid) {
+    throw new Error(
+      "Only the customer can decide this request.",
+    );
+  }
+
   const { error } = await supabase
     .from("project_requests")
-    .update({ status: decision, decided_at: new Date().toISOString() })
+    .update({
+      status: decision,
+      decided_at: new Date().toISOString(),
+    })
     .eq("id", requestId)
     .eq("status", "Pending");
-  if (error) throw error;
+
+  if (error) {
+    throw error;
+  }
+
   if (
     decision === "Approved" &&
     r.request_type === "reschedule" &&
     r.proposed_date
   ) {
-    const { error: be } = await supabase
+    const { error: bookingError } = await supabase
       .from("bookings")
-      .update({ booking_date: r.proposed_date, schedule_status: "Scheduled" })
+      .update({
+        booking_date: r.proposed_date,
+        schedule_status: "Scheduled",
+      })
       .eq("id", r.booking_id)
       .eq("customer_id", uid);
-    if (be) throw be;
+
+    if (bookingError) {
+      throw bookingError;
+    }
   }
+
   if (
     decision === "Approved" &&
     r.request_type === "additional_work" &&
     Number(r.amount || 0) > 0
   ) {
-    const { data: b, error: bq } = await supabase
+    const { data: booking, error: bookingQueryError } =
+      await supabase
+        .from("bookings")
+        .select("price")
+        .eq("id", r.booking_id)
+        .single();
+
+    if (bookingQueryError) {
+      throw bookingQueryError;
+    }
+
+    const currentPrice = Number(booking?.price || 0);
+    const additionalAmount = Number(r.amount || 0);
+
+    const { error: bookingError } = await supabase
       .from("bookings")
-      .select("price")
-      .eq("id", r.booking_id)
-      .single();
-    if (bq) throw bq;
-    const { error: be } = await supabase
-      .from("bookings")
-      .update({ price: Number(b?.price || 0) + Number(r.amount) })
+      .update({
+        price: currentPrice + additionalAmount,
+      })
       .eq("id", r.booking_id)
       .eq("customer_id", uid);
-    if (be) throw be;
+
+    if (bookingError) {
+      throw bookingError;
+    }
   }
+
   await createNotification(
     r.worker_id,
     r.booking_id,
     `Project request ${decision.toLowerCase()}`,
-    `The customer ${decision.toLowerCase()} your ${String(r.request_type).replaceAll("_", " ")} request.`,
+    `The customer ${decision.toLowerCase()} your ${String(
+      r.request_type,
+    ).replaceAll("_", " ")} request.`,
   );
 }
