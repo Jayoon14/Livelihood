@@ -177,8 +177,8 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
         }
         return coordinates;
     }, [getCurrentLocationBase]);
-    const { workerLocation, isOnline, isTracking, goOnline, } = useWorkerLocation();
-    const liveLocation = useMemo(() => isOnline && workerLocation
+    const { workerLocation, goOnline, } = useWorkerLocation();
+    const liveLocation = useMemo(() => workerLocation
         ? {
             coordinates: [
                 workerLocation.longitude,
@@ -186,13 +186,13 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
             ] as Coordinates,
             heading: workerLocation.heading,
         }
-        : null, [isOnline, workerLocation]);
+        : null, [workerLocation]);
     useEffect(() => {
         // Worker navigation: use the worker's live GPS.
-        if (navigationMode && isOnline && liveLocation) {
+        if (navigationMode && liveLocation) {
             currentLocationRef.current = liveLocation.coordinates;
         }
-    }, [navigationMode, isOnline, liveLocation]);
+    }, [navigationMode, liveLocation]);
     useEffect(() => {
         if (!mapReady) {
             return;
@@ -202,8 +202,8 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
             return;
         }
         marker.getElement().style.display =
-            isOnline && liveLocation ? "flex" : "none";
-    }, [isOnline, liveLocation, mapReady]);
+            liveLocation ? "flex" : "none";
+    }, [liveLocation, mapReady]);
     useSmoothMarker({
         markerRef,
         coordinates: liveLocation?.coordinates ?? null,
@@ -217,7 +217,7 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
     useFollowLocation({
         mapRef,
         coordinates: liveLocation?.coordinates ?? null,
-        enabled: isOnline &&
+        enabled: Boolean(liveLocation) &&
             followUser &&
             !showDirections &&
             navigationMode,
@@ -324,7 +324,7 @@ export default function LocationPicker({ onLocationSelect, onLocationConfirmedCh
     }, [getDirections, initialLocation, liveLocation, mapReady, navigationMode]);
     useLiveRouteRefresh({
         coordinates: liveLocation?.coordinates ?? null,
-        enabled: isTracking && showDirections,
+        enabled: Boolean(liveLocation) && showDirections,
         refreshRoute: getDirections,
         minimumDistanceMeters: 50,
         minimumIntervalMilliseconds: 30000,

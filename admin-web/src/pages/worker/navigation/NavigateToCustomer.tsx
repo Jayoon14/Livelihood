@@ -344,26 +344,11 @@ export default function NavigateToCustomer() {
                     return;
                 }
             }
-            if (!workerLocation || booking.customer_latitude == null || booking.customer_longitude == null) {
-                toast.error("A current GPS location is required before confirming arrival.");
-                return;
-            }
-            const gpsAgeMs = Date.now() - new Date(workerLocation.updatedAt).getTime();
-            const directDistanceMeters = calculateDistanceMeters(
-                workerLocation.latitude,
-                workerLocation.longitude,
-                booking.customer_latitude,
-                booking.customer_longitude,
-            );
-            const accurateEnough = typeof workerLocation.accuracy === "number" && workerLocation.accuracy <= MAX_AUTO_ARRIVAL_ACCURACY_METERS;
-            if (!Number.isFinite(gpsAgeMs) || gpsAgeMs < 0 || gpsAgeMs > MAX_AUTO_ARRIVAL_LOCATION_AGE_MS || !accurateEnough) {
-                toast.error("Please wait for a fresh, accurate GPS reading before confirming arrival.");
-                return;
-            }
-            if (directDistanceMeters > 50) {
-                toast.error(`You are still about ${formatRemainingDistance(directDistanceMeters)} from the service location. Arrival can be confirmed within 50 m.`);
-                return;
-            }
+            /*
+             * Defense/demo fallback: manual arrival is intentionally allowed even
+             * when the devices are physically far apart. Automatic arrival below
+             * still keeps the real GPS proximity checks for the normal workflow.
+             */
             const confirmed = await confirmAction("Confirm that you have arrived at the customer location?");
             if (!confirmed) {
                 return;
