@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Clock3, LocateFixed, Layers, MapPin, Navigation, Radio, WifiOff, } from "lucide-react";
 import { GeoJSONSource, LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup, } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { configureMapLibreWorker } from "../../../lib/maplibreWorker";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import LayersModal from "../../../components/maps/components/LayersModal";
 import { SATELLITE_STYLE, STYLES } from "../../../components/maps/mapStyles";
@@ -291,6 +292,8 @@ function createCustomerMarkerElement() {
   `;
     return markerElement;
 }
+configureMapLibreWorker();
+
 export default function TrackWorker() {
     const { bookingId } = useParams();
     const navigate = useNavigate();

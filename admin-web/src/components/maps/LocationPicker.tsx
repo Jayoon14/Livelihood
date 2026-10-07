@@ -2,6 +2,7 @@ import { runAuditedProcess } from "../../lib/processAudit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { configureMapLibreWorker } from "../../lib/maplibreWorker";
 import type { Coordinates } from "./types";
 import { DEFAULT_NEARBY_WORKER_RADIUS_KM } from "./constants";
 import { DEFAULT_CENTER, SATELLITE_STYLE, STYLES, } from "./mapStyles";
@@ -80,6 +81,8 @@ interface Props {
     onExternalRouteStarted?: () => void;
     onRouteMetricsChange?: (distanceMeters: number | null, durationSeconds: number | null) => void;
 }
+configureMapLibreWorker();
+
 export default function LocationPicker({ onLocationSelect, onLocationConfirmedChange, showNearbyWorkers = false, nearbyWorkerRadiusKilometers = DEFAULT_NEARBY_WORKER_RADIUS_KM, selectedWorkerId, onNearbyWorkerSelect, initialLocation, navigationMode = false, autoLocateOnMount = true, externalRouteTarget = null, externalRouteRequestKey = 0, onExternalRouteStarted, onRouteMetricsChange, }: Props) {
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);

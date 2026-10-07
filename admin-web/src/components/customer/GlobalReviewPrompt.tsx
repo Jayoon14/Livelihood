@@ -75,18 +75,20 @@ export default function GlobalReviewPrompt() {
     if (!rows.length) return [];
 
     // Project/multi-day bookings use their own final project review flow.
-    const bookingIds = rows.map((row) => row.id);
-    const { data: linkedProjects, error: projectError } = await supabase
+    // Keep this compatible with deployed databases that predate the optional
+    // source_booking_id project-link column. Selecting the column directly
+    // causes PostgREST 42703 errors on every customer layout refresh.
+    const { data: customerProjects, error: projectError } = await supabase
       .from("projects")
-      .select("source_booking_id")
-      .in("source_booking_id", bookingIds);
+      .select("*")
+      .eq("customer_id", user.id);
 
     if (projectError) {
-      console.error("Unable to check project-linked bookings for review:", projectError);
+      console.warn("Unable to check customer projects for review eligibility:", projectError);
     }
 
     const projectBookingIds = new Set(
-      (linkedProjects ?? [])
+      ((customerProjects ?? []) as Array<Record<string, unknown>>)
         .map((project) => Number(project.source_booking_id))
         .filter((id) => Number.isFinite(id)),
     );
