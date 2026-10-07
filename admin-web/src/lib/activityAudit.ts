@@ -1,6 +1,37 @@
 /** Transport audit: never records bodies, passwords, tokens, or message contents. */
 const originalFetch = globalThis.fetch.bind(globalThis);
 let auditFailureShown = false;
+const recentSystemErrors = new Map<string, number>();
+const SYSTEM_ERROR_DEDUPE_MS = 15_000;
+
+const MODULE_BY_RESOURCE: Record<string, string> = {
+  profiles: "Accounts", workers: "Workers", customers: "Customers",
+  bookings: "Bookings", services: "Services", schedules: "Schedules",
+  worker_schedules: "Schedules", unavailable_dates: "Schedules",
+  payments: "Payments", payment_transactions: "Payments", worker_payment_information: "Payments",
+  messages: "Messages", notifications: "Notifications", notification_preferences: "Notifications",
+  reviews: "Reviews", reports: "Reports", report_logs: "Reports", report_evidence: "Reports",
+  enforcement_actions: "Account Enforcement", enforcement_appeals: "Appeals",
+  documents: "Documents", education: "Documents", work_experience: "Documents", worker_skills: "Workers",
+  favorites: "Worker Selection", trusted_workers: "Worker Selection", recently_viewed: "Worker Selection",
+  worker_locations: "Locations", workers_locations: "Locations",
+  booking_completion_images: "Bookings", booking_completion_proofs: "Bookings",
+};
+
+function moduleForResource(resource: string): string {
+  return MODULE_BY_RESOURCE[resource] ?? resource.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function shouldRecordSystemError(key: string): boolean {
+  const now = Date.now();
+  const previous = recentSystemErrors.get(key) ?? 0;
+  if (now - previous < SYSTEM_ERROR_DEDUPE_MS) return false;
+  recentSystemErrors.set(key, now);
+  if (recentSystemErrors.size > 100) {
+    for (const [entry, time] of recentSystemErrors) if (now - time > SYSTEM_ERROR_DEDUPE_MS) recentSystemErrors.delete(entry);
+  }
+  return true;
+}
 
 function bearer(headers: Headers): string | null {
   const value = headers.get("authorization");
@@ -83,22 +114,23 @@ export const auditedFetch: typeof fetch = async (input, init) => {
   const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
   const path = url.pathname;
   const internal = path.includes("activity_logs") || path.includes("record_activity_event") || path.includes("record_process_event") || path.includes("record_anonymous_process_event");
-  const auditScreen = window.location.pathname === "/activity-logs";
-
   let action = "";
   let module = "";
   let description = "";
   if (url.origin === base.origin && !internal && authorization) {
     const table = path.match(/^\/rest\/v1\/([^/]+)$/)?.[1];
-    if (table && (method === "GET" || method === "HEAD") && !auditScreen) {
-      action = "READ"; module = table; description = `Read ${table} records.`;
-    } else if (table && !["GET", "HEAD"].includes(method)) {
+    // Do not audit generic GET/HEAD requests. Reading a page can issue many database
+    // requests, and auditing every read creates an INSERT -> realtime refresh -> GET
+    // feedback loop on the Activity Logs screen. Meaningful VIEW/READ events should
+    // be recorded explicitly by the feature that owns them.
+    if (table && !["GET", "HEAD"].includes(method)) {
       // Successful row mutations are captured transactionally by SQL triggers.
       action = method === "DELETE" ? "DELETE" : method === "PATCH" ? "UPDATE" : "CREATE";
-      module = table; description = `${action} request for ${table}.`;
+      module = moduleForResource(table); description = `${action} request for ${table}.`;
     } else if (path.startsWith("/rest/v1/rpc/")) {
+      const rpc = path.split("/").pop() ?? "database function";
       action = "EXECUTE"; module = "Database Functions";
-      description = `Executed ${path.split("/").pop()}.`;
+      description = `Executed ${rpc}.`;
     } else if (path.startsWith("/storage/v1/")) {
       action = method === "GET" ? "DOWNLOAD" : method === "DELETE" ? "DELETE" : method === "PUT" ? "UPDATE" : "UPLOAD";
       if (path.includes("/object/list/")) action = "READ";
@@ -128,10 +160,26 @@ export const auditedFetch: typeof fetch = async (input, init) => {
     response = await originalFetch(input, init);
   } catch (error) {
     if (authorization && action) {
-      try { await sendAudit(authorization, action, module, description + " Network request failed.", "FAILED"); }
+      try { await sendAudit(authorization, "SYSTEM_ERROR", module, `${method} ${module}: network request failed.`, "FAILED"); }
       catch (auditError) { reportAuditFailure(auditError); }
     }
     throw error;
+  }
+
+  // Failed reads are operationally important, but successful reads are intentionally not
+  // transport-audited. Deduplication prevents an outage/re-render loop from creating
+  // thousands of identical SYSTEM_ERROR rows.
+  if (url.origin === base.origin && authorization && !internal && !response.ok && ["GET", "HEAD"].includes(method)) {
+    const table = path.match(/^\/rest\/v1\/([^/]+)$/)?.[1];
+    const failedModule = table ? moduleForResource(table)
+      : path.startsWith("/storage/v1/") ? "Documents"
+      : path.startsWith("/functions/v1/") ? "Server Functions"
+      : path.startsWith("/auth/v1/") ? "Authentication" : "System";
+    const key = `${method}:${path}:${response.status}`;
+    if (shouldRecordSystemError(key)) {
+      try { await sendAudit(authorization, "SYSTEM_ERROR", failedModule, `${method} ${failedModule} failed with HTTP ${response.status}.`, "FAILED"); }
+      catch (auditError) { reportAuditFailure(auditError); }
+    }
   }
 
   if (url.origin === base.origin && (path === "/auth/v1/token" || path === "/auth/v1/verify") && response.ok && url.searchParams.get("grant_type") !== "refresh_token") {
@@ -146,7 +194,14 @@ export const auditedFetch: typeof fetch = async (input, init) => {
   const rowMutation = /^\/rest\/v1\/[^/]+$/.test(path) && !["GET", "HEAD"].includes(method);
   if (authorization && action && (!rowMutation || !response.ok)) {
     try {
-      await sendAudit(authorization, action, module, `${description} HTTP ${response.status}.`, response.ok ? "SUCCESS" : "FAILED");
+      if (!response.ok) {
+        // Technical failures are stored as a dedicated system-error event so Admin
+        // can review them separately from normal user/business activities.
+        const key = `${method}:${path}:${response.status}`;
+        if (shouldRecordSystemError(key)) await sendAudit(authorization, "SYSTEM_ERROR", module, `${method} ${module} failed with HTTP ${response.status}.`, "FAILED");
+      } else {
+        await sendAudit(authorization, action, module, `${description} HTTP ${response.status}.`, "SUCCESS");
+      }
     } catch (auditError) { reportAuditFailure(auditError); }
   }
   return response;

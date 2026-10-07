@@ -1,7 +1,8 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
-import { Ban, Download, FileText, RefreshCw, Search, ShieldOff, Star, UserCheck, UsersRound, } from "lucide-react";
+import { Ban, Download, FileText, RefreshCw, Search, ShieldOff, Star, UserCheck, UsersRound, X, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, } from "react";
 import { Link } from "react-router-dom";
+import WorkerDetails from "./WorkerDetails";
 import { toast } from "sonner";
 import { confirmAction } from "../../../components/ui/confirmAction";
 import AdminLayout from "../../../layouts/AdminLayout";
@@ -31,6 +32,8 @@ export default function Workers() {
     const [status, setStatus] = useState<StatusFilter>("All");
     const [sort, setSort] = useState<SortOption>("Newest");
     const [page, setPage] = useState(1);
+    const [pageInput, setPageInput] = useState("1");
+    const [detailsWorkerId, setDetailsWorkerId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -120,6 +123,7 @@ export default function Workers() {
     useEffect(() => {
         const timer = window.setTimeout(() => {
             setPage(1);
+            setPageInput("1");
         }, 0);
         return () => window.clearTimeout(timer);
     }, [search, status, sort]);
@@ -169,6 +173,16 @@ export default function Workers() {
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
     const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPageInput(String(safePage));
+    }, [safePage]);
+    function goToPage(raw: string) {
+        const parsed = Number.parseInt(raw, 10);
+        const nextPage = Number.isFinite(parsed) ? Math.min(totalPages, Math.max(1, parsed)) : safePage;
+        setPage(nextPage);
+        setPageInput(String(nextPage));
+    }
     async function changeStatus(worker: AdminWorkerListItem, next: WorkerStatus) {
         const confirmed = await confirmAction(`Change ${worker.full_name}'s status to ${next}?`, {
             title: "Update worker status",
@@ -294,6 +308,18 @@ export default function Workers() {
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            {!loading && !error && filtered.length > 0 && (<div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
+                <p className="text-sm text-slate-500">
+                  Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button disabled={safePage === 1} onClick={() => setPage((v) => Math.max(1, v - 1))} className="page">Previous</button>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Page</span>
+                  <input aria-label="Page number" inputMode="numeric" value={pageInput} onChange={(e) => setPageInput(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") goToPage(pageInput); }} onBlur={() => goToPage(pageInput)} className="h-9 w-14 rounded-lg border border-slate-200 bg-white px-2 text-center text-sm font-semibold outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900" />
+                  <span className="text-sm text-slate-600 dark:text-slate-300">of {totalPages}</span>
+                  <button disabled={safePage === totalPages} onClick={() => setPage((v) => Math.min(totalPages, v + 1))} className="page">Next</button>
+                </div>
+              </div>)}
             {loading ? (<State text="Loading workers..."/>) : error ? (<State text={error}/>) : !visible.length ? (<State text="No workers found."/>) : (<div className="overflow-x-auto">
                 <table className="w-full min-w-287.5">
                   <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-800/60">
@@ -348,9 +374,7 @@ export default function Workers() {
                         </td>
                         <td className="p-4 print:hidden">
                           <div className="flex flex-wrap gap-2">
-                            <Link to={`/workers/${worker.id}`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
-                              View
-                            </Link>
+                            <button type="button" onClick={() => setDetailsWorkerId(worker.id)} className="action bg-blue-600 hover:bg-blue-700">View</button>
                             {worker.normalized_status !==
                     WORKER_STATUS.APPROVED && (<button disabled={processingId === worker.id} onClick={() => void changeStatus(worker, WORKER_STATUS.APPROVED)} className="action bg-emerald-600">
                                 Approve
@@ -369,26 +393,11 @@ export default function Workers() {
                   </tbody>
                 </table>
               </div>)}
-            {!loading && !error && filtered.length > 0 && (<div className="flex justify-between border-t p-4 print:hidden">
-                <p className="text-sm text-slate-500">
-                  Showing {(safePage - 1) * PAGE_SIZE + 1}–
-                  {Math.min(safePage * PAGE_SIZE, filtered.length)} of{" "}
-                  {filtered.length}
-                </p>
-                <div className="flex gap-2">
-                  <button disabled={safePage === 1} onClick={() => setPage((v) => Math.max(1, v - 1))} className="page">
-                    Previous
-                  </button>
-                  <span className="px-3 py-2 text-sm">
-                    Page {safePage} of {totalPages}
-                  </span>
-                  <button disabled={safePage === totalPages} onClick={() => setPage((v) => Math.min(totalPages, v + 1))} className="page">
-                    Next
-                  </button>
-                </div>
-              </div>)}
+
           </section>
         </div>
+
+        {detailsWorkerId && (<div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setDetailsWorkerId(null); }}><div className="flex h-[92vh] w-full max-w-[1440px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"><div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6 dark:border-slate-700"><div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Worker Registration Details</h2><p className="text-sm text-slate-500">Review the worker's complete submitted profile and documents before approval.</p></div><button type="button" onClick={() => setDetailsWorkerId(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close worker details"><X className="h-5 w-5"/></button></div><div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/40"><WorkerDetails workerId={detailsWorkerId} embedded /></div></div></div>)}
         <style>{`.btn-secondary{display:inline-flex;align-items:center;gap:.5rem;border:1px solid rgb(226 232 240);border-radius:.75rem;padding:.625rem 1rem;font-size:.875rem;font-weight:600}.input{width:100%;border:1px solid rgb(226 232 240);border-radius:.75rem;background:transparent;padding:.625rem .75rem;outline:none}.action{border-radius:.5rem;padding:.5rem .75rem;font-size:.75rem;font-weight:700;color:white}.page{border:1px solid rgb(226 232 240);border-radius:.5rem;padding:.5rem .75rem;font-size:.875rem;font-weight:600}.page:disabled,.action:disabled{opacity:.4}`}</style>
       </AdminLayout>);
 }

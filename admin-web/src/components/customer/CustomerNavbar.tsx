@@ -47,7 +47,7 @@ export default function CustomerNavbar({ onMenuClick, }: CustomerNavbarProps) {
         : "Customer";
     const email = profile?.email ?? "";
     const avatar = profile?.profile_picture || "";
-    return (<header className="sticky top-0 z-30 border-b border-(--app-border) bg-(--app-surface)/95 shadow-sm backdrop-blur-xl transition-colors duration-300">
+    return (<header className="fixed inset-x-0 top-0 z-40 w-auto max-w-none shrink-0 lg:left-64 xl:left-72 border-b border-(--app-border) bg-(--app-surface)/95 shadow-sm backdrop-blur-xl transition-colors duration-300">
       <div className="mx-auto flex min-h-16 w-full max-w-[1800px] items-center justify-between gap-3 px-3 sm:min-h-20 sm:px-5 lg:px-7 xl:px-8">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button type="button" onClick={onMenuClick} aria-label="Open sidebar" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-(--app-border) bg-(--app-surface-soft) text-(--app-text) transition hover:bg-(--app-hover) lg:hidden">

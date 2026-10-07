@@ -56,7 +56,7 @@ export default function WorkerNavbar({ onMenuClick }: WorkerNavbarProps) {
         : "Worker";
     const email = profile?.email ?? "";
     const avatar = profile?.profile_picture || "";
-    return (<header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-950/95 sm:min-h-20 sm:px-5 sm:py-0 lg:px-7 xl:px-8" style={{ fontFamily: "'Inter', sans-serif" }}>
+    return (<header className="fixed inset-x-0 top-0 z-40 w-auto max-w-none shrink-0 lg:left-64 xl:left-72 flex min-h-16 items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-3 py-2 shadow-sm backdrop-blur-xl transition-colors dark:border-slate-800 dark:bg-slate-950/95 sm:min-h-20 sm:px-5 sm:py-0 lg:px-7 xl:px-8" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* LEFT */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         {/* Mobile Hamburger */}

@@ -1,5 +1,5 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
-import { CalendarDays, CheckCircle2, Clock3, Download, Eye, FileText, RefreshCw, Search, XCircle, } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Download, Eye, FileText, RefreshCw, Search, X, XCircle, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -176,6 +176,8 @@ export default function Bookings() {
     const [customEnd, setCustomEnd] = useState("");
     const [sortOption, setSortOption] = useState<SortOption>("Newest");
     const [page, setPage] = useState(1);
+    const [pageInput, setPageInput] = useState("1");
+    const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -350,6 +352,20 @@ export default function Bookings() {
     const totalPages = Math.max(1, Math.ceil(filteredBookings.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
     const visibleBookings = filteredBookings.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPageInput(String(currentPage));
+    }, [currentPage]);
+    function goToTypedPage() {
+        const parsed = Number.parseInt(pageInput, 10);
+        if (!Number.isFinite(parsed)) {
+            setPageInput(String(currentPage));
+            return;
+        }
+        const nextPage = Math.min(totalPages, Math.max(1, parsed));
+        setPage(nextPage);
+        setPageInput(String(nextPage));
+    }
     async function changeStatus(booking: AdminBooking, nextStatus: AdminBookingStatus) {
         const currentStatus = normalizeAdminBookingStatus(booking.status);
         const confirmed = await confirmAction(`Change booking #${booking.id} from ${currentStatus} to ${nextStatus}?`, {
@@ -555,6 +571,20 @@ export default function Bookings() {
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          {!loading && !error && filteredBookings.length > 0 && (<div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
+              <p className="text-sm text-slate-500">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredBookings.length)} of {filteredBookings.length}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700">Previous</button>
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  Page
+                  <input type="number" min={1} max={totalPages} value={pageInput} onChange={(event) => setPageInput(event.target.value.replace(/\D/g, ""))} onBlur={goToTypedPage} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); goToTypedPage(); } }} aria-label="Go to page" className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-2 text-center font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"/>
+                  of {totalPages}
+                </label>
+                <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700">Next</button>
+              </div>
+            </div>)}
           {loading ? (<div className="p-5 sm:p-8 lg:p-12 text-center text-sm text-slate-500">
               Loading bookings...
             </div>) : error ? (<div className="p-5 sm:p-8 lg:p-12 text-center">
@@ -642,10 +672,10 @@ export default function Bookings() {
 
                         <td className="px-5 py-4 print:hidden">
                           <div className="flex flex-wrap gap-2">
-                            <Link to={`/bookings/${booking.id}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                            <button type="button" onClick={() => setSelectedBooking(booking)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
                               <Eye className="h-3.5 w-3.5"/>
                               View
-                            </Link>
+                            </button>
 
                             {canonicalStatus ===
                         ADMIN_BOOKING_STATUS.PENDING && (<>
@@ -663,10 +693,6 @@ export default function Bookings() {
                                 Start
                               </button>)}
 
-                            {canonicalStatus ===
-                        ADMIN_BOOKING_STATUS.ON_GOING && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(booking, ADMIN_BOOKING_STATUS.COMPLETED)} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50">
-                                Complete
-                              </button>)}
 
                             {isProcessing && (<span className="inline-flex items-center px-2 text-xs font-semibold text-slate-500">
                                 Updating...
@@ -679,30 +705,34 @@ export default function Bookings() {
               </table>
             </div>)}
 
-          {!loading && !error && filteredBookings.length > 0 && (<div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
-              <p className="text-sm text-slate-500">
-                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-                {Math.min(currentPage * PAGE_SIZE, filteredBookings.length)} of{" "}
-                {filteredBookings.length}
-              </p>
-
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700">
-                  Previous
-                </button>
-
-                <span className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
-                  Page {currentPage} of {totalPages}
-                </span>
-
-                <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40 dark:border-slate-700">
-                  Next
-                </button>
-              </div>
-            </div>)}
         </section>
+
+        {selectedBooking && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 print:hidden" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedBooking(null); }}>
+          <div role="dialog" aria-modal="true" aria-label={`Booking #${selectedBooking.id} details`} className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+            <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+              <div><h2 className="text-xl font-bold text-slate-900 dark:text-white">Booking #{selectedBooking.id}</h2><p className="mt-1 text-sm text-slate-500">{selectedBooking.service_name || "Service booking"}</p></div>
+              <button type="button" onClick={() => setSelectedBooking(null)} aria-label="Close booking details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-5 w-5"/></button>
+            </div>
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <DetailCard title="Customer" primary={profileName(selectedBooking.customer)} secondary={selectedBooking.customer?.email || "No email"}/>
+              <DetailCard title="Worker" primary={profileName(selectedBooking.worker)} secondary={selectedBooking.worker?.email || "No email"}/>
+              <DetailCard title="Schedule" primary={formatDate(selectedBooking.booking_date)} secondary={selectedBooking.booking_time || "Time not set"}/>
+              <DetailCard title="Booking Status" primary={normalizeAdminBookingStatus(selectedBooking.status)} secondary={`Created ${formatDateTime(selectedBooking.created_at)}`}/>
+              <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 sm:col-span-2"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Workflow</p><div className="mt-3 flex flex-wrap gap-2"><StatusPill label="Schedule" value={selectedBooking.schedule_status}/><StatusPill label="Trip" value={selectedBooking.trip_status}/><StatusPill label="Completion" value={selectedBooking.completion_status}/><StatusPill label="Payment" value={selectedBooking.payment_status}/></div></div>
+              <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700 sm:col-span-2"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Service Address</p><p className="mt-2 break-words text-sm text-slate-700 dark:text-slate-200">{selectedBooking.address || "No address provided"}</p></div>
+            </div>
+            <div className="flex justify-end border-t border-slate-200 px-5 py-4 dark:border-slate-700"><button type="button" onClick={() => setSelectedBooking(null)} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Close</button></div>
+          </div>
+        </div>)}
       </div>
     </AdminLayout>);
+}
+function DetailCard({ title, primary, secondary, }: { title: string; primary: string; secondary?: string | null; }) {
+    return (<div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{title}</p>
+      <p className="mt-2 break-words font-semibold text-slate-900 dark:text-white">{primary}</p>
+      {secondary && <p className="mt-1 break-words text-sm text-slate-500">{secondary}</p>}
+    </div>);
 }
 function SummaryCard({ title, value, icon, }: {
     title: string;

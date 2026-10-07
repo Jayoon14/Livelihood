@@ -163,6 +163,7 @@ export default function Payments() {
     const [customEnd, setCustomEnd] = useState("");
     const [sortOption, setSortOption] = useState<SortOption>("Newest");
     const [page, setPage] = useState(1);
+    const [pageInput, setPageInput] = useState("1");
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [rejectingTransaction, setRejectingTransaction] = useState<PaymentTransaction | null>(null);
@@ -349,6 +350,20 @@ export default function Payments() {
         }, 0);
         return () => window.clearTimeout(timer);
     }, [page, totalPages]);
+    function applyPageNumber() {
+        const parsed = Number(pageInput.trim());
+        if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+            setPageInput(String(page));
+            return;
+        }
+        const targetPage = Math.min(totalPages, Math.max(1, parsed));
+        setPage(targetPage);
+        setPageInput(String(targetPage));
+    }
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPageInput(String(page));
+    }, [page]);
     async function approveTransaction(transaction: PaymentTransaction) {
         return await runAuditedProcess({ module: "Payments", process: "approveTransaction", action: "APPROVE", parameters: { transaction } }, async (__activityProcessScope) => {
             const confirmed = await confirmAction(`Approve ${money(transaction.amount)} via ${transaction.payment_method || "payment"}?`, {
@@ -577,6 +592,54 @@ export default function Payments() {
             </div>)}
         </section>
 
+        {!loading && !error && filteredPayments.length > 0 && (<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900 print:hidden">
+          <span className="text-slate-500 dark:text-slate-400">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={page === 1} onClick={() => {
+              const nextPage = Math.max(1, page - 1);
+              setPage(nextPage);
+              setPageInput(String(nextPage));
+            }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800">
+              Previous
+            </button>
+
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="font-medium">Page</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={pageInput}
+                onChange={(event) => setPageInput(event.target.value)}
+                onBlur={applyPageNumber}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    setPageInput(String(page));
+                    event.currentTarget.blur();
+                  }
+                }}
+                aria-label="Page number"
+                className="h-9 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center font-semibold outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900"
+              />
+              <span className="font-medium">of {totalPages}</span>
+            </div>
+
+            <button type="button" disabled={page === totalPages} onClick={() => {
+              const nextPage = Math.min(totalPages, page + 1);
+              setPage(nextPage);
+              setPageInput(String(nextPage));
+            }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800">
+              Next
+            </button>
+          </div>
+        </div>)}
+
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           {loading ? (<div className="p-5 sm:p-8 lg:p-12 text-center text-sm text-slate-500">
               Loading payments...
@@ -745,35 +808,9 @@ export default function Payments() {
               </table>
             </div>)}
 
-          {!loading && !error && filteredPayments.length > 0 && (<div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-700 print:hidden">
-              <span>
-                Showing {(page - 1) * PAGE_SIZE + 1}–
-                {Math.min(page * PAGE_SIZE, filteredPayments.length)} of{" "}
-                {filteredPayments.length}
-              </span>
-
-              <div className="flex items-center gap-2">
-                <button type="button" disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700">
-                  Previous
-                </button>
-
-                <span>
-                  Page {page} of {totalPages}
-                </span>
-
-                <button type="button" disabled={page === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-slate-700">
-                  Next
-                </button>
-              </div>
-            </div>)}
         </section>
 
-        <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 xl:grid-cols-4 dark:border-slate-700 dark:bg-slate-900">
-          <FooterStat label="Total records" value={totals.totalRecords.toLocaleString()}/>
-          <FooterStat label="Pending verification" value={totals.pending.toLocaleString()}/>
-          <FooterStat label="Fully paid" value={totals.paid.toLocaleString()}/>
-          <FooterStat label="Filtered revenue" value={money(totals.totalPaid)}/>
-        </section>
+
       </div>
 
       {rejectingTransaction && (<div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/60 p-4 print:hidden">
@@ -834,18 +871,4 @@ function SummaryCard({ title, value, subtitle, icon, }: {
 
       <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
     </article>);
-}
-function FooterStat({ label, value }: {
-    label: string;
-    value: string;
-}) {
-    return (<div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
-        {value}
-      </p>
-    </div>);
 }

@@ -22,6 +22,7 @@ type WorkerService = {
     duration_value?: number;
     duration_unit?: DurationUnit;
     pricing_type?: "hourly" | "daily" | "fixed";
+    pricing_options?: Partial<Record<"hourly" | "daily" | "fixed", number>> | null;
 };
 type WorkerSchedule = {
     id: number | string;
@@ -155,6 +156,7 @@ export default function CustomerWorkerProfile() {
     const [schedule, setSchedule] = useState<WorkerSchedule[]>([]);
     const [unavailableDates, setUnavailableDates] = useState<UnavailableDate[]>([]);
     const [selectedService, setSelectedService] = useState<WorkerService | null>(null);
+    const [selectedProjectPricing, setSelectedProjectPricing] = useState<"hourly" | "daily" | "fixed" | null>(null);
     const [bookingDate, setBookingDate] = useState("");
     const [bookingTime, setBookingTime] = useState("");
     const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -191,7 +193,8 @@ export default function CustomerWorkerProfile() {
             minimumFractionDigits: 2,
         }).format(Number.isFinite(price) ? price : 0);
     }, [selectedService]);
-    const selectedPricingType = selectedService?.pricing_type ?? "fixed";
+    const selectedPricingType = selectedProjectPricing ?? selectedService?.pricing_type ?? "fixed";
+    const selectedPrice = selectedService?.scheduling_type === "project" && selectedService.pricing_options?.[selectedPricingType] ? Number(selectedService.pricing_options[selectedPricingType]) : Number(selectedService?.price ?? 0);
     const pricingLabel = selectedPricingType === "hourly"
         ? "Hourly rate"
         : selectedPricingType === "daily"
@@ -513,7 +516,7 @@ export default function CustomerWorkerProfile() {
                         serviceId: selectedService.id,
                         date: bookingDate,
                         time: bookingTime,
-                        price: selectedService.price,
+                        price: selectedPrice,
                         pricingType: selectedPricingType,
                         pricingLabel,
                         address,
@@ -744,6 +747,8 @@ export default function CustomerWorkerProfile() {
                     <select id="service" value={selectedService?.id ?? ""} onChange={(event) => {
             const service = worker.services.find((item) => item.id === Number(event.target.value));
             setSelectedService(service ?? null);
+            const options = service?.pricing_options ?? null;
+            setSelectedProjectPricing(service?.scheduling_type === "project" && options ? ((options.fixed ? "fixed" : options.daily ? "daily" : options.hourly ? "hourly" : null)) : null);
             setBookingTime("");
             setAvailableSlots([]);
             setAvailabilityMessage("");
@@ -763,6 +768,21 @@ export default function CustomerWorkerProfile() {
                         </option>))}
                     </select>
                   </div>
+
+                  {selectedService?.scheduling_type === "project" && selectedService.pricing_options && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-sm font-bold text-emerald-950">Choose pricing option</p>
+                      <div className="mt-3 grid gap-2">
+                        {(["fixed", "daily", "hourly"] as const).filter((type) => Number(selectedService.pricing_options?.[type] ?? 0) > 0).map((type) => (
+                          <label key={type} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3">
+                            <span className="flex items-center gap-3"><input type="radio" name="project-pricing" checked={selectedPricingType === type} onChange={() => setSelectedProjectPricing(type)}/><span className="font-semibold text-slate-800">{type === "fixed" ? "Fixed Price" : type === "daily" ? "Daily Rate" : "Hourly Rate"}</span></span>
+                            <span className="font-black text-emerald-700">₱{Number(selectedService.pricing_options?.[type]).toLocaleString("en-PH")}{type === "daily" ? "/day" : type === "hourly" ? "/hour" : " total"}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-emerald-700">Your selected pricing is locked into the booking once submitted.</p>
+                    </div>
+                  )}
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>

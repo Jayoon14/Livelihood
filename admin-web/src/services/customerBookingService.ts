@@ -11,6 +11,8 @@ export interface CreateBookingInput {
     customer_id: string;
     worker_id: string;
     service_id: number;
+    agreed_pricing_type?: "hourly" | "daily" | "fixed";
+    agreed_rate?: number;
     booking_type?: BookingType;
     booking_date: string;
     booking_time: string;
@@ -68,6 +70,8 @@ interface ServiceRecord {
     category: string | null;
     price: number | null;
     status: string | null;
+    pricing_type?: "hourly" | "daily" | "fixed" | null;
+    pricing_options?: Partial<Record<"hourly" | "daily" | "fixed", number>> | null;
     scheduling_type?: "hourly" | "project" | null;
     duration_value?: number | null;
     duration_unit?: "hour" | "day" | "week" | "month" | null;
@@ -257,6 +261,8 @@ async function getVerifiedService(serviceId: number, workerId: string): Promise<
       service_name,
       category,
       price,
+      pricing_type,
+      pricing_options,
       status
     `)
         .eq("id", serviceId)
@@ -564,6 +570,16 @@ export async function createBooking(data: CreateBookingInput): Promise<CustomerB
                 throw new Error("This worker already has a job that overlaps the selected service duration.");
             }
         }
+        const requestedPricingType = data.agreed_pricing_type ?? service.pricing_type ?? "fixed";
+        const offeredRate = service.scheduling_type === "project" && service.pricing_options
+            ? Number(service.pricing_options[requestedPricingType] ?? 0)
+            : Number(service.price ?? 0);
+        if (!["hourly", "daily", "fixed"].includes(requestedPricingType) || !Number.isFinite(offeredRate) || offeredRate <= 0) {
+            throw new Error("The selected pricing option is no longer offered for this service.");
+        }
+        if (data.agreed_rate != null && Math.abs(Number(data.agreed_rate) - offeredRate) > 0.009) {
+            throw new Error("The service rate changed before booking. Please review the pricing again.");
+        }
         const bookingPayload = {
             customer_id: customerId,
             worker_id: workerId,
@@ -571,7 +587,9 @@ export async function createBooking(data: CreateBookingInput): Promise<CustomerB
             booking_type: bookingType,
             service_name: service.service_name,
             category: service.category,
-            price: service.price,
+            price: offeredRate,
+            agreed_pricing_type: requestedPricingType,
+            agreed_rate: offeredRate,
             booking_date: normalizedBookingDate,
             booking_time: normalizedBookingTime,
             address: data.address.trim(),

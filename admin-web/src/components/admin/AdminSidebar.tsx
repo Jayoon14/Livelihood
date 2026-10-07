@@ -77,7 +77,7 @@ export default function AdminSidebar({
 }: AdminSidebarProps) {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col overflow-y-auto bg-slate-900 text-white shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:min-h-dvh lg:w-72 lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
+      className={`fixed inset-y-0 left-0 z-50 flex w-[min(18rem,88vw)] flex-col overflow-y-auto bg-slate-900 text-white shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-30 lg:h-dvh lg:w-72 lg:shrink-0 lg:translate-x-0 lg:shadow-none ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >

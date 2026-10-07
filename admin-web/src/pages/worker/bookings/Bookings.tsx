@@ -9,6 +9,7 @@ import BookingActivity from "../../../components/worker/Timeline/BookingActivity
 import ReportCaseModal from "../../../components/reports/ReportCaseModal";
 import { getMyActiveReportCasesForBookings } from "../../../services/caseReportService";
 import type { ReportCase } from "../../../types/report";
+import ProjectWorkflowPanel from "../../../components/project/ProjectWorkflowPanel";
 type BookingStatus = "Pending" | "Approved" | "On Going" | "Waiting Customer Confirmation" | "Completed" | "Cancelled";
 type StatusFilter = "All" | BookingStatus;
 type BookingAction = "accept" | "cancel";
@@ -23,6 +24,11 @@ interface CustomerProfile {
 interface BookingService {
     id?: number;
     service_name?: string | null;
+    scheduling_type?: "hourly" | "project" | null;
+    duration_value?: number | null;
+    duration_unit?: string | null;
+    pricing_type?: "hourly" | "daily" | "fixed" | null;
+    price?: number | string | null;
 }
 interface WorkerBooking {
     id: number;
@@ -34,6 +40,8 @@ interface WorkerBooking {
     customer_address?: string | null;
     notes?: string | null;
     price?: number | string | null;
+    agreed_pricing_type?: "hourly" | "daily" | "fixed" | null;
+    agreed_rate?: number | string | null;
     category?: string | null;
     cancel_reason?: string | null;
     accepted_at?: string | null;
@@ -765,6 +773,10 @@ export default function Bookings() {
                               {formatCurrency(getBookingPrice(booking))}
                             </p>
                           </div>
+
+                          {booking.service?.scheduling_type === "project" && booking.status !== "Pending" && booking.status !== "Cancelled" && (
+                            <ProjectWorkflowPanel bookingId={booking.id} role="worker" pricingType={booking.agreed_pricing_type ?? booking.service?.pricing_type} price={(booking.agreed_rate ?? booking.price ?? booking.service?.price) as number | undefined}/>
+                          )}
 
                           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {booking.status === "Pending" && (

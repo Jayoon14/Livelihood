@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, CalendarDays, CheckCheck, CircleCheck, CreditCard, MessageCircle, Search, ShieldCheck, Star, Trash2, XCircle, } from "lucide-react";
 import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
+import AdditionalInfoResponseModal from "../../../components/reports/AdditionalInfoResponseModal";
+import { getCaseIdFromInformationRequest } from "../../../components/reports/informationRequestUtils";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
 import { timeAgo } from "../../../utils/timeAgo";
@@ -53,6 +55,7 @@ export default function Notifications() {
     const [deletingRead, setDeletingRead] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
     const [searchText, setSearchText] = useState("");
+    const [informationCaseId, setInformationCaseId] = useState<string | null>(null);
     const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const unreadCount = useMemo(() => {
         return notifications.filter((item) => !item.is_read).length;
@@ -307,6 +310,8 @@ export default function Notifications() {
                 if (!notification.is_read) {
                     await handleRead(notification.id);
                 }
+                const caseId = getCaseIdFromInformationRequest(notification.title, notification.message);
+                if (caseId) { setInformationCaseId(caseId); return; }
                 navigate(getNotificationRoute(notification, "customer"));
             }
             catch (error) {
@@ -398,6 +403,7 @@ export default function Notifications() {
         }
     }
     return (<CustomerLayout>
+      {informationCaseId && <AdditionalInfoResponseModal caseId={informationCaseId} onClose={() => setInformationCaseId(null)} onSubmitted={loadNotifications} />}
       <div className="
     min-h-full
     bg-gray-50/80

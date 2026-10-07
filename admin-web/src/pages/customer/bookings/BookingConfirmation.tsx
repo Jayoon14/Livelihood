@@ -129,6 +129,8 @@ function BookingConfirmationContent() {
                     customer_id: user.id,
                     worker_id: state.workerId.trim(),
                     service_id: normalizedServiceId,
+                    agreed_pricing_type: state.pricingType,
+                    agreed_rate: Number(state.price),
                     booking_type: "Scheduled",
                     booking_date: state.date.trim(),
                     booking_time: state.time.trim(),

@@ -19,6 +19,7 @@ import StatusBadge from "./components/StatusBadge";
 import ReportCaseModal from "../../../components/reports/ReportCaseModal";
 import { getMyActiveReportCasesForBookings } from "../../../services/caseReportService";
 import type { ReportCase } from "../../../types/report";
+import ProjectWorkflowPanel from "../../../components/project/ProjectWorkflowPanel";
 import { formatBookingDate, formatBookingTime, formatDateTime } from "./utils/dateTime";
 const ONLINE_TIMEOUT_MS = 15 * 60 * 1000;
 function isRecentLastSeen(lastSeen?: string | null): boolean {
@@ -97,7 +98,11 @@ export default function Bookings() {
             profile_picture
           ),
           services(
-            service_name
+            service_name,
+            scheduling_type,
+            duration_value,
+            duration_unit,
+            pricing_type
           )
       `)
                 .eq("customer_id", user.id)
@@ -413,6 +418,7 @@ export default function Bookings() {
         // worker's payment approval is reflected on the booking. The regular
         // Leave Review button remains available if the customer closes it.
         sessionStorage.setItem(`review-prompt-shown-${eligibleBooking.id}`, "1");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setReviewBooking(eligibleBooking);
         setOverallRating(0);
         setQualityRating(0);
@@ -662,6 +668,10 @@ export default function Bookings() {
                     <div className="mt-4 sm:mt-6">
                       <BookingTimeline status={booking.status}/>
                     </div>
+
+                    {booking.services?.scheduling_type === "project" && booking.status !== "Pending" && booking.status !== "Cancelled" && (
+                      <ProjectWorkflowPanel bookingId={booking.id} role="customer" pricingType={booking.agreed_pricing_type ?? booking.services?.pricing_type} price={booking.agreed_rate ?? booking.price} onPayAdvance={(amount) => navigate(`/customer/payment/${booking.id}?amount=${amount}`)}/>
+                    )}
 
                     {/* ACTIONS */}
                     <div className="mt-5 flex flex-wrap gap-2 sm:mt-8 sm:gap-3">

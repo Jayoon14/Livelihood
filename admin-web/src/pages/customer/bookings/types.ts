@@ -7,6 +7,10 @@ export type WorkerSummary = {
 
 export type ServiceSummary = {
   service_name?: string | null;
+  scheduling_type?: "hourly" | "project" | null;
+  duration_value?: number | null;
+  duration_unit?: "hour" | "day" | "week" | "month" | null;
+  pricing_type?: "hourly" | "daily" | "fixed" | null;
 };
 
 export type CompletionProofImage = {
@@ -35,6 +39,8 @@ export type CustomerBooking = {
   completion_status?: string | null;
   payment_status?: string | null;
   price?: number | null;
+  agreed_pricing_type?: "hourly" | "daily" | "fixed" | null;
+  agreed_rate?: number | null;
   booking_date: string;
   booking_time: string;
   created_at: string;

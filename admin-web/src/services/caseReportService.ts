@@ -1,5 +1,6 @@
 import { runAuditedProcess } from "../lib/processAudit";
 import { supabase } from "../lib/supabase";
+import { createNotification } from "./notificationService";
 import { ALLOWED_REPORT_EVIDENCE_MIME_TYPES, MAX_REPORT_EVIDENCE_FILES, MAX_REPORT_EVIDENCE_FILE_SIZE, REPORT_EVIDENCE_BUCKET, type CreateReportInput, type ReportCase, type ReportEvidence, type ReportLog, } from "../types/report";
 export interface ReportSubmissionFile {
     file: File;
@@ -72,6 +73,56 @@ export async function submitReportCase(input: CreateReportInput, files: File[] =
         return report;
     });
 }
+
+export async function respondToInformationRequest(reportId: string, message: string, files: File[] = []): Promise<void> {
+    return await runAuditedProcess({ module: "Reports", process: "respondToInformationRequest", action: "UPDATE", parameters: { reportId, message, fileCount: files.length } }, async () => {
+        const note = message.trim();
+        if (note.length < 5) throw new Error("Please provide a short explanation with your response.");
+        validateReportFiles(files);
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        const user = authData.user;
+        if (!user) throw new Error("You must be signed in.");
+
+        const current = await supabase.from("reports")
+            .select("id, reporter_id, booking_id, status, assigned_admin_id")
+            .eq("id", reportId).eq("reporter_id", user.id).single();
+        if (current.error) throw current.error;
+        if (current.data.status !== "needs_more_information") {
+            throw new Error("This case is not currently waiting for additional information.");
+        }
+
+        for (const file of files) {
+            const safeName = sanitizeFileName(file.name);
+            const storagePath = `${user.id}/${reportId}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+            const upload = await supabase.storage.from(REPORT_EVIDENCE_BUCKET).upload(storagePath, file, {
+                cacheControl: "3600", contentType: file.type, upsert: false,
+            });
+            if (upload.error) throw upload.error;
+            const metadata = await supabase.from("report_evidence").insert({
+                report_id: reportId, uploaded_by: user.id, storage_bucket: REPORT_EVIDENCE_BUCKET,
+                storage_path: storagePath, file_name: file.name, mime_type: file.type, file_size: file.size,
+                caption: "Additional evidence submitted after administrator request",
+            });
+            if (metadata.error) {
+                await supabase.storage.from(REPORT_EVIDENCE_BUCKET).remove([storagePath]);
+                throw metadata.error;
+            }
+        }
+
+        const update = await supabase.from("reports").update({ status: "under_review" }).eq("id", reportId).eq("reporter_id", user.id);
+        if (update.error) throw update.error;
+        const log = await supabase.from("report_logs").insert({
+            report_id: reportId, actor_id: user.id, action: "additional_information_submitted",
+            old_status: "needs_more_information", new_status: "under_review", note, is_public: true,
+        });
+        if (log.error) throw log.error;
+        if (current.data.assigned_admin_id) {
+            await createNotification(current.data.assigned_admin_id, current.data.booking_id, "Additional Case Information Received", `The reporter responded to case #${reportId}.`);
+        }
+    });
+}
+
 export async function getMyReports(): Promise<ReportCase[]> {
     return await runAuditedProcess({ module: "Reports", process: "getMyReports", action: "READ", parameters: {} }, async () => {
         const { data: authData, error: authError } = await supabase.auth.getUser();

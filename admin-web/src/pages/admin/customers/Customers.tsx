@@ -1,897 +1,1711 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
+
 import { Ban, CalendarDays, CheckCircle2, Download, FileText, MapPin, RefreshCw, Search, ShieldOff, UserCheck, Users, X, } from "lucide-react";
+
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, } from "react";
-import { Link } from "react-router-dom";
+
 import { toast } from "sonner";
+
 import { MapContainer, Marker, TileLayer, } from "react-leaflet";
+
 import L from "leaflet";
+
 import "leaflet/dist/leaflet.css";
+
 import { confirmAction } from "../../../components/ui/confirmAction";
+
 import AdminLayout from "../../../layouts/AdminLayout";
+import CustomerDetails from "./CustomerDetails";
+
 import { supabase } from "../../../lib/supabase";
+
 import { CUSTOMER_STATUS, getCustomers, normalizeCustomerStatus, updateCustomerStatus, type Customer, type CustomerStatus, } from "../../../services/customerService";
+
 // ============================================================
+
 // LEAFLET MARKER FIX FOR VITE
+
 // ============================================================
+
 delete (L.Icon.Default.prototype as unknown as {
+
     _getIconUrl?: unknown;
+
 })._getIconUrl;
+
 L.Icon.Default.mergeOptions({
+
     iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+
     shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+
 });
+
 // ============================================================
+
 // CONSTANTS
+
 // ============================================================
+
 const PAGE_SIZE = 10;
+
 type StatusFilter = "All" | CustomerStatus;
+
 type DateFilter = "All" | "Today" | "This Week" | "This Month" | "Custom";
+
 type SortOption = "Newest" | "Oldest" | "Name A-Z" | "Name Z-A" | "Status A-Z" | "Municipality A-Z";
+
 // ============================================================
+
 // HELPERS
+
 // ============================================================
+
 function formatDate(value?: string | null): string {
+
     if (!value) {
+
         return "—";
+
     }
+
     const date = new Date(value);
+
     return Number.isNaN(date.getTime())
+
         ? value
+
         : new Intl.DateTimeFormat("en-PH", {
+
             year: "numeric",
+
             month: "short",
+
             day: "numeric",
+
         }).format(date);
+
 }
+
 function startOfDay(date: Date): Date {
+
     const result = new Date(date);
+
     result.setHours(0, 0, 0, 0);
+
     return result;
+
 }
+
 function endOfDay(date: Date): Date {
+
     const result = new Date(date);
+
     result.setHours(23, 59, 59, 999);
+
     return result;
+
 }
+
 function startOfWeek(date: Date): Date {
+
     const result = startOfDay(date);
+
     const day = result.getDay();
+
     const difference = day === 0 ? -6 : 1 - day;
+
     result.setDate(result.getDate() + difference);
+
     return result;
+
 }
+
 function startOfMonth(date: Date): Date {
+
     return new Date(date.getFullYear(), date.getMonth(), 1);
+
 }
+
 function matchesDateFilter(createdAt: string | null, dateFilter: DateFilter, customStart: string, customEnd: string): boolean {
+
     if (dateFilter === "All") {
+
         return true;
+
     }
+
     if (!createdAt) {
+
         return false;
+
     }
+
     const date = new Date(createdAt);
+
     if (Number.isNaN(date.getTime())) {
+
         return false;
+
     }
+
     const now = new Date();
+
     if (dateFilter === "Today") {
+
         return date >= startOfDay(now) && date <= endOfDay(now);
+
     }
+
     if (dateFilter === "This Week") {
+
         return date >= startOfWeek(now) && date <= endOfDay(now);
+
     }
+
     if (dateFilter === "This Month") {
+
         return date >= startOfMonth(now) && date <= endOfDay(now);
+
     }
+
     const start = customStart
+
         ? startOfDay(new Date(`${customStart}T00:00:00`))
+
         : null;
+
     const end = customEnd
+
         ? endOfDay(new Date(`${customEnd}T00:00:00`))
+
         : null;
+
     if (start && date < start) {
+
         return false;
+
     }
+
     if (end && date > end) {
+
         return false;
+
     }
+
     return true;
+
 }
+
 function statusClasses(status: string): string {
+
     const normalized = normalizeCustomerStatus(status);
+
     switch (normalized) {
+
         case CUSTOMER_STATUS.APPROVED:
+
             return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
+
         case CUSTOMER_STATUS.PENDING:
+
             return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
+
         case CUSTOMER_STATUS.DISABLED:
+
             return "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200";
+
         case CUSTOMER_STATUS.BLOCKED:
+            // falls through: blocked and rejected share the same visual state
         case CUSTOMER_STATUS.REJECTED:
+
             return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
+
         default:
+
             return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+
     }
+
 }
+
 function csvEscape(value: unknown): string {
+
     return `"${String(value ?? "").replace(/"/g, '""')}"`;
+
 }
+
 // ============================================================
+
 // MAIN COMPONENT
+
 // ============================================================
+
 export default function Customers() {
+
     const [customers, setCustomers] = useState<Customer[]>([]);
+
     const [search, setSearch] = useState("");
+
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+
     const [dateFilter, setDateFilter] = useState<DateFilter>("All");
+
     const [customStart, setCustomStart] = useState("");
+
     const [customEnd, setCustomEnd] = useState("");
+
     const [sortOption, setSortOption] = useState<SortOption>("Newest");
+
     const [page, setPage] = useState(1);
+
+    const [pageInput, setPageInput] = useState("1");
+
     const [loading, setLoading] = useState(true);
+
     const [refreshing, setRefreshing] = useState(false);
+
     const [processingId, setProcessingId] = useState<string | null>(null);
+
     const [error, setError] = useState<string | null>(null);
+
     // ==========================================================
+
     // LOCATION MODAL STATE
+
     // ==========================================================
+
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
     const [locationModalOpen, setLocationModalOpen] = useState(false);
+
+    const [detailsCustomer, setDetailsCustomer] = useState<Customer | null>(null);
+
     const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // ==========================================================
+
     // LOAD CUSTOMERS
+
     // ==========================================================
+
     const loadCustomers = useCallback(async (background = false) => {
+
         if (background) {
+
             setRefreshing(true);
+
         }
+
         else {
+
             setLoading(true);
+
         }
+
         setError(null);
+
         try {
+
             setCustomers(await getCustomers());
+
         }
+
         catch (loadError) {
+
             auditCaughtError({ module: "Customers", process: "background operation", action: "EXECUTE" }, loadError);
+
             const message = loadError instanceof Error
+
                 ? loadError.message
+
                 : "Unable to load customers.";
+
             setError(message);
+
             if (!background) {
+
                 auditUiError({ module: "Customers", process: "validation", action: "EXECUTE" }, toast.error, message);
+
             }
+
         }
+
         finally {
+
             setLoading(false);
+
             setRefreshing(false);
+
         }
+
     }, []);
+
     // ==========================================================
+
     // INITIAL LOAD
+
     // ==========================================================
+
     useEffect(() => {
+
         const timer = window.setTimeout(() => {
+
             void loadCustomers();
+
         }, 0);
+
         return () => window.clearTimeout(timer);
+
     }, [loadCustomers]);
+
     // ==========================================================
+
     // REALTIME
+
     // ==========================================================
+
     useEffect(() => {
+
         let mounted = true;
+
         const scheduleRealtimeRefresh = () => {
+
             if (realtimeTimerRef.current) {
+
                 clearTimeout(realtimeTimerRef.current);
+
             }
+
             realtimeTimerRef.current = setTimeout(() => {
+
                 if (mounted) {
+
                     void loadCustomers(true);
+
                 }
+
             }, 300);
+
         };
+
         const channel = supabase
+
             .channel("admin-customers-page")
+
             .on("postgres_changes", {
+
             event: "*",
+
             schema: "public",
+
             table: "profiles",
+
             filter: "role=eq.customer",
+
         }, scheduleRealtimeRefresh)
+
             .subscribe((subscriptionStatus) => {
+
             if (!mounted) {
+
                 return;
+
             }
+
             if (subscriptionStatus === "CHANNEL_ERROR") {
+
                 console.error("Admin customers realtime channel error.");
+
             }
+
             if (subscriptionStatus === "TIMED_OUT") {
+
                 console.error("Admin customers realtime connection timed out.");
+
             }
+
         });
+
         return () => {
+
             mounted = false;
+
             if (realtimeTimerRef.current) {
+
                 clearTimeout(realtimeTimerRef.current);
+
                 realtimeTimerRef.current = null;
+
             }
+
             void supabase.removeChannel(channel);
+
         };
+
     }, [loadCustomers]);
+
     // ==========================================================
+
     // RESET PAGE WHEN FILTER CHANGES
+
     // ==========================================================
+
     useEffect(() => {
+
         const timer = window.setTimeout(() => {
+
             setPage(1);
+
         }, 0);
+
         return () => window.clearTimeout(timer);
+
     }, [
+
         search,
+
         statusFilter,
+
         dateFilter,
+
         customStart,
+
         customEnd,
+
         sortOption,
+
     ]);
+
     // ==========================================================
+
     // FILTER + SORT
+
     // ==========================================================
+
     const filteredCustomers = useMemo(() => {
+
         const term = search.trim().toLowerCase();
+
         const filtered = customers.filter((customer) => {
+
             const matchesStatus = statusFilter === "All" ||
+
                 customer.normalized_status === statusFilter;
+
             const matchesDate = matchesDateFilter(customer.created_at, dateFilter, customStart, customEnd);
+
             const searchable = [
+
                 customer.full_name,
+
                 customer.email,
+
                 customer.phone,
+
                 customer.full_address,
+
                 customer.barangay,
+
                 customer.municipality,
+
                 customer.province,
+
                 customer.normalized_status,
+
             ]
+
                 .filter(Boolean)
+
                 .join(" ")
+
                 .toLowerCase();
+
             return (matchesStatus &&
+
                 matchesDate &&
+
                 (!term || searchable.includes(term)));
+
         });
+
         return [...filtered].sort((first, second) => {
+
             switch (sortOption) {
+
                 case "Oldest":
+
                     return (new Date(first.created_at ?? 0).getTime() -
+
                         new Date(second.created_at ?? 0).getTime());
+
                 case "Name A-Z":
+
                     return first.full_name.localeCompare(second.full_name);
+
                 case "Name Z-A":
+
                     return second.full_name.localeCompare(first.full_name);
+
                 case "Status A-Z":
+
                     return first.normalized_status.localeCompare(second.normalized_status);
+
                 case "Municipality A-Z":
+
                     return String(first.municipality ?? "").localeCompare(String(second.municipality ?? ""));
+
                 case "Newest":
+                    return (new Date(second.created_at ?? 0).getTime() -
+                        new Date(first.created_at ?? 0).getTime());
+
                 default:
                     return (new Date(second.created_at ?? 0).getTime() -
                         new Date(first.created_at ?? 0).getTime());
+
             }
+
         });
+
     }, [
+
         customers,
+
         customEnd,
+
         customStart,
+
         dateFilter,
+
         search,
+
         sortOption,
+
         statusFilter,
+
     ]);
+
     // ==========================================================
+
     // SUMMARY
+
     // ==========================================================
+
     const summary = useMemo(() => {
+
         return filteredCustomers.reduce((result, customer) => {
+
             result.total += 1;
+
             switch (customer.normalized_status) {
+
                 case CUSTOMER_STATUS.APPROVED:
+
                     result.approved += 1;
+
                     break;
+
                 case CUSTOMER_STATUS.PENDING:
+
                     result.pending += 1;
+
                     break;
+
                 case CUSTOMER_STATUS.DISABLED:
+
                     result.disabled += 1;
+
                     break;
+
                 case CUSTOMER_STATUS.BLOCKED:
+                    // falls through: both statuses count as blocked
                 case CUSTOMER_STATUS.REJECTED:
+
                     result.blocked += 1;
+
                     break;
+
             }
+
             const created = customer.created_at
+
                 ? new Date(customer.created_at)
+
                 : null;
+
             const now = new Date();
+
             if (created &&
+
                 !Number.isNaN(created.getTime()) &&
+
                 created.getFullYear() === now.getFullYear() &&
+
                 created.getMonth() === now.getMonth()) {
+
                 result.newThisMonth += 1;
+
             }
+
             return result;
+
         }, {
+
             total: 0,
+
             approved: 0,
+
             pending: 0,
+
             disabled: 0,
+
             blocked: 0,
+
             newThisMonth: 0,
+
         });
+
     }, [filteredCustomers]);
+
     // ==========================================================
+
     // PAGINATION
+
     // ==========================================================
+
     const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+
     const safePage = Math.min(page, totalPages);
+
     const pageCustomers = filteredCustomers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPageInput(String(safePage));
+    }, [safePage]);
+
+    function goToTypedPage() {
+        const parsed = Number.parseInt(pageInput, 10);
+        const nextPage = Number.isFinite(parsed) ? Math.min(totalPages, Math.max(1, parsed)) : safePage;
+        setPage(nextPage);
+        setPageInput(String(nextPage));
+    }
+
     // ==========================================================
+
     // STATUS
+
     // ==========================================================
+
     async function changeStatus(customer: Customer, nextStatus: CustomerStatus) {
+
         const confirmed = await confirmAction(`Change ${customer.full_name}'s account status from ${customer.normalized_status} to ${nextStatus}?`, {
+
             title: "Update customer status",
+
             confirmText: nextStatus,
+
         });
+
         if (!confirmed) {
+
             return;
+
         }
+
         setProcessingId(customer.id);
+
         const toastId = toast.loading("Updating customer status...");
+
         try {
+
             const updated = await updateCustomerStatus(customer.id, nextStatus);
+
             setCustomers((current) => current.map((item) => item.id === updated.id ? updated : item));
+
             toast.success(`${customer.full_name} is now ${nextStatus}.`, {
+
                 id: toastId,
+
             });
+
         }
+
         catch (updateError) {
+
             auditCaughtError({ module: "Customers", process: "changeStatus", action: "EXECUTE" }, updateError);
+
             auditUiError({ module: "Customers", process: "changeStatus", action: "EXECUTE" }, toast.error, updateError instanceof Error
+
                 ? updateError.message
+
                 : "Unable to update customer status.", {
+
                 id: toastId,
+
             });
+
         }
+
         finally {
+
             setProcessingId(null);
+
         }
+
     }
+
+    function openCustomerDetails(customer: Customer) { setDetailsCustomer(customer); }
+
+    function closeCustomerDetails() { setDetailsCustomer(null); }
+
     // ==========================================================
+
     // OPEN LOCATION
+
     // ==========================================================
+
     function openCustomerLocation(customer: Customer) {
+
         if (customer.latitude == null ||
+
             customer.longitude == null) {
+
             toast.warning("This customer does not have a registered map location.");
+
             return;
+
         }
+
         setSelectedCustomer(customer);
+
         setLocationModalOpen(true);
+
     }
+
     // ==========================================================
+
     // CLOSE LOCATION
+
     // ==========================================================
+
     function closeLocationModal() {
+
         setLocationModalOpen(false);
+
         setSelectedCustomer(null);
+
     }
+
     // ==========================================================
+
     // EXPORT CSV
+
     // ==========================================================
+
     function exportCsv() {
+
         if (filteredCustomers.length === 0) {
+
             toast.warning("There are no customers to export.");
+
             return;
+
         }
+
         const headers = [
+
             "Customer ID",
+
             "Full Name",
+
             "Email",
+
             "Phone",
+
             "Gender",
+
             "Birth Date",
+
             "Address",
+
             "Barangay",
+
             "Municipality",
+
             "Province",
+
             "Latitude",
+
             "Longitude",
+
             "Status",
+
             "Registered At",
+
         ];
+
         const rows = filteredCustomers.map((customer) => [
+
             customer.id,
+
             customer.full_name,
+
             customer.email ?? "",
+
             customer.phone ?? "",
+
             customer.gender ?? "",
+
             customer.birth_date ?? "",
+
             customer.full_address,
+
             customer.barangay ?? "",
+
             customer.municipality ?? "",
+
             customer.province ?? "",
+
             customer.latitude ?? "",
+
             customer.longitude ?? "",
+
             customer.normalized_status,
+
             customer.created_at ?? "",
+
         ]);
+
         const csv = [
+
             headers.map(csvEscape).join(","),
+
             ...rows.map((row) => row.map(csvEscape).join(",")),
+
         ].join("\n");
+
         const blob = new Blob([`\uFEFF${csv}`], {
+
             type: "text/csv;charset=utf-8;",
+
         });
+
         const url = URL.createObjectURL(blob);
+
         const anchor = document.createElement("a");
+
         anchor.href = url;
+
         anchor.download =
+
             `customers-${new Date()
+
                 .toISOString()
+
                 .slice(0, 10)}.csv`;
+
         document.body.appendChild(anchor);
+
         anchor.click();
+
         anchor.remove();
+
         URL.revokeObjectURL(url);
+
         toast.success("Customers CSV exported.");
+
     }
+
     // ==========================================================
+
     // RESET FILTERS
+
     // ==========================================================
+
     function resetFilters() {
+
         setSearch("");
+
         setStatusFilter("All");
+
         setDateFilter("All");
+
         setCustomStart("");
+
         setCustomEnd("");
+
         setSortOption("Newest");
+
     }
+
     // ==========================================================
+
     // RENDER
+
     // ==========================================================
+
     return (<AdminLayout>
+
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+
         {/* =====================================================
+
             HEADER
+
         ====================================================== */}
+
+
 
         <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:hidden">
+
           <div>
+
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+
               Customers Management
+
             </h1>
 
+
+
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+
               Review customer accounts, profiles, and
+
               account status.
+
             </p>
+
           </div>
 
-          <div className="flex flex-wrap gap-2">
+
+
+          <div className="flex flex-nowrap items-center gap-2">
+
             <button type="button" onClick={exportCsv} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+
               <Download className="h-4 w-4"/>
+
               Export CSV
+
             </button>
+
+
 
             <button type="button" onClick={() => window.print()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+
               <FileText className="h-4 w-4"/>
+
               Print / PDF
+
             </button>
+
+
 
             <button type="button" onClick={() => void loadCustomers(true)} disabled={refreshing} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+
               <RefreshCw className={`h-4 w-4 ${refreshing
+
             ? "animate-spin"
+
             : ""}`}/>
 
+
+
               {refreshing
+
             ? "Refreshing..."
+
             : "Refresh"}
+
             </button>
+
           </div>
+
         </header>
 
+
+
         {/* =====================================================
+
             SUMMARY
+
         ====================================================== */}
 
+
+
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+
           <SummaryCard title="Total" value={summary.total} icon={<Users className="h-5 w-5"/>}/>
+
+
 
           <SummaryCard title="Approved" value={summary.approved} icon={<UserCheck className="h-5 w-5"/>}/>
 
+
+
           <SummaryCard title="Pending" value={summary.pending} icon={<CalendarDays className="h-5 w-5"/>}/>
+
+
 
           <SummaryCard title="Disabled" value={summary.disabled} icon={<ShieldOff className="h-5 w-5"/>}/>
 
+
+
           <SummaryCard title="Blocked / Rejected" value={summary.blocked} icon={<Ban className="h-5 w-5"/>}/>
 
+
+
           <SummaryCard title="New This Month" value={summary.newThisMonth} icon={<CheckCircle2 className="h-5 w-5"/>}/>
+
         </section>
 
+
+
         {/* =====================================================
+
             FILTERS
+
         ====================================================== */}
+
+
 
         <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-[1.5fr_180px_180px_190px_auto] dark:border-slate-700 dark:bg-slate-900 print:hidden">
+
           <label className="relative block">
+
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/>
 
+
+
             <input type="search" placeholder="Search name, email, phone, address, or status..." value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"/>
+
           </label>
 
+
+
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+
             <option value="All">
+
               All statuses
+
             </option>
 
+
+
             {Object.values(CUSTOMER_STATUS).map((status) => (<option key={status} value={status}>
+
                   {status}
+
                 </option>))}
+
           </select>
+
+
 
           <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value as DateFilter)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+
             <option>All</option>
+
             <option>Today</option>
+
             <option>This Week</option>
+
             <option>This Month</option>
+
             <option>Custom</option>
+
           </select>
+
+
 
           <select value={sortOption} onChange={(event) => setSortOption(event.target.value as SortOption)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+
             <option>Newest</option>
+
             <option>Oldest</option>
+
             <option>Name A-Z</option>
+
             <option>Name Z-A</option>
+
             <option>Status A-Z</option>
+
             <option>Municipality A-Z</option>
+
           </select>
 
+
+
           <button type="button" onClick={resetFilters} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">
+
             Reset
+
           </button>
 
+
+
           {dateFilter === "Custom" && (<div className="grid gap-3 sm:grid-cols-2 md:col-span-2 xl:col-span-5">
+
               <input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} max={customEnd || undefined} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-950"/>
 
+
+
               <input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} min={customStart || undefined} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-950"/>
+
             </div>)}
+
         </section>
 
+
+
         {/* =====================================================
+
             CONTENT
+
         ====================================================== */}
 
+
+
         {loading ? (<div className="rounded-2xl border border-slate-200 bg-white p-5 text-center text-slate-500 shadow-sm sm:p-8 lg:p-12 dark:border-slate-700 dark:bg-slate-900">
+
             Loading customers...
+
           </div>) : error ? (<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center sm:p-6 lg:p-8 dark:border-red-900 dark:bg-red-950/30">
+
             <p className="font-semibold text-red-700 dark:text-red-300">
+
               {error}
+
             </p>
+
+
 
             <button type="button" onClick={() => void loadCustomers()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+
               Try again
+
             </button>
+
           </div>) : pageCustomers.length === 0 ? (<div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-center sm:p-8 lg:p-12 dark:border-slate-700 dark:bg-slate-900">
+
             <Users className="mx-auto h-10 w-10 text-slate-400"/>
 
+
+
             <p className="mt-3 font-semibold text-slate-700 dark:text-slate-200">
+
               No customers found
+
             </p>
+
+
 
             <p className="mt-1 text-sm text-slate-500">
+
               Change the search term or filters.
+
             </p>
+
           </div>) : (<section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+
+            <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
+              <p className="text-sm text-slate-500">Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredCustomers.length)} of {filteredCustomers.length}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900">Previous</button>
+                <div className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 dark:border-slate-700 dark:bg-slate-800/60"><span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Page</span><input type="number" min={1} max={totalPages} value={pageInput} onChange={(event) => setPageInput(event.target.value.replace(/[^0-9]/g, ""))} onKeyDown={(event) => { if (event.key === "Enter") goToTypedPage(); }} onBlur={goToTypedPage} aria-label="Go to customer page" className="h-8 w-14 rounded-md border border-slate-300 bg-white px-2 text-center text-sm font-bold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white"/><span className="text-sm font-semibold text-slate-600 dark:text-slate-300">of {totalPages}</span></div>
+                <button type="button" disabled={safePage === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold transition hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900">Next</button>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full min-w-275">
+
+              <table className="w-full min-w-[1220px] table-fixed">
+                <colgroup>
+                  <col className="w-[20%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[27%]" />
+                </colgroup>
+
                 <thead className="bg-slate-50 text-left text-sm text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+
                   <tr>
+
                     <th className="p-4 font-semibold">
+
                       Customer
+
                     </th>
 
+
+
                     <th className="p-4 font-semibold">
+
                       Contact
+
                     </th>
 
+
+
                     <th className="p-4 font-semibold">
+
                       Location
+
                     </th>
 
+
+
                     <th className="p-4 font-semibold">
+
                       Status
+
                     </th>
 
+
+
                     <th className="p-4 font-semibold">
+
                       Joined
+
                     </th>
+
+
 
                     <th className="p-4 font-semibold print:hidden">
+
                       Actions
+
                     </th>
+
                   </tr>
+
                 </thead>
 
+
+
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+
                   {pageCustomers.map((customer) => {
+
                 const isProcessing = processingId ===
+
                     customer.id;
+
                 const hasLocation = customer.latitude !=
+
                     null &&
+
                     customer.longitude !=
+
                         null;
+
                 return (<tr key={customer.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+
                           {/* CUSTOMER */}
+
                           <td className="p-4">
+
                             <div className="flex items-center gap-3">
+
                               {customer.avatar ? (<img src={customer.avatar} alt={customer.full_name} className="h-11 w-11 rounded-full object-cover"/>) : (<div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+
                                   {customer.full_name
+
                             .charAt(0)
+
                             .toUpperCase()}
+
                                 </div>)}
 
+
+
                               <div className="min-w-0">
-                                <Link to={`/customers/${customer.id}`} className="font-semibold text-slate-900 hover:text-blue-600 hover:underline dark:text-white">
-                                  {customer.full_name}
-                                </Link>
+
+                                <button type="button" onClick={() => openCustomerDetails(customer)} className="block max-w-full truncate text-left font-semibold text-slate-900 hover:text-blue-600 hover:underline dark:text-white" title={customer.full_name}>{customer.full_name}</button>
+
+
 
                                 <p className="max-w-64 truncate text-xs text-slate-500">
+
                                   ID:{" "}
+
                                   {customer.id}
+
                                 </p>
+
                               </div>
+
                             </div>
+
                           </td>
 
-                          {/* CONTACT */}
-                          <td className="p-4 text-sm text-slate-700 dark:text-slate-300">
-                            <p>
-                              {customer.email ||
-                        "No email"}
-                            </p>
 
-                            <p className="text-xs text-slate-500">
-                              {customer.phone ||
-                        "No phone"}
+
+                          {/* CONTACT */}
+
+                          <td className="min-w-0 overflow-hidden p-4 text-sm text-slate-700 dark:text-slate-300">
+                            <p className="block max-w-full truncate" title={customer.email || "No email"}>
+                              {customer.email || "No email"}
+                            </p>
+                            <p className="block max-w-full truncate text-xs text-slate-500" title={customer.phone || "No phone"}>
+                              {customer.phone || "No phone"}
                             </p>
                           </td>
 
                           {/* LOCATION */}
-                          <td className="p-4 text-sm text-slate-700 dark:text-slate-300">
-                            <p>
-                              {customer.municipality ||
-                        "No municipality"}
-                            </p>
 
-                            <p className="max-w-64 truncate text-xs text-slate-500">
-                              {customer.full_address ||
-                        "No address"}
+                          <td className="min-w-0 overflow-hidden p-4 text-sm text-slate-700 dark:text-slate-300">
+                            <p className="truncate" title={customer.municipality || "No municipality"}>
+                              {customer.municipality || "No municipality"}
                             </p>
-
-                            {hasLocation && (<p className="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                Map location
-                                available
-                              </p>)}
+                            <p className="max-w-full truncate text-xs text-slate-500" title={customer.full_address || "No address"}>
+                              {customer.full_address || "No address"}
+                            </p>
+                            {hasLocation && (<p className="mt-1 truncate text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                              Map location available
+                            </p>)}
                           </td>
 
                           {/* STATUS */}
+
                           <td className="p-4">
+
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses(customer.normalized_status)}`}>
+
                               {customer.normalized_status}
+
                             </span>
+
                           </td>
+
+
 
                           {/* JOINED */}
+
                           <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
+
                             {formatDate(customer.created_at)}
+
                           </td>
+
+
 
                           {/* ACTIONS */}
+
                           <td className="p-4 print:hidden">
-                            <div className="flex flex-wrap gap-2">
-                              <Link to={`/customers/${customer.id}`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
-                                View details
-                              </Link>
 
-                              {hasLocation && (<button type="button" onClick={() => openCustomerLocation(customer)} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
+                            <div className="flex flex-nowrap items-center gap-2">
+
+                              <button type="button" onClick={() => openCustomerDetails(customer)} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700">View</button>
+
+
+
+                              {hasLocation && (<button type="button" onClick={() => openCustomerLocation(customer)} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300">
+
                                   <MapPin className="h-3.5 w-3.5"/>
-                                  View Location
+
+                                  Location
+
                                 </button>)}
 
-                              {customer.normalized_status !==
-                        CUSTOMER_STATUS.APPROVED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.APPROVED)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-                                  Activate
-                                </button>)}
+
 
                               {customer.normalized_status !==
-                        CUSTOMER_STATUS.DISABLED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.DISABLED)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
+
+                        CUSTOMER_STATUS.APPROVED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.APPROVED)} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
+
+                                  Approve
+
+                                </button>)}
+
+
+
+                              {customer.normalized_status !==
+
+                        CUSTOMER_STATUS.DISABLED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.DISABLED)} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-slate-700 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50">
+
                                   Disable
+
                                 </button>)}
+
+
 
                               {customer.normalized_status !==
-                        CUSTOMER_STATUS.BLOCKED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.BLOCKED)} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+
+                        CUSTOMER_STATUS.BLOCKED && (<button type="button" disabled={isProcessing} onClick={() => void changeStatus(customer, CUSTOMER_STATUS.BLOCKED)} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50">
+
                                   Block
+
                                 </button>)}
+
                             </div>
+
                           </td>
+
                         </tr>);
+
             })}
+
                 </tbody>
+
               </table>
+
             </div>
 
-            {/* =================================================
-                PAGINATION
-            ================================================== */}
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 print:hidden">
-              <p className="text-sm text-slate-500">
-                Showing{" "}
-                {(safePage - 1) *
-                PAGE_SIZE +
-                1}
-                –
-                {Math.min(safePage * PAGE_SIZE, filteredCustomers.length)}{" "}
-                of{" "}
-                {filteredCustomers.length}
-              </p>
 
-              <div className="flex gap-2">
-                <button type="button" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900">
-                  Previous
-                </button>
-
-                <span className="flex items-center px-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Page {safePage} of{" "}
-                  {totalPages}
-                </span>
-
-                <button type="button" disabled={safePage ===
-                totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900">
-                  Next
-                </button>
-              </div>
-            </div>
           </section>)}
 
-        {/* =====================================================
-            CUSTOMER LOCATION MODAL
-        ====================================================== */}
 
-        {locationModalOpen &&
-            selectedCustomer && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => {
+
+        {detailsCustomer && (<div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCustomerDetails(); }}><div className="flex h-[92vh] w-full max-w-[1440px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"><div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6 dark:border-slate-700"><div><h2 className="text-lg font-bold text-slate-900 dark:text-white">Customer Details</h2><p className="text-sm text-slate-500">Complete customer profile, booking history, reviews, and account information.</p></div><button type="button" onClick={closeCustomerDetails} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close customer details"><X className="h-5 w-5"/></button></div><div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/40"><CustomerDetails customerId={detailsCustomer.id} embedded /></div></div></div>)}
+        {locationModalOpen && selectedCustomer && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => {
+
                 if (event.target ===
+
                     event.currentTarget) {
+
                     closeLocationModal();
+
                 }
+
             }}>
+
               <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+
                 {/* MODAL HEADER */}
 
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+
+
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6 dark:border-slate-700">
+
                   <div>
+
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+
                       Customer Location
+
                     </h2>
 
+
+
                     <p className="text-sm text-slate-500 dark:text-slate-400">
+
                       {selectedCustomer.full_name}
+
                     </p>
+
                   </div>
 
+
+
                   <button type="button" onClick={closeLocationModal} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200" aria-label="Close location modal">
+
                     <X className="h-5 w-5"/>
+
                   </button>
+
                 </div>
+
+
 
                 {/* MODAL BODY */}
 
+
+
                 <div className="p-5">
+
                   {/* ADDRESS INFORMATION */}
 
+
+
                   <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+
                     <div className="flex items-start gap-3">
+
                       <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400"/>
 
+
+
                       <div className="min-w-0">
+
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">
+
                           Registered Address
+
                         </p>
+
+
 
                         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+
                           {selectedCustomer.full_address ||
+
                 "No address available"}
+
                         </p>
 
+
+
                         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                          <span>
-                            Latitude:{" "}
-                            {selectedCustomer.latitude}
-                          </span>
 
                           <span>
-                            Longitude:{" "}
-                            {selectedCustomer.longitude}
+
+                            Latitude:{" "}
+
+                            {selectedCustomer.latitude}
+
                           </span>
+
+
+
+                          <span>
+
+                            Longitude:{" "}
+
+                            {selectedCustomer.longitude}
+
+                          </span>
+
                         </div>
+
                       </div>
+
                     </div>
+
                   </div>
+
+
 
                   {/* MAP */}
 
+
+
                   <div className="h-105 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+
                     <MapContainer center={[
+
                 selectedCustomer.latitude!,
+
                 selectedCustomer.longitude!,
+
             ]} zoom={17} scrollWheelZoom className="h-full w-full">
+
                       <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
 
+
+
                       <Marker position={[
+
                 selectedCustomer.latitude!,
+
                 selectedCustomer.longitude!,
+
             ]}/>
+
                     </MapContainer>
+
                   </div>
+
+
 
                   {/* MAP NOTE */}
 
+
+
                   <div className="mt-3 flex items-start gap-2 rounded-lg bg-indigo-50 p-3 text-xs text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0"/>
 
+
+
                     <p>
+
                       The marker represents the map
+
                       location selected by the customer
+
                       during registration.
+
                     </p>
+
                   </div>
+
                 </div>
+
+
 
                 {/* MODAL FOOTER */}
 
+
+
                 <div className="flex justify-end border-t border-slate-200 px-5 py-4 dark:border-slate-700">
+
                   <button type="button" onClick={closeLocationModal} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600">
+
                     Close
+
                   </button>
+
                 </div>
+
               </div>
+
             </div>)}
+
       </div>
+
     </AdminLayout>);
+
 }
+
 // ============================================================
+
 // SUMMARY CARD
+
 // ============================================================
+
 function SummaryCard({ title, value, icon, }: {
+
     title: string;
+
     value: number;
+
     icon: ReactNode;
+
 }) {
+
     return (<article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+
       <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+
         {icon}
+
       </span>
 
+
+
       <p className="mt-4 text-sm font-semibold text-slate-500 dark:text-slate-400">
+
         {title}
+
       </p>
 
+
+
       <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+
         {value.toLocaleString()}
+
       </p>
+
     </article>);
+
 }

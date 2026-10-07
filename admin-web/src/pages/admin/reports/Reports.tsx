@@ -1,5 +1,5 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
-import { BarChart3, CalendarDays, CheckCircle2, Download, PhilippinePeso, Printer, RefreshCw, Star, Users, XCircle, ShieldAlert, Repeat2, TrendingUp, } from "lucide-react";
+import { Activity, BarChart3, CalendarDays, CheckCircle2, Download, PhilippinePeso, Printer, RefreshCw, Star, Users, XCircle, ShieldAlert, Repeat2, TrendingUp, BriefcaseBusiness, LayoutDashboard, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ComponentType, } from "react";
 import { Link } from "react-router-dom";
 import { CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
@@ -18,6 +18,7 @@ const CHART_COLORS = [
     "#64748B",
 ];
 type DatePreset = "All time" | "Today" | "Last 7 days" | "Last 30 days" | "This month" | "This year" | "Custom";
+type AnalyticsSection = "Overview" | "Bookings" | "Services & Workers" | "Customers & Quality";
 const EMPTY_ADVANCED_DATA: AdvancedAnalyticsData = {
     totalComplaints: 0,
     activeComplaints: 0,
@@ -129,6 +130,7 @@ export default function Reports() {
     const [data, setData] = useState<ReportsData>(EMPTY_DATA);
     const [advancedData, setAdvancedData] = useState<AdvancedAnalyticsData>(EMPTY_ADVANCED_DATA);
     const [preset, setPreset] = useState<DatePreset>("All time");
+    const [activeSection, setActiveSection] = useState<AnalyticsSection>("Overview");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [generatedAt, setGeneratedAt] = useState(new Date());
@@ -278,6 +280,18 @@ export default function Reports() {
                 : "Unable to export CSV.");
         }
     }
+    const activeBookings = useMemo(() => data.bookingStatuses
+        .filter((item) => !["Completed", "Cancelled", "Rejected"].includes(item.name))
+        .reduce((sum, item) => sum + item.value, 0), [data.bookingStatuses]);
+    const customerReturnText = advancedData.uniqueCustomers > 0
+        ? `${advancedData.repeatCustomers} returning customer${advancedData.repeatCustomers === 1 ? "" : "s"}`
+        : "No customer activity yet";
+    const sections: Array<{ label: AnalyticsSection; icon: ComponentType<{ className?: string }> }> = [
+        { label: "Overview", icon: LayoutDashboard },
+        { label: "Bookings", icon: CalendarDays },
+        { label: "Services & Workers", icon: BriefcaseBusiness },
+        { label: "Customers & Quality", icon: Users },
+    ];
     const cards: Array<{
         label: string;
         value: string;
@@ -405,8 +419,7 @@ export default function Reports() {
               Analytics
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Review system activity, booking
-              performance, ratings, and paid revenue.
+              A live operational view of bookings, revenue, service demand, worker performance, customer retention, and quality.
             </p>
             <p className="mt-2 text-xs font-medium text-slate-400">
               Last generated:{" "}
@@ -478,6 +491,17 @@ export default function Reports() {
           </p>
         </section>
 
+        <section className="print:hidden">
+          <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            {sections.map(({ label, icon: Icon }) => (
+              <button key={label} type="button" onClick={() => setActiveSection(label)} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${activeSection === label ? "bg-slate-900 text-white shadow-sm dark:bg-blue-600" : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}>
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {data.warnings.length > 0 && !error && (<section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
             <p className="font-bold">
               Some report sections could not be loaded:
@@ -495,59 +519,36 @@ export default function Reports() {
               Try again
             </button>
           </section>) : (<>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {cards.map(({ label, value, icon: Icon, href, subtitle, }) => {
-                const content = (<>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-500">
-                          {label}
-                        </p>
-                        <Icon className="h-5 w-5 text-blue-600"/>
-                      </div>
-                      <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-                        {loading ? "…" : value}
-                      </p>
-                      {subtitle && (<p className="mt-2 text-xs text-slate-500">
-                          {subtitle}
-                        </p>)}
-                    </>);
-                return href ? (<Link key={label} to={href} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">
-                      {content}
-                    </Link>) : (<article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                      {content}
-                    </article>);
-            })}
-            </section>
+            {(activeSection === "Overview" || activeSection === "Bookings") && (
+              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {cards.map(({ label, value, icon: Icon, href, subtitle, }) => {
+                  const content = (<>
+                    <div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">{label}</p><span className="rounded-xl bg-blue-50 p-2 text-blue-600 dark:bg-blue-500/10"><Icon className="h-5 w-5"/></span></div>
+                    <p className="mt-4 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{loading ? "…" : value}</p>
+                    {subtitle && <p className="mt-2 text-xs text-slate-500">{subtitle}</p>}
+                  </>);
+                  return href ? <Link key={label} to={href} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900">{content}</Link> : <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">{content}</article>;
+                })}
+              </section>
+            )}
 
-            <section className="grid gap-6 xl:grid-cols-2">
-              <MonthlyPerformanceChart data={data.monthly} loading={loading}/>
+            {activeSection === "Overview" && (
+              <section className="grid gap-4 md:grid-cols-3">
+                <article className="rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 p-5 text-white shadow-sm"><div className="flex items-center gap-2 text-sm font-semibold text-blue-100"><Activity className="h-4 w-4"/>Active workload</div><p className="mt-3 text-3xl font-black">{loading ? "…" : activeBookings.toLocaleString()}</p><p className="mt-1 text-xs text-blue-100">Bookings not yet completed, cancelled, or rejected</p></article>
+                <article className="rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 p-5 text-white shadow-sm"><div className="flex items-center gap-2 text-sm font-semibold text-emerald-100"><CheckCircle2 className="h-4 w-4"/>Service success</div><p className="mt-3 text-3xl font-black">{loading ? "…" : `${data.summary.completionRate.toFixed(1)}%`}</p><p className="mt-1 text-xs text-emerald-100">Completion rate for the selected period</p></article>
+                <article className="rounded-2xl bg-gradient-to-br from-violet-600 to-violet-700 p-5 text-white shadow-sm"><div className="flex items-center gap-2 text-sm font-semibold text-violet-100"><Repeat2 className="h-4 w-4"/>Customer retention</div><p className="mt-3 text-3xl font-black">{loading ? "…" : `${advancedData.repeatCustomerRate.toFixed(1)}%`}</p><p className="mt-1 text-xs text-violet-100">{customerReturnText}</p></article>
+              </section>
+            )}
 
-              <BookingStatusChart data={data.bookingStatuses} loading={loading} hasData={hasStatusData}/>
-            </section>
+            {(activeSection === "Overview" || activeSection === "Bookings") && <section className="grid gap-6 xl:grid-cols-2"><MonthlyPerformanceChart data={data.monthly} loading={loading}/><BookingStatusChart data={data.bookingStatuses} loading={loading} hasData={hasStatusData}/></section>}
 
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {advancedCards.map(({ label, value, subtitle, icon: Icon }) => (<article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-500">{label}</p>
-                    <Icon className="h-5 w-5 text-violet-600"/>
-                  </div>
-                  <p className="mt-3 text-2xl font-bold text-slate-900 dark:text-white">
-                    {loading ? "…" : value}
-                  </p>
-                  <p className="mt-2 text-xs text-slate-500">{subtitle}</p>
-                </article>))}
-            </section>
+            {(activeSection === "Overview" || activeSection === "Customers & Quality") && <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{advancedCards.map(({ label, value, subtitle, icon: Icon }) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">{label}</p><span className="rounded-xl bg-violet-50 p-2 text-violet-600 dark:bg-violet-500/10"><Icon className="h-5 w-5"/></span></div><p className="mt-4 text-2xl font-black text-slate-900 dark:text-white">{loading ? "…" : value}</p><p className="mt-2 text-xs text-slate-500">{subtitle}</p></article>)}</section>}
 
-            <section className="grid gap-6 xl:grid-cols-2">
-              <ServiceDemandTable data={advancedData.serviceDemand} loading={loading}/>
-              <WorkerPerformanceTable data={advancedData.workerPerformance} loading={loading}/>
-            </section>
+            {(activeSection === "Overview" || activeSection === "Services & Workers") && <section className="grid gap-6 xl:grid-cols-2"><ServiceDemandTable data={advancedData.serviceDemand} loading={loading}/><WorkerPerformanceTable data={advancedData.workerPerformance} loading={loading}/></section>}
 
-            <section className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-              <RecentBookingsTable bookings={data.recentBookings} loading={loading}/>
+            {(activeSection === "Overview" || activeSection === "Bookings") && <section className="grid gap-6 xl:grid-cols-[1.35fr_1fr]"><RecentBookingsTable bookings={data.recentBookings} loading={loading}/><TopWorkersTable workers={data.topWorkers} loading={loading}/></section>}
 
-              <TopWorkersTable workers={data.topWorkers} loading={loading}/>
-            </section>
+            {activeSection === "Customers & Quality" && <section className="grid gap-6 xl:grid-cols-2"><TopWorkersTable workers={data.topWorkers} loading={loading}/><RecentBookingsTable bookings={data.recentBookings} loading={loading}/></section>}
           </>)}
       </div>
     </AdminLayout>);

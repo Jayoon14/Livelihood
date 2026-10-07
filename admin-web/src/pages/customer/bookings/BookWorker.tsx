@@ -21,6 +21,9 @@ type WorkerService = {
     service_name: string;
     category?: string | null;
     price?: number | null;
+    scheduling_type?: "hourly" | "project";
+    pricing_type?: "hourly" | "daily" | "fixed";
+    pricing_options?: Partial<Record<"hourly" | "daily" | "fixed", number>> | null;
 };
 type WorkerData = {
     profile: WorkerProfile;
@@ -55,6 +58,7 @@ export default function BookWorker() {
     const previousServiceId = locationState?.serviceId;
     const [worker, setWorker] = useState<WorkerData | null>(null);
     const [serviceId, setServiceId] = useState("");
+    const [selectedPricingType, setSelectedPricingType] = useState<"hourly" | "daily" | "fixed" | null>(null);
     const [scheduleDate, setScheduleDate] = useState("");
     const [scheduleTime, setScheduleTime] = useState("");
     const [address, setAddress] = useState("");
@@ -207,6 +211,8 @@ export default function BookWorker() {
                     customer_id: user.id,
                     worker_id: worker.profile.id,
                     service_id: selectedService.id,
+                    agreed_pricing_type: selectedPricingType ?? selectedService.pricing_type ?? "fixed",
+                    agreed_rate: selectedService.scheduling_type === "project" && selectedService.pricing_options ? Number(selectedService.pricing_options[selectedPricingType ?? selectedService.pricing_type ?? "fixed"] ?? selectedService.price) : Number(selectedService.price),
                     booking_type: "Scheduled" as const,
                     booking_date: scheduleDate,
                     booking_time: scheduleTime,
@@ -331,6 +337,9 @@ export default function BookWorker() {
 
             <select id="service" value={serviceId} disabled={submitting || worker.services.length === 0} onChange={(event) => {
             setServiceId(event.target.value);
+            const service = worker.services.find((item) => String(item.id) === event.target.value);
+            const options = service?.pricing_options;
+            setSelectedPricingType(service?.scheduling_type === "project" && options ? (options.fixed ? "fixed" : options.daily ? "daily" : options.hourly ? "hourly" : null) : (service?.pricing_type ?? null));
             setError(null);
         }} className="w-full rounded-lg border border-slate-300 p-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100">
               <option value="">Select Service</option>
@@ -359,6 +368,14 @@ export default function BookWorker() {
                     {selectedService.price.toLocaleString()}
                   </p>)}
               </div>)}
+            {selectedService?.scheduling_type === "project" && selectedService.pricing_options && (
+              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="font-semibold text-emerald-950">Choose pricing option</p>
+                <div className="mt-2 grid gap-2">{(["fixed","daily","hourly"] as const).filter((type) => Number(selectedService.pricing_options?.[type] ?? 0) > 0).map((type) => (
+                  <label key={type} className="flex items-center justify-between rounded-lg bg-white px-3 py-2"><span><input className="mr-2" type="radio" name="pricing-option" checked={selectedPricingType === type} onChange={() => setSelectedPricingType(type)}/>{type === "fixed" ? "Fixed Price" : type === "daily" ? "Daily Rate" : "Hourly Rate"}</span><b>₱{Number(selectedService.pricing_options?.[type]).toLocaleString("en-PH")}{type === "daily" ? "/day" : type === "hourly" ? "/hour" : " total"}</b></label>
+                ))}</div>
+              </div>
+            )}
           </div>
 
           <div>

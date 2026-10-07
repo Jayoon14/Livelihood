@@ -17,11 +17,31 @@ export default function BookingFilters(props: Props) {
         onChange={(event) => props.onSearchChange(event.target.value)}
         className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
       />
-      <select value={props.statusFilter} onChange={(e) => props.onStatusChange(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
-        {['All','Pending','Approved','On Going','Waiting Customer Confirmation','Completed','Cancelled'].map((status) => <option key={status}>{status}</option>)}
+      <select
+        value={props.statusFilter}
+        onChange={(e) => props.onStatusChange(e.target.value)}
+        className="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+      >
+        {[
+          "All",
+          "Pending",
+          "Approved",
+          "On Going",
+          "Waiting Customer Confirmation",
+          "Completed",
+          "Cancelled",
+        ].map((status) => (
+          <option key={status}>{status}</option>
+        ))}
       </select>
-      <select value={props.sortBy} onChange={(e) => props.onSortChange(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
-        {['Newest','Oldest','Upcoming','Completed'].map((sort) => <option key={sort}>{sort}</option>)}
+      <select
+        value={props.sortBy}
+        onChange={(e) => props.onSortChange(e.target.value)}
+        className="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+      >
+        {["Newest", "Oldest", "Upcoming", "Completed"].map((sort) => (
+          <option key={sort}>{sort}</option>
+        ))}
       </select>
     </div>
   );

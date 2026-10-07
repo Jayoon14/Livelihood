@@ -540,6 +540,21 @@ textarea {
 
 
 
+
+/* Prevent sticky/fixed portal chrome from creating a horizontal page offset. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: clip;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
 /* =========================================================
    GLOBAL MOBILE RESPONSIVENESS SAFETY
    ========================================================= */

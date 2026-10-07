@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Download, RefreshCw, Search } from "lucide-react";
@@ -19,6 +20,9 @@ import {
   getActivityLogUserOptions,
   getActivityProfileName,
   getActivityUserName,
+  getActivityDisplayAction,
+  getActivityDisplayCrud,
+  isHistoricalActivity,
   type ActivityLogSummary,
   type ActivityLogWithUser,
   type ActivityUser,
@@ -113,6 +117,7 @@ export default function ActivityLogs() {
   const [userFilter, setUserFilter] = useState("All");
   const [crudFilter, setCrudFilter] = useState("All");
   const [outcomeFilter, setOutcomeFilter] = useState("All");
+  const [sourceFilter, setSourceFilter] = useState<"actual" | "historical" | "errors" | "all">("actual");
 
   const [preset, setPreset] = useState<DatePreset>("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -128,8 +133,16 @@ export default function ActivityLogs() {
   const [error, setError] = useState("");
   const [metadataError, setMetadataError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const silentRefreshRef = useRef(false);
 
   const refresh = useCallback(() => {
+    setRefreshKey((current) => current + 1);
+  }, []);
+
+  const refreshSilently = useCallback(() => {
+    // Realtime inserts should update the visible data without showing the
+    // page-level loading state or making the table appear to reload.
+    silentRefreshRef.current = true;
     setRefreshKey((current) => current + 1);
   }, []);
 
@@ -153,6 +166,7 @@ export default function ActivityLogs() {
       search: searchApplied || undefined,
       crud: crudFilter === "All" ? undefined : crudFilter,
       outcome: outcomeFilter === "All" ? undefined : outcomeFilter,
+      sourceType: sourceFilter,
       module: moduleFilter === "All" ? undefined : moduleFilter,
       action: actionFilter === "All" ? undefined : actionFilter,
       role: roleFilter === "All" ? undefined : roleFilter,
@@ -164,6 +178,7 @@ export default function ActivityLogs() {
       searchApplied,
       crudFilter,
       outcomeFilter,
+      sourceFilter,
       moduleFilter,
       actionFilter,
       roleFilter,
@@ -187,7 +202,10 @@ export default function ActivityLogs() {
         return;
       }
 
-      setLoading(true);
+      const silentRefresh = silentRefreshRef.current;
+      silentRefreshRef.current = false;
+
+      if (!silentRefresh) setLoading(true);
       setError("");
 
       void getActivityLogPage({
@@ -209,9 +227,15 @@ export default function ActivityLogs() {
           setTotalPages(result.totalPages);
         })
         .catch((caught: unknown) => {
-          if (active) setError(getError(caught));
+          if (!active) return;
+          setError(getError(caught));
+          // Never leave stale rows looking like a successful load after a failed request.
+          // Realtime refreshes stay visually silent, but the error is still surfaced.
+          if (!silentRefresh) setLogs([]);
         })
         .finally(() => {
+          // Always release the initial/manual loading state. A failed Supabase request
+          // must not leave the table permanently stuck on “Loading activity logs…”.
           if (active) setLoading(false);
         });
     }, 0);
@@ -225,29 +249,44 @@ export default function ActivityLogs() {
   useEffect(() => {
     let active = true;
 
-    const timer = window.setTimeout(() => {
-      void Promise.allSettled([
-        getActivityLogFilterOptions(),
-        getActivityLogSummary(),
-        getActivityLogUserOptions(),
-      ]).then(([options, counts, profiles]) => {
-        if (!active) return;
-        const failures: string[] = [];
-        if (options.status === "fulfilled") {
-          setModules(options.value.modules);
-          setActions(options.value.actions);
-        } else failures.push("Module/action filters: " + getError(options.reason));
-        if (counts.status === "fulfilled") setSummary(counts.value);
-        else failures.push("Summary: " + getError(counts.reason));
-        if (profiles.status === "fulfilled") setUsers(profiles.value);
-        else failures.push("User filters: " + getError(profiles.reason));
-        setMetadataError(failures.join(" • "));
-      });
-    }, 0);
+    // Filter metadata is stable during a session. Load it once instead of reloading
+    // profiles and scanning metadata after every realtime activity insert.
+    void Promise.allSettled([
+      getActivityLogFilterOptions(),
+      getActivityLogUserOptions(),
+    ]).then(([options, profiles]) => {
+      if (!active) return;
+      const failures: string[] = [];
+      if (options.status === "fulfilled") {
+        setModules(options.value.modules);
+        setActions(options.value.actions);
+      } else failures.push("Module/action filters: " + getError(options.reason));
+      if (profiles.status === "fulfilled") setUsers(profiles.value);
+      else failures.push("User filters: " + getError(profiles.reason));
+      setMetadataError(failures.join(" • "));
+    });
 
     return () => {
       active = false;
-      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    // Summary counts are cheap and may refresh with new activity.
+    void getActivityLogSummary()
+      .then((counts) => {
+        if (active) setSummary(counts);
+      })
+      .catch((caught: unknown) => {
+        if (active) setMetadataError((current) =>
+          [current, "Summary: " + getError(caught)].filter(Boolean).join(" • "),
+        );
+      });
+
+    return () => {
+      active = false;
     };
   }, [refreshKey]);
 
@@ -265,7 +304,7 @@ export default function ActivityLogs() {
         },
         () => {
           window.clearTimeout(timer);
-          timer = window.setTimeout(refresh, 500);
+          timer = window.setTimeout(refreshSilently, 500);
         },
       )
       .subscribe();
@@ -274,7 +313,7 @@ export default function ActivityLogs() {
       window.clearTimeout(timer);
       void supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [refreshSilently]);
 
   async function exportCsv() {
     setExporting(true);
@@ -327,6 +366,7 @@ export default function ActivityLogs() {
     setUserFilter("All");
     setCrudFilter("All");
     setOutcomeFilter("All");
+    setSourceFilter("actual");
     setPreset("all");
     setDateFrom("");
     setDateTo("");
@@ -355,7 +395,7 @@ export default function ActivityLogs() {
               Activity Logs
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Review recorded activities. Times use Philippine time.
+              Review verified recorded activities separately from imported historical snapshots. Times use Philippine time.
             </p>
           </div>
 
@@ -413,6 +453,11 @@ export default function ActivityLogs() {
             Filters or summary could not be refreshed: {metadataError}
           </p>
         )}
+
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-200">
+          <p className="font-semibold">Recorded activity vs. historical snapshots</p>
+          <p className="mt-1">Recorded activity contains verified user/business events. System Errors shows technical failures separately. Historical snapshots are older existing database records imported for reference only; they do not prove the original action or actor.</p>
+        </div>
 
         <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="grid gap-3 lg:grid-cols-3">
@@ -492,7 +537,7 @@ export default function ActivityLogs() {
               }}
               className={INPUT}
             >
-              <option value="All">All users</option>
+              <option value="All">All users in selected role</option>
               {filteredUsers
                 .filter((user) => Boolean(user.id))
                 .map((user) => (
@@ -504,7 +549,13 @@ export default function ActivityLogs() {
             </select>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <select aria-label="Activity source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value as "actual" | "historical" | "errors" | "all"); resetPage(); }} className={INPUT}>
+              <option value="actual">Recorded activities only</option>
+              <option value="historical">Historical snapshots only</option>
+              <option value="errors">System errors only</option>
+              <option value="all">All records</option>
+            </select>
             <select aria-label="CRUD operation" value={crudFilter} onChange={(event) => { setCrudFilter(event.target.value); resetPage(); }} className={INPUT}>
               <option value="All">All CRUD operations</option>
               {["CREATE", "READ", "UPDATE", "DELETE", "OTHER"].map(value => <option key={value} value={value}>{value}</option>)}
@@ -643,8 +694,8 @@ export default function ActivityLogs() {
                 <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-slate-800">
                   <tr>
                     {[
-                      "User",
-                      "Role at event",
+                      "Actor / Linked account",
+                      "Role",
                       "Module",
                       "CRUD",
                       "Action",
@@ -685,6 +736,7 @@ export default function ActivityLogs() {
                           <p className="font-semibold">
                             {getActivityUserName(log)}
                           </p>
+                          {isHistoricalActivity(log) && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Linked account — original actor unverified</p>}
                           <p className="mt-1 break-all text-xs text-slate-500">
                             {log.actor_email || log.user?.email || log.user_id || "—"}
                           </p>
@@ -696,10 +748,10 @@ export default function ActivityLogs() {
 
                         <td className="px-4 py-4">{log.module}</td>
 
-                        <td className="px-4 py-4 font-semibold">{log.crud_operation || "OTHER"}</td>
+                        <td className="px-4 py-4 font-semibold">{getActivityDisplayCrud(log)}</td>
                         <td className="px-4 py-4">
                           <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
-                            {log.action}{log.outcome === "FAILED" ? " · FAILED" : ""}
+                            {getActivityDisplayAction(log)}{!isHistoricalActivity(log) && log.outcome === "FAILED" ? " · FAILED" : ""}
                           </span>
                         </td>
 
@@ -711,7 +763,7 @@ export default function ActivityLogs() {
                           {log.process_name && <p className="mb-1 font-semibold">{log.process_name}</p>}
                           {log.description || "No description"}
                           {log.record_id && <p className="mt-1 text-xs text-slate-500">Record: {log.record_id}</p>}
-                          <p className="mt-1 text-xs text-slate-400">{log.source || "LEGACY"} · {log.outcome || "SUCCESS"}</p>
+                          <p className="mt-1 text-xs text-slate-400">{isHistoricalActivity(log) ? "Reference snapshot only — not a reconstructed user action" : `${log.source || "LEGACY"} · ${log.outcome || "SUCCESS"}`}</p>
                         </td>
 
                         <td className="whitespace-nowrap px-4 py-4">

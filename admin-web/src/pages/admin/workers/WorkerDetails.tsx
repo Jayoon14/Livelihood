@@ -68,10 +68,9 @@ function documentItems(documents: WorkerDocumentRecord | null): DocumentItem[] {
         return typeof value === "string" ? [{ title, url: value }] : [];
     });
 }
-export default function WorkerDetails() {
-    const { id } = useParams<{
-        id: string;
-    }>();
+export default function WorkerDetails({ workerId, embedded = false }: { workerId?: string; embedded?: boolean } = {}) {
+    const { id: routeId } = useParams<{ id: string }>();
+    const id = workerId ?? routeId;
     const [details, setDetails] = useState<CompleteWorkerProfile | null>(null);
     const [bookings, setBookings] = useState<WorkerBookingSummary[]>([]);
     const [reviews, setReviews] = useState<WorkerReviewSummary[]>([]);
@@ -293,30 +292,12 @@ export default function WorkerDetails() {
             setProcessing(false);
         }
     }
-    if (loading)
-        return (<AdminLayout>
-        <div className="p-5 sm:p-8 lg:p-12 text-center text-slate-500">
-          Loading worker details...
-        </div>
-      </AdminLayout>);
-    if (error || !details || !worker)
-        return (<AdminLayout>
-        <div className="p-4 sm:p-6 lg:p-8">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center text-red-700">
-            <p>{error || "Worker was not found."}</p>
-            <button onClick={() => void loadWorker()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white">
-              Try again
-            </button>
-          </div>
-        </div>
-      </AdminLayout>);
+    if (loading) { const content = (<div className="p-5 sm:p-8 lg:p-12 text-center text-slate-500">Loading worker details...</div>); return embedded ? content : <AdminLayout>{content}</AdminLayout>; }
+    if (error || !details || !worker) { const content = (<div className="p-4 sm:p-6 lg:p-8"><div className="rounded-xl border border-red-200 bg-red-50 p-4 sm:p-6 lg:p-8 text-center text-red-700"><p>{error || "Worker was not found."}</p><button onClick={() => void loadWorker()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white">Try again</button></div></div>); return embedded ? content : <AdminLayout>{content}</AdminLayout>; }
     const education = details.education as Record<string, unknown> | null;
-    return (<AdminLayout>
-      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+    const content = (<><div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link to="/workers" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-600 dark:text-slate-300">
-            <ArrowLeft className="h-4 w-4"/> Back to workers
-          </Link>
+          {!embedded && (<Link to="/workers" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-600 dark:text-slate-300"><ArrowLeft className="h-4 w-4"/> Back to workers</Link>)}
           <button disabled={refreshing} onClick={() => void loadWorker(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 font-semibold dark:border-slate-700">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>{" "}
             Refresh
@@ -563,9 +544,9 @@ export default function WorkerDetails() {
           </Section>)}
       </div>
 
-      {preview && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true">
-          <div className="flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-700">
+      {preview && (<div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/85 p-3 sm:p-5 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl dark:bg-slate-900 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4 sm:px-6 dark:border-slate-700 dark:bg-slate-900">
               <div>
                 <h2 className="font-bold">{preview.title}</h2>
                 <p className="text-xs text-slate-500">
@@ -576,13 +557,13 @@ export default function WorkerDetails() {
                 <X className="h-6 w-6"/>
               </button>
             </div>
-            <div className="flex h-[70vh] items-center justify-center overflow-auto bg-slate-100 dark:bg-slate-950">
+            <div className="min-h-0 flex flex-1 items-center justify-center overflow-auto bg-slate-100 p-3 dark:bg-slate-950">
               {preview.url.toLowerCase().split("?")[0].endsWith(".pdf") ? (<iframe src={preview.url} title={preview.title} className="h-full w-full"/>) : (<img src={preview.url} alt={preview.title} className="max-h-full max-w-full object-contain" style={{
                     transform: `scale(${zoom}) rotate(${rotation}deg)`,
                     transition: "transform .2s",
                 }}/>)}
             </div>
-            <div className="flex flex-wrap justify-center gap-2 border-t p-4 dark:border-slate-700">
+            <div className="flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white p-3 sm:p-4 dark:border-slate-700 dark:bg-slate-900">
               <Control disabled={previewIndex === 0} onClick={() => setPreviewIndex((value) => value === null ? null : Math.max(0, value - 1))} icon={<ChevronLeft className="h-4 w-4"/>} text="Previous"/>
               <Control disabled={previewIndex === documents.length - 1} onClick={() => setPreviewIndex((value) => value === null
                 ? null
@@ -592,13 +573,14 @@ export default function WorkerDetails() {
                   <Control onClick={() => setZoom((v) => Math.max(0.5, v - 0.2))} icon={<ZoomOut className="h-4 w-4"/>} text="Zoom -"/>
                   <Control onClick={() => setRotation((v) => v + 90)} icon={<RotateCw className="h-4 w-4"/>} text="Rotate"/>
                 </>)}
-              <a href={preview.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
-                Open original
+              <a href={preview.url} download className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                Download document
               </a>
             </div>
           </div>
         </div>)}
-    </AdminLayout>);
+      </>);
+    return embedded ? content : <AdminLayout>{content}</AdminLayout>;
 }
 function Section({ title, children }: {
     title: string;

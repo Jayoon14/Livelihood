@@ -68,7 +68,7 @@ export default function CustomerSidebar({
         type="button"
         aria-label="Close sidebar backdrop"
         onClick={onClose}
-        className={`fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${
+        className={`fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${
           isOpen
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
@@ -79,7 +79,7 @@ export default function CustomerSidebar({
       <aside
         aria-label="Customer navigation"
         className={`
-          fixed inset-y-0 left-0 z-50
+          fixed inset-y-0 left-0 z-60
           flex h-dvh w-[min(86vw,18rem)] flex-col
           overflow-hidden border-r border-white/10
           text-white shadow-2xl

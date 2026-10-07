@@ -231,6 +231,14 @@ function ProfileContent() {
                     return;
                 }
             }
+            const phone = draft.phone.trim();
+            if (phone && !/^09\d{9}$/.test(phone)) {
+                __activityProcessScope.failAndNotify(toast.error, "Enter a valid 11-digit Philippine mobile number starting with 09.");
+                {
+                    __activityProcessScope.skipped();
+                    return;
+                }
+            }
             const firstName = draft.first_name.trim();
             const lastName = draft.last_name.trim();
             if (!firstName || !lastName) {
@@ -245,7 +253,7 @@ function ProfileContent() {
                 middle_name: draft.middle_name.trim() || null,
                 last_name: lastName,
                 suffix: draft.suffix.trim() || null,
-                phone: draft.phone.trim() || null,
+                phone: phone || null,
                 address: draft.address.trim() || null,
             };
             try {
@@ -479,7 +487,7 @@ function ProfileContent() {
 
               <ProfileField label="Email Address" value={profile.email ?? ""} disabled icon={Mail} helperText="Email changes require account verification."/>
 
-              <ProfileField label="Phone Number" value={draft.phone} disabled={!editing} icon={Phone} placeholder="+63 9XX XXX XXXX" onChange={(value) => updateDraft("phone", value)}/>
+              <ProfileField label="Phone Number" value={draft.phone} disabled={!editing} icon={Phone} placeholder="09XXXXXXXXX" helperText="11 digits only, starting with 09." onChange={(value) => updateDraft("phone", value.replace(/\D/g, "").slice(0, 11))}/>
 
               <div className="sm:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">

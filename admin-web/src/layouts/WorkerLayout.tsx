@@ -113,6 +113,9 @@ export default function WorkerLayout({ children }: WorkerLayoutProps) {
         <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
           <WorkerNavbar onMenuClick={openSidebar} />
 
+          {/* Space reserved for the fixed header so page content never slides underneath it. */}
+          <div aria-hidden="true" className="h-16 shrink-0 sm:h-20" />
+
           <main className="min-w-0 flex-1 overflow-x-hidden">
             <div className="mx-auto w-full max-w-[1800px] px-3 py-4 sm:px-5 sm:py-6 lg:px-7 lg:py-8 xl:px-8">
               {children}

@@ -1,12 +1,13 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
-import { Check, ChevronLeft, ChevronRight, Download, Eye, FileText, RefreshCw, Search, X, } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Eye, FileText, RefreshCw, Search, X, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode, } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { confirmAction } from "../../../components/ui/confirmAction";
 import AdminLayout from "../../../layouts/AdminLayout";
 import { supabase } from "../../../lib/supabase";
-import { approveService, getAdminServices, rejectService, SERVICE_STATUS, type AdminService, type ServiceStatus, } from "../../../services/serviceService";
+import { getAdminServices, SERVICE_STATUS, type AdminService, type ServiceStatus, } from "../../../services/serviceService";
+import { getAdminSlotRequests, reviewServiceSlotRequest, type ServiceSlotRequest } from "../../../services/serviceSlotRequestService";
 const PAGE_SIZE = 10;
 type StatusFilter = "All" | ServiceStatus;
 type SortOption = "Newest" | "Oldest" | "Service A-Z" | "Category A-Z" | "Worker A-Z" | "Highest Price" | "Lowest Price";
@@ -38,6 +39,8 @@ function csvEscape(value: unknown): string {
 }
 export default function Services() {
     const [services, setServices] = useState<AdminService[]>([]);
+    const [slotRequests, setSlotRequests] = useState<ServiceSlotRequest[]>([]);
+    const [slotProcessingId, setSlotProcessingId] = useState<number | null>(null);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
     const [sortOption, setSortOption] = useState<SortOption>("Newest");
@@ -45,7 +48,6 @@ export default function Services() {
     const [selectedService, setSelectedService] = useState<AdminService | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [processingId, setProcessingId] = useState<number | null>(null);
     const [error, setError] = useState("");
     const loadServices = useCallback(async (background = false) => {
         if (background) {
@@ -56,7 +58,9 @@ export default function Services() {
         }
         setError("");
         try {
-            setServices(await getAdminServices());
+            const [serviceRows, requestRows] = await Promise.all([getAdminServices(), getAdminSlotRequests()]);
+            setServices(serviceRows);
+            setSlotRequests(requestRows);
         }
         catch (caught) {
             auditCaughtError({ module: "Services", process: "background operation", action: "EXECUTE" }, caught);
@@ -190,38 +194,15 @@ export default function Services() {
     const totalPages = Math.max(1, Math.ceil(filteredServices.length / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
     const paginatedServices = filteredServices.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-    async function changeStatus(service: AdminService, nextStatus: "Approved" | "Rejected") {
-        const action = nextStatus === "Approved" ? "approve" : "reject";
-        const confirmed = await confirmAction(`Are you sure you want to ${action} "${service.service_name}" by ${service.worker_name}?`, {
-            title: nextStatus === "Approved"
-                ? "Approve service"
-                : "Reject service",
-            confirmText: nextStatus === "Approved"
-                ? "Approve"
-                : "Reject",
-        });
-        if (!confirmed) {
-            return;
-        }
-        setProcessingId(service.id);
-        const toastId = toast.loading(`${nextStatus === "Approved" ? "Approving" : "Rejecting"} service...`);
-        try {
-            const updated = nextStatus === "Approved"
-                ? await approveService(service.id)
-                : await rejectService(service.id);
-            setServices((current) => current.map((item) => item.id === updated.id ? updated : item));
-            setSelectedService((current) => current?.id === updated.id ? updated : current);
-            toast.success(`Service ${nextStatus.toLowerCase()} successfully.`, { id: toastId });
-        }
-        catch (caught) {
-            auditCaughtError({ module: "Services", process: "changeStatus", action: "EXECUTE" }, caught);
-            auditUiError({ module: "Services", process: "changeStatus", action: "EXECUTE" }, toast.error, caught instanceof Error
-                ? caught.message
-                : `Unable to ${action} service.`, { id: toastId });
-        }
-        finally {
-            setProcessingId(null);
-        }
+    async function reviewSlot(request: ServiceSlotRequest, approve: boolean) {
+        let note = "";
+        if (!approve) { note = window.prompt("Reason for rejecting this service slot request:")?.trim() ?? ""; if (!note) return; }
+        const confirmed = await confirmAction(`${approve ? "Approve" : "Reject"} ${request.worker_name ?? "this worker"}'s request to increase the service limit to ${request.requested_limit}?`, { title: approve ? "Approve additional slot" : "Reject additional slot", confirmText: approve ? "Approve" : "Reject" });
+        if (!confirmed) return;
+        setSlotProcessingId(request.id);
+        try { const updated = await reviewServiceSlotRequest(request, approve, note); setSlotRequests((rows)=>rows.map((r)=>r.id===request.id ? {...r,...updated} : r)); toast.success(approve ? "Additional service slot approved." : "Service slot request rejected."); }
+        catch (error) { toast.error(error instanceof Error ? error.message : "Unable to review request."); }
+        finally { setSlotProcessingId(null); }
     }
     function exportCsv() {
         if (filteredServices.length === 0) {
@@ -313,6 +294,11 @@ export default function Services() {
           <SummaryCard title="Workers" value={summary.workers}/>
         </section>
 
+        {slotRequests.some((request) => request.status === "Pending") && (<section className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm dark:border-blue-900/50 dark:bg-blue-950/20 print:hidden">
+          <div className="mb-3"><h2 className="font-black text-slate-900 dark:text-white">Additional Service Slot Requests</h2><p className="text-sm text-slate-600 dark:text-slate-300">Workers normally have 5 service slots. Review requests for an additional slot here.</p></div>
+          <div className="grid gap-3">{slotRequests.filter((request)=>request.status === "Pending").map((request)=><article key={request.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="font-black text-slate-900 dark:text-white">{request.worker_name}</p><p className="text-xs text-slate-500">{request.worker_email}</p><p className="mt-2 text-sm text-slate-700 dark:text-slate-200"><b>{request.current_limit}/{request.current_limit}</b> current slots → requesting <b>{request.requested_limit}</b></p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Reason: {request.reason}</p></div><div className="flex gap-2"><button disabled={slotProcessingId===request.id} onClick={()=>void reviewSlot(request,false)} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 disabled:opacity-50">Reject</button><button disabled={slotProcessingId===request.id} onClick={()=>void reviewSlot(request,true)} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">Approve</button></div></div></article>)}</div>
+        </section>)}
+
         <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_190px_190px_auto] dark:border-slate-700 dark:bg-slate-900 print:hidden">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/>
@@ -368,7 +354,6 @@ export default function Services() {
 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {paginatedServices.map((service) => {
-                const processing = processingId === service.id;
                 return (<tr key={service.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                         <td className="px-4 py-4">
                           <Link to={`/workers/${service.worker_id}`} className="font-semibold text-slate-900 hover:text-blue-600 hover:underline dark:text-white">
@@ -412,19 +397,6 @@ export default function Services() {
                               View
                             </button>
 
-                            <button type="button" onClick={() => void changeStatus(service, "Approved")} disabled={processing ||
-                        service.status ===
-                            SERVICE_STATUS.APPROVED} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">
-                              <Check className="h-4 w-4"/>
-                              Approve
-                            </button>
-
-                            <button type="button" onClick={() => void changeStatus(service, "Rejected")} disabled={processing ||
-                        service.status ===
-                            SERVICE_STATUS.REJECTED} className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-40">
-                              <X className="h-4 w-4"/>
-                              Reject
-                            </button>
                           </div>
                         </td>
                       </tr>);
@@ -458,7 +430,7 @@ export default function Services() {
           </section>)}
       </div>
 
-      {selectedService && (<ServiceModal service={selectedService} processing={processingId === selectedService.id} onClose={() => setSelectedService(null)} onApprove={() => void changeStatus(selectedService, "Approved")} onReject={() => void changeStatus(selectedService, "Rejected")}/>)}
+      {selectedService && (<ServiceModal service={selectedService} onClose={() => setSelectedService(null)}/>)}
     </AdminLayout>);
 }
 function SummaryCard({ title, value, }: {
@@ -494,12 +466,9 @@ function Detail({ label, value, }: {
       </div>
     </div>);
 }
-function ServiceModal({ service, processing, onClose, onApprove, onReject, }: {
+function ServiceModal({ service, onClose, }: {
     service: AdminService;
-    processing: boolean;
     onClose: () => void;
-    onApprove: () => void;
-    onReject: () => void;
 }) {
     return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="service-modal-title" onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -545,17 +514,6 @@ function ServiceModal({ service, processing, onClose, onApprove, onReject, }: {
             Close
           </button>
 
-          <button type="button" onClick={onReject} disabled={processing ||
-            service.status === SERVICE_STATUS.REJECTED} className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40">
-            <X className="h-4 w-4"/>
-            Reject
-          </button>
-
-          <button type="button" onClick={onApprove} disabled={processing ||
-            service.status === SERVICE_STATUS.APPROVED} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">
-            <Check className="h-4 w-4"/>
-            Approve
-          </button>
         </footer>
       </section>
     </div>);

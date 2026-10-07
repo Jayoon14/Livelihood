@@ -1,5 +1,5 @@
 import { auditUiError, auditCaughtError } from "../../../lib/processAudit";
-import { AlertCircle, Banknote, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Copy, CreditCard, Eye, Landmark, LoaderCircle, MapPin, RefreshCw, RotateCcw, Search, UserRound, Wallet, X, XCircle, ZoomIn, ZoomOut, } from "lucide-react";
+import { AlertCircle, Banknote, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock3, Copy, CreditCard, Eye, Landmark, LoaderCircle, MapPin, RefreshCw, RotateCcw, Search, UserRound, Wallet, X, XCircle, ZoomIn, ZoomOut, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { confirmAction } from "../../../components/ui/confirmAction";
@@ -590,6 +590,7 @@ function PaymentCard({ payment, processing, onApprove, onReject, onOpenProof, on
     const customerName = getCustomerName(payment);
     const booking = payment.payment?.booking;
     const isPending = payment.transaction_status === "Pending";
+    const [detailsOpen, setDetailsOpen] = useState(false);
     return (<article className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] sm:p-6 dark:border-slate-700 dark:bg-slate-900">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
@@ -613,7 +614,26 @@ function PaymentCard({ payment, processing, onApprove, onReject, onOpenProof, on
         </span>
       </header>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1.2fr_1fr]">
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:hidden dark:border-slate-700 dark:bg-slate-800/50">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Payment</p>
+          <p className="mt-0.5 truncate text-sm font-black text-slate-900 dark:text-white">
+            {formatCurrency(payment.amount)} · {payment.payment_method || "Not provided"}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((current) => !current)}
+          aria-expanded={detailsOpen}
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          {detailsOpen ? "Hide Details" : "Show Details"}
+          {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <div className={`${detailsOpen ? "grid" : "hidden"} mt-4 gap-4 sm:grid sm:mt-5 xl:grid-cols-[1fr_1.2fr_1fr]`}>
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:p-5">
           <InfoRow icon={<Wallet className="h-4 w-4"/>} label="Amount" value={formatCurrency(payment.amount)}/>
 

@@ -325,6 +325,10 @@ export default function CustomerRegister() {
             toast.warning("Please complete required fields.");
             return false;
         }
+        if (!/^09\d{9}$/.test(phone)) {
+            toast.warning("Enter a valid 11-digit Philippine mobile number starting with 09.");
+            return false;
+        }
         if (isDisposableEmail(email)) {
             toast.warning("Temporary or disposable email addresses are not allowed. Please use your personal email.");
             return false;
@@ -902,7 +906,7 @@ export default function CustomerRegister() {
                   <div className={`${inputWrap} mt-2`}>
                     <Phone className="h-4.5 w-4.5 shrink-0 text-slate-400"/>
 
-                    <input type="text" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="09XX XXX XXXX" className={inputBase}/>
+                    <input type="tel" inputMode="numeric" autoComplete="tel" maxLength={11} value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="09XXXXXXXXX" className={inputBase}/>
                   </div>
                 </div>
               </div>

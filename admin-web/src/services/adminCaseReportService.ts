@@ -164,12 +164,14 @@ export async function updateAdminCase(input: {
         const before = await supabase.from("reports").select("reporter_id, reported_user_id, booking_id, status").eq("id", input.reportId).single();
         if (before.error)
             throw before.error;
+        const terminal = input.status === "resolved" || input.status === "rejected" || input.status === "closed";
         const { error } = await supabase.from("reports").update({
             status: input.status,
             priority: input.priority,
             admin_notes: input.adminNotes?.trim() || null,
             resolution: input.resolution?.trim() || null,
             assigned_admin_id: adminId,
+            resolved_at: terminal ? new Date().toISOString() : null,
         }).eq("id", input.reportId);
         if (error)
             throw error;
@@ -182,8 +184,10 @@ export async function updateAdminCase(input: {
             note: input.resolution?.trim() || input.adminNotes?.trim() || "Administrator updated the case.",
             is_public: true,
         });
-        const title = input.status === "resolved" ? "Case Resolved" : input.status === "rejected" ? "Case Decision" : "Case Status Updated";
-        const message = input.resolution?.trim() || `Your report is now ${input.status.replaceAll("_", " ")}.`;
+        const title = input.status === "resolved" ? "Case Resolved" : input.status === "rejected" ? "Case Decision" : input.status === "needs_more_information" ? "Additional Information Required" : "Case Status Updated";
+        const message = input.status === "needs_more_information"
+            ? `Case #${input.reportId}: ${input.resolution?.trim() || "The administrator requested additional information or evidence."}`
+            : input.resolution?.trim() || `Your report is now ${input.status.replaceAll("_", " ")}.`;
         await Promise.allSettled([
             createNotification(before.data.reporter_id, before.data.booking_id, title, message),
             createNotification(before.data.reported_user_id, before.data.booking_id, "Report Review Update", `A case involving your account is now ${input.status.replaceAll("_", " ")}.`),
@@ -191,6 +195,22 @@ export async function updateAdminCase(input: {
         ]);
     });
 }
+
+export async function requestCaseInformation(reportId: string, requestMessage: string, priority: ReportPriority, adminNotes?: string): Promise<void> {
+    const request = requestMessage.trim();
+    if (request.length < 10) throw new Error("Tell the reporter what additional information or evidence is needed.");
+    await updateAdminCase({
+        reportId, status: "needs_more_information", priority, adminNotes,
+        resolution: request,
+    });
+}
+
+export async function decideAdminCase(input: { reportId: string; decision: "resolved" | "rejected"; explanation: string; priority: ReportPriority; adminNotes?: string }): Promise<void> {
+    const explanation = input.explanation.trim();
+    if (explanation.length < 10) throw new Error(input.decision === "resolved" ? "Provide a clear public resolution before resolving the case." : "Provide a clear rejection reason before rejecting the case.");
+    await updateAdminCase({ reportId: input.reportId, status: input.decision, priority: input.priority, adminNotes: input.adminNotes, resolution: explanation });
+}
+
 export async function issueCaseWarning(reportId: string, userId: string, bookingId: number, message: string): Promise<void> {
     return await runAuditedProcess({ module: "Reports", process: "issueCaseWarning", action: "READ", parameters: { reportId, userId, bookingId, message } }, async () => {
         const adminId = await getCurrentAdminId();

@@ -22,7 +22,7 @@ export default function AdminLayout({
   }, [sidebarOpen]);
 
   return (
-    <div className="admin-responsive flex min-h-dvh min-w-0 bg-(--app-bg) text-(--app-text)">
+    <div className="admin-responsive flex min-h-dvh w-full max-w-full min-w-0 overflow-x-clip bg-(--app-bg) text-(--app-text)">
       <AdminSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -37,7 +37,7 @@ export default function AdminLayout({
         />
       )}
 
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+      <div className="flex min-h-dvh min-w-0 max-w-full flex-1 flex-col overflow-x-clip">
         <AdminNavbar onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="min-w-0 flex-1 overflow-x-hidden">

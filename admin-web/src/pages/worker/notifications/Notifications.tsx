@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { confirmAction } from "../../../components/ui/confirmAction";
 import { getNotificationRoute } from "../../../components/notifications/notificationRouting";
+import AdditionalInfoResponseModal from "../../../components/reports/AdditionalInfoResponseModal";
+import { getCaseIdFromInformationRequest } from "../../../components/reports/informationRequestUtils";
 import WorkerLayout from "../../../layouts/WorkerLayout";
 import { supabase } from "../../../lib/supabase";
 import { deleteMyNotification, deleteMyReadNotifications, getCurrentNotificationUserId, getMyNotifications, getMyReadCount, getMyUnreadCount, markAllMyNotificationsAsRead, markMyNotificationAsRead, type Notification, } from "../../../services/notificationService";
@@ -163,6 +165,7 @@ export default function Notifications() {
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [informationCaseId, setInformationCaseId] = useState<string | null>(null);
     const [total, setTotal] = useState(0);
     const [globalUnreadCount, setGlobalUnreadCount] = useState(0);
     const [globalReadCount, setGlobalReadCount] = useState(0);
@@ -493,10 +496,10 @@ export default function Notifications() {
         if (!item.is_read) {
             await handleRead(item.id);
         }
+        const caseId = getCaseIdFromInformationRequest(item.title, item.message);
+        if (caseId) { setInformationCaseId(caseId); return; }
         const route = getNotificationRoute(item, "worker");
-        if (route) {
-            navigate(route);
-        }
+        if (route) { navigate(route); }
     }, [handleRead, navigate]);
     const handleRefresh = useCallback(async (): Promise<void> => {
         if (refreshing) {
@@ -517,6 +520,7 @@ export default function Notifications() {
         });
     }, [hasMore, loadNotifications, loadingMore, page]);
     return (<WorkerLayout>
+      {informationCaseId && <AdditionalInfoResponseModal caseId={informationCaseId} onClose={() => setInformationCaseId(null)} onSubmitted={() => loadNotifications({ requestedPage: 1 })} />}
       <main className="relative min-h-screen overflow-hidden bg-slate-50 p-3 sm:p-5 lg:p-8 dark:bg-slate-950">
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 opacity-[0.035] dark:opacity-[0.018]" style={{
             backgroundImage: "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",

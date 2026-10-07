@@ -1,6 +1,6 @@
 import { runAuditedProcess, auditCaughtError } from "../../../lib/processAudit";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Banknote, Building2, CalendarDays, Check, CheckCircle2, Clock3, Copy, CreditCard, FileImage, Loader2, MapPin, PhilippinePeso, ReceiptText, ShieldCheck, Smartphone, Star, UploadCloud, WalletCards, X, } from "lucide-react";
 import CustomerLayout from "../../../layouts/CustomerLayout";
 import { supabase } from "../../../lib/supabase";
@@ -70,6 +70,8 @@ const paymentMethods: Array<{
 export default function Payment() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const requestedAmount = Number(searchParams.get("amount") || 0);
     const [method, setMethod] = useState<PaymentMethod>("Cash");
     const [pageLoading, setPageLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -112,7 +114,7 @@ export default function Payment() {
                 const currentSummary = await getPaymentTransactionSummary(Number(currentPayment.id));
                 setSummary(currentSummary);
                 const available = currentSummary.remainingBalance - currentSummary.pendingAmount;
-                setPaidAmount(Math.max(available, 0));
+                setPaidAmount(requestedAmount > 0 ? Math.min(requestedAmount, Math.max(available, 0)) : Math.max(available, 0));
             }
             else {
                 const totalAmount = Number(bookingData.price ?? 0);
@@ -123,7 +125,7 @@ export default function Payment() {
                     remainingBalance: totalAmount,
                     isFullyPaid: false,
                 });
-                setPaidAmount(totalAmount);
+                setPaidAmount(requestedAmount > 0 ? Math.min(requestedAmount, totalAmount) : totalAmount);
             }
         }
         catch (error) {
@@ -136,7 +138,7 @@ export default function Payment() {
         finally {
             setPageLoading(false);
         }
-    }, [id]);
+    }, [id, requestedAmount]);
     useEffect(() => {
         const timer = window.setTimeout(() => {
             void loadData();

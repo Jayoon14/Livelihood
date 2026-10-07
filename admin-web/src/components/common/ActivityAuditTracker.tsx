@@ -6,6 +6,22 @@ import { useAuth } from "../../context/AuthContextValue";
 import { supabase } from "../../lib/supabase";
 import { reportAuditFailure, sendAudit } from "../../lib/activityAudit";
 
+function moduleFromPath(pathname: string): string {
+  const parts = pathname.split("/").filter(Boolean);
+  const area = parts[0] ?? "Home";
+  const section = parts[1] ?? "Dashboard";
+  const aliases: Record<string, string> = {
+    activity: "Activity Logs", analytics: "Analytics", reports: "Reports", complaints: "Reports",
+    enforcement: "Account Enforcement", appeals: "Appeals", bookings: "Bookings", payments: "Payments",
+    services: "Services", workers: "Workers", customers: "Customers", messages: "Messages",
+    notifications: "Notifications", reviews: "Reviews", schedules: "Schedules", documents: "Documents",
+    profile: "Profiles", settings: "Settings", dashboard: "Dashboard",
+  };
+  if (/auth|login|register|password|otp/i.test(pathname) || pathname === "/") return "Authentication";
+  if (["admin", "worker", "customer"].includes(area)) return aliases[section.toLowerCase()] ?? section.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
+  return aliases[area.toLowerCase()] ?? area.replaceAll("-", " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function ActivityAuditTracker() {
   const location = useLocation();
   const { user, loading } = useAuth();
@@ -21,7 +37,7 @@ export default function ActivityAuditTracker() {
   }, []);
 
   useEffect(() => {
-    const context = () => ({ module: /auth|login|register|password|otp/i.test(window.location.pathname) || window.location.pathname === "/" ? "Authentication" : "System", process: "Unhandled application error", action: "EXECUTE" });
+    const context = () => ({ module: /auth|login|register|password|otp/i.test(window.location.pathname) || window.location.pathname === "/" ? "Authentication" : "System", process: "Unhandled application error", action: "SYSTEM_ERROR" });
     const error = (event: ErrorEvent) => auditCaughtError(context(), event.error ?? event.message);
     const rejection = (event: PromiseRejectionEvent) => auditCaughtError(context(), event.reason);
     window.addEventListener("error", error);
@@ -66,8 +82,7 @@ export default function ActivityAuditTracker() {
     if (lastVisit.current === key) return;
     lastVisit.current = key;
     const pathname = location.pathname;
-    const section = pathname.split("/").filter(Boolean);
-    const module = section[0] === "worker" || section[0] === "customer" ? section[1] ?? "Dashboard" : section[0] ?? "Home";
+    const module = moduleFromPath(pathname);
     void supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session || data.session.user.id !== user.id) return;
       await sendAudit(`Bearer ${data.session.access_token}`, "VIEW", module, `Opened page ${pathname}.`);

@@ -2,6 +2,7 @@ import { runAuditedProcess, auditCaughtError } from "../lib/processAudit";
 import { supabase } from "../lib/supabase";
 import { logActivity } from "./activityService";
 import { createNotification } from "./notificationService";
+import { getWorkerServiceLimit } from "./serviceSlotRequestService";
 export const SERVICE_STATUS = {
     APPROVED: "Approved",
     PENDING: "Pending",
@@ -353,12 +354,15 @@ export async function createService(workerId: string, service: ServicePayload): 
         const id = requireWorkerId(workerId);
         const payload = validatePayload(service);
         await ensureNoDuplicate(id, payload);
+        const [limit, countResult] = await Promise.all([getWorkerServiceLimit(id), supabase.from("services").select("id", { count: "exact", head: true }).eq("worker_id", id).in("status", [SERVICE_STATUS.APPROVED, SERVICE_STATUS.PENDING])]);
+        if (countResult.error) throw wrap(countResult.error, "Unable to check your service limit.");
+        if ((countResult.count ?? 0) >= limit) throw new Error(`You have reached your ${limit}-service limit. Request an additional service slot from the administrator.`);
         const { data, error } = await supabase
             .from("services")
             .insert({
             worker_id: id,
             ...payload,
-            status: SERVICE_STATUS.PENDING,
+            status: SERVICE_STATUS.APPROVED,
         })
             .select("id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status")
             .single();
@@ -370,7 +374,6 @@ export async function createService(workerId: string, service: ServicePayload): 
             price: Number(data.price) || 0,
             status: normalizeServiceStatus(data.status),
         };
-        await notifyAdminsSafely("New Service Request", `A worker submitted "${created.service_name}" for approval.`);
         return created;
     });
 }
@@ -394,7 +397,7 @@ export async function updateService(id: number, service: ServicePayload): Promis
             .from("services")
             .update({
             ...payload,
-            status: SERVICE_STATUS.PENDING,
+            status: SERVICE_STATUS.APPROVED,
         })
             .eq("id", serviceId)
             .select("id,worker_id,category,service_name,description,price,scheduling_type,duration_value,duration_unit,pricing_type,status")
@@ -407,7 +410,6 @@ export async function updateService(id: number, service: ServicePayload): Promis
             price: Number(data.price) || 0,
             status: normalizeServiceStatus(data.status),
         };
-        await notifyAdminsSafely("Service Resubmitted", `A worker updated "${updated.service_name}" and submitted it for review.`);
         return updated;
     });
 }

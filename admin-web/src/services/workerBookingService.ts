@@ -66,7 +66,11 @@ export async function getWorkerBookings(workerId: string) {
           service_name,
           category,
           description,
-          price
+          price,
+          scheduling_type,
+          duration_value,
+          duration_unit,
+          pricing_type
         ),
         customer:profiles!customer_id(
           id,

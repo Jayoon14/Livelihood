@@ -48,10 +48,9 @@ function statusClasses(status: CustomerStatus): string {
             return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300";
     }
 }
-export default function CustomerDetails() {
-    const { id } = useParams<{
-        id: string;
-    }>();
+export default function CustomerDetails({ customerId, embedded = false }: { customerId?: string; embedded?: boolean } = {}) {
+    const { id: routeId } = useParams<{ id: string }>();
+    const id = customerId ?? routeId;
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [bookings, setBookings] = useState<CustomerBookingSummary[]>([]);
     const [reviews, setReviews] = useState<CustomerReviewSummary[]>([]);
@@ -194,13 +193,9 @@ export default function CustomerDetails() {
             setProcessing(false);
         }
     }
-    return (<AdminLayout>
-      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+    const content = (<div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Link to="/customers" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-600 dark:text-slate-300">
-            <ArrowLeft className="h-4 w-4"/>
-            Back to customers
-          </Link>
+          {!embedded && (<Link to="/customers" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-600 dark:text-slate-300"><ArrowLeft className="h-4 w-4"/> Back to customers</Link>)}
 
           <button type="button" disabled={refreshing} onClick={() => void loadCustomer(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}/>
@@ -356,8 +351,8 @@ export default function CustomerDetails() {
                 </div>)}
             </Section>
           </>)}
-      </div>
-    </AdminLayout>);
+      </div>);
+    return embedded ? content : <AdminLayout>{content}</AdminLayout>;
 }
 function Section({ title, children, }: {
     title: string;

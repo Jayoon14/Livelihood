@@ -1,1 +1,5 @@
-import WorkerLayout from "../../../layouts/WorkerLayout";import MyAppealsPage from "../../../components/enforcement/MyAppealsPage";export default function MyAppeals(){return <MyAppealsPage role="worker" layout={WorkerLayout}/>;}
+import WorkerLayout from "../../../layouts/WorkerLayout";
+import MyAppealsPage from "../../../components/enforcement/MyAppealsPage";
+export default function MyAppeals() {
+  return <MyAppealsPage role="worker" layout={WorkerLayout} />;
+}

@@ -54,6 +54,7 @@ export interface ActivityLogQuery {
   createdBefore?: string;
   crud?: string;
   outcome?: string;
+  sourceType?: "actual" | "historical" | "errors" | "all";
 }
 
 export interface ActivityLogPage {
@@ -94,6 +95,7 @@ export const ACTIVITY_ACTIONS = {
   PAY: "PAY",
   SUSPEND: "SUSPEND",
   RESTORE: "RESTORE",
+  SYSTEM_ERROR: "SYSTEM_ERROR",
 } as const;
 
 export const ACTIVITY_MODULES = {
@@ -210,6 +212,18 @@ function normalizeRecord(record: unknown): ActivityLogWithUser {
 
 export function getActivityUserName(log: ActivityLogWithUser): string {
   return log.actor_name || getActivityProfileName(log.user);
+}
+
+export function isHistoricalActivity(log: ActivityLog): boolean {
+  return log.source === "HISTORICAL_IMPORT";
+}
+
+export function getActivityDisplayAction(log: ActivityLog): string {
+  return isHistoricalActivity(log) ? "HISTORICAL SNAPSHOT" : log.action;
+}
+
+export function getActivityDisplayCrud(log: ActivityLog): string {
+  return isHistoricalActivity(log) ? "—" : (log.crud_operation || "OTHER");
 }
 
 export function getActivityProfileName(
@@ -391,10 +405,41 @@ export async function getActivityLogPage(
 
   if (cleanFilter(query.crud)) request = request.eq("crud_operation", cleanFilter(query.crud));
   if (cleanFilter(query.outcome)) request = request.eq("outcome", cleanFilter(query.outcome));
+  if (query.sourceType === "actual") {
+    request = request.or("source.neq.HISTORICAL_IMPORT,source.is.null").neq("action", "SYSTEM_ERROR");
+  }
+  if (query.sourceType === "historical") request = request.eq("source", "HISTORICAL_IMPORT");
+  if (query.sourceType === "errors") request = request.eq("action", "SYSTEM_ERROR").eq("outcome", "FAILED");
   if (module) request = request.eq("module", module);
   if (action) request = request.eq("action", action);
-  if (role) request = request.ilike("actor_role", role);
-  if (userId) request = request.eq("actor_id", userId);
+  // Role filtering is based on the current profile role rather than only actor_role.
+  // Older audit rows may not have actor_role populated even though user_id is valid.
+  // This keeps Worker/Customer/Admin + All users complete without scanning activity_logs.
+  if (role && ["admin", "worker", "customer"].includes(role)) {
+    const { data: roleProfiles, error: roleError } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("role", role)
+      .limit(1000);
+
+    throwIfError(roleError, "Unable to resolve accounts for the selected role.");
+
+    const roleUserIds = (roleProfiles ?? [])
+      .map((profile) => profile.id as string | null)
+      .filter((id): id is string => Boolean(id));
+
+    if (roleUserIds.length === 0) {
+      return { items: [], total: 0, page: 1, pageSize, totalPages: 1 };
+    }
+
+    request = request.in("user_id", roleUserIds);
+  } else if (role) {
+    request = request.ilike("actor_role", role);
+  }
+
+  // user_id is the canonical linked account for both current audit rows and
+  // imported historical rows. actor_id can be missing on older records.
+  if (userId) request = request.eq("user_id", userId);
 
   if (dateFrom) {
     request = request.gte("created_at", dateBoundary(dateFrom));
@@ -428,6 +473,7 @@ export async function getActivityLogPage(
         search,
       )
     ) {
+      conditions.push(`user_id.eq.${search}`);
       conditions.push(`actor_id.eq.${search}`);
     }
 
@@ -461,6 +507,8 @@ export async function getActivityLogs(): Promise<ActivityLogWithUser[]> {
 export async function getActivityLogUserOptions(): Promise<ActivityUser[]> {
   await requireAdminUser();
 
+  // User filter options come from profiles only. Do not scan the entire audit table:
+  // that previously produced offset=3500/5000 requests and gateway timeouts.
   const users: ActivityUser[] = [];
   let offset = 0;
 
@@ -475,28 +523,8 @@ export async function getActivityLogUserOptions(): Promise<ActivityUser[]> {
 
     const batch = (data ?? []) as ActivityUser[];
     users.push(...batch);
-
     if (batch.length < MAX_PAGE_SIZE) break;
     offset += MAX_PAGE_SIZE;
-  }
-
-  const knownIds = new Set(users.map((user) => user.id));
-  let auditOffset = 0;
-  while (true) {
-    const { data, error } = await supabase.from("activity_logs")
-      .select("actor_id,actor_name,actor_email,actor_role")
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(auditOffset, auditOffset + MAX_PAGE_SIZE - 1);
-    throwIfError(error, "Unable to load historical user filters.");
-    const batch = data ?? [];
-    for (const row of batch) {
-      if (!row.actor_id || knownIds.has(row.actor_id)) continue;
-      knownIds.add(row.actor_id);
-      users.push({ id: row.actor_id, first_name: row.actor_name, email: row.actor_email, role: row.actor_role });
-    }
-    if (batch.length < MAX_PAGE_SIZE) break;
-    auditOffset += MAX_PAGE_SIZE;
   }
 
   return users.sort((a, b) =>
@@ -505,24 +533,30 @@ export async function getActivityLogUserOptions(): Promise<ActivityUser[]> {
 }
 
 export const DEFAULT_ACTIVITY_MODULES: string[] = [
-    "Authentication", "Accounts", "Bookings", "Payments", "Messages", "Notifications",
-    "Workers", "Customers", "Services", "Schedules", "Reports", "Reviews", "Analytics",
-    "Account Enforcement", "Appeals", "Locations", "Worker Selection", "Documents",
-    "System", "Forms", "Database Functions", "Server Functions",
-    "bookings", "payments", "payment_transactions", "profiles", "services", "messages",
-    "notifications", "notification_preferences", "reviews", "reports", "report_logs",
-    "report_evidence", "enforcement_actions", "enforcement_appeals", "favorites",
-    "trusted_workers", "recently_viewed", "documents", "education", "work_experience",
-    "worker_skills", "worker_schedules", "worker_locations", "workers_locations",
-    "worker_payment_information", "unavailable_dates", "booking_completion_images",
-    "booking_completion_proofs",
-  ].sort();
+  "Authentication", "Accounts", "Bookings", "Payments", "Messages", "Notifications",
+  "Workers", "Customers", "Services", "Schedules", "Reports", "Reviews", "Analytics",
+  "Account Enforcement", "Appeals", "Locations", "Worker Selection", "Documents",
+  "System", "Forms", "Database Functions", "Server Functions",
+  "Profiles", "Activity Logs", "Favorites", "Trusted Workers", "Recently Viewed",
+  "Education", "Work Experience", "Worker Skills", "Worker Locations",
+  "Worker Payment Information", "Unavailable Dates", "Booking Completion Images",
+  "Booking Completion Proofs", "Notification Preferences", "Payment Transactions",
+  "Report Logs", "Report Evidence", "Enforcement Actions", "Enforcement Appeals",
+  "worker_locations", "profiles", "bookings", "payments", "payment_transactions",
+  "services", "messages", "notifications", "notification_preferences", "reviews",
+  "reports", "report_logs", "report_evidence", "enforcement_actions",
+  "enforcement_appeals", "favorites", "trusted_workers", "recently_viewed",
+  "documents", "education", "work_experience", "worker_skills",
+  "worker_schedules", "workers_locations", "worker_payment_information",
+  "unavailable_dates", "booking_completion_images", "booking_completion_proofs",
+].sort();
+
 export const DEFAULT_ACTIVITY_ACTIONS: string[] = [
-    "CREATE", "READ", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "LOGOUT_REQUEST",
-    "REGISTER", "PASSWORD", "CHANGE_PASSWORD", "APPROVE", "REJECT", "CANCEL",
-    "ACCEPT", "COMPLETE", "RESCHEDULE", "REBOOK", "START", "PAY", "UPLOAD",
-    "DOWNLOAD", "EXPORT", "VIEW", "EXECUTE", "SEND", "SUSPEND", "RESTORE",
-  ].sort();
+  "CREATE", "READ", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "LOGOUT_REQUEST",
+  "REGISTER", "PASSWORD", "CHANGE_PASSWORD", "APPROVE", "REJECT", "CANCEL",
+  "ACCEPT", "COMPLETE", "RESCHEDULE", "REBOOK", "START", "PAY", "UPLOAD",
+  "DOWNLOAD", "EXPORT", "VIEW", "EXECUTE", "SEND", "SUSPEND", "RESTORE",
+].sort();
 
 export async function getActivityLogFilterOptions(): Promise<{
   modules: string[];
@@ -530,38 +564,20 @@ export async function getActivityLogFilterOptions(): Promise<{
 }> {
   await requireAdminUser();
 
-  const modules = new Set<string>(DEFAULT_ACTIVITY_MODULES);
-  const actions = new Set<string>(DEFAULT_ACTIVITY_ACTIONS);
-  const cutoff = new Date().toISOString();
-
-  let offset = 0;
-
-  while (true) {
-    const { data, error } = await supabase
-      .from("activity_logs")
-      .select("id,module,action")
-      .lte("created_at", cutoff)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + MAX_PAGE_SIZE - 1);
-
-    throwIfError(error, "Unable to load activity log filters.");
-
-    const batch = data ?? [];
-
-    for (const row of batch) {
-      if (row.module?.trim()) modules.add(row.module.trim());
-      if (row.action?.trim()) actions.add(row.action.trim());
-    }
-
-    if (batch.length < MAX_PAGE_SIZE) break;
-    offset += MAX_PAGE_SIZE;
-  }
-
+  // Keep filter metadata deterministic and cheap. New application modules/actions
+  // should be added to the constants above instead of scanning every audit row.
   return {
-    modules: [...modules].sort((a, b) => a.localeCompare(b)),
-    actions: [...actions].sort((a, b) => a.localeCompare(b)),
+    modules: [...DEFAULT_ACTIVITY_MODULES],
+    actions: [...DEFAULT_ACTIVITY_ACTIONS],
   };
+}
+
+function actualActivityQuery() {
+  return supabase
+    .from("activity_logs")
+    .select("id", { head: true, count: "planned" })
+    .or("source.neq.HISTORICAL_IMPORT,source.is.null")
+    .neq("action", "SYSTEM_ERROR");
 }
 
 export async function getActivityLogSummary(): Promise<ActivityLogSummary> {
@@ -569,25 +585,15 @@ export async function getActivityLogSummary(): Promise<ActivityLogSummary> {
 
   const today = philippineToday();
 
+  // Four small HEAD/count queries only. Historical snapshots are excluded because
+  // they are not verified user actions and should not inflate live audit statistics.
   const results = await Promise.all([
-    supabase
-      .from("activity_logs")
-      .select("id", { head: true, count: "exact" }),
-    supabase
-      .from("activity_logs")
-      .select("id", { head: true, count: "exact" })
+    actualActivityQuery(),
+    actualActivityQuery()
       .gte("created_at", dateBoundary(today))
       .lt("created_at", dateBoundary(today, true)),
-    supabase
-      .from("activity_logs")
-      .select("id", { head: true, count: "exact" })
-      .ilike("action", "%APPROV%"),
-    supabase
-      .from("activity_logs")
-      .select("id", { head: true, count: "exact" })
-      .or(
-        "action.ilike.%DELETE%,action.ilike.%REJECT%,action.ilike.%CANCEL%",
-      ),
+    actualActivityQuery().eq("action", "APPROVE"),
+    actualActivityQuery().in("action", ["DELETE", "REJECT", "CANCEL"]),
   ]);
 
   for (const result of results) {
@@ -633,6 +639,7 @@ export function exportActivityLogsCsv(logs: ActivityLogWithUser[]): void {
       "Email",
       "Role at Event",
       "Module",
+      "Activity Type",
       "Action",
       "CRUD",
       "Outcome",
@@ -651,8 +658,9 @@ export function exportActivityLogsCsv(logs: ActivityLogWithUser[]): void {
       log.actor_email ?? log.user?.email ?? "",
       log.actor_role ?? log.user?.role ?? "",
       log.module,
-      log.action,
-      log.crud_operation,
+      isHistoricalActivity(log) ? "Historical snapshot" : "Recorded activity",
+      getActivityDisplayAction(log),
+      getActivityDisplayCrud(log),
       log.outcome,
       log.process_name,
       log.process_stage,
