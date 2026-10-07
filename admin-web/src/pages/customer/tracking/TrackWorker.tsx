@@ -49,7 +49,6 @@ interface RouteInformation {
     trafficLengthMeters: number;
 }
 const ROUTE_SOURCE_ID = "customer-worker-route-source";
-const ROUTE_SHADOW_LAYER_ID = "customer-worker-route-shadow";
 const ROUTE_LAYER_ID = "customer-worker-route-layer";
 const STALE_GPS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
 const ROUTE_REFRESH_INTERVAL = 12000; // 12 seconds
@@ -467,22 +466,6 @@ export default function TrackWorker() {
                 data: routeGeoJson,
             });
         }
-        if (!map.getLayer(ROUTE_SHADOW_LAYER_ID)) {
-            map.addLayer({
-                id: ROUTE_SHADOW_LAYER_ID,
-                type: "line",
-                source: ROUTE_SOURCE_ID,
-                layout: {
-                    "line-cap": "round",
-                    "line-join": "round",
-                },
-                paint: {
-                    "line-color": "#0f172a",
-                    "line-width": 12,
-                    "line-opacity": 0.35,
-                },
-            });
-        }
         if (!map.getLayer(ROUTE_LAYER_ID)) {
             map.addLayer({
                 id: ROUTE_LAYER_ID,
@@ -494,16 +477,10 @@ export default function TrackWorker() {
                 },
                 paint: {
                     "line-color": "#2563eb",
-                    "line-width": 8,
-                    "line-opacity": 1,
+                    "line-width": 7,
+                    "line-opacity": 0.9,
                 },
             });
-        }
-        if (map.getLayer(ROUTE_SHADOW_LAYER_ID)) {
-            map.moveLayer(ROUTE_SHADOW_LAYER_ID);
-        }
-        if (map.getLayer(ROUTE_LAYER_ID)) {
-            map.moveLayer(ROUTE_LAYER_ID);
         }
     }, []);
     const clearRoute = useCallback(() => {
@@ -515,9 +492,6 @@ export default function TrackWorker() {
         }
         if (map.getLayer(ROUTE_LAYER_ID)) {
             map.removeLayer(ROUTE_LAYER_ID);
-        }
-        if (map.getLayer(ROUTE_SHADOW_LAYER_ID)) {
-            map.removeLayer(ROUTE_SHADOW_LAYER_ID);
         }
         if (map.getSource(ROUTE_SOURCE_ID)) {
             map.removeSource(ROUTE_SOURCE_ID);
@@ -576,10 +550,11 @@ export default function TrackWorker() {
                 return;
             }
             setRouteInformation(null);
-            // Keep the two endpoints visibly connected if the public OSRM
-            // service is temporarily unavailable during the demo.
+            console.error("Unable to calculate road route:", error instanceof Error ? error.message : error);
+
+            // Keep the customer map visually useful even if public routing
+            // providers are temporarily unavailable during the defense demo.
             drawRoute([workerCoordinates, destinationCoordinates]);
-            console.error("Unable to calculate OSRM route:", error instanceof Error ? error.message : error);
         }
         finally {
             if (currentRequestNumber === routeRequestNumberRef.current) {

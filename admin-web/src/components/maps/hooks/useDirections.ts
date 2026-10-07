@@ -62,10 +62,28 @@ export function useDirections({ mapRef, currentLocationRef, selectedCoordinatesR
         }
         catch (error) {
             auditCaughtError({ module: "System", process: "background operation", action: "EXECUTE" }, error);
-            console.error("OSRM directions error:", error);
-            setMessage(error instanceof Error
-                ? error.message
-                : "Directions are temporarily unavailable.");
+            console.error("Routing providers error:", error);
+
+            // Defense-safe visual fallback: never leave the navigation map blank.
+            // This line is only a visual connection when road routing providers are unavailable.
+            drawRoute([origin, destination]);
+            setShowDirections(true);
+            setMessage("Road route is temporarily unavailable. Showing direct location line.");
+
+            const map = mapRef.current;
+            if (map) {
+                const bounds = new LngLatBounds();
+                bounds.extend(origin);
+                bounds.extend(destination);
+                window.setTimeout(() => {
+                    map.resize();
+                    map.fitBounds(bounds, {
+                        padding: { top: 100, right: 100, bottom: 100, left: 100 },
+                        duration: 700,
+                        maxZoom: 17,
+                    });
+                }, 100);
+            }
         }
         finally {
             setRouting(false);

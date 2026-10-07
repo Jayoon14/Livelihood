@@ -73,35 +73,51 @@ export async function calculateOsrmRoute(
     continue_straight: "default",
   });
 
-  const response = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${routePoints}?${query.toString()}`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      signal,
-    },
-  );
+  const routingEndpoints = [
+    "https://router.project-osrm.org",
+    "https://routing.openstreetmap.de/routed-car",
+  ];
 
-  if (!response.ok) {
-    const responseBody = await response.text();
+  let response: Response | null = null;
+  let lastRequestError: unknown = null;
 
-    console.error("OSRM route request failed:", {
-      status: response.status,
-      statusText: response.statusText,
-      responseBody,
-      origin,
-      destination,
-    });
+  for (const endpoint of routingEndpoints) {
+    try {
+      const candidate = await fetch(
+        `${endpoint}/route/v1/driving/${routePoints}?${query.toString()}`,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal,
+        },
+      );
 
-    throw new Error(
-      responseBody
-        ? `Unable to calculate route (${response.status}): ${responseBody}`
-        : `Unable to calculate route (${response.status} ${response.statusText}).`,
-    );
+      if (candidate.ok) {
+        response = candidate;
+        break;
+      }
+
+      lastRequestError = new Error(
+        `Routing provider returned ${candidate.status} ${candidate.statusText}.`,
+      );
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+      lastRequestError = error;
+    }
   }
 
+  if (!response) {
+    console.error("All routing providers failed:", {
+      origin,
+      destination,
+      error: lastRequestError,
+    });
+    throw lastRequestError instanceof Error
+      ? lastRequestError
+      : new Error("Directions are temporarily unavailable.");
+  }
   const data = (await response.json()) as OsrmRouteResponse;
 
   if (data.code && data.code !== "Ok") {
